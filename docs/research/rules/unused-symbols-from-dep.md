@@ -1,6 +1,6 @@
 # unused-symbols-from-dep (CRP)
 
-- **Category:** B (AST / semantic)
+- **Category:** S (AST / semantic)
 - **Authority:** high — Robert C. Martin
 - **Source:** Martin. *OO Design Quality Metrics* (1994); Common Reuse Principle. [principles-wiki](http://principles-wiki.net/principles:common_reuse_principle)
 

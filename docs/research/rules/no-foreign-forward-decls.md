@@ -1,6 +1,6 @@
 # no-foreign-forward-decls
 
-- **Category:** B (AST / semantic)
+- **Category:** S (AST / semantic)
 - **Authority:** medium — Google C++ Style Guide
 - **Source:** [Google C++ Style Guide — Forward Declarations](https://google.github.io/styleguide/cppguide.html#Forward_Declarations)
 

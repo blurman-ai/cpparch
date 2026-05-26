@@ -1,6 +1,6 @@
 # forward-decl-of-std
 
-- **Category:** B (AST) или D (text pattern)
+- **Category:** S (AST) или R (text pattern)
 - **Authority:** high — стандарт C++ (`[namespace.std]`)
 - **Source:** C++ standard §16.4.5.7 [namespace.std]; в спеке archcheck упомянуто как «несомненная практика» без явного rule ID.
 
@@ -18,7 +18,7 @@ Forward-decl типов из `std::` — формальный UB по станд
 1. **AST (надёжно):** найти `NamespaceDecl` с `getName() == "std"` в файле проекта (не в STL header), внутри которого есть любые декларации. Флагать всё, что находится внутри. Исключение: template specializations через `template<> ...` — допустимо стандартом.
 2. **Text pattern (быстро):** regex `\bnamespace\s+std\s*\{` в файлах проекта. Дёшево, может давать false negatives на `namespace ::std`.
 
-В fast backend — D, в clang backend — B (точнее).
+В fast backend — R (regex), в clang backend — S (AST, точнее).
 
 ## Fixtures
 

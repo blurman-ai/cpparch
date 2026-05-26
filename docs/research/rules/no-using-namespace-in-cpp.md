@@ -1,6 +1,6 @@
 # no-using-namespace-in-cpp
 
-- **Category:** B (AST / semantic) — простой случай также A (текстовый скан)
+- **Category:** S (AST / semantic) — простой случай также P (текстовый скан)
 - **Authority:** medium — Google C++ Style Guide
 - **Source:** [Google C++ Style Guide — Namespaces / Unnamed Namespaces and Static Variables](https://google.github.io/styleguide/cppguide.html#Namespaces)
 

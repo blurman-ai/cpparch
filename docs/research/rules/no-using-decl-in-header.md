@@ -1,6 +1,6 @@
 # no-using-decl-in-header
 
-- **Category:** B (AST / semantic)
+- **Category:** S (AST / semantic)
 - **Authority:** medium — HIC++ 4.0
 - **Source:** [HIC++ 4.0, rule 7.3.6](https://abougouffa.github.io/awesome-coding-standards/hi-cpp-4.0.pdf)
 

@@ -1,6 +1,6 @@
 # no-protected-data
 
-- **Category:** B (AST / semantic)
+- **Category:** S (AST / semantic)
 - **Authority:** high — C++ Core Guidelines
 - **Source:** [CCG C.133 — Avoid `protected` data](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#c133-avoid-protected-data)
 - **Equivalent:** clang-tidy `cppcoreguidelines-non-private-member-variables-in-classes` (захватывает и public, и protected)

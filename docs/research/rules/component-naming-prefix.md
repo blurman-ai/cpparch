@@ -1,6 +1,6 @@
 # component-naming-prefix
 
-- **Category:** A (filesystem scan)
+- **Category:** P (filesystem scan)
 - **Authority:** high — Bloomberg BDE
 - **Source:** [BDE physical code organization](https://github.com/bloomberg/bde/wiki/physical-code-organization)
 

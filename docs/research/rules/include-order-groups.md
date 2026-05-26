@@ -1,6 +1,6 @@
 # include-order-groups
 
-- **Category:** A (preprocessor scan)
+- **Category:** P (preprocessor scan)
 - **Authority:** medium — Google C++ Style Guide
 - **Source:** [Google C++ Style Guide — Names and Order of Includes](https://google.github.io/styleguide/cppguide.html#Names_and_Order_of_Includes)
 

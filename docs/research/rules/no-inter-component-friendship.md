@@ -1,6 +1,6 @@
 # no-inter-component-friendship
 
-- **Category:** B (AST / semantic)
+- **Category:** S (AST / semantic)
 - **Authority:** high — Lakos / Bloomberg BDE
 - **Source:** [BDE physical code organization](https://github.com/bloomberg/bde/wiki/physical-code-organization), Lakos *LSCSD* §3.6
 

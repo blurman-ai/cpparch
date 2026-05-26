@@ -1,6 +1,6 @@
 # one-extern-class-per-header
 
-- **Category:** B (AST / semantic)
+- **Category:** S (AST / semantic)
 - **Authority:** medium — HIC++ 4.0
 - **Source:** [HIC++ 4.0, rule 3.3.1](https://abougouffa.github.io/awesome-coding-standards/hi-cpp-4.0.pdf)
 

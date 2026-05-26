@@ -1,6 +1,6 @@
 # macro-defined-in-header
 
-- **Category:** B (AST / semantic) или A (preprocessor scan)
+- **Category:** S (AST / semantic) или P (preprocessor scan)
 - **Authority:** medium — C++ Core Guidelines + общая практика
 - **Source:** [CCG ES.30 — Don't use macros for program text manipulation](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#es30-dont-use-macros-for-program-text-manipulation), [CCG ES.31 — Don't use macros for constants or "functions"](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#es31-dont-use-macros-for-constants-or-functions).
 

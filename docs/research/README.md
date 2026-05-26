@@ -7,16 +7,18 @@
 2. при отборе — перенести в `backlog/` как задачу с fixtures,
 3. реализовать как `IRule` под соответствующим источником в `src/rules/`.
 
-## Категории формализуемости
+## Категории формализуемости (backend type)
 
-| Cat | Что означает | Бэкенд |
+> **Замечание про буквы.** В архитектурной спеке используется отдельная классификация правил «Класс A / B / C» по источнику архитектурной истины (intrinsic / repo-inferred / user-declared). Это **другая** таксономия. Чтобы не путать читателя, в этом каталоге используются мнемонические **буквы по бэкенду**: P / S / G / R / D / X.
+
+| Tag | Что означает | Бэкенд |
 |---|---|---|
-| **A** | Include-only / препроцессорный скан | fast backend (без libclang) |
-| **B** | AST / семантика | libclang |
-| **C** | Метрики на графе компонентов | граф (после A/B парсинга) |
-| **D** | Pattern-matching по тексту (regex) | fast backend |
-| **E** | Design-only — не проверяется статически | — (сознательно опускаем) |
-| **F** | Out of scope — баги / стиль / safety-cert | — (другие инструменты) |
+| **P** | Preprocessor / include scan / filesystem | fast backend (без libclang) |
+| **S** | Semantic / AST | libclang |
+| **G** | Graph metrics | граф (после P/S парсинга) |
+| **R** | Regex / text pattern | fast backend |
+| **D** | Design-only — не проверяется статически | — (сознательно опускаем) |
+| **X** | Out of scope — баги / стиль / safety-cert | — (другие инструменты) |
 
 ## Источники
 
@@ -76,7 +78,7 @@
 - [deep-nested-namespace](rules/deep-nested-namespace.md) — sprawl detector
 - [macro-defined-in-header](rules/macro-defined-in-header.md) — leakage detector
 
-## Исключено — design-only (category E)
+## Исключено — design-only (category D)
 
 Сознательно не пытаемся формализовать:
 - High cohesion within a module — субъективно, требует human judgment.
@@ -87,7 +89,7 @@
 - REP (granule of release = granule of reuse) — нужна release metadata, не статика.
 - Bloomberg "narrow contracts" — design talk, не AST.
 
-## Out of scope (category F)
+## Out of scope (category X)
 
 MISRA C++, CERT C++, AUTOSAR C++14, бо́льшая часть JSF AV (cyclomatic complexity, function length, lines-per-class) — это safety/style. Спека [../architecture-spec.md](../architecture-spec.md) явно их исключает: embedded-команды под жёсткие сертификации платят за каталог чужих правил, это другая ниша (PVS-Studio, Coverity).
 

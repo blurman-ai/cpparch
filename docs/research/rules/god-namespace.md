@@ -1,6 +1,6 @@
 # god-namespace
 
-- **Category:** C (graph metrics)
+- **Category:** G (graph metrics)
 - **Authority:** medium — расширение Lakos fan-in + Martin Ce/Ca
 - **Source:** Lakos *LSCSD* §3.10 (fan-in/fan-out), Martin OODQM (Ce/Ca). Конкретное правило — наша агрегация.
 
