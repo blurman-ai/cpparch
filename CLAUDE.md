@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Pre-implementation.** The repo currently contains only design documents, LICENSE, README, and .gitignore — there is no source code, build system, or tests yet. Future sessions will be bootstrapping the project from scratch following the spec.
 
-Working name in the README is `cpparch` (binary `archcheck`); the spec uses `archcheck` as the primary name. Name availability on GitHub/PyPI/crates.io/Homebrew is still an open question (see [docs/architecture-spec.md](docs/architecture-spec.md) §"Ключевые риски", item 4).
+Working name in the README is `archcheck` (binary `archcheck`); the spec uses `archcheck` as the primary name. Name availability on GitHub/PyPI/crates.io/Homebrew is still an open question (see [docs/architecture-spec.md](docs/architecture-spec.md) §"Ключевые риски", item 4).
 
 ## What this tool is
 
@@ -93,7 +93,7 @@ From [docs/MVP.md](docs/MVP.md): *"If feature cannot be tested with fixtures —
 - [docs/code_quality.md](docs/code_quality.md) — anti-AI-slop правила, пороги (functions ≤ 30, classes ≤ 300, ≤ 50 новых строк на коммит, ≤ 2 новых файла, 0 абстракций без запроса), forbidden patterns, self-check перед коммитом.
 - [docs/dev/git_workflow.md](docs/dev/git_workflow.md) — git-процесс: GitHub Flow, Conventional Commits, SemVer 2.0, Keep a Changelog, аннотированные `vX.Y.Z` теги.
 
-Cpparch — сам инструмент проверки архитектуры, поэтому **dogfooding обязателен**: код cpparch обязан проходить cpparch в CI (no cycles, SF.7/8/11/21, etc.). Любой merge ломающий собственные правила — недопустим.
+Archcheck — сам инструмент проверки архитектуры, поэтому **dogfooding обязателен**: код archcheck обязан проходить archcheck в CI (no cycles, SF.7/8/11/21, etc.). Любой merge ломающий собственные правила — недопустим.
 
 ## Tasks & workflow
 

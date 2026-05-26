@@ -8,7 +8,7 @@
 
 > "Complex initialization can lead to undefined order of execution."
 
-## Why for cpparch
+## Why for archcheck
 
 Прямой путь к static initialization order fiasco. Это не баг логики — это архитектурный пах: глобал зависит от другого глобала из соседнего модуля, и порядок инициализации непредсказуем между TU. Часто проявляется как «то работает, то падает на старте» и почти всегда хорошо ложится в межмодульные баги.
 

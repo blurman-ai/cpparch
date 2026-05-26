@@ -2,15 +2,15 @@
 
 - **Category:** B (AST) или D (text pattern)
 - **Authority:** high — стандарт C++ (`[namespace.std]`)
-- **Source:** C++ standard §16.4.5.7 [namespace.std]; в спеке cpparch упомянуто как «несомненная практика» без явного rule ID.
+- **Source:** C++ standard §16.4.5.7 [namespace.std]; в спеке archcheck упомянуто как «несомненная практика» без явного rule ID.
 
 ## Rule
 
 > "It is undefined behavior to add declarations or definitions to namespace `std` or to a namespace within namespace `std`, with limited exceptions (template specializations of certain library templates)."
 
-## Why for cpparch
+## Why for archcheck
 
-Forward-decl типов из `std::` — формальный UB по стандарту. Часто пишут `namespace std { class string; }` чтобы избежать `#include <string>` в заголовке, но это нарушение `[namespace.std]`: реализация может объявить `string` как typedef, шаблон, или находящийся в inline-namespace, и линковка тихо отвалится или поведение поедет. cpparch обязан это ловить как security-critical паттерн, потому что компилятор обычно молчит.
+Forward-decl типов из `std::` — формальный UB по стандарту. Часто пишут `namespace std { class string; }` чтобы избежать `#include <string>` в заголовке, но это нарушение `[namespace.std]`: реализация может объявить `string` как typedef, шаблон, или находящийся в inline-namespace, и линковка тихо отвалится или поведение поедет. archcheck обязан это ловить как security-critical паттерн, потому что компилятор обычно молчит.
 
 ## Detection
 

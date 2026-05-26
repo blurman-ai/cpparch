@@ -1,4 +1,4 @@
-# Руководство по стилю C++20 — cpparch
+# Руководство по стилю C++20 — archcheck
 
 Источник: адаптировано из проекта gm (`docs/dev/code_style.md`). Цель — унифицированный, читаемый, ревью-дружелюбный C++20 код.
 
@@ -18,7 +18,7 @@
 ### Именование
 
 - Макросы и константы препроцессора: `UPPER_SNAKE_CASE`.
-- Пространства имён/модули: `lower_snake_case`, иерархия — `cpparch::subsystem`.
+- Пространства имён/модули: `lower_snake_case`, иерархия — `archcheck::subsystem`.
 - Типы (`class`, `enum class`): `PascalCase`. Интерфейсы начинаются с `I` (`IRule`).
 - Raw-структуры (POD) и их хелперы: `lower_snake_case`.
 - Свободные функции: `lower_snake_case`.
@@ -51,11 +51,11 @@
 
 #include <concepts>
 
-namespace cpparch::config
+namespace archcheck::config
 {
 inline constexpr std::size_t kMaxIncludeDepth = 10;
 inline constexpr std::size_t kGodHeaderFanIn = 30;
-} // namespace cpparch::config
+} // namespace archcheck::config
 ```
 
 ## Перечисления
@@ -193,9 +193,9 @@ switch (severity)
 - `clang-tidy` — профили `modernize-*`, `cppcoreguidelines-*`, `readability-*`.
 - `cppcheck --enable=warning,style,performance` перед релизами.
 
-## Дополнительно для cpparch
+## Дополнительно для archcheck
 
-Поскольку cpparch — сам инструмент проверки архитектуры, **код cpparch обязан проходить cpparch** (dogfooding):
+Поскольку archcheck — сам инструмент проверки архитектуры, **код archcheck обязан проходить archcheck** (dogfooding):
 
 - Никаких циклов в include-графе.
 - Никаких `using namespace` в `.h` (SF.7).

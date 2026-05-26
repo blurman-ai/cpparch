@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to cpparch are documented here.
+All notable changes to archcheck are documented here.
 
 The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) and versioning follows [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html).
 
@@ -15,4 +15,9 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 - Architecture spec: two-backend decision recorded — fast preprocessor-only backend is the v0.1 default, libclang opt-in via `--with-clang` (lands as v0.2). Semantic SF rules (SF.2/5/10/11) moved from v0.1 to v0.2. (#006)
 - `README.md`: Secondary goal note — side experiment to test whether a useful CLI tool can be built end-to-end purely through agent conversation.
 
-[Unreleased]: https://github.com/blurman-ai/cpparch/commits/master
+### Changed
+
+- **Product name locked to `archcheck`.** README, spec, and all internal docs now use `archcheck` consistently (previously split between `cpparch` and `archcheck`). Name availability verified on GitHub, PyPI, crates.io, Homebrew, and npm — all clear. Local working directory remains `cpparch` for tool-path stability. (#003)
+- Architecture spec: working-title disclaimer dropped, name-availability risk (item 4) removed (resolved), two-backend deferral risk removed (resolved in #006). "Следующие шаги" trimmed of items already done. (#003, #006)
+
+[Unreleased]: https://github.com/blurman-ai/archcheck/commits/master

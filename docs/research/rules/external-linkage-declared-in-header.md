@@ -8,7 +8,7 @@
 
 > "All external-linkage constructs defined in a `.cpp` file must be declared in the corresponding `.h` file."
 
-## Why for cpparch
+## Why for archcheck
 
 Ловит «теневой API»: функция/переменная определена в `.cpp` без `static`/`anonymous namespace`, не объявлена в `.h`, но имеет external linkage — её можно слинковать из чужого TU через `extern`-declaration. Это обход header-как-единственной-точки-входа, прямая дыра в архитектурном контракте: модуль обещает интерфейс через `.h`, а реально пускает через бэк-вход.
 

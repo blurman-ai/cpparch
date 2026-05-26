@@ -8,7 +8,7 @@
 
 > "Component с transitive fan-in > 50% от размера системы — флаг."
 
-## Why for cpparch
+## Why for archcheck
 
 Дополняет god-headers (direct fan-in) и СD-метрику (own CD). Если компонент входит транзитивно в > половину всех компонентов проекта, любая его правка запускает rebuild половины системы — и любой баг в нём задевает половину системы. Это раннее предупреждение про rebuild-storm и про over-coupled common code. Прямо вычисляется по уже построенному графу (transitive closure → in-degree).
 

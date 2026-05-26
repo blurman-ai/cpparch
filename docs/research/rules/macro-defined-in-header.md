@@ -8,7 +8,7 @@
 
 > "Macro definitions in headers leak into every translation unit that includes the header. Either guard with `#undef` at end of header, or don't use a macro at all."
 
-## Why for cpparch
+## Why for archcheck
 
 Макро в header — это утечка имени, не подчиняющаяся ни namespace, ни access control. Один `#define MAX 100` в `foo.h` коснётся каждого `.cpp`, который транзитивно включил его, и сломает совершенно постороннему классу `enum { MAX };`. Это архитектурный smell на границе двух модулей.
 
@@ -23,12 +23,12 @@ Preprocessor scan (предпочтительно — без libclang):
 
 Исключения:
 - include guards сами (`#define FOO_H` парный с `#ifndef FOO_H`),
-- макросы, имя которых начинается с заданного префикса (например, `CPPARCH_*`) — это публичный API проекта,
+- макросы, имя которых начинается с заданного префикса (например, `ARCHCHECK_*`) — это публичный API проекта,
 - определения, помеченные комментарием `// archcheck: allow-macro <reason>`.
 
 ## Fixtures
 
 - `pass_no_macro/` — header без `#define` (кроме guard).
 - `pass_undef_at_end/` — `#define HELPER ...` и парный `#undef HELPER` перед `#endif`.
-- `pass_public_api/` — `#define CPPARCH_VERSION_MAJOR 1` (наш публичный префикс).
+- `pass_public_api/` — `#define ARCHCHECK_VERSION_MAJOR 1` (наш публичный префикс).
 - `fail_leaking/` — `#define MAX 100` без `#undef`.
