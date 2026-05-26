@@ -1,8 +1,8 @@
 # [PROCESS] Принять OSS-стандарты для git-процесса
 
 **Дата создания:** 2026-05-26
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-05-26
+**Статус:** wip
 **Модуль:** PROCESS
 **Приоритет:** critical
 **Сложность:** medium
@@ -30,7 +30,7 @@ Default branch остаётся `master` (переименование в `main`
 
 ## План выполнения
 
-- [ ] **1. Написать `docs/dev/git_workflow.md`** (≈30 строк). Содержит:
+- [x] **1. Написать `docs/dev/git_workflow.md`** (≈30 строк). Содержит:
    - Branching: GitHub Flow + naming convention.
    - Commits: Conventional Commits + словарь scope-ов под cpparch (`config`, `graph`, `scan`, `rules/sf`, `rules/lakos`, `rules/martin`, `report`, `cli`, `fixtures`, `build`, `docs`, `tasks`, `process`).
    - Versioning: SemVer 2.0 + правило pre-1.0.
@@ -46,26 +46,26 @@ Default branch остаётся `master` (переименование в `main`
 - [ ] **3. Обновить `/create-task` скил.**
    - После создания файла предлагать команду создания ветки `<type>/<NNN>-<slug>` (тип угадывать по модулю; пользователь подтверждает).
 
-- [ ] **4. Завести `CHANGELOG.md` по Keep a Changelog.**
+- [x] **4. Завести `CHANGELOG.md` по Keep a Changelog.**
    - Шапка с ссылкой на keepachangelog.com и semver.org.
    - Секция `[Unreleased]` с пустыми подсекциями Added/Changed/Deprecated/Removed/Fixed/Security.
    - Готов под первый релиз `0.1.0`.
 
-- [ ] **5. Дописать stability contract** в `docs/architecture-spec.md`.
+- [x] **5. Дописать stability contract** в `docs/architecture-spec.md`.
    - Что считается breaking change (MAJOR bump): изменение exit codes, удаление CLI-флага, изменение схемы JSON-отчёта, изменение схемы YAML-конфига, изменение формата baseline.
    - Что считается non-breaking (MINOR): добавление CLI-флагов с default, добавление полей в JSON-отчёт, новые дефолтные правила (с опцией выключения).
    - Pre-1.0 — semver разрешает breaking в MINOR, но проект всё равно стремится их избегать без явной нужды.
 
-- [ ] **6. Короткие правки в CLAUDE.md и backlog/README.md.**
+- [x] **6. Короткие правки в CLAUDE.md и backlog/README.md.**
    - Упомянуть `docs/dev/git_workflow.md` как канон.
    - В backlog/README.md секция «Жизненный цикл задачи» — добавить шаг про создание ветки.
 
-- [ ] **7. (опционально) Уведомить пользователя про self-approve.**
+- [x] **7. (опционально) Уведомить пользователя про self-approve.**
    - В git_workflow.md — заметка: для solo-dev режима поставить `Required approvals = 0` в GitHub Rulesets для master.
 
 ## Сделано
 
-- (пусто)
+- **2026-05-26** — Шаги 1, 4, 5, 6, 7: завёл [`docs/dev/git_workflow.md`](../../docs/dev/git_workflow.md) (полный канон: GitHub Flow + Conventional Commits + SemVer + KAC + теги + release-процесс), [`CHANGELOG.md`](../../CHANGELOG.md) (Keep a Changelog 1.1, `[Unreleased]` накопительная), секция «Stability contract» в [`docs/architecture-spec.md`](../../docs/architecture-spec.md) (таблица breaking vs non-breaking по exit codes / CLI / JSON / SARIF / YAML-config / baseline / дефолтные правила). Ссылка на workflow добавлена в `CLAUDE.md` и шаг 2 жизненного цикла в `backlog/README.md`. Self-approve / direct push для admin зафиксированы в workflow doc.
 
 ## В работе
 
@@ -96,9 +96,9 @@ Default branch остаётся `master` (переименование в `main`
 | Файл | Изменение | Commit |
 |------|-----------|--------|
 | `docs/dev/git_workflow.md` | новый — канон конвенций | pending |
-| `.claude/commands/commit.md` | conventional commits + scope mapping | pending |
-| `.claude/commands/create-task.md` | предложение создать ветку после задачи | pending |
-| `CHANGELOG.md` | новый — Keep a Changelog шаблон | pending |
-| `docs/architecture-spec.md` | секция «Stability contract» | pending |
-| `CLAUDE.md` | ссылка на git_workflow.md | pending |
-| `backlog/README.md` | упоминание ветки в жизненном цикле | pending |
+| `.claude/commands/commit.md` | conventional commits + scope mapping | pending (шаг 2) |
+| `.claude/commands/create-task.md` | предложение создать ветку после задачи | pending (шаг 3) |
+| `CHANGELOG.md` | новый — Keep a Changelog шаблон с `[Unreleased]` | pending |
+| `docs/architecture-spec.md` | секция «Stability contract» добавлена | pending |
+| `CLAUDE.md` | ссылка на git_workflow.md в Code style & AI constraints | pending |
+| `backlog/README.md` | feature-ветка как опция в шаге 2 «Старт работы» | pending |

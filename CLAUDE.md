@@ -91,6 +91,7 @@ From [docs/MVP.md](docs/MVP.md): *"If feature cannot be tested with fixtures —
 
 - [docs/code_style.md](docs/code_style.md) — C++20 style guide (Allman, 3 spaces, naming, NVI, C++20 features, инструменты).
 - [docs/code_quality.md](docs/code_quality.md) — anti-AI-slop правила, пороги (functions ≤ 30, classes ≤ 300, ≤ 50 новых строк на коммит, ≤ 2 новых файла, 0 абстракций без запроса), forbidden patterns, self-check перед коммитом.
+- [docs/dev/git_workflow.md](docs/dev/git_workflow.md) — git-процесс: GitHub Flow, Conventional Commits, SemVer 2.0, Keep a Changelog, аннотированные `vX.Y.Z` теги.
 
 Cpparch — сам инструмент проверки архитектуры, поэтому **dogfooding обязателен**: код cpparch обязан проходить cpparch в CI (no cycles, SF.7/8/11/21, etc.). Любой merge ломающий собственные правила — недопустим.
 
