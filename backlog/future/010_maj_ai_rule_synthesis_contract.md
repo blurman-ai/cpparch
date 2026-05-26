@@ -6,6 +6,7 @@
 **Модуль:** RULES
 **Приоритет:** major
 **Сложность:** M (дизайн 1-2 дня, реализация — отдельной таской)
+**Целевой релиз:** v0.3+ (не v0.1)
 **Блокирует:** —
 **Заблокирован:** #008 (dependency_graph_foundation — synthesis может опираться на тот же graph contract)
 **Related:** #009 (drift_regression_rules — пара synthesis ↔ drift)

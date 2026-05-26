@@ -655,7 +655,7 @@ tests/
 - Точная версия SF.7 (через AST вместо text-scan), точная SF.21.
 - **SARIF output** для GitHub Code Scanning.
 
-### v0.3 — Правила из C / I / NL секций CCG + BDE (3–4 недели)
+### v0.3 — Правила из C / I / NL секций CCG + BDE + AI-контур (3–4 недели)
 
 См. [docs/research/rules/](../research/rules/).
 
@@ -664,6 +664,8 @@ tests/
 - **NL:** NL.27 (file suffix).
 - **Bloomberg BDE:** no-inter-component-friendship, external-linkage-declared-in-header.
 - Прочие: forward-decl-of-std, deep-nested-namespace.
+- **DRIFT.1 + DRIFT.2** — первый прототип drift-regression rules. Только `intrinsic`, только file-level, warning по умолчанию (см. §«Drift-regression rules»).
+- **AI-assisted rule synthesis contract** — `archcheck synthesize` subcommand, heuristic mode + wrapper-prompt mode, output `.archcheck.yml.draft` с provenance-комментариями. Реализация имплементируется отдельной задачей после фиксации контракта (#010).
 
 ### v0.4 — Martin metrics + distribution polish (3–4 недели)
 

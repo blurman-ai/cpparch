@@ -8,8 +8,9 @@ Argument: short task name in snake_case (e.g. `/create-task sf9_cycle_detection`
 backlog/new/NNN_<priority>_<argument>.md
 ```
 
-- **NNN** — 3-значный ID, `max(существующих) + 1` по всем подкаталогам (`new/`, `wip/`, `completed/`).
+- **NNN** — 3-значный ID, `max(существующих) + 1` по всем подкаталогам (`new/`, `wip/`, `future/`, `completed/`).
 - **priority** — 3-буквенный код: `blk` / `crt` / `maj` / `min`.
+- **Папка**: `new/` если задача для текущего релиза (v0.1 / v0.2), `future/` если явно отложена в v0.3+ (требует `**Целевой релиз:**` в шапке).
 
 Пример: `006_maj_spec_refactor.md`.
 
@@ -19,6 +20,7 @@ backlog/new/NNN_<priority>_<argument>.md
    ```
    Glob(pattern="???_*.md", path="backlog/new")
    Glob(pattern="???_*.md", path="backlog/wip")
+   Glob(pattern="???_*.md", path="backlog/future")
    Glob(pattern="???_*.md", path="backlog/completed")
    ```
    Из всех собранных имён извлечь первые 3 цифры, найти max, прибавить 1. Pad to 3 digits (`007`, не `7`).
@@ -27,19 +29,25 @@ backlog/new/NNN_<priority>_<argument>.md
    ```
    Glob(pattern="*{argument}*.md", path="backlog/new")
    Glob(pattern="*{argument}*.md", path="backlog/wip")
+   Glob(pattern="*{argument}*.md", path="backlog/future")
    Glob(pattern="*{argument}*.md", path="backlog/completed")
    ```
    Если найдено — показать пути, спросить: продолжать с существующим или создать новый.
 
-3. **Найти связанные задачи** — Grep по ключевым словам из имени по `backlog/new/`, `backlog/wip/`, `backlog/completed/`. Если есть связанные — предложить указать ID как `Related: #NNN` в шапке.
+3. **Найти связанные задачи** — Grep по ключевым словам из имени по `backlog/new/`, `backlog/wip/`, `backlog/future/`, `backlog/completed/`. Если есть связанные — предложить указать ID как `Related: #NNN` в шапке.
 
 4. **Спросить пользователя**, если не очевидно из имени:
    - **Модуль / тег**: `CONFIG` / `GRAPH` / `SCAN` / `RULES` / `REPORT` / `CLI` / `FIXTURES` / `BUILD` / `DOCS`. Можно комбинировать (`RULES][SF`).
    - **Приоритет**: `blocker` / `critical` / `major` / `minor`. Если пользователь уже указал — не переспрашивать. Без указаний — по умолчанию `minor`.
      - Mapping в код: `blocker → blk`, `critical → crt`, `major → maj`, `minor → min`.
+   - **Целевой релиз**: если задача очевидно для v0.3+ (design / contract / future feature) — спросить, не положить ли её сразу в `backlog/future/`. По умолчанию — `new/`.
    - **Цель** — одно предложение.
 
-5. **Создать файл** `backlog/new/NNN_<code>_{argument}.md`:
+5. **Создать файл**:
+   - В `backlog/new/NNN_<code>_{argument}.md` (default).
+   - В `backlog/future/NNN_<code>_{argument}.md`, если пользователь подтвердил целевой релиз v0.3+. В шапку шаблона добавить строчку `**Целевой релиз:** v0.X+` сразу после `**Сложность:**`.
+
+   Шаблон файла:
    ```markdown
    # [MODULE] Task title
 
