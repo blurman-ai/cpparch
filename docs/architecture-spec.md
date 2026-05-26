@@ -308,8 +308,6 @@ archcheck --metrics ...
 
 **До v1.0** (`0.x.y`) — SemVer §4 разрешает breaking-изменения в MINOR. Стремимся избегать, но не запрещено. Любое breaking-изменение фиксируется в [`CHANGELOG.md`](../CHANGELOG.md) секции `Changed` с пометкой `**Breaking:**`.
 
-Process-конвенции (формат коммитов, версионирование, теги, changelog) — см. [`docs/dev/git_workflow.md`](dev/git_workflow.md).
-
 ---
 
 ## Архитектура инструмента
