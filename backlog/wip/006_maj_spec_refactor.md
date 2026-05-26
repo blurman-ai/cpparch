@@ -33,7 +33,7 @@
 ## План выполнения
 
 - [x] **1. Headline-рефакторинг README.md и `## TL;DR` спеки.** Новый цикл: `module boundaries + cycles в CI` → `baseline для legacy` → `Lakos и CCG как цитируемые источники, не бренд`. Constraint-decay paper — в первый абзац.
-- [ ] **2. Roadmap-правка `## Roadmap` (строки 398–449).** Конкретно:
+- [x] **2. Roadmap-правка `## Roadmap` (строки 398–449).** Конкретно:
    - v0.1: fast backend (preprocessor-only), `forbidden_deps`/`allowed_deps`, циклы (SF.9), god-headers, длина include-цепочек, **baseline day-one**, простой text-репорт, JSON-репорт, exit codes.
    - v0.2: libclang backend, остальные SF (SF.2, SF.5, SF.10, SF.11, SF.21), точная версия SF.7.
    - v0.3: правила из C/I/NL секций CCG, правила из BDE wiki (см. [docs/research/rules/](../../docs/research/rules/)).
@@ -50,7 +50,8 @@
 ## Сделано
 
 - **2026-05-26** — Шаг 5: раздел «Открытый архитектурный вопрос» переписан как принятое решение. Fast backend (preprocessor-only) — default в v0.1, libclang — opt-in через `--with-clang` / полноценно в v0.2. Список v0.1-правил сужен до include-only набора, семантические SF.2/5/10/11 явно отложены в v0.2. Смежный bullet «Парсинг» в разделе технологического стека приведён в соответствие. Коммит `fcfef01`.
-- **2026-05-26** — Шаги 1 + 7: переписаны `## TL;DR` и `### Делает` в спеке, синхронизирован README. Новый headline: «модульные границы и циклы зависимостей в CI», baseline day-one, AI-guardrail (constraint decay paper) поднят в третий абзац. Lakos / Core Guidelines / Martin понижены до «в дополнение» — атрибуция, не бренд. README: добавлена строчка про AI constraint decay в Why, Key Features перенумерованы (baseline и no-setup поднялись), список «What it does» отражает fast backend как default.
+- **2026-05-26** — Шаги 1 + 7: переписаны `## TL;DR` и `### Делает` в спеке, синхронизирован README. Новый headline: «модульные границы и циклы зависимостей в CI», baseline day-one, AI-guardrail (constraint decay paper) поднят в третий абзац. Lakos / Core Guidelines / Martin понижены до «в дополнение» — атрибуция, не бренд. README: добавлена строчка про AI constraint decay в Why, Key Features перенумерованы (baseline и no-setup поднялись), список «What it does» отражает fast backend как default. Коммит `21173fc`.
+- **2026-05-26** — Шаг 2: roadmap полностью переписан. v0.1 теперь cover-story «модульные границы + циклы в CI без compile_commands», явный набор правил (SF.9 / god-headers / chain-length / SF.7/8/21) и baseline day-one. v0.2 — libclang backend и semantic SF (SF.2/5/10/11). v0.3 — правила из C/I/NL CCG + BDE (ссылка на docs/research/rules/). v0.4 — Martin metrics опционально + distribution. v0.5 — templates + регрессионная проверка. Отдельная секция «Что не делаем» с `--suggest-config` выпиленным навсегда.
 
 ## В работе
 
