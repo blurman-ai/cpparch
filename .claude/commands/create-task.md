@@ -98,6 +98,15 @@ backlog/new/NNN_<priority>_<argument>.md
 
 6. Сообщить путь созданного файла и присвоенный ID.
 
+## Когда начинаешь работу — выбор формата
+
+Канон процесса — [`docs/dev/git_workflow.md`](../../docs/dev/git_workflow.md).
+
+- **Direct push в master** — для рутинных задач (мелкие фиксы, одиночные коммиты, документация). Admin репо в bypass list, PR не нужен.
+- **Feature-ветка** `<type>/<NNN>-<slug>` — для значимой работы (новый модуль, refactor, многоэтапная фича). Type из Conventional Commits (`feat / fix / docs / refactor / chore / test / build / perf / ci`). Слияние — через PR в UI или прямой merge.
+
+Пример: задача `#015` с приоритетом `crt`, модуль `RULES/SF`, тип `feat` → ветка `feat/015-sf9-cycle-detection`.
+
 ## Переезды между состояниями
 
 - **new → wip:** `git mv backlog/new/NNN_... backlog/wip/NNN_...`, проставить `**Дата старта:** YYYY-MM-DD`, статус → `wip`.

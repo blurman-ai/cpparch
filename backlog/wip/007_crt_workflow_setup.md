@@ -38,12 +38,12 @@ Default branch остаётся `master` (переименование в `main`
    - Changelog: ссылка на Keep a Changelog.
    - Trailers (`AI-Assisted`, `Verified`, `Risk`, `Co-Authored-By`) — оставлены поверх Conventional Commits, парсерами игнорируются.
 
-- [ ] **2. Обновить `/commit` скил** под Conventional Commits.
+- [x] **2. Обновить `/commit` скил** под Conventional Commits.
    - Заменить `<type>: [TAG] subject` → `<type>(<scope>): subject`.
    - Mapping старых тегов в scope-ы: `[CONFIG]→config`, `[GRAPH]→graph`, `[SCAN]→scan`, `[RULES][SF]→rules/sf`, `[RULES][LAKOS]→rules/lakos`, `[RULES][MARTIN]→rules/martin`, `[RULES][CUSTOM]→rules/custom`, `[REPORT]→report`, `[CLI]→cli`, `[FIXTURES]→fixtures`, `[BUILD]→build`, `[DOCS]→docs`, `[DOCS][CLAUDE]→docs/claude`, `[DOCS][TASKS]→tasks`, `[PROCESS]→process`.
    - Subject ≤72 символов на первой строке. Body разделён пустой строкой.
 
-- [ ] **3. Обновить `/create-task` скил.**
+- [x] **3. Обновить `/create-task` скил.**
    - После создания файла предлагать команду создания ветки `<type>/<NNN>-<slug>` (тип угадывать по модулю; пользователь подтверждает).
 
 - [x] **4. Завести `CHANGELOG.md` по Keep a Changelog.**
@@ -65,7 +65,9 @@ Default branch остаётся `master` (переименование в `main`
 
 ## Сделано
 
-- **2026-05-26** — Шаги 1, 4, 5, 6, 7: завёл [`docs/dev/git_workflow.md`](../../docs/dev/git_workflow.md) (полный канон: GitHub Flow + Conventional Commits + SemVer + KAC + теги + release-процесс), [`CHANGELOG.md`](../../CHANGELOG.md) (Keep a Changelog 1.1, `[Unreleased]` накопительная), секция «Stability contract» в [`docs/architecture-spec.md`](../../docs/architecture-spec.md) (таблица breaking vs non-breaking по exit codes / CLI / JSON / SARIF / YAML-config / baseline / дефолтные правила). Ссылка на workflow добавлена в `CLAUDE.md` и шаг 2 жизненного цикла в `backlog/README.md`. Self-approve / direct push для admin зафиксированы в workflow doc.
+- **2026-05-26** — Шаги 1, 4, 5, 6, 7: завёл [`docs/dev/git_workflow.md`](../../docs/dev/git_workflow.md) (полный канон: GitHub Flow + Conventional Commits + SemVer + KAC + теги + release-процесс), [`CHANGELOG.md`](../../CHANGELOG.md) (Keep a Changelog 1.1, `[Unreleased]` накопительная), секция «Stability contract» в [`docs/architecture-spec.md`](../../docs/architecture-spec.md) (таблица breaking vs non-breaking по exit codes / CLI / JSON / SARIF / YAML-config / baseline / дефолтные правила). Ссылка на workflow добавлена в `CLAUDE.md` и шаг 2 жизненного цикла в `backlog/README.md`. Self-approve / direct push для admin зафиксированы в workflow doc. Коммит `930e323`.
+- **2026-05-26** — Post-hoc правка: из секции «Stability contract» убрана завершающая ссылка на `docs/dev/git_workflow.md` — спека про *what*, workflow про *how*, не смешивать слои. Коммит `f19c130`.
+- **2026-05-26** — Шаги 2, 3: `/commit` скил переписан под Conventional Commits 1.0 (таблицы type/scope из git_workflow.md, формат `<type>(<scope>): <subject>`, scope-map из старых `[TAG]`, subject ≤72, lowercase, императив). `/create-task` дополнен секцией «Когда начинаешь работу — выбор формата»: direct push для рутины vs feature-ветка `<type>/<NNN>-<slug>` для значимой работы.
 
 ## В работе
 
