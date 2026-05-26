@@ -2,7 +2,7 @@
 
 Опрос общепризнанных источников архитектурных и дизайн-правил для C++ за пределами того, что уже зафиксировано в [../architecture-spec.md](../architecture-spec.md). Для каждого кандидата заведён отдельный файл в [rules/](rules/).
 
-Это **research-каталог, не roadmap.** Каждое правило здесь — кандидат на дефолт cpparch, который надо позже:
+Это **research-каталог, не roadmap.** Каждое правило здесь — кандидат на дефолт archcheck, который надо позже:
 1. оценить ещё раз в контексте текущего MVP,
 2. при отборе — перенести в `backlog/` как задачу с fixtures,
 3. реализовать как `IRule` под соответствующим источником в `src/rules/`.
@@ -93,7 +93,7 @@ MISRA C++, CERT C++, AUTOSAR C++14, бо́льшая часть JSF AV (cyclomat
 
 ## Структурные находки
 
-- **clang-tidy уже формализовал** SF.7 (`google-build-using-namespace`), SF.8 (`llvm-header-guard`), SF.9 (`misc-header-include-cycle`), SF.21 (`misc-anonymous-namespace-in-header`), SF.2 (`misc-definitions-in-headers`), I.2 (`cppcoreguidelines-avoid-non-const-global-variables`), C.121/C.133/C.134 (`cppcoreguidelines-non-private-member-variables-in-classes`). В отчёте cpparch можно ссылаться на эти ID как `equivalent: clang-tidy ...` — это снижает порог недоверия.
+- **clang-tidy уже формализовал** SF.7 (`google-build-using-namespace`), SF.8 (`llvm-header-guard`), SF.9 (`misc-header-include-cycle`), SF.21 (`misc-anonymous-namespace-in-header`), SF.2 (`misc-definitions-in-headers`), I.2 (`cppcoreguidelines-avoid-non-const-global-variables`), C.121/C.133/C.134 (`cppcoreguidelines-non-private-member-variables-in-classes`). В отчёте archcheck можно ссылаться на эти ID как `equivalent: clang-tidy ...` — это снижает порог недоверия.
 - **Bloomberg BDE wiki** — самый практичный источник после CCG SF. Все процитированные правила статически проверяемы; имеет смысл выделить как "Уровень 1.5" между SF и Lakos-метриками.
 - **Martin package principles** дают 3 новых проверяемых правила сверх Ce/Ca/I/A/D: ADP (= SF.9, уже есть), **SDP-violation** (depend → less stable), **SAP-violation** (stable + concrete), **CRP** (unused symbols from dep). Заголовок маркетинга: *"checks all 6 Martin package principles where statically checkable"*.
 - **ArchUnit/Deptrac/SonarQube** — референс таксономии, не новые правила. Совпадает со спекой.

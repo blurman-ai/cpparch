@@ -9,7 +9,7 @@
 
 > "`protected` data is a source of complexity and errors. `protected` data creates a restricted public interface."
 
-## Why for cpparch
+## Why for archcheck
 
 `protected` поле — это публичный API для всей иерархии наследников, который не виден внешнему миру и поэтому не имеет тестового покрытия. На границе модулей это особенно опасно: модуль B наследует класс из модуля A → A не может изменить `protected` без согласования. Это скрытая binary-зависимость, в include-графе её нет.
 

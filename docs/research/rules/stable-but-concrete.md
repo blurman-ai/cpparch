@@ -8,7 +8,7 @@
 
 > "A package should be as abstract as it is stable. Stable packages should be abstract (so they don't lock in concrete implementation choices)."
 
-## Why for cpparch
+## Why for archcheck
 
 «Зона боли»: модуль низко-`I` (стабильный) + низко-`A` (конкретный). Стабильный модуль уже трудно менять, а если он ещё и конкретный (полно implementation classes, мало pure abstract) — он буквально цементирует реализацию, от которой все зависят. Это самая дорогая ошибка из всех Martin metrics.
 

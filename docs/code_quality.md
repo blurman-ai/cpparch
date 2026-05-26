@@ -131,9 +131,9 @@ private:
 - [ ] Is every new line necessary for the task?
 - [ ] Would a junior dev understand this without the comments?
 
-## cpparch-специфика
+## archcheck-специфика
 
 - **Каждое правило = один файл = один класс**, реализующий `IRule`. Добавление правила не должно править существующие файлы (OCP).
 - **Каждое правило обязано иметь fixtures** — `fixtures/<rule>/pass/` и `fixtures/<rule>/fail_*/`. Без fixtures правило не существует.
 - **Каждое дефолтное правило — с атрибуцией** (Core Guidelines / Lakos / Martin). Если ссылку не приложил — это не дефолт, это опция.
-- **Cpparch проверяет сам себя** в CI. Любой merge ломающий собственные SF.7/8/9/21/cycles на cpparch — недопустим.
+- **Archcheck проверяет сам себя** в CI. Любой merge ломающий собственные SF.7/8/9/21/cycles на archcheck — недопустим.

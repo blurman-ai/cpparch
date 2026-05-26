@@ -8,7 +8,7 @@
 
 > "Use standard order for readability: 1) own header (in `.cpp`), 2) C system headers, 3) C++ standard library, 4) other libraries, 5) your project's headers. Each non-empty group separated by a blank line."
 
-## Why for cpparch
+## Why for archcheck
 
 Не архитектура в строгом смысле, но низко-висящее. Косвенно проверяет SF.5 (`.cpp` обязан включать свой `.h` первым → если он первым, значит он self-contained). Дёшево, проверяется препроцессорным сканом без libclang. Помогает в early adoption — пользователь видит результат на первом запуске без сложного config.
 

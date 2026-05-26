@@ -8,7 +8,7 @@
 
 > "Long-standing convention. `.cpp` for source files, `.h` for headers."
 
-## Why for cpparch
+## Why for archcheck
 
 Тривиально проверяется, ловит реальный мусор (`.cc` рядом с `.cpp`, `.hpp` рядом с `.h`), даёт пользователю быструю победу на первом запуске. Допускает настройку — проект может выбрать `.cc/.hh` или `.cpp/.hpp`, главное единообразие.
 

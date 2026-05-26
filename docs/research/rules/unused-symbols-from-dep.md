@@ -8,7 +8,7 @@
 
 > "The classes in a package are reused together. If you reuse one of them, you reuse them all. Don't depend on packages whose symbols you don't use."
 
-## Why for cpparch
+## Why for archcheck
 
 Если модуль X включает заголовок из модуля Y, но реально использует <20% объявленных там символов — X слишком крупно-гранулярно зависит от Y. Любое изменение в неиспользуемой части Y всё равно перезапустит ребилд X. Это снижает реальную transitive cohesion и расходится с тем, на что согласился пользователь.
 

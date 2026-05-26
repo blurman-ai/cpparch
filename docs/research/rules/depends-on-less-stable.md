@@ -8,7 +8,7 @@
 
 > "Depend in the direction of stability. A package should only depend upon packages that are more stable than it is."
 
-## Why for cpparch
+## Why for archcheck
 
 Прямой граф-чек поверх уже считаемой *Instability* `I = Ce / (Ca + Ce)` (low I = stable, high I = unstable). Если модуль X с `I=0.2` зависит от модуля Y с `I=0.8`, X тянет за собой нестабильный (часто меняющийся) Y — любое изменение Y будет каскадно перепахивать X. Это базовая ошибка слоистой архитектуры.
 

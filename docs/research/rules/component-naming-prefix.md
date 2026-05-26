@@ -8,7 +8,7 @@
 
 > "Each component is named `packagename_componentname`. All files of the component share this prefix."
 
-## Why for cpparch
+## Why for archcheck
 
 Опциональное правило (под флагом, не дефолт). Даёт жёсткую привязку файла к модулю без необходимости описывать `modules:` в YAML — модуль выводится из префикса имени файла. Полезно для команд, готовых принять BDE-конвенцию; для всех остальных — выключено.
 

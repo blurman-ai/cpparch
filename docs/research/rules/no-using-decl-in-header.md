@@ -8,7 +8,7 @@
 
 > "Do not write `using` declarations at namespace scope in a header."
 
-## Why for cpparch
+## Why for archcheck
 
 Дополняет SF.7 (`using namespace`). SF.7 ловит «directive» (`using namespace std;`), это правило ловит «declaration» (`using std::vector;`) — она тоже инжектит имя в namespace заголовка, тоже протекает во все TU, которые `#include` этот заголовок. Каждый кейс по отдельности кажется безобидным, в сумме создаёт name pollution.
 

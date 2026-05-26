@@ -8,7 +8,7 @@
 
 > "An interface should have no data and no implementation. Mixing concerns gets in the way."
 
-## Why for cpparch
+## Why for archcheck
 
 Усиливает Martin's *Abstractness* (A) — превращает «интерфейсный» слой в реально интерфейсный. Если базовый класс назван `IFoo` / `FooInterface` (или просто используется только как точка наследования), он обязан быть pure abstract. Иначе «интерфейс» тянет за собой реализацию — модуль, который должен был зависеть от абстракции, цепляется к конкретике.
 

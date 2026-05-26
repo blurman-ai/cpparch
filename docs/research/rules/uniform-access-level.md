@@ -8,7 +8,7 @@
 
 > "Prevention of logical confusion leading to errors. If the non-`const` data members don't have the same access level, the type is confused about what it's trying to do."
 
-## Why for cpparch
+## Why for archcheck
 
 Маркер «god-class» / смешанных concerns: часть полей публичные (struct-like), часть приватные (class-like). Такие классы обычно вырастают из POD, которым прикрутили инвариант, но не довели до конца — то есть это технический долг прямо на границе ответственности модуля.
 

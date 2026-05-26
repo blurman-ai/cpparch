@@ -1,4 +1,4 @@
-# cpparch
+# archcheck
 
 Architecture testing and dependency rules for C++ projects.
 
@@ -14,7 +14,7 @@ Code review doesn’t catch this.
 Linters don’t check architecture.  
 AI-generated code makes it worse.
 
-**cpparch enforces architectural rules in CI.**
+**archcheck enforces architectural rules in CI.**
 
 ---
 
@@ -115,7 +115,7 @@ archcheck check \
 - Not a formatter
 - Not include optimizer
 
-cpparch checks architecture only.
+archcheck checks architecture only.
 
 ---
 
