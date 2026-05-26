@@ -8,6 +8,7 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 
+- **AI-assisted rule synthesis** — named in spec as the process where an AI agent reads the repository, builds an architectural hypothesis, and produces verifiable rules. Operational shape fixed: separate shell flow (`archcheck synthesize`), archcheck core never calls LLMs itself, output is a `.draft` config requiring explicit user confirmation. Paired conceptually with DRIFT rules into "synthesis + drift regression" loop. Formal contract deferred to #010. Risk entry added (false hypothesis / privacy / volatility).
 - **CMake project skeleton.** C++20, CMake 3.18+, Ninja generator, FetchContent for `ryml` v0.7.0 and `Catch2` v3.7.1 — no system installs required. `archcheck` binary that supports `--version` / `--help` (exit code 2 on unknown argument). Smoke test suite. `.clang-format` (Allman / 3-space) and `.clang-tidy` (narrow starter set). Build verified on Astra Linux 1.7. (#004)
 - Project foundation: process documentation, backlog with numbered tasks (`NNN_<priority>_<name>.md`), research catalog of 25 candidate architecture rules with attribution to C++ Core Guidelines, Lakos/BDE, Martin, Google, HIC++.
 - Git workflow standards: GitHub Flow, Conventional Commits 1.0, SemVer 2.0, Keep a Changelog 1.1, annotated `vX.Y.Z` tags. See [`docs/dev/git_workflow.md`](docs/dev/git_workflow.md). (#007)
