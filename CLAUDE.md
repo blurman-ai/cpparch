@@ -1,0 +1,113 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+Отвечай по-русски. Тепло и по-человечески, эмоциональная поддержка приветствуется.
+
+## Project status
+
+**Pre-implementation.** The repo currently contains only design documents, LICENSE, README, and .gitignore — there is no source code, build system, or tests yet. Future sessions will be bootstrapping the project from scratch following the spec.
+
+Working name in the README is `cpparch` (binary `archcheck`); the spec uses `archcheck` as the primary name. Name availability on GitHub/PyPI/crates.io/Homebrew is still an open question (see [docs/architecture-spec.md](docs/architecture-spec.md) §"Ключевые риски", item 4).
+
+## What this tool is
+
+CI-first CLI that enforces architectural invariants on C++ projects. Reads `compile_commands.json`, builds the include/AST dependency graph, applies YAML-declared module rules plus a set of authority-backed default rules, reports violations as `file:line:column`, exits non-zero on violations.
+
+Positioning is deliberately **not** "ArchUnit for C++". It is "Lakos physical design + C++ Core Guidelines SF.* checks in CI" — speaking the native dialect of the C++ community. Every default rule carries attribution (Core Guidelines, Lakos, Martin) so users cannot dismiss it as opinion. Preserve this framing in docs, error messages, and marketing copy.
+
+## What it explicitly is NOT
+
+- Not a linter (clang-tidy's job)
+- Not a bug finder (PVS-Studio, Coverity, cppcheck)
+- Not a formatter (clang-format)
+- Not an include optimizer (IWYU)
+- Not a GUI, not a web dashboard, not a VS Code extension — CLI and CI only
+
+When tempted to add a feature, check it against this list first.
+
+## Planned architecture (from spec)
+
+```
+parser → graph → rules → reporter
+```
+
+Pipeline modules (planned layout under `src/`):
+
+- `config/` — YAML loader → internal `Config` struct
+- `scan/` — two backends: `include_scanner` (fast, preprocessor-only, no `compile_commands.json` needed) and `clang_scanner` (libclang, for semantic rules)
+- `graph/` — component DAG, cycle detection, levelization, CCD/ACD/NCCD metrics
+- `rules/` — one rule per class implementing `IRule`, grouped by source: `core_guidelines/` (SF.*), `lakos/`, `martin/`, `custom/`
+- `report/` — `text_reporter`, `json_reporter`, `sarif_reporter`
+
+**Two-backend split is a deliberate design choice** — most useful default rules (SF.7/8/9/21, cycles, god-headers, chain length) are include-only and shouldn't pay the libclang cost. Don't collapse the backends without explicit discussion. The final decision is flagged in the spec as "deferred to a v0.1 spike."
+
+**One rule = one class = one file.** Registration via static table. Adding a rule must not touch existing rule files (OCP). Don't refactor toward a "generic rule engine" that violates this.
+
+## Tech stack (planned)
+
+- **C++20**, CMake, libclang/libtooling, YAML via `ryml` or `yaml-cpp`, Catch2 or GoogleTest, GitHub Actions.
+- **Dependencies: minimum.** No Boost. No heavy graph libraries — `unordered_map<NodeId, vector<NodeId>>` is sufficient.
+- **Distribution: single static binary** per platform (Linux x86_64/arm64, macOS arm64, Windows x64), plus Docker image. Runtime depends only on libclang, statically linked.
+
+## Exit codes (contract — don't change without versioning)
+
+- `0` — OK
+- `1` — violations found
+- `2` — config / parsing error
+- `3` — internal error
+
+## Default rules (MVP target subset)
+
+v0.1 ships only a conservative subset to avoid the "5000 violations on first run" failure mode:
+
+- Core Guidelines: **SF.7, SF.8, SF.9, SF.21**
+- Lakos: cycles, include chain length (default threshold 10), god-headers (default fan-in 30), CCD/ACD/NCCD in report
+- `--baseline` mode from day one, so legacy projects can adopt without rewriting
+
+Remaining SF.* rules (SF.2, SF.4, SF.5, SF.10, SF.11) and Martin metrics (Ce/Ca/I/A/D) are v0.2/v0.3.
+
+## Fixtures are mandatory
+
+From [docs/MVP.md](docs/MVP.md): *"If feature cannot be tested with fixtures — do not implement it."* Every rule needs a `fixtures/<rule>/pass/` and a `fixtures/<rule>/fail_*/` directory. This is the acceptance bar, not a nice-to-have.
+
+## Design docs — read these before non-trivial work
+
+- [docs/architecture-spec.md](docs/architecture-spec.md) — full spec v2.0, ~530 lines, **in Russian**. Authoritative source for rule lists, rule attribution, roadmap (v0.1 → v0.5), risks, target audience, and the rationale behind every architectural choice. When in doubt about scope or framing, this doc wins over README.
+- [docs/MVP.md](docs/MVP.md) — MVP scope and acceptance criteria. Shorter, English. Use this to decide whether something belongs in v0.1.
+- [README.md](README.md) — public-facing pitch; example config and CLI shape live here.
+
+## Working principles from the spec
+
+- **YAGNI.** Don't build a feature until a concrete user asks. The roadmap is intentionally staged.
+- **Authority over opinion.** Every default rule must cite Core Guidelines / Lakos / Martin. If a proposed default rule has no citation, it goes under Level 4 ("несомненные практики") or doesn't ship as a default.
+- **Zero-config first.** Running with no arguments must produce a useful result.
+- **Deterministic.** Same input → same output. Required for CI use.
+- **Boring tech.** C++20, libclang, YAML, GitHub Actions. Don't reach for novel dependencies.
+
+## Code style & AI constraints
+
+Применяются ко всему C++ коду этого репо. Перед первым нетривиальным изменением кода прочитать оба файла целиком:
+
+- [docs/code_style.md](docs/code_style.md) — C++20 style guide (Allman, 3 spaces, naming, NVI, C++20 features, инструменты).
+- [docs/code_quality.md](docs/code_quality.md) — anti-AI-slop правила, пороги (functions ≤ 30, classes ≤ 300, ≤ 50 новых строк на коммит, ≤ 2 новых файла, 0 абстракций без запроса), forbidden patterns, self-check перед коммитом.
+
+Cpparch — сам инструмент проверки архитектуры, поэтому **dogfooding обязателен**: код cpparch обязан проходить cpparch в CI (no cycles, SF.7/8/11/21, etc.). Любой merge ломающий собственные правила — недопустим.
+
+## Tasks & workflow
+
+Задачи живут в `backlog/`, по одному `.md` на задачу. Завершённые переезжают в `backlog/completed/` с дописанными секциями про принцип работы — это формирует документацию системы между сессиями. См. [backlog/README.md](backlog/README.md).
+
+Slash-команды (`.claude/commands/`):
+- **`/create-task <name>`** — новая задача в `backlog/`.
+- **`/checkpoint`** — обновить активную задачу по текущему прогрессу.
+- **`/backlog-review`** — отчёт по протухшим / быстрым победам / заблокированным.
+- **`/commit`** — собрать коммит с AI-трейлерами (`AI-Assisted`, `Verified`, `Risk`, `Co-Authored-By`), показать пользователю до создания.
+- **`/findings`** — в конце сессии: вытащить из разговора то, что стоит положить в memory (новое / усиление существующего / подтверждённые ходы), показать список, обновить только с подтверждением.
+
+**Никогда не коммитить без явной команды** (`/commit` или «сделай коммит»). Завершил задачу — жди.
+**Никогда не запускать сборку без явной просьбы.** Когда сборка появится — собирать Debug, не Release.
+
+## Build / test / run
+
+Not yet defined — no CMakeLists.txt, no tests. When bootstrapping, follow the planned layout above and the v0.1 implementation order from [docs/MVP.md](docs/MVP.md): `compile_commands` reader → include graph → cycle detection → module mapping → rules → CLI → text output → JSON output → fixtures. Update this section once a build exists.

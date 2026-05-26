@@ -125,6 +125,12 @@ Early development (MVP).
 
 ---
 
+## Secondary goal
+
+Side experiment: test whether a useful, reliable, moderately complex CLI tool can be built end-to-end purely through agent conversation — no hand-written code.
+
+---
+
 ## License
 
 Apache License 2.0
