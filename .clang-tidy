@@ -1,0 +1,28 @@
+---
+# Стартовый узкий набор. Расширяем по мере появления реальных модулей.
+# Шумные чеки выключены явно с обоснованием в имени.
+
+Checks: >
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  performance-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -modernize-use-nodiscard,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  readability-*,
+  -readability-magic-numbers,
+  -readability-identifier-length
+
+WarningsAsErrors: ''
+
+# Не проверяем third_party-код, скачанный через FetchContent (build/_deps/).
+HeaderFilterRegex: '^(?!.*(_deps|external|third_party)/).*$'
+
+FormatStyle: file
