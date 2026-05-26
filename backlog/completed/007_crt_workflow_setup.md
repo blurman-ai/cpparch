@@ -2,7 +2,8 @@
 
 **Дата создания:** 2026-05-26
 **Дата старта:** 2026-05-26
-**Статус:** wip
+**Дата завершения:** 2026-05-26
+**Статус:** done
 **Модуль:** PROCESS
 **Приоритет:** critical
 **Сложность:** medium
@@ -97,10 +98,52 @@ Default branch остаётся `master` (переименование в `main`
 
 | Файл | Изменение | Commit |
 |------|-----------|--------|
-| `docs/dev/git_workflow.md` | новый — канон конвенций | pending |
-| `.claude/commands/commit.md` | conventional commits + scope mapping | pending (шаг 2) |
-| `.claude/commands/create-task.md` | предложение создать ветку после задачи | pending (шаг 3) |
-| `CHANGELOG.md` | новый — Keep a Changelog шаблон с `[Unreleased]` | pending |
-| `docs/architecture-spec.md` | секция «Stability contract» добавлена | pending |
-| `CLAUDE.md` | ссылка на git_workflow.md в Code style & AI constraints | pending |
-| `backlog/README.md` | feature-ветка как опция в шаге 2 «Старт работы» | pending |
+| `docs/dev/git_workflow.md` | новый — канон конвенций | `930e323` |
+| `CHANGELOG.md` | новый — Keep a Changelog `[Unreleased]` | `930e323` |
+| `docs/architecture-spec.md` | секция «Stability contract» добавлена | `930e323` |
+| `docs/architecture-spec.md` | убрана ссылка на workflow из спеки (post-hoc) | `f19c130` |
+| `CLAUDE.md` | ссылка на git_workflow.md в Code style & AI constraints | `930e323` |
+| `backlog/README.md` | feature-ветка как опция в шаге 2 «Старт работы» | `930e323` |
+| `.claude/commands/commit.md` | переписан под Conventional Commits + scope таблицы | `f1d2629` |
+| `.claude/commands/create-task.md` | секция «Когда начинаешь работу — выбор формата» | `f1d2629` |
+| `backlog/wip → completed/007_*.md` | task closed | (текущий коммит) |
+
+## Как работает
+
+Процесс описывается единственным каноном — [`docs/dev/git_workflow.md`](../../docs/dev/git_workflow.md). Все остальные документы (CLAUDE.md, backlog/README.md, скилы `/commit` и `/create-task`) ссылаются на него и не дублируют содержания.
+
+**Слои:**
+1. **Branching (GitHub Flow):** master всегда зелёный. Feature-ветки `<type>/<NNN>-<slug>` — опционально, для значимой работы. Admin репо в bypass list → direct push в master разрешён. Force-push заблокирован.
+2. **Commits (Conventional Commits 1.0):** `<type>(<scope>): <subject>`. Type и scope-таблицы — в `git_workflow.md`, scope покрывает все подсистемы cpparch.
+3. **Versioning (SemVer 2.0):** pre-1.0 `0.x.y` (breaking в MINOR допустим), после v1.0 — strict semver.
+4. **Tags (annotated `vX.Y.Z`):** `git tag -a vX.Y.Z -m "Release X.Y.Z"`, push с `--follow-tags`.
+5. **Changelog (Keep a Changelog 1.1):** [`CHANGELOG.md`](../../CHANGELOG.md) в корне, `[Unreleased]` сверху, при релизе фиксируется в `[X.Y.Z] - YYYY-MM-DD`.
+6. **Stability contract:** что считается breaking (MAJOR) — таблица в [`docs/architecture-spec.md`](../../docs/architecture-spec.md) §Stability contract. Покрывает exit codes, CLI флаги, JSON-схему, SARIF, YAML-конфиг, baseline, дефолтные правила.
+7. **AI-аудит трейлеры:** `AI-Assisted`, `Verified`, `Risk`, `Co-Authored-By` — поверх Conventional Commits, парсерами игнорируются.
+
+## Чем управляется
+
+- **`.claude/commands/commit.md`** — формат коммита enforce-ится скилом `/commit`.
+- **`.claude/commands/create-task.md`** — формат имени задачи и совет по ветке.
+- **GitHub Rulesets** (Settings → Rules → Rulesets для master):
+  - Require pull request: ON, required approvals = 0.
+  - Block force pushes: ON.
+  - Bypass list: admin (`blurman-ai`).
+- **GitHub Settings → General → Pull Requests**: Automatically delete head branches — стоит включить (опционально).
+
+## С чем связана
+
+- **#006 spec_refactor** — Stability contract попал в спеку как часть #007; шаг 5 #006 (closure двух-бекендного вопроса) уже частично сделан. Оставшиеся шаги #006: 1, 2, 3, 4, 6, 7, 8.
+- **Все будущие задачи** — пользуются конвенциями `<type>/<NNN>-<slug>` для веток, Conventional Commits для коммитов, ссылаются `(#NNN)` в subject-е.
+- **#002 github_actions_ci** — когда дойдём до CI, добавится commitlint в pre-merge checks (опционально, после первого реального contributor-а).
+
+## Диагностика
+
+Как понять, что процесс соблюдается:
+
+- `git log --oneline | head` — все коммиты вида `<type>(<scope>): <subject>` или `<type>: <subject>` (если scope опущен). Не должно быть legacy-формата `<type>: [TAG] subject`.
+- `git tag` — все теги имеют `v`-префикс и аннотацию (`git show <tag>` показывает сообщение).
+- `cat CHANGELOG.md | head -20` — секция `[Unreleased]` существует, ссылки на keepachangelog.com и semver.org в шапке.
+- `find backlog -name '???_*.md' | head` — все задачи именованы `NNN_<priority>_<name>.md`.
+- `ls backlog/` — структура `new/ wip/ completed/`, никаких задач в корне.
+- `git push origin master --force-with-lease` — должно отклоняться (force-push заблокирован для всех).
