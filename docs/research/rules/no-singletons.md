@@ -1,6 +1,6 @@
 # no-singletons
 
-- **Category:** B (AST / semantic)
+- **Category:** S (AST / semantic)
 - **Authority:** high — C++ Core Guidelines
 - **Source:** [CCG I.3 — Avoid singletons](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#i3-avoid-singletons)
 

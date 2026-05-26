@@ -1,6 +1,6 @@
 # uniform-access-level
 
-- **Category:** B (AST / semantic)
+- **Category:** S (AST / semantic)
 - **Authority:** high — C++ Core Guidelines
 - **Source:** [CCG C.134 — Ensure all non-`const` data members have the same access level](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#c134-ensure-all-non-const-data-members-have-the-same-access-level)
 

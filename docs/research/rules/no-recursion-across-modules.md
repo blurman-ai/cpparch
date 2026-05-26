@@ -1,6 +1,6 @@
 # no-recursion-across-modules
 
-- **Category:** B/C (AST + graph)
+- **Category:** S/G (AST + graph)
 - **Authority:** medium — расширение clang-tidy
 - **Source:** clang-tidy `misc-no-recursion` (за основу детектора call-graph); archcheck-специфика — мэппинг на модули
 

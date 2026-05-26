@@ -1,6 +1,6 @@
 # deep-nested-namespace
 
-- **Category:** A (preprocessor scan) или D (text pattern)
+- **Category:** P (preprocessor scan) или R (text pattern)
 - **Authority:** medium — Google C++ Style Guide + общая практика
 - **Source:** [Google C++ Style Guide — Namespaces](https://google.github.io/styleguide/cppguide.html#Namespaces); Lakos *LSCSD* §2.4 (физический пакеджинг).
 

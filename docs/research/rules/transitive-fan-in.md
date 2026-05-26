@@ -1,6 +1,6 @@
 # transitive-fan-in
 
-- **Category:** C (graph metrics)
+- **Category:** G (graph metrics)
 - **Authority:** high — Lakos
 - **Source:** Lakos. *Large-Scale C++ Software Design* §3.10; Component Dependency (CD).
 

@@ -1,6 +1,6 @@
 # no-mutable-globals
 
-- **Category:** B (AST / semantic)
+- **Category:** S (AST / semantic)
 - **Authority:** high — C++ Core Guidelines
 - **Source:** [CCG I.2 — Avoid non-`const` global variables](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#i2-avoid-non-const-global-variables)
 - **Equivalent:** clang-tidy `cppcoreguidelines-avoid-non-const-global-variables`

@@ -1,6 +1,6 @@
 # external-linkage-declared-in-header
 
-- **Category:** B (AST / semantic)
+- **Category:** S (AST / semantic)
 - **Authority:** high — Bloomberg BDE / Lakos
 - **Source:** [BDE physical code organization](https://github.com/bloomberg/bde/wiki/physical-code-organization)
 

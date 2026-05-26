@@ -1,6 +1,6 @@
 # depends-on-less-stable (SDP)
 
-- **Category:** C (graph metrics)
+- **Category:** G (graph metrics)
 - **Authority:** high — Robert C. Martin
 - **Source:** Martin. *OO Design Quality Metrics* (1994); Stable Dependencies Principle. [PDF](https://linux.ime.usp.br/~joaomm/mac499/arquivos/referencias/oodmetrics.pdf)
 

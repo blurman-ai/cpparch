@@ -1,6 +1,6 @@
 # file-suffix
 
-- **Category:** A (include-only / filesystem scan)
+- **Category:** P (include-only / filesystem scan)
 - **Authority:** high — C++ Core Guidelines
 - **Source:** [CCG NL.27 — Use a `.cpp` suffix for code files and `.h` for interface files](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#nl27-use-a-cpp-suffix-for-code-files-and-h-for-interface-files)
 
