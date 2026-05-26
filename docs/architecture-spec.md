@@ -416,46 +416,56 @@ tests/
 
 ## Roadmap
 
-### v0.1 — MVP (2–3 недели)
+### v0.1 — MVP: module boundaries + cycles в CI (2–3 недели)
 
-- Чтение `compile_commands.json`.
-- Парсинг через libclang, извлечение `#include`-графа.
-- Загрузка YAML-конфига с модулями и базовыми правилами `allowed/forbidden`.
-- **Дефолтные правила Уровня 1 (минимум):** SF.7, SF.8, SF.9, SF.21.
-- **Дефолтные правила Уровня 2:** циклы, длина цепочек, god-headers, CCD/ACD/NCCD в отчёте.
-- Простой текстовый репорт с цветным выводом в TTY.
-- Exit codes.
-- Базовая CI на GitHub Actions.
-- README с quickstart и упоминанием Lakos / Core Guidelines в первом абзаце.
+**Cover-story:** запуск на чужом проекте, без `compile_commands.json` и libclang, даёт сразу полезный результат за 10 минут.
 
-**Цель:** инструмент уже даёт ценность. Конкретный пользователь может скачать, написать конфиг (или запустить без него) и поставить в CI.
+- **Fast backend** (preprocessor-only) — единственный.
+- YAML-конфиг: `forbidden_deps` / `allowed_deps` между модулями (по path-glob).
+- **Core правила:**
+  - Циклы зависимостей (SF.9).
+  - God-headers (Lakos): in-degree > threshold (default 30).
+  - Длина include-цепочек (Lakos): > threshold (default 10).
+  - SF.7 (using namespace в `.h` — text-scan, approximate).
+  - SF.8 (include guards / `#pragma once`).
+  - SF.21 (anonymous namespace в `.h`).
+- **`--baseline` с day one**: фриз текущих нарушений, новые ломают CI.
+- Text-репорт с цветным выводом в TTY + JSON-репорт.
+- Exit codes (см. §Exit codes).
+- Базовая CI на GitHub Actions для самого archcheck.
 
-### v0.2 — Полный набор Core Guidelines SF и QoL (2 недели)
+**Цель:** пользователь может склонить репо, запустить `archcheck`, получить осмысленные нарушения, заморозить их baseline-ом и встроить в CI. Без CMake-плясок, без libclang.
 
-- Остальные SF-правила (SF.2, SF.4, SF.5, SF.10, SF.11).
-- `--suggest-config` — анализирует существующий код, предлагает стартовый YAML.
-- `--baseline` — фриз текущих нарушений.
-- JSON-выход.
+### v0.2 — libclang backend + остальные SF (3–4 недели)
 
-### v0.3 — Martin metrics + AST-правила (3–4 недели)
+- **libclang backend** становится opt-in mainline (через `--with-clang`).
+- Остальные SF-правила: SF.2 (no defs in headers), SF.5 (`.cpp` includes its `.h`), SF.10 (no implicit includes), SF.11 (self-contained headers).
+- Точная версия SF.7 (через AST вместо text-scan), точная SF.21.
+- **SARIF output** для GitHub Code Scanning.
 
-- Martin metrics (Ce, Ca, I, A, D) на уровне namespace.
-- libtooling MatchFinder для семантических кастомных правил.
-- DSL для кастомных правил на AST-уровне.
-- Pattern matching по regex для текстовых правил.
+### v0.3 — Правила из C / I / NL секций CCG + BDE (3–4 недели)
 
-### v0.4 — Интеграция и distribution (2 недели)
+См. [docs/research/rules/](../research/rules/).
 
+- **C:** C.121 (interface pure abstract), C.133 (no protected data), C.134 (uniform access level).
+- **I:** I.2 (no mutable globals), I.3 (no singletons), I.22 (no complex global init).
+- **NL:** NL.27 (file suffix).
+- **Bloomberg BDE:** no-inter-component-friendship, external-linkage-declared-in-header.
+- Прочие: forward-decl-of-std, deep-nested-namespace.
+
+### v0.4 — Martin metrics + distribution polish (3–4 недели)
+
+- **Martin metrics:** Ce, Ca, I, A, D на уровне namespace — опционально, по флагу. Включаем, **только если пользователи попросят**: для ранних adopter-ов archcheck-а более ценны жёсткие правила, чем дашборд-метрики.
+- Кастомные pattern-правила: regex по тексту (raw SQL outside data layer и т.п.).
 - Pre-commit hook из коробки.
-- GitHub Actions workflow example.
-- SARIF output для GitHub Code Scanning.
 - Docker image.
-- Static binary в release-артефактах под все 4 платформы.
+- Static binary в release-артефактах под Linux x86_64/arm64, macOS arm64, Windows x64.
+- GitHub Actions workflow example.
 
 ### v0.5 — Шаблоны и community (1–2 месяца)
 
-- Готовые конфиги для clean / hexagonal / onion / layered архитектур.
-- Регрессионная проверка на топ-N OSS проектов.
+- **Templates** под clean / hexagonal / onion / layered архитектуры (готовые `arch.yaml`).
+- Регрессионная проверка на топ-N OSS проектов (fmt, Catch2, spdlog, abseil, folly и т.п.).
 - Полная документация: getting started, configuration reference, all rules, comparison with alternatives.
 - Гайд по миграции с CppDepend и Tomtom/cpp-dependencies.
 
@@ -464,8 +474,12 @@ tests/
 - Plugin API для кастомных правил.
 - Опциональная визуализация графа (graphviz output, не GUI).
 - Поддержка C (если будет спрос).
-- Метрики Lakos hierarchical reuse, instability/abstractness Мартина для C++ специфики.
-- Опциональный bridge к clangd index для скорости.
+- Метрики Lakos hierarchical reuse.
+- Опциональный bridge к clangd index для скорости на больших проектах.
+
+### Что не делаем
+
+- **`--suggest-config`** — выпил из roadmap. Авто-вывод модульной структуры либо тривиален (по каталогам — пользователь напишет за 5 минут), либо магия, которой не поверят. Если позже возникнет конкретный запрос — пересмотрим.
 
 ---
 
