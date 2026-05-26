@@ -1,7 +1,12 @@
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <string>
 #include <string_view>
 
+#include "archcheck/scan/include_scanner.h"
+#include "archcheck/scan/project_files.h"
 #include "archcheck/version.h"
 
 namespace
@@ -20,11 +25,41 @@ void print_help()
       << "Usage:\n"
       << "  archcheck --version\n"
       << "  archcheck --help\n"
+      << "  archcheck --scan <path>   (preview: discover + scan #includes)\n"
       << "\n"
       << "Under construction. Configuration parsing, graph builder, and rules\n"
       << "land in subsequent v0.1 commits. See:\n"
       << "  https://github.com/blurman-ai/archcheck\n"
       << "  docs/architecture-spec.md\n";
+}
+
+std::string read_file(const std::filesystem::path& p)
+{
+   std::ifstream f(p, std::ios::binary);
+   return std::string{std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
+}
+
+int run_scan(const std::filesystem::path& root)
+{
+   const auto files = archcheck::scan::discover_files(root);
+   std::size_t directives = 0;
+   std::size_t quotes = 0;
+   std::size_t angles = 0;
+   std::size_t diagnostics = 0;
+   for (const auto& f : files)
+   {
+      const auto res = archcheck::scan::scan_includes(read_file(root / f.path));
+      directives += res.directives.size();
+      diagnostics += res.diagnostics.size();
+      for (const auto& d : res.directives)
+      {
+         (d.kind == archcheck::scan::IncludeKind::Quote ? quotes : angles)++;
+      }
+   }
+   std::cout << "files:       " << files.size() << '\n'
+             << "directives:  " << directives << " (quote=" << quotes << ", angle=" << angles << ")\n"
+             << "diagnostics: " << diagnostics << '\n';
+   return 0;
 }
 
 } // namespace
@@ -49,6 +84,16 @@ int main(int argc, char* argv[])
    {
       print_help();
       return 0;
+   }
+
+   if (arg == "--scan")
+   {
+      if (argc < 3)
+      {
+         std::cerr << "archcheck: --scan requires <path>\n";
+         return 2;
+      }
+      return run_scan(argv[2]);
    }
 
    std::cerr << "archcheck: unknown argument '" << arg << "'\n";
