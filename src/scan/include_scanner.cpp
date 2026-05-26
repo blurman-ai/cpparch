@@ -148,6 +148,37 @@ bool is_ident_cont(char c)
    return is_ident_start(c) || (c >= '0' && c <= '9');
 }
 
+void emit_directive(std::string_view line, int line_no, std::size_t i, ScanResult& out)
+{
+   const char open = line[i];
+   const char close = (open == '"') ? '"' : '>';
+   const std::size_t start = i + 1;
+   const std::size_t end = line.find(close, start);
+   if (end == std::string_view::npos)
+   {
+      return;
+   }
+   out.directives.push_back(IncludeDirective{
+      (open == '"') ? IncludeKind::Quote : IncludeKind::Angle,
+      std::string{line.substr(start, end - start)},
+      line_no,
+   });
+}
+
+void emit_macro_include(std::string_view line, int line_no, std::size_t i, ScanResult& out)
+{
+   std::size_t end = i + 1;
+   while (end < line.size() && is_ident_cont(line[end]))
+   {
+      ++end;
+   }
+   out.diagnostics.push_back(IncludeScanDiagnostic{
+      DiagnosticKind::MacroInclude,
+      std::string{line.substr(i, end - i)},
+      line_no,
+   });
+}
+
 void try_extract(std::string_view line, int line_no, ScanResult& out)
 {
    std::size_t i = skip_ws(line, 0);
@@ -160,35 +191,14 @@ void try_extract(std::string_view line, int line_no, ScanResult& out)
    {
       return;
    }
-   const char open = line[i];
-   if (open == '"' || open == '<')
+   const char c = line[i];
+   if (c == '"' || c == '<')
    {
-      const char close = (open == '"') ? '"' : '>';
-      const std::size_t start = i + 1;
-      const std::size_t end = line.find(close, start);
-      if (end == std::string_view::npos)
-      {
-         return;
-      }
-      out.directives.push_back(IncludeDirective{
-         (open == '"') ? IncludeKind::Quote : IncludeKind::Angle,
-         std::string{line.substr(start, end - start)},
-         line_no,
-      });
-      return;
+      emit_directive(line, line_no, i, out);
    }
-   if (is_ident_start(open))
+   else if (is_ident_start(c))
    {
-      std::size_t end = i + 1;
-      while (end < line.size() && is_ident_cont(line[end]))
-      {
-         ++end;
-      }
-      out.diagnostics.push_back(IncludeScanDiagnostic{
-         DiagnosticKind::MacroInclude,
-         std::string{line.substr(i, end - i)},
-         line_no,
-      });
+      emit_macro_include(line, line_no, i, out);
    }
 }
 
