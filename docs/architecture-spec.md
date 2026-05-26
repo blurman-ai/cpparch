@@ -695,6 +695,12 @@ tests/
 
 - **`--suggest-config`** — выпил из roadmap. Авто-вывод модульной структуры либо тривиален (по каталогам — пользователь напишет за 5 минут), либо магия, которой не поверят. Если позже возникнет конкретный запрос — пересмотрим.
 
+### Прогресс разработки
+
+Реальные dogfood-прогоны и достижения логируются в [docs/milestones.md](milestones.md).
+
+- **2026-05-26 — старт разработки.** Завершены scan + graph subsystem (`scan_includes`, `discover_files`, `include_resolver`, `DependencyGraph`, iterative Tarjan SCC). Preview CLI `archcheck --graph <path>` работает end-to-end. Первый внешний прогон: проект `gm` (2192 файла, 7.7 s), найдены 2 реальных цикла в Unigine SDK headers.
+
 ---
 
 ## Ключевые риски и open questions
