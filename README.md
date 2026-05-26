@@ -1,5 +1,7 @@
 # archcheck
 
+[![CI](https://github.com/blurman-ai/cpparch/actions/workflows/ci.yml/badge.svg)](https://github.com/blurman-ai/cpparch/actions/workflows/ci.yml)
+
 Architecture testing and dependency rules for C++ projects.
 
 ## Why
