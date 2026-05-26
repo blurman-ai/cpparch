@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install build dependencies
         run: |
@@ -42,7 +42,7 @@ jobs:
           sudo apt-get install -y ninja-build cmake ${{ matrix.apt-pkg }}
 
       - name: Cache FetchContent dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/debug/_deps
           key: deps-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt', 'src/CMakeLists.txt') }}
