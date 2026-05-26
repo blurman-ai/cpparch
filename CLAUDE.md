@@ -107,8 +107,36 @@ Slash-команды (`.claude/commands/`):
 - **`/findings`** — в конце сессии: вытащить из разговора то, что стоит положить в memory (новое / усиление существующего / подтверждённые ходы), показать список, обновить только с подтверждением.
 
 **Никогда не коммитить без явной команды** (`/commit` или «сделай коммит»). Завершил задачу — жди.
-**Никогда не запускать сборку без явной просьбы.** Когда сборка появится — собирать Debug, не Release.
+
+**Сборку запускать свободно** — это инструмент-проект, верификация изменения через реальную компиляцию здесь норма. По умолчанию собирать **Debug**, не Release. После сборки заполнять `Verified:` trailer в коммите (`build`, `build+tests`, `manual`).
 
 ## Build / test / run
 
-Not yet defined — no CMakeLists.txt, no tests. When bootstrapping, follow the planned layout above and the v0.1 implementation order from [docs/MVP.md](docs/MVP.md): `compile_commands` reader → include graph → cycle detection → module mapping → rules → CLI → text output → JSON output → fixtures. Update this section once a build exists.
+C++20, CMake 3.18+, Ninja-генератор, FetchContent для зависимостей (ryml + Catch2). Первый билд скачивает зависимости в `build/_deps/` (нужен интернет); последующие — offline.
+
+```bash
+# Конфигурация Debug — по умолчанию.
+cmake -B build/debug -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug
+
+# Сборка:
+cmake --build build/debug
+
+# Прогон тестов:
+cd build/debug && ctest --output-on-failure
+# или напрямую:
+./build/debug/tests/archcheck_tests
+
+# Запуск бинаря:
+./build/debug/src/archcheck --version
+./build/debug/src/archcheck --help
+```
+
+Layout (см. также `docs/architecture-spec.md` §«Высокоуровневая структура кода»):
+- `src/` — entry point + subsystems (config/, scan/, graph/, rules/, report/ появляются по мере v0.1).
+- `include/archcheck/` — публичные заголовки.
+- `tests/` — Catch2-based unit/integration тесты.
+- `fixtures/` — sample-проекты с известными нарушениями (для тестов правил, появятся вместе с правилами).
+
+Зависимости — `ryml` (YAML) и `Catch2` v3 (только под тесты). Подтягиваются FetchContent-ом; для offline-CI кэшируется `build/_deps/` через `actions/cache` в #002.
+
+Tooling: `.clang-format` (Allman, 3 пробела, 120 колонок), `.clang-tidy` (bugprone-/performance-/modernize-/cppcoreguidelines-/readability- с выключенными шумными чеками).
