@@ -1,0 +1,34 @@
+---
+# Расширенный набор чеков для второго CI-прохода. Используется warning-only
+# (не валит сборку), копит baseline нарушений. Когда стабилизируется —
+# можно поднять отдельные семейства в обычный .clang-tidy.
+
+Checks: >
+  bugprone-*,
+  performance-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-type-vararg,
+  readability-*,
+  -readability-identifier-length,
+  cert-*,
+  -cert-err58-cpp,
+  misc-*,
+  -misc-no-recursion,
+  hicpp-*,
+  -hicpp-no-array-decay,
+  -hicpp-vararg,
+  -hicpp-signed-bitwise,
+  -hicpp-uppercase-literal-suffix,
+  llvm-*,
+  -llvm-header-guard,
+  -llvm-include-order
+
+WarningsAsErrors: ''
+
+HeaderFilterRegex: '^(?!.*(_deps|external|third_party)/).*$'
+
+FormatStyle: file

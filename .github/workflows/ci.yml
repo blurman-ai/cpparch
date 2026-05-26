@@ -65,3 +65,90 @@ jobs:
           ./build/debug/src/archcheck --help
           # exit 2 on unknown argument:
           ./build/debug/src/archcheck unknown || test $? -eq 2
+
+  static-analysis:
+    name: Static analysis (cppcheck + lizard + clang-tidy strict)
+    runs-on: ubuntu-24.04
+    # Parallel to `build` — independent. Single config: tools are not
+    # compiler-specific, we just need compile_commands.json for clang-tidy.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install static-analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake g++-13 cppcheck clang-tidy-18
+          python3 -m pip install --user lizard
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v5
+        with:
+          path: build/debug/_deps
+          key: deps-${{ runner.os }}-static-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt', 'src/CMakeLists.txt') }}
+          restore-keys: |
+            deps-${{ runner.os }}-static-
+
+      - name: Configure (for compile_commands.json)
+        env:
+          CC: gcc-13
+          CXX: g++-13
+        run: cmake -B build/debug -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug
+
+      # cppcheck: gate. Падаем при warning / performance / portability находках.
+      - name: cppcheck
+        run: |
+          cppcheck \
+            --enable=warning,performance,portability \
+            --inline-suppr \
+            --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            --quiet \
+            -I include \
+            src/ include/
+
+      # lizard: gate. Пороги из docs/code_quality.md
+      # (function ≤ 30 lines, CCN ≤ 15, args ≤ 4 — округлено до 5).
+      - name: lizard (cyclomatic complexity + function length)
+        run: |
+          lizard \
+            --CCN 15 \
+            --length 30 \
+            --arguments 5 \
+            --warnings_only \
+            src/ include/ tests/ \
+            | tee lizard-report.txt
+          # lizard exits 0 even on warnings; check for any flagged lines.
+          if grep -E "warning:|!!!" lizard-report.txt; then
+            echo "lizard found violations above thresholds"
+            exit 1
+          fi
+
+      # clang-tidy strict pass — WARNING-ONLY, не валит сборку. Артефакт сохраняется.
+      - name: clang-tidy strict (warning-only baseline)
+        continue-on-error: true
+        run: |
+          # Collect .cpp from src/, тестовый код пока пропускаем.
+          mapfile -t SRC < <(find src/ -name '*.cpp')
+          clang-tidy-18 \
+            --config-file=.clang-tidy-strict \
+            -p build/debug \
+            "${SRC[@]}" \
+            > clang-tidy-strict-report.txt 2>&1 || true
+          # Печатаем report в лог для видимости и сохраняем в артефакт.
+          echo "::group::clang-tidy strict report"
+          cat clang-tidy-strict-report.txt
+          echo "::endgroup::"
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis-reports
+          path: |
+            lizard-report.txt
+            clang-tidy-strict-report.txt
+          retention-days: 14
+          if-no-files-found: warn
