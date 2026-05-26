@@ -20,6 +20,8 @@ add_executable(archcheck_tests
    unit/scan/include_resolver_test.cpp
    unit/graph/dependency_graph_test.cpp
    unit/graph/algorithms_test.cpp
+   unit/graph/diff_test.cpp
+   unit/graph/baseline_test.cpp
    integration/scan/scanner_fixtures_test.cpp
 )
 target_link_libraries(archcheck_tests

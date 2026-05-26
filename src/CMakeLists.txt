@@ -5,6 +5,8 @@ add_library(archcheck_core STATIC
    scan/include_resolver.cpp
    graph/dependency_graph.cpp
    graph/algorithms.cpp
+   graph/diff.cpp
+   graph/baseline.cpp
 )
 add_library(archcheck::core ALIAS archcheck_core)
 
