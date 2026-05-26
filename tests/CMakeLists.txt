@@ -17,7 +17,9 @@ add_executable(archcheck_tests
    smoke_test.cpp
    unit/scan/include_scanner_test.cpp
    unit/scan/project_files_test.cpp
+   unit/scan/include_resolver_test.cpp
    unit/graph/dependency_graph_test.cpp
+   unit/graph/algorithms_test.cpp
    integration/scan/scanner_fixtures_test.cpp
 )
 target_link_libraries(archcheck_tests

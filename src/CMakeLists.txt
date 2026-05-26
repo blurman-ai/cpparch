@@ -2,7 +2,9 @@
 add_library(archcheck_core STATIC
    scan/include_scanner.cpp
    scan/project_files.cpp
+   scan/include_resolver.cpp
    graph/dependency_graph.cpp
+   graph/algorithms.cpp
 )
 add_library(archcheck::core ALIAS archcheck_core)
 
