@@ -6,9 +6,10 @@
 **Модуль:** REPORT
 **Приоритет:** major
 **Сложность:** S (полдня на спеку, реализация отдельной таской)
+**Целевой релиз:** v0.2+ (SARIF output появляется в v0.2 per roadmap)
 **Блокирует:** реализация sarif_reporter (отдельной таской позже)
 **Заблокирован:** —
-**Related:** dogfood_static_analyzers
+**Related:** #001 (dogfood_static_analyzers — текущий strict report тоже может перейти на SARIF)
 
 ## Цель
 
