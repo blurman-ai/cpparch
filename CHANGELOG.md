@@ -18,6 +18,13 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 ### Changed
 
 - **Product name locked to `archcheck`.** README, spec, and all internal docs now use `archcheck` consistently (previously split between `cpparch` and `archcheck`). Name availability verified on GitHub, PyPI, crates.io, Homebrew, and npm — all clear. Local working directory remains `cpparch` for tool-path stability. (#003)
-- Architecture spec: working-title disclaimer dropped, name-availability risk (item 4) removed (resolved), two-backend deferral risk removed (resolved in #006). "Следующие шаги" trimmed of items already done. (#003, #006)
+- **Architecture spec refactored to v2.1** (#006):
+  - Headline repositioned around "module boundaries + cycles in CI" with `--baseline` day-one; Lakos / Core Guidelines / Martin demoted from brand to cited sources.
+  - AI-guardrail angle (EURECOM constraint decay paper) lifted into TL;DR.
+  - Roadmap rewritten: v0.1 = fast preprocessor backend without `compile_commands.json`; libclang opt-in / v0.2; Martin metrics v0.4 opt-in; `--suggest-config` killed.
+  - Default-analysis section: SF rules now have a Phase column (v0.1 / v0.2); SF.4 dropped from defaults with rationale.
+  - Config section reoriented: `modules` + `forbidden_deps` are the headline, defaults section secondary; "minimal config" example for legacy projects added.
+  - Risks audited: license risk removed (resolved); libclang/`compile_commands.json` risks marked v0.2+; Martin's-A risk marked v0.4; templates risk clarified by phase.
+  - "Следующие шаги" trimmed of items already done.
 
 [Unreleased]: https://github.com/blurman-ai/archcheck/commits/master
