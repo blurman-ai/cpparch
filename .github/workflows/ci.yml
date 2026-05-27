@@ -12,6 +12,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  format-check:
+    name: clang-format-18 (--dry-run --Werror)
+    runs-on: ubuntu-24.04
+    # Параллельно с build / static-analysis. Падаем быстро если код не отформатирован.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install clang-format-18
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-18
+
+      - name: Check formatting
+        run: |
+          find src include tests -name '*.h' -o -name '*.cpp' \
+            | xargs clang-format-18 --dry-run --Werror --style=file
+
   build:
     name: Build & test (${{ matrix.compiler }})
     runs-on: ubuntu-24.04
