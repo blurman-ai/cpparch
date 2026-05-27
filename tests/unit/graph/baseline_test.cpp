@@ -26,24 +26,24 @@ std::string save_to_string(const DependencyGraph &g)
 DependencyGraph make_sample_a()
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("include/a.h");
-  const NodeId b = g.add_node("include/b.h");
-  const NodeId c = g.add_node("src/c.cpp");
-  g.add_edge(c, a);
-  g.add_edge(c, b);
-  g.add_edge(a, b);
+  const NodeId a = g.addNode("include/a.h");
+  const NodeId b = g.addNode("include/b.h");
+  const NodeId c = g.addNode("src/c.cpp");
+  g.addEdge(c, a);
+  g.addEdge(c, b);
+  g.addEdge(a, b);
   return g;
 }
 
 DependencyGraph make_sample_a_reordered()
 {
   DependencyGraph g;
-  const NodeId c = g.add_node("src/c.cpp");
-  const NodeId b = g.add_node("include/b.h");
-  const NodeId a = g.add_node("include/a.h");
-  g.add_edge(a, b);
-  g.add_edge(c, b);
-  g.add_edge(c, a);
+  const NodeId c = g.addNode("src/c.cpp");
+  const NodeId b = g.addNode("include/b.h");
+  const NodeId a = g.addNode("include/a.h");
+  g.addEdge(a, b);
+  g.addEdge(c, b);
+  g.addEdge(c, a);
   return g;
 }
 
@@ -151,13 +151,13 @@ TEST_CASE("loadBaseline restores the original graph topology", "[graph][baseline
   std::istringstream is(text);
   auto [loaded, err] = loadBaseline(is);
   REQUIRE_FALSE(err.has_value());
-  REQUIRE(loaded.node_count() == 3);
+  REQUIRE(loaded.nodeCount() == 3);
 
-  const NodeId a = loaded.add_node("include/a.h");
-  const NodeId b = loaded.add_node("include/b.h");
-  const NodeId c = loaded.add_node("src/c.cpp");
-  REQUIRE(loaded.has_edge(c, a));
-  REQUIRE(loaded.has_edge(c, b));
-  REQUIRE(loaded.has_edge(a, b));
-  REQUIRE_FALSE(loaded.has_edge(a, c));
+  const NodeId a = loaded.addNode("include/a.h");
+  const NodeId b = loaded.addNode("include/b.h");
+  const NodeId c = loaded.addNode("src/c.cpp");
+  REQUIRE(loaded.hasEdge(c, a));
+  REQUIRE(loaded.hasEdge(c, b));
+  REQUIRE(loaded.hasEdge(a, b));
+  REQUIRE_FALSE(loaded.hasEdge(a, c));
 }

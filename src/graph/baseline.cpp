@@ -28,10 +28,10 @@ using Edge = std::pair<std::uint32_t, std::uint32_t>;
 std::vector<std::string> sorted_node_paths(const DependencyGraph &g)
 {
   std::vector<std::string> out;
-  out.reserve(g.node_count());
-  for (std::uint32_t i = 0; i < g.node_count(); ++i)
+  out.reserve(g.nodeCount());
+  for (std::uint32_t i = 0; i < g.nodeCount(); ++i)
   {
-    out.emplace_back(g.path_of(NodeId{i}));
+    out.emplace_back(g.pathOf(NodeId{i}));
   }
   std::sort(out.begin(), out.end());
   return out;
@@ -39,13 +39,13 @@ std::vector<std::string> sorted_node_paths(const DependencyGraph &g)
 
 std::vector<Edge> remapped_sorted_edges(const DependencyGraph &g, const std::vector<std::string> &sorted_paths)
 {
-  std::vector<std::uint32_t> remap(g.node_count(), 0);
+  std::vector<std::uint32_t> remap(g.nodeCount(), 0);
   for (std::uint32_t new_idx = 0; new_idx < sorted_paths.size(); ++new_idx)
   {
     const std::string_view p = sorted_paths[new_idx];
-    for (std::uint32_t old_idx = 0; old_idx < g.node_count(); ++old_idx)
+    for (std::uint32_t old_idx = 0; old_idx < g.nodeCount(); ++old_idx)
     {
-      if (g.path_of(NodeId{old_idx}) == p)
+      if (g.pathOf(NodeId{old_idx}) == p)
       {
         remap[old_idx] = new_idx;
         break;
@@ -53,7 +53,7 @@ std::vector<Edge> remapped_sorted_edges(const DependencyGraph &g, const std::vec
     }
   }
   std::vector<Edge> edges;
-  for (std::uint32_t old_from = 0; old_from < g.node_count(); ++old_from)
+  for (std::uint32_t old_from = 0; old_from < g.nodeCount(); ++old_from)
   {
     for (NodeId to : g.successors(NodeId{old_from}))
     {
@@ -166,7 +166,7 @@ std::optional<BaselineLoadError> load_nodes(ryml::ConstNodeRef root, std::vector
   return std::nullopt;
 }
 
-std::optional<BaselineLoadError> parse_edge_pair(ryml::ConstNodeRef pair, std::uint32_t node_count, Edge &out)
+std::optional<BaselineLoadError> parse_edge_pair(ryml::ConstNodeRef pair, std::uint32_t nodeCount, Edge &out)
 {
   if (!pair.is_seq() || pair.num_children() != 2)
   {
@@ -178,7 +178,7 @@ std::optional<BaselineLoadError> parse_edge_pair(ryml::ConstNodeRef pair, std::u
   {
     return make_error(BaselineLoadError::Kind::MalformedSchema, "edge indexes must be non-negative integers");
   }
-  if (from >= node_count || to >= node_count)
+  if (from >= nodeCount || to >= nodeCount)
   {
     return make_error(BaselineLoadError::Kind::MalformedSchema, "edge index out of range");
   }
@@ -186,7 +186,7 @@ std::optional<BaselineLoadError> parse_edge_pair(ryml::ConstNodeRef pair, std::u
   return std::nullopt;
 }
 
-std::optional<BaselineLoadError> load_edges(ryml::ConstNodeRef root, std::uint32_t node_count, std::vector<Edge> &out)
+std::optional<BaselineLoadError> load_edges(ryml::ConstNodeRef root, std::uint32_t nodeCount, std::vector<Edge> &out)
 {
   if (!root.has_child("edges"))
   {
@@ -200,7 +200,7 @@ std::optional<BaselineLoadError> load_edges(ryml::ConstNodeRef root, std::uint32
   for (const auto pair : seq.children())
   {
     Edge e{0, 0};
-    if (auto err = parse_edge_pair(pair, node_count, e))
+    if (auto err = parse_edge_pair(pair, nodeCount, e))
     {
       return err;
     }
@@ -216,11 +216,11 @@ DependencyGraph assemble_graph(const std::vector<std::string> &nodes, const std:
   ids.reserve(nodes.size());
   for (const auto &p : nodes)
   {
-    ids.push_back(g.add_node(p));
+    ids.push_back(g.addNode(p));
   }
   for (const auto &e : edges)
   {
-    g.add_edge(ids[e.first], ids[e.second]);
+    g.addEdge(ids[e.first], ids[e.second]);
   }
   return g;
 }

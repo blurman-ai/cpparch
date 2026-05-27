@@ -21,11 +21,11 @@ TEST_CASE("compute_scc on empty graph returns empty result", "[graph][algorithms
 TEST_CASE("compute_scc on DAG yields singleton SCCs", "[graph][algorithms][scc]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
-  const NodeId b = g.add_node("b.h");
-  const NodeId c = g.add_node("c.h");
-  g.add_edge(a, b);
-  g.add_edge(b, c);
+  const NodeId a = g.addNode("a.h");
+  const NodeId b = g.addNode("b.h");
+  const NodeId c = g.addNode("c.h");
+  g.addEdge(a, b);
+  g.addEdge(b, c);
   const auto sccs = computeScc(g);
   REQUIRE(sccs.size() == 3);
   for (const auto &s : sccs)
@@ -37,12 +37,12 @@ TEST_CASE("compute_scc on DAG yields singleton SCCs", "[graph][algorithms][scc]"
 TEST_CASE("compute_scc detects a single 3-node cycle", "[graph][algorithms][scc]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
-  const NodeId b = g.add_node("b.h");
-  const NodeId c = g.add_node("c.h");
-  g.add_edge(a, b);
-  g.add_edge(b, c);
-  g.add_edge(c, a);
+  const NodeId a = g.addNode("a.h");
+  const NodeId b = g.addNode("b.h");
+  const NodeId c = g.addNode("c.h");
+  g.addEdge(a, b);
+  g.addEdge(b, c);
+  g.addEdge(c, a);
   const auto sccs = computeScc(g);
   REQUIRE(sccs.size() == 1);
   REQUIRE(sccs[0].size() == 3);
@@ -51,13 +51,13 @@ TEST_CASE("compute_scc detects a single 3-node cycle", "[graph][algorithms][scc]
 TEST_CASE("compute_scc separates two independent components", "[graph][algorithms][scc]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
-  const NodeId b = g.add_node("b.h");
-  const NodeId c = g.add_node("c.h");
-  const NodeId d = g.add_node("d.h");
-  g.add_edge(a, b);
-  g.add_edge(b, a);
-  g.add_edge(c, d);
+  const NodeId a = g.addNode("a.h");
+  const NodeId b = g.addNode("b.h");
+  const NodeId c = g.addNode("c.h");
+  const NodeId d = g.addNode("d.h");
+  g.addEdge(a, b);
+  g.addEdge(b, a);
+  g.addEdge(c, d);
   const auto sccs = computeScc(g);
   REQUIRE(sccs.size() == 3);
   // Two singletons (c, d) and one 2-cycle (a, b). Ordering is by smallest NodeId in each.
@@ -72,12 +72,12 @@ TEST_CASE("compute_scc separates two independent components", "[graph][algorithm
 TEST_CASE("compute_scc output is deterministic across runs", "[graph][algorithms][scc]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
-  const NodeId b = g.add_node("b.h");
-  const NodeId c = g.add_node("c.h");
-  g.add_edge(a, b);
-  g.add_edge(b, c);
-  g.add_edge(c, a);
+  const NodeId a = g.addNode("a.h");
+  const NodeId b = g.addNode("b.h");
+  const NodeId c = g.addNode("c.h");
+  g.addEdge(a, b);
+  g.addEdge(b, c);
+  g.addEdge(c, a);
   const auto first = computeScc(g);
   const auto second = computeScc(g);
   REQUIRE(first == second);
@@ -86,12 +86,12 @@ TEST_CASE("compute_scc output is deterministic across runs", "[graph][algorithms
 TEST_CASE("reachable_from walks forward edges", "[graph][algorithms][reachability]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
-  const NodeId b = g.add_node("b.h");
-  const NodeId c = g.add_node("c.h");
-  const NodeId d = g.add_node("d.h");
-  g.add_edge(a, b);
-  g.add_edge(b, c);
+  const NodeId a = g.addNode("a.h");
+  const NodeId b = g.addNode("b.h");
+  const NodeId c = g.addNode("c.h");
+  const NodeId d = g.addNode("d.h");
+  g.addEdge(a, b);
+  g.addEdge(b, c);
   const auto r = reachableFrom(g, a);
   REQUIRE(r.size() == 3);
   REQUIRE(r.count(a) == 1);
@@ -103,7 +103,7 @@ TEST_CASE("reachable_from walks forward edges", "[graph][algorithms][reachabilit
 TEST_CASE("reachable_from on isolated node returns just itself", "[graph][algorithms][reachability]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
+  const NodeId a = g.addNode("a.h");
   const auto r = reachableFrom(g, a);
   REQUIRE(r.size() == 1);
   REQUIRE(r.count(a) == 1);
@@ -112,11 +112,11 @@ TEST_CASE("reachable_from on isolated node returns just itself", "[graph][algori
 TEST_CASE("reverseReachableFrom mirrors forward reachability", "[graph][algorithms][reachability]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
-  const NodeId b = g.add_node("b.h");
-  const NodeId c = g.add_node("c.h");
-  g.add_edge(a, b);
-  g.add_edge(b, c);
+  const NodeId a = g.addNode("a.h");
+  const NodeId b = g.addNode("b.h");
+  const NodeId c = g.addNode("c.h");
+  g.addEdge(a, b);
+  g.addEdge(b, c);
   const auto fwd = reachableFrom(g, a);
   const auto rev = reverseReachableFrom(g, c);
   REQUIRE(fwd == rev);
@@ -125,43 +125,43 @@ TEST_CASE("reverseReachableFrom mirrors forward reachability", "[graph][algorith
 TEST_CASE("hasPath returns true for direct edge", "[graph][algorithms][path]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
-  const NodeId b = g.add_node("b.h");
-  g.add_edge(a, b);
+  const NodeId a = g.addNode("a.h");
+  const NodeId b = g.addNode("b.h");
+  g.addEdge(a, b);
   REQUIRE(hasPath(g, a, b));
 }
 
 TEST_CASE("hasPath returns true for transitive reachability", "[graph][algorithms][path]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
-  const NodeId b = g.add_node("b.h");
-  const NodeId c = g.add_node("c.h");
-  g.add_edge(a, b);
-  g.add_edge(b, c);
+  const NodeId a = g.addNode("a.h");
+  const NodeId b = g.addNode("b.h");
+  const NodeId c = g.addNode("c.h");
+  g.addEdge(a, b);
+  g.addEdge(b, c);
   REQUIRE(hasPath(g, a, c));
 }
 
 TEST_CASE("hasPath returns false for unreachable target", "[graph][algorithms][path]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
-  const NodeId b = g.add_node("b.h");
+  const NodeId a = g.addNode("a.h");
+  const NodeId b = g.addNode("b.h");
   REQUIRE_FALSE(hasPath(g, a, b));
 }
 
 TEST_CASE("hasPath returns true for self-path", "[graph][algorithms][path]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
+  const NodeId a = g.addNode("a.h");
   REQUIRE(hasPath(g, a, a));
 }
 
 TEST_CASE("hasPath respects edge direction", "[graph][algorithms][path]")
 {
   DependencyGraph g;
-  const NodeId a = g.add_node("a.h");
-  const NodeId b = g.add_node("b.h");
-  g.add_edge(a, b);
+  const NodeId a = g.addNode("a.h");
+  const NodeId b = g.addNode("b.h");
+  g.addEdge(a, b);
   REQUIRE_FALSE(hasPath(g, b, a));
 }

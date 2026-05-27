@@ -80,7 +80,7 @@ void apply_resolved(const std::vector<archcheck::scan::ResolvedInclude> &resolve
     switch (r.resolution)
     {
     case archcheck::scan::Resolution::Project:
-      dg.add_edge(source, id_map[r.target]);
+      dg.addEdge(source, id_map[r.target]);
       ++c.edges;
       break;
     case archcheck::scan::Resolution::External:
@@ -151,12 +151,12 @@ int run_graph(const std::filesystem::path &root)
   id_map.reserve(files.size());
   for (const auto &f : files)
   {
-    id_map.push_back(dg.add_node(f.path));
+    id_map.push_back(dg.addNode(f.path));
   }
   GraphCounters c;
   build_graph(GraphInputs{root, files, index, id_map}, dg, c);
   const auto scc = compute_scc_stats(dg);
-  std::cout << "nodes:          " << dg.node_count() << '\n'
+  std::cout << "nodes:          " << dg.nodeCount() << '\n'
             << "edges:          " << c.edges << '\n'
             << "external:       " << c.external << '\n'
             << "unresolved:     " << c.unresolved << '\n'

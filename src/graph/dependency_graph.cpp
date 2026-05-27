@@ -36,7 +36,7 @@ bool contains(const std::vector<NodeId> &v, NodeId id) { return std::find(v.begi
 
 } // namespace
 
-NodeId DependencyGraph::add_node(std::string_view path)
+NodeId DependencyGraph::addNode(std::string_view path)
 {
   std::string normalized = normalize_path(path);
   auto it = path_to_id_.find(normalized);
@@ -50,7 +50,7 @@ NodeId DependencyGraph::add_node(std::string_view path)
   return id;
 }
 
-void DependencyGraph::add_edge(NodeId from, NodeId to)
+void DependencyGraph::addEdge(NodeId from, NodeId to)
 {
   auto &fwd = forward_[from];
   if (contains(fwd, to))
@@ -61,7 +61,7 @@ void DependencyGraph::add_edge(NodeId from, NodeId to)
   reverse_[to].push_back(from);
 }
 
-bool DependencyGraph::has_edge(NodeId from, NodeId to) const
+bool DependencyGraph::hasEdge(NodeId from, NodeId to) const
 {
   auto it = forward_.find(from);
   if (it == forward_.end())
@@ -83,8 +83,8 @@ const std::vector<NodeId> &DependencyGraph::predecessors(NodeId node) const
   return it == reverse_.end() ? empty_neighbors() : it->second;
 }
 
-std::size_t DependencyGraph::node_count() const { return paths_.size(); }
+std::size_t DependencyGraph::nodeCount() const { return paths_.size(); }
 
-std::string_view DependencyGraph::path_of(NodeId node) const { return paths_[node.value]; }
+std::string_view DependencyGraph::pathOf(NodeId node) const { return paths_[node.value]; }
 
 } // namespace archcheck::graph

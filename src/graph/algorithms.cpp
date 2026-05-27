@@ -145,7 +145,7 @@ std::unordered_set<NodeId> bfs(const DependencyGraph &g, NodeId start, bool forw
 
 std::vector<std::vector<NodeId>> computeScc(const DependencyGraph &g)
 {
-  const std::size_t n = g.node_count();
+  const std::size_t n = g.nodeCount();
   TarjanState st;
   st.index_of.assign(n, kUnvisited);
   st.lowlink_of.assign(n, 0);

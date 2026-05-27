@@ -21,11 +21,11 @@ namespace
 std::unordered_map<std::string, NodeId> index_by_path(const DependencyGraph &g)
 {
   std::unordered_map<std::string, NodeId> by_path;
-  const std::size_t n = g.node_count();
+  const std::size_t n = g.nodeCount();
   by_path.reserve(n);
   for (std::uint32_t i = 0; i < n; ++i)
   {
-    by_path.emplace(std::string(g.path_of(NodeId{i})), NodeId{i});
+    by_path.emplace(std::string(g.pathOf(NodeId{i})), NodeId{i});
   }
   return by_path;
 }
@@ -60,7 +60,7 @@ std::vector<std::unordered_set<std::string>> nontrivial_scc_path_sets(const Depe
       paths.reserve(scc.size());
       for (NodeId id : scc)
       {
-        paths.emplace(g.path_of(id));
+        paths.emplace(g.pathOf(id));
       }
     }
     sets.push_back(std::move(paths));
@@ -98,15 +98,15 @@ std::vector<EdgeRef> addedEdges(const DependencyGraph &baseline, const Dependenc
 {
   const auto baseline_by_path = index_by_path(baseline);
   std::vector<EdgeRef> result;
-  const std::size_t n = current.node_count();
+  const std::size_t n = current.nodeCount();
   for (std::uint32_t i = 0; i < n; ++i)
   {
     const NodeId from{i};
-    const auto baseline_from = lookup(baseline_by_path, current.path_of(from));
+    const auto baseline_from = lookup(baseline_by_path, current.pathOf(from));
     for (NodeId to : current.successors(from))
     {
-      const auto baseline_to = lookup(baseline_by_path, current.path_of(to));
-      if (!baseline_from || !baseline_to || !baseline.has_edge(*baseline_from, *baseline_to))
+      const auto baseline_to = lookup(baseline_by_path, current.pathOf(to));
+      if (!baseline_from || !baseline_to || !baseline.hasEdge(*baseline_from, *baseline_to))
       {
         result.push_back(EdgeRef{from, to});
       }
@@ -120,19 +120,19 @@ std::vector<EdgeRef> removedEdges(const DependencyGraph &baseline, const Depende
 {
   const auto current_by_path = index_by_path(current);
   std::vector<EdgeRef> result;
-  const std::size_t n = baseline.node_count();
+  const std::size_t n = baseline.nodeCount();
   for (std::uint32_t i = 0; i < n; ++i)
   {
     const NodeId b_from{i};
-    const auto current_from = lookup(current_by_path, baseline.path_of(b_from));
+    const auto current_from = lookup(current_by_path, baseline.pathOf(b_from));
     if (!current_from)
     {
       continue;
     }
     for (NodeId b_to : baseline.successors(b_from))
     {
-      const auto current_to = lookup(current_by_path, baseline.path_of(b_to));
-      if (current_to && !current.has_edge(*current_from, *current_to))
+      const auto current_to = lookup(current_by_path, baseline.pathOf(b_to));
+      if (current_to && !current.hasEdge(*current_from, *current_to))
       {
         result.push_back(EdgeRef{*current_from, *current_to});
       }

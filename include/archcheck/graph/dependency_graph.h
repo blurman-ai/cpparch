@@ -14,13 +14,13 @@ namespace archcheck::graph
 class DependencyGraph
 {
 public:
-  NodeId add_node(std::string_view path);
-  void add_edge(NodeId from, NodeId to);
-  bool has_edge(NodeId from, NodeId to) const;
+  NodeId addNode(std::string_view path);
+  void addEdge(NodeId from, NodeId to);
+  bool hasEdge(NodeId from, NodeId to) const;
   const std::vector<NodeId> &successors(NodeId node) const;
   const std::vector<NodeId> &predecessors(NodeId node) const;
-  std::size_t node_count() const;
-  std::string_view path_of(NodeId node) const;
+  std::size_t nodeCount() const;
+  std::string_view pathOf(NodeId node) const;
 
 private:
   std::vector<std::string> paths_;
