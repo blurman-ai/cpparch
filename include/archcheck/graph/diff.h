@@ -18,14 +18,14 @@ struct EdgeRef
 // Edges present in `current` but not in `baseline`. Both graphs are
 // compared by path (string), not by NodeId — NodeIds are session-local.
 // Returned EdgeRef uses NodeIds from the `current` graph.
-std::vector<EdgeRef> added_edges(const DependencyGraph &baseline, const DependencyGraph &current);
+std::vector<EdgeRef> addedEdges(const DependencyGraph &baseline, const DependencyGraph &current);
 
 // Edges present in `baseline` but not in `current`. Returned EdgeRef uses
 // NodeIds from the `current` graph; if an endpoint exists only in baseline,
 // it is materialised as a fresh node in a temporary view — instead we skip
 // such edges, because a removed edge whose endpoint also disappeared is
 // redundant for drift reporting.
-std::vector<EdgeRef> removed_edges(const DependencyGraph &baseline, const DependencyGraph &current);
+std::vector<EdgeRef> removedEdges(const DependencyGraph &baseline, const DependencyGraph &current);
 
 struct GrownScc
 {
@@ -39,6 +39,6 @@ struct GrownScc
 // SCC matches the baseline SCC with which it shares the most paths. If the
 // matched baseline SCC is strictly smaller (or none exists), the current SCC
 // is reported with the corresponding baseline_size (0 if no match).
-std::vector<GrownScc> grown_sccs(const DependencyGraph &baseline, const DependencyGraph &current);
+std::vector<GrownScc> grownSccs(const DependencyGraph &baseline, const DependencyGraph &current);
 
 } // namespace archcheck::graph

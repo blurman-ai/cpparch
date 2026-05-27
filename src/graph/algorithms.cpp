@@ -143,7 +143,7 @@ std::unordered_set<NodeId> bfs(const DependencyGraph &g, NodeId start, bool forw
 
 } // namespace
 
-std::vector<std::vector<NodeId>> compute_scc(const DependencyGraph &g)
+std::vector<std::vector<NodeId>> computeScc(const DependencyGraph &g)
 {
   const std::size_t n = g.node_count();
   TarjanState st;
@@ -161,11 +161,11 @@ std::vector<std::vector<NodeId>> compute_scc(const DependencyGraph &g)
   return std::move(st.result);
 }
 
-std::unordered_set<NodeId> reachable_from(const DependencyGraph &g, NodeId from) { return bfs(g, from, true); }
+std::unordered_set<NodeId> reachableFrom(const DependencyGraph &g, NodeId from) { return bfs(g, from, true); }
 
-std::unordered_set<NodeId> reverse_reachable_from(const DependencyGraph &g, NodeId from) { return bfs(g, from, false); }
+std::unordered_set<NodeId> reverseReachableFrom(const DependencyGraph &g, NodeId from) { return bfs(g, from, false); }
 
-bool has_path(const DependencyGraph &g, NodeId from, NodeId to)
+bool hasPath(const DependencyGraph &g, NodeId from, NodeId to)
 {
   if (from == to)
   {

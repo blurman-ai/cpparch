@@ -126,7 +126,7 @@ struct SccStats
 SccStats compute_scc_stats(const archcheck::graph::DependencyGraph &dg)
 {
   SccStats s;
-  const auto sccs = archcheck::graph::compute_scc(dg);
+  const auto sccs = archcheck::graph::computeScc(dg);
   s.total = sccs.size();
   for (const auto &c : sccs)
   {

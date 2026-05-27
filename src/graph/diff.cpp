@@ -94,7 +94,7 @@ std::size_t best_baseline_match(const std::unordered_set<std::string> &current_p
 
 } // namespace
 
-std::vector<EdgeRef> added_edges(const DependencyGraph &baseline, const DependencyGraph &current)
+std::vector<EdgeRef> addedEdges(const DependencyGraph &baseline, const DependencyGraph &current)
 {
   const auto baseline_by_path = index_by_path(baseline);
   std::vector<EdgeRef> result;
@@ -116,7 +116,7 @@ std::vector<EdgeRef> added_edges(const DependencyGraph &baseline, const Dependen
   return result;
 }
 
-std::vector<EdgeRef> removed_edges(const DependencyGraph &baseline, const DependencyGraph &current)
+std::vector<EdgeRef> removedEdges(const DependencyGraph &baseline, const DependencyGraph &current)
 {
   const auto current_by_path = index_by_path(current);
   std::vector<EdgeRef> result;
@@ -142,10 +142,10 @@ std::vector<EdgeRef> removed_edges(const DependencyGraph &baseline, const Depend
   return result;
 }
 
-std::vector<GrownScc> grown_sccs(const DependencyGraph &baseline, const DependencyGraph &current)
+std::vector<GrownScc> grownSccs(const DependencyGraph &baseline, const DependencyGraph &current)
 {
-  const auto baseline_sccs = compute_scc(baseline);
-  const auto current_sccs = compute_scc(current);
+  const auto baseline_sccs = computeScc(baseline);
+  const auto current_sccs = computeScc(current);
   const auto baseline_sets = nontrivial_scc_path_sets(baseline, baseline_sccs);
   const auto current_sets = nontrivial_scc_path_sets(current, current_sccs);
   std::vector<GrownScc> result;

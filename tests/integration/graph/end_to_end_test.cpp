@@ -12,10 +12,10 @@
 #include "archcheck/scan/include_scanner.h"
 #include "archcheck/scan/project_files.h"
 
-using archcheck::graph::added_edges;
-using archcheck::graph::compute_scc;
+using archcheck::graph::addedEdges;
+using archcheck::graph::computeScc;
 using archcheck::graph::DependencyGraph;
-using archcheck::graph::grown_sccs;
+using archcheck::graph::grownSccs;
 using archcheck::graph::NodeId;
 using archcheck::scan::Resolution;
 using archcheck::scan::resolveIncludes;
@@ -80,7 +80,7 @@ TEST_CASE("fixture: minimal_dag — 3 nodes, 2 edges, acyclic", "[graph][fixture
 {
   const auto r = build_graph(graph_fixture("minimal_dag"));
   REQUIRE(r.graph.node_count() == 3);
-  const auto sccs = compute_scc(r.graph);
+  const auto sccs = computeScc(r.graph);
   REQUIRE(sccs.size() == 3);
   for (const auto &c : sccs)
     REQUIRE(c.size() == 1);
@@ -90,7 +90,7 @@ TEST_CASE("fixture: single_scc — 3 nodes форма one SCC", "[graph][fixture
 {
   const auto r = build_graph(graph_fixture("single_scc"));
   REQUIRE(r.graph.node_count() == 3);
-  const auto sccs = compute_scc(r.graph);
+  const auto sccs = computeScc(r.graph);
   std::size_t big = 0;
   for (const auto &c : sccs)
     if (c.size() >= 2)
@@ -102,7 +102,7 @@ TEST_CASE("fixture: new_edge — diff показывает одно новое �
 {
   const auto base = build_graph(graph_fixture("new_edge/baseline"));
   const auto curr = build_graph(graph_fixture("new_edge/current"));
-  const auto added = added_edges(base.graph, curr.graph);
+  const auto added = addedEdges(base.graph, curr.graph);
   REQUIRE(added.size() == 1);
   REQUIRE(curr.graph.path_of(added[0].from) == "a.h");
   REQUIRE(curr.graph.path_of(added[0].to) == "c.h");
@@ -112,7 +112,7 @@ TEST_CASE("fixture: shortcut_edge — diff показывает shortcut пов�
 {
   const auto base = build_graph(graph_fixture("shortcut_edge/baseline"));
   const auto curr = build_graph(graph_fixture("shortcut_edge/current"));
-  const auto added = added_edges(base.graph, curr.graph);
+  const auto added = addedEdges(base.graph, curr.graph);
   REQUIRE(added.size() == 1);
   REQUIRE(curr.graph.path_of(added[0].from) == "a.h");
   REQUIRE(curr.graph.path_of(added[0].to) == "d.h");
@@ -122,7 +122,7 @@ TEST_CASE("fixture: cycle_growth — SCC размер 2 -> 3", "[graph][fixtures
 {
   const auto base = build_graph(graph_fixture("cycle_growth/baseline"));
   const auto curr = build_graph(graph_fixture("cycle_growth/current"));
-  const auto grown = grown_sccs(base.graph, curr.graph);
+  const auto grown = grownSccs(base.graph, curr.graph);
   REQUIRE(grown.size() == 1);
   REQUIRE(grown[0].baseline_size == 2);
   REQUIRE(grown[0].current_size == 3);
@@ -133,7 +133,7 @@ TEST_CASE("fixture: unresolved_include — попадает в diagnostics, не
   const auto r = build_graph(graph_fixture("unresolved_include"));
   REQUIRE(r.graph.node_count() == 1);
   REQUIRE(r.unresolved == 1);
-  REQUIRE(compute_scc(r.graph).size() == 1);
+  REQUIRE(computeScc(r.graph).size() == 1);
 }
 
 TEST_CASE("fixture: ambiguous_include — 2 кандидата, edge не строится", "[graph][fixtures]")

@@ -84,7 +84,7 @@ void write_edges_block(std::ostream &out, const std::vector<Edge> &edges)
 
 } // namespace
 
-void save_baseline(const DependencyGraph &g, std::ostream &out)
+void saveBaseline(const DependencyGraph &g, std::ostream &out)
 {
   const auto nodes = sorted_node_paths(g);
   const auto edges = remapped_sorted_edges(g, nodes);
@@ -97,7 +97,7 @@ namespace
 {
 
 // ryml requires that the error callback NEVER returns to the parser
-// (otherwise the parser loops forever). We throw, catch inside load_baseline,
+// (otherwise the parser loops forever). We throw, catch inside loadBaseline,
 // translate into BaselineLoadError, and never let the exception escape.
 struct RymlParseException
 {
@@ -250,7 +250,7 @@ std::optional<BaselineLoadError> parse_tree(const std::string &text, ryml::Tree 
 
 } // namespace
 
-std::pair<DependencyGraph, std::optional<BaselineLoadError>> load_baseline(std::istream &in)
+std::pair<DependencyGraph, std::optional<BaselineLoadError>> loadBaseline(std::istream &in)
 {
   const std::string text = read_all(in);
   ryml::Tree tree;
