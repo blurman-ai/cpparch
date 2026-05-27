@@ -27,7 +27,7 @@ enum class DiagnosticKind
 struct IncludeScanDiagnostic
 {
   DiagnosticKind kind;
-  std::string raw_token;
+  std::string rawToken;
   int line;
 };
 

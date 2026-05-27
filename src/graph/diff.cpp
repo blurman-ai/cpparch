@@ -156,10 +156,10 @@ std::vector<GrownScc> grownSccs(const DependencyGraph &baseline, const Dependenc
       continue;
     }
     const std::size_t match = best_baseline_match(current_sets[i], baseline_sets);
-    const std::size_t baseline_size = match == baseline_sets.size() ? 0 : baseline_sccs[match].size();
-    if (baseline_size < current_sccs[i].size())
+    const std::size_t baselineSize = match == baseline_sets.size() ? 0 : baseline_sccs[match].size();
+    if (baselineSize < current_sccs[i].size())
     {
-      result.push_back(GrownScc{current_sccs[i], baseline_size, current_sccs[i].size()});
+      result.push_back(GrownScc{current_sccs[i], baselineSize, current_sccs[i].size()});
     }
   }
   return result;

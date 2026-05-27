@@ -20,7 +20,7 @@ enum class Resolution
 struct ResolvedInclude
 {
   IncludeDirective directive;
-  std::string source_file; // repo-relative path of the source TU
+  std::string sourceFile; // repo-relative path of the source TU
   Resolution resolution;
   NodeId target;                  // valid only when Resolution::Project
   std::vector<NodeId> candidates; // populated when Resolution::Ambiguous

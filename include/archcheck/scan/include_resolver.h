@@ -11,16 +11,16 @@ namespace archcheck::scan
 {
 
 // Resolve a single include directive against the project index.
-// `source_file` is the repo-relative POSIX path of the translation unit
+// `sourceFile` is the repo-relative POSIX path of the translation unit
 // that contained the directive. Returns a ResolvedInclude tagged with
 // one of Project / External / Unresolved / Ambiguous per the algorithm
 // described in §4 mini-design of #008.
-ResolvedInclude resolveInclude(const IncludeDirective &directive, std::string_view source_file,
+ResolvedInclude resolveInclude(const IncludeDirective &directive, std::string_view sourceFile,
                                 const std::vector<ProjectFile> &files, const ProjectIndex &index);
 
 // Batch convenience: resolve every directive from a single source TU.
 std::vector<ResolvedInclude> resolveIncludes(const std::vector<IncludeDirective> &directives,
-                                              std::string_view source_file, const std::vector<ProjectFile> &files,
+                                              std::string_view sourceFile, const std::vector<ProjectFile> &files,
                                               const ProjectIndex &index);
 
 } // namespace archcheck::scan

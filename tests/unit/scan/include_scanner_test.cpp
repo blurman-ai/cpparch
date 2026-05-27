@@ -192,7 +192,7 @@ TEST_CASE("scan_includes emits MacroInclude diagnostic for #include FOO", "[scan
   REQUIRE(res.directives.empty());
   REQUIRE(res.diagnostics.size() == 1);
   REQUIRE(res.diagnostics[0].kind == DiagnosticKind::MacroInclude);
-  REQUIRE(res.diagnostics[0].raw_token == "FOO");
+  REQUIRE(res.diagnostics[0].rawToken == "FOO");
   REQUIRE(res.diagnostics[0].line == 1);
 }
 
@@ -201,7 +201,7 @@ TEST_CASE("scan_includes captures the full identifier for macro include", "[scan
   const auto res = scanIncludes("#include  BAR_X1\n");
   REQUIRE(res.directives.empty());
   REQUIRE(res.diagnostics.size() == 1);
-  REQUIRE(res.diagnostics[0].raw_token == "BAR_X1");
+  REQUIRE(res.diagnostics[0].rawToken == "BAR_X1");
 }
 
 TEST_CASE("scan_includes does not emit a diagnostic for a real quote include", "[scan][scanner][macro]")

@@ -133,8 +133,8 @@ TEST_CASE("grownSccs flags a brand-new cycle", "[graph][diff][scc]")
 
   const auto grown = grownSccs(baseline, current);
   REQUIRE(grown.size() == 1);
-  REQUIRE(grown[0].baseline_size == 0);
-  REQUIRE(grown[0].current_size == 3);
+  REQUIRE(grown[0].baselineSize == 0);
+  REQUIRE(grown[0].currentSize == 3);
   REQUIRE(grown[0].members.size() == 3);
 }
 
@@ -156,8 +156,8 @@ TEST_CASE("grownSccs flags a cycle that grew larger", "[graph][diff][scc]")
 
   const auto grown = grownSccs(baseline, current);
   REQUIRE(grown.size() == 1);
-  REQUIRE(grown[0].baseline_size == 2);
-  REQUIRE(grown[0].current_size == 3);
+  REQUIRE(grown[0].baselineSize == 2);
+  REQUIRE(grown[0].currentSize == 3);
 }
 
 TEST_CASE("grownSccs ignores a cycle of unchanged size", "[graph][diff][scc]")

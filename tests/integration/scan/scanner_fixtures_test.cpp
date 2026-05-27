@@ -87,6 +87,6 @@ TEST_CASE("fixture: macro_include — #include CONFIG_HEADER → diagnostic", "[
   REQUIRE(res.directives[0].token == "real.h");
   REQUIRE(res.diagnostics.size() == 1);
   REQUIRE(res.diagnostics[0].kind == DiagnosticKind::MacroInclude);
-  REQUIRE(res.diagnostics[0].raw_token == "CONFIG_HEADER");
+  REQUIRE(res.diagnostics[0].rawToken == "CONFIG_HEADER");
   REQUIRE(res.diagnostics[0].line == 1);
 }

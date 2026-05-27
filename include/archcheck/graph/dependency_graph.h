@@ -24,7 +24,7 @@ public:
 
 private:
   std::vector<std::string> paths_;
-  std::unordered_map<std::string, NodeId> path_to_id_;
+  std::unordered_map<std::string, NodeId> pathToId_;
   std::unordered_map<NodeId, std::vector<NodeId>> forward_;
   std::unordered_map<NodeId, std::vector<NodeId>> reverse_;
 };

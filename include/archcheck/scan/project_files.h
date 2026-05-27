@@ -19,9 +19,9 @@ struct ProjectFile
 struct ProjectIndex
 {
   // exact repo-relative POSIX path -> file id
-  std::unordered_map<std::string, NodeId> exact_path_index;
+  std::unordered_map<std::string, NodeId> exactPathIndex;
   // every '/'-suffix of every project file -> candidate file ids
-  std::unordered_map<std::string, std::vector<NodeId>> suffix_index;
+  std::unordered_map<std::string, std::vector<NodeId>> suffixIndex;
 };
 
 // Walk `root` recursively and collect project files matching the v0.1

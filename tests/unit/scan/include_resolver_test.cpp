@@ -52,7 +52,7 @@ TEST_CASE("resolve_include quote: directory-relative hit -> Project", "[scan][re
   const ResolvedInclude r = resolveInclude(quote("a.h"), "src/foo/a.cpp", files, index);
   REQUIRE(r.resolution == Resolution::Project);
   REQUIRE(r.target == NodeId{1});
-  REQUIRE(r.source_file == "src/foo/a.cpp");
+  REQUIRE(r.sourceFile == "src/foo/a.cpp");
 }
 
 TEST_CASE("resolve_include quote: exact repo-relative match -> Project", "[scan][resolver][quote]")

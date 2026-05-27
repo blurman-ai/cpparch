@@ -9,14 +9,14 @@ namespace archcheck::scan
 namespace
 {
 
-std::string source_directory(std::string_view source_file)
+std::string source_directory(std::string_view sourceFile)
 {
-  const std::size_t slash = source_file.rfind('/');
+  const std::size_t slash = sourceFile.rfind('/');
   if (slash == std::string_view::npos)
   {
     return {};
   }
-  return std::string{source_file.substr(0, slash + 1)};
+  return std::string{sourceFile.substr(0, slash + 1)};
 }
 
 ResolvedInclude make_project(const IncludeDirective &d, std::string_view source, NodeId target)
@@ -36,14 +36,14 @@ ResolvedInclude make_tagged(const IncludeDirective &d, std::string_view source, 
 
 const NodeId *find_exact(const ProjectIndex &index, const std::string &path)
 {
-  const auto it = index.exact_path_index.find(path);
-  return (it == index.exact_path_index.end()) ? nullptr : &it->second;
+  const auto it = index.exactPathIndex.find(path);
+  return (it == index.exactPathIndex.end()) ? nullptr : &it->second;
 }
 
 const std::vector<NodeId> *find_suffix(const ProjectIndex &index, const std::string &token)
 {
-  const auto it = index.suffix_index.find(token);
-  return (it == index.suffix_index.end()) ? nullptr : &it->second;
+  const auto it = index.suffixIndex.find(token);
+  return (it == index.suffixIndex.end()) ? nullptr : &it->second;
 }
 
 ResolvedInclude resolve_by_suffix(const IncludeDirective &d, std::string_view source, const ProjectIndex &index,
@@ -86,25 +86,25 @@ ResolvedInclude resolve_angle(const IncludeDirective &d, std::string_view source
 
 } // namespace
 
-ResolvedInclude resolveInclude(const IncludeDirective &directive, std::string_view source_file,
+ResolvedInclude resolveInclude(const IncludeDirective &directive, std::string_view sourceFile,
                                 const std::vector<ProjectFile> & /*files*/, const ProjectIndex &index)
 {
   if (directive.kind == IncludeKind::Quote)
   {
-    return resolve_quote(directive, source_file, index);
+    return resolve_quote(directive, sourceFile, index);
   }
-  return resolve_angle(directive, source_file, index);
+  return resolve_angle(directive, sourceFile, index);
 }
 
 std::vector<ResolvedInclude> resolveIncludes(const std::vector<IncludeDirective> &directives,
-                                              std::string_view source_file, const std::vector<ProjectFile> &files,
+                                              std::string_view sourceFile, const std::vector<ProjectFile> &files,
                                               const ProjectIndex &index)
 {
   std::vector<ResolvedInclude> out;
   out.reserve(directives.size());
   for (const IncludeDirective &d : directives)
   {
-    out.push_back(resolveInclude(d, source_file, files, index));
+    out.push_back(resolveInclude(d, sourceFile, files, index));
   }
   return out;
 }

@@ -79,7 +79,7 @@ void add_suffixes(const std::string &path, NodeId id, ProjectIndex &idx)
   std::size_t start = 0;
   while (start != std::string::npos)
   {
-    idx.suffix_index[path.substr(start)].push_back(id);
+    idx.suffixIndex[path.substr(start)].push_back(id);
     const std::size_t slash = path.find('/', start);
     start = (slash == std::string::npos) ? std::string::npos : slash + 1;
   }
@@ -90,11 +90,11 @@ void add_suffixes(const std::string &path, NodeId id, ProjectIndex &idx)
 ProjectIndex buildProjectIndex(const std::vector<ProjectFile> &files)
 {
   ProjectIndex idx;
-  idx.exact_path_index.reserve(files.size());
+  idx.exactPathIndex.reserve(files.size());
   for (NodeId id = 0; id < files.size(); ++id)
   {
     const std::string &path = files[id].path;
-    idx.exact_path_index.emplace(path, id);
+    idx.exactPathIndex.emplace(path, id);
     add_suffixes(path, id, idx);
   }
   return idx;

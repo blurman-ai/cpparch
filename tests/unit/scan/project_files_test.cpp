@@ -140,45 +140,45 @@ TEST_CASE("discover_files sorts results deterministically", "[scan][project_file
 TEST_CASE("build_project_index: empty input yields empty indexes", "[scan][project_files][index]")
 {
   const auto idx = buildProjectIndex({});
-  REQUIRE(idx.exact_path_index.empty());
-  REQUIRE(idx.suffix_index.empty());
+  REQUIRE(idx.exactPathIndex.empty());
+  REQUIRE(idx.suffixIndex.empty());
 }
 
 TEST_CASE("build_project_index: exact lookup finds the file by repo-relative path", "[scan][project_files][index]")
 {
   const std::vector<ProjectFile> files = {{"a/b/c.h"}, {"x.cpp"}};
   const auto idx = buildProjectIndex(files);
-  REQUIRE(idx.exact_path_index.at("a/b/c.h") == NodeId{0});
-  REQUIRE(idx.exact_path_index.at("x.cpp") == NodeId{1});
-  REQUIRE(idx.exact_path_index.find("c.h") == idx.exact_path_index.end());
+  REQUIRE(idx.exactPathIndex.at("a/b/c.h") == NodeId{0});
+  REQUIRE(idx.exactPathIndex.at("x.cpp") == NodeId{1});
+  REQUIRE(idx.exactPathIndex.find("c.h") == idx.exactPathIndex.end());
 }
 
 TEST_CASE("build_project_index: suffix index contains every '/'-segment suffix", "[scan][project_files][index]")
 {
   const std::vector<ProjectFile> files = {{"a/b/c.h"}};
   const auto idx = buildProjectIndex(files);
-  REQUIRE(idx.suffix_index.at("a/b/c.h") == std::vector<NodeId>{0});
-  REQUIRE(idx.suffix_index.at("b/c.h") == std::vector<NodeId>{0});
-  REQUIRE(idx.suffix_index.at("c.h") == std::vector<NodeId>{0});
-  REQUIRE(idx.suffix_index.find("/c.h") == idx.suffix_index.end());
+  REQUIRE(idx.suffixIndex.at("a/b/c.h") == std::vector<NodeId>{0});
+  REQUIRE(idx.suffixIndex.at("b/c.h") == std::vector<NodeId>{0});
+  REQUIRE(idx.suffixIndex.at("c.h") == std::vector<NodeId>{0});
+  REQUIRE(idx.suffixIndex.find("/c.h") == idx.suffixIndex.end());
 }
 
 TEST_CASE("build_project_index: suffix collisions list all candidates", "[scan][project_files][index]")
 {
   const std::vector<ProjectFile> files = {{"foo/util.h"}, {"bar/util.h"}};
   const auto idx = buildProjectIndex(files);
-  auto candidates = idx.suffix_index.at("util.h");
+  auto candidates = idx.suffixIndex.at("util.h");
   std::sort(candidates.begin(), candidates.end());
   REQUIRE(candidates == std::vector<NodeId>{0, 1});
-  REQUIRE(idx.suffix_index.at("foo/util.h") == std::vector<NodeId>{0});
-  REQUIRE(idx.suffix_index.at("bar/util.h") == std::vector<NodeId>{1});
+  REQUIRE(idx.suffixIndex.at("foo/util.h") == std::vector<NodeId>{0});
+  REQUIRE(idx.suffixIndex.at("bar/util.h") == std::vector<NodeId>{1});
 }
 
 TEST_CASE("build_project_index: single-segment path indexes only itself", "[scan][project_files][index]")
 {
   const std::vector<ProjectFile> files = {{"main.cpp"}};
   const auto idx = buildProjectIndex(files);
-  REQUIRE(idx.exact_path_index.at("main.cpp") == NodeId{0});
-  REQUIRE(idx.suffix_index.size() == 1);
-  REQUIRE(idx.suffix_index.at("main.cpp") == std::vector<NodeId>{0});
+  REQUIRE(idx.exactPathIndex.at("main.cpp") == NodeId{0});
+  REQUIRE(idx.suffixIndex.size() == 1);
+  REQUIRE(idx.suffixIndex.at("main.cpp") == std::vector<NodeId>{0});
 }

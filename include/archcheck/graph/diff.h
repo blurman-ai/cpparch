@@ -30,15 +30,15 @@ std::vector<EdgeRef> removedEdges(const DependencyGraph &baseline, const Depende
 struct GrownScc
 {
   std::vector<NodeId> members; // NodeIds from `current` graph
-  std::size_t baseline_size;
-  std::size_t current_size;
+  std::size_t baselineSize;
+  std::size_t currentSize;
 };
 
 // SCCs in `current` of size >= 2 that are larger than (or new compared to)
 // the matching SCC in baseline. Matching is by member-path overlap: a current
 // SCC matches the baseline SCC with which it shares the most paths. If the
 // matched baseline SCC is strictly smaller (or none exists), the current SCC
-// is reported with the corresponding baseline_size (0 if no match).
+// is reported with the corresponding baselineSize (0 if no match).
 std::vector<GrownScc> grownSccs(const DependencyGraph &baseline, const DependencyGraph &current);
 
 } // namespace archcheck::graph

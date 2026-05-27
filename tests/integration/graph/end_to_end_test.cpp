@@ -124,8 +124,8 @@ TEST_CASE("fixture: cycle_growth — SCC размер 2 -> 3", "[graph][fixtures
   const auto curr = build_graph(graph_fixture("cycle_growth/current"));
   const auto grown = grownSccs(base.graph, curr.graph);
   REQUIRE(grown.size() == 1);
-  REQUIRE(grown[0].baseline_size == 2);
-  REQUIRE(grown[0].current_size == 3);
+  REQUIRE(grown[0].baselineSize == 2);
+  REQUIRE(grown[0].currentSize == 3);
 }
 
 TEST_CASE("fixture: unresolved_include — попадает в diagnostics, не в edges", "[graph][fixtures]")

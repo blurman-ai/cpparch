@@ -39,14 +39,14 @@ bool contains(const std::vector<NodeId> &v, NodeId id) { return std::find(v.begi
 NodeId DependencyGraph::addNode(std::string_view path)
 {
   std::string normalized = normalize_path(path);
-  auto it = path_to_id_.find(normalized);
-  if (it != path_to_id_.end())
+  auto it = pathToId_.find(normalized);
+  if (it != pathToId_.end())
   {
     return it->second;
   }
   const NodeId id{static_cast<std::uint32_t>(paths_.size())};
   paths_.push_back(normalized);
-  path_to_id_.emplace(std::move(normalized), id);
+  pathToId_.emplace(std::move(normalized), id);
   return id;
 }
 
