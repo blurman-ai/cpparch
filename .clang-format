@@ -1,27 +1,18 @@
 ---
+# База — LLVM coding standards.
+# Одно осознанное отступление — Allman braces (см. docs/code_style.md §«Почему Allman»).
+# Любые другие отличия от LLVM-default — это баг, исправляйте PR-ом.
 Language: Cpp
 BasedOnStyle: LLVM
 Standard: c++20
 
-IndentWidth: 3
-TabWidth: 3
-UseTab: Never
-ContinuationIndentWidth: 3
-ConstructorInitializerIndentWidth: 3
+# Наша девиация от LLVM-default Attach.
+BreakBeforeBraces: Allman
 
+# Шире чем LLVM-default 80 — современные IDE-ы это терпят легко.
 ColumnLimit: 120
 
-BreakBeforeBraces: Allman
-AllowShortFunctionsOnASingleLine: InlineOnly
-AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: false
-AllowShortBlocksOnASingleLine: Never
-
-NamespaceIndentation: None
-FixNamespaceComments: true
-ShortNamespaceLines: 0
-
-SortIncludes: CaseSensitive
+# Группировка include-блоков (стандартная → сторонние → archcheck → остальные).
 IncludeBlocks: Regroup
 IncludeCategories:
   - Regex: '^<[A-Za-z0-9_/.-]+\.h>'
@@ -32,10 +23,3 @@ IncludeCategories:
     Priority: 3
   - Regex: '.*'
     Priority: 4
-
-SpaceBeforeCpp11BracedList: false
-SpaceAfterTemplateKeyword: false
-
-AccessModifierOffset: -3
-EmptyLineBeforeAccessModifier: Always
-PackConstructorInitializers: NextLine
