@@ -11,3 +11,12 @@
 
 # 2026-05-27 — clang-format reformat under new LLVM-base + Allman style (#019, step 2/3)
 7be32d1c520c37d80f6fbd3da7e3ffba2ede28d2
+
+# 2026-05-27 — rename 5 scan free-functions to lowerCamelCase (#019, step 3/3 group 1/4)
+af9d58b792937152425a689359e3293c14f3284c
+# 2026-05-27 — rename 9 graph free-functions to lowerCamelCase (#019, step 3/3 group 2/4)
+3f9026ff8b2600f623c489edf957db134607f81c
+# 2026-05-27 — rename 5 DependencyGraph methods to lowerCamelCase (#019, step 3/3 group 3/4)
+104eb6e7ff5f96c8ed5f77c7f98fcb1d3ae83415
+# 2026-05-27 — rename 7 struct fields to lowerCamelCase (#019, step 3/3 group 4/4)
+223c04c33eafcf7d9a145b5b6143d9868e5d3cd4
