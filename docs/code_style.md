@@ -247,7 +247,14 @@ switch (severity)
 
 ## Инструменты
 
-- `clang-format` ≥ 16 в CI. Параметры — см. корневой `.clang-format`.
+- **`clang-format-18`** в CI (ubuntu-24.04 native + matches `clang-18` в build matrix). Параметры — см. корневой `.clang-format`. Версия пиннута: разные мажорные версии форматируют немного по-разному (особенно `AlignAfterOpenBracket`, `SortUsingDeclarations`), CI прогоняет `--dry-run --Werror`. Если CI красный по формату, **починить локально**:
+
+  ```bash
+  sudo apt-get install -y clang-format-18           # ставится из Astra/Debian репов
+  find src include tests -name '*.h' -o -name '*.cpp' | xargs clang-format-18 -i --style=file
+  ```
+
+  Reformat-коммит — отдельный, no semantic changes, SHA в `.git-blame-ignore-revs`.
 - `clang-tidy` — профили `modernize-*`, `cppcoreguidelines-*`, `readability-*`, `bugprone-*`, `performance-*`.
 - `lizard --CCN 15 --length 30 --arguments 5 --warnings_only` локально перед каждым пушем.
 

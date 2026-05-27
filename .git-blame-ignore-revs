@@ -20,3 +20,6 @@ af9d58b792937152425a689359e3293c14f3284c
 104eb6e7ff5f96c8ed5f77c7f98fcb1d3ae83415
 # 2026-05-27 — rename 7 struct fields to lowerCamelCase (#019, step 3/3 group 4/4)
 223c04c33eafcf7d9a145b5b6143d9868e5d3cd4
+
+# 2026-05-27 — apply clang-format-18 (#021, дрейф между clang-format-11/18 + длиннее camelCase)
+b5f9a1b207f5cdd2545913165da9fc77740a932e
