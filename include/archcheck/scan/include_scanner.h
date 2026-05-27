@@ -7,6 +7,6 @@
 namespace archcheck::scan
 {
 
-ScanResult scan_includes(std::string_view source);
+ScanResult scanIncludes(std::string_view source);
 
 } // namespace archcheck::scan

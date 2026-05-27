@@ -29,10 +29,10 @@ struct ProjectIndex
 // Skips directories listed in mini-design §1: .git, build, cmake-build-*,
 // .cache, .idea, .vscode, out. Returned paths are repo-relative and use
 // '/' as the path separator. The result is sorted for determinism.
-std::vector<ProjectFile> discover_files(const std::filesystem::path &root);
+std::vector<ProjectFile> discoverFiles(const std::filesystem::path &root);
 
 // Build exact-path + '/'-segment suffix indexes over `files`. The NodeId
 // of a file equals its index in the input vector.
-ProjectIndex build_project_index(const std::vector<ProjectFile> &files);
+ProjectIndex buildProjectIndex(const std::vector<ProjectFile> &files);
 
 } // namespace archcheck::scan

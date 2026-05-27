@@ -18,8 +18,8 @@ using archcheck::graph::DependencyGraph;
 using archcheck::graph::grown_sccs;
 using archcheck::graph::NodeId;
 using archcheck::scan::Resolution;
-using archcheck::scan::resolve_includes;
-using archcheck::scan::scan_includes;
+using archcheck::scan::resolveIncludes;
+using archcheck::scan::scanIncludes;
 
 namespace
 {
@@ -45,8 +45,8 @@ struct BuildResult
 
 BuildResult build_graph(const std::filesystem::path &root)
 {
-  const auto files = archcheck::scan::discover_files(root);
-  const auto index = archcheck::scan::build_project_index(files);
+  const auto files = archcheck::scan::discoverFiles(root);
+  const auto index = archcheck::scan::buildProjectIndex(files);
   BuildResult out;
   std::vector<NodeId> id_map;
   id_map.reserve(files.size());
@@ -57,8 +57,8 @@ BuildResult build_graph(const std::filesystem::path &root)
   for (std::size_t i = 0; i < files.size(); ++i)
   {
     const auto src = read_file(root / files[i].path);
-    const auto scanned = scan_includes(src);
-    const auto resolved = resolve_includes(scanned.directives, files[i].path, files, index);
+    const auto scanned = scanIncludes(src);
+    const auto resolved = resolveIncludes(scanned.directives, files[i].path, files, index);
     for (const auto &r : resolved)
     {
       if (r.resolution == Resolution::Project)

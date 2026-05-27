@@ -46,7 +46,7 @@ std::string to_posix(const std::filesystem::path &relative)
 
 } // namespace
 
-std::vector<ProjectFile> discover_files(const std::filesystem::path &root)
+std::vector<ProjectFile> discoverFiles(const std::filesystem::path &root)
 {
   std::vector<ProjectFile> out;
   std::error_code ec;
@@ -87,7 +87,7 @@ void add_suffixes(const std::string &path, NodeId id, ProjectIndex &idx)
 
 } // namespace
 
-ProjectIndex build_project_index(const std::vector<ProjectFile> &files)
+ProjectIndex buildProjectIndex(const std::vector<ProjectFile> &files)
 {
   ProjectIndex idx;
   idx.exact_path_index.reserve(files.size());
