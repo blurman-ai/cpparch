@@ -7,7 +7,7 @@
 **Приоритет:** major
 **Сложность:** M (1-1.5 дня) — выросла после уточнения скоупа: docs + clang-format + reformat 1500 LOC + серия переименований с тестами после каждого + примеры в двух spec-файлах + `.git-blame-ignore-revs`
 **Блокирует:** —
-**Заблокирован:** —
+**Заблокирован:** #020 (install_serena_mcp) — для step 3/3 (rename) нужен AST-инструмент, которого нет в Astra-репах
 **Related:** #004 (project_skeleton), #007 (workflow_setup), будущий task — CI шаг `clang-format --dry-run --Werror`
 
 ## Цель
@@ -113,11 +113,46 @@ Style trailing underscore). В guide должны быть **два готовы
 
 ## Сделано
 
-- (пусто)
+- **2026-05-27** — задача переведена в wip.
+- **2026-05-27** — `docs/code_style.md` переписан под LLVM-base + Allman + `name_` (commit `4919310`).
+- **2026-05-27** — `.clang-format` упрощён до `BasedOnStyle: LLVM` + 4 override-а (commit `4919310`).
+- **2026-05-27** — `clang-format -i` прогнан по всему src/include/tests (commit `7be32d1`, 28 файлов, 115/115 PASSED).
+- **2026-05-27** — создан `.git-blame-ignore-revs` с SHA reformat-коммита (commit `17b1d07`).
+- **2026-05-27** — step 3/3 (renames) **заблокирован** на установку AST-инструмента, оформлено отдельной задачей #020.
 
 ## В работе
 
-- (пусто)
+- step 3/3 (массовые переименования lower_snake_case → lowerCamelCase для методов/функций и snake_case → camelCase для struct-полей) — **на паузе до закрытия #020**. См. секцию «Step 3/3 — на паузе» ниже.
+
+## Step 3/3 — на паузе
+
+В Astra-репах нет `clang-rename`, LLVM-prebuilt tarball — 1.94 ГБ
+несоразмерно. Решение — установить **Serena MCP** (обёртка над LSP/clangd),
+это #020. После закрытия #020 возвращаемся сюда и доводим переименования
+по списку:
+
+**5 free-функций в scan:** `scan_includes` → `scanIncludes`,
+`discover_files` → `discoverFiles`, `build_project_index` → `buildProjectIndex`,
+`resolve_include` → `resolveInclude`, `resolve_includes` → `resolveIncludes`.
+
+**9 free-функций в graph:** `compute_scc` → `computeScc`, `reachable_from` → `reachableFrom`,
+`reverse_reachable_from` → `reverseReachableFrom`, `has_path` → `hasPath`,
+`added_edges` → `addedEdges`, `removed_edges` → `removedEdges`, `grown_sccs` → `grownSccs`,
+`save_baseline` → `saveBaseline`, `load_baseline` → `loadBaseline`.
+
+**5 методов DependencyGraph:** `add_node` → `addNode`, `add_edge` → `addEdge`,
+`has_edge` → `hasEdge`, `node_count` → `nodeCount`, `path_of` → `pathOf`.
+(`successors`, `predecessors` остаются — single-word.)
+
+**Struct-поля:** `raw_token` → `rawToken`, `source_file` → `sourceFile`,
+`exact_path_index` → `exactPathIndex`, `suffix_index` → `suffixIndex`,
+`baseline_size` → `baselineSize`, `current_size` → `currentSize`,
+private поля DependencyGraph (`path_to_id_` → `pathToId_` — trailing
+underscore уже есть).
+
+Каждый rename — отдельный коммит, SHA каждого в `.git-blame-ignore-revs`,
+после каждого — build + test + lizard. Финал — dogfood-snapshot diff
+должен быть нулевым.
 
 ## Следующие шаги
 
