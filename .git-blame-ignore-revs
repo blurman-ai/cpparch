@@ -1,0 +1,13 @@
+# Pure-formatting and pure-rename commits — ignored by git blame.
+#
+# Использование:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (или установить однажды глобально с --global). GitHub UI читает этот
+# файл автоматически.
+#
+# Политика: сюда попадают коммиты, в которых нет семантических изменений —
+# только whitespace, reformat, переименование identifier-ов AST-инструментом.
+# SHA нового такого коммита добавляется в этот файл в коммите ПОСЛЕ него.
+
+# 2026-05-27 — clang-format reformat under new LLVM-base + Allman style (#019, step 2/3)
+7be32d1c520c37d80f6fbd3da7e3ffba2ede28d2
