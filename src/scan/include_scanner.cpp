@@ -208,7 +208,7 @@ int line_at(const Joined &joined, std::size_t offset)
 
 } // namespace
 
-ScanResult scan_includes(std::string_view source)
+ScanResult scanIncludes(std::string_view source)
 {
   const Joined joined = join_continuations(source);
   const std::string cleaned = preprocess(joined.text);

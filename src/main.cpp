@@ -41,14 +41,14 @@ std::string read_file(const std::filesystem::path &p)
 
 int run_scan(const std::filesystem::path &root)
 {
-  const auto files = archcheck::scan::discover_files(root);
+  const auto files = archcheck::scan::discoverFiles(root);
   std::size_t directives = 0;
   std::size_t quotes = 0;
   std::size_t angles = 0;
   std::size_t diagnostics = 0;
   for (const auto &f : files)
   {
-    const auto res = archcheck::scan::scan_includes(read_file(root / f.path));
+    const auto res = archcheck::scan::scanIncludes(read_file(root / f.path));
     directives += res.directives.size();
     diagnostics += res.diagnostics.size();
     for (const auto &d : res.directives)
@@ -109,9 +109,9 @@ void build_graph(const GraphInputs &in, archcheck::graph::DependencyGraph &dg, G
   for (std::size_t i = 0; i < in.files.size(); ++i)
   {
     const auto src = read_file(in.root / in.files[i].path);
-    const auto scanned = archcheck::scan::scan_includes(src);
+    const auto scanned = archcheck::scan::scanIncludes(src);
     c.macro_includes += scanned.diagnostics.size();
-    const auto resolved = archcheck::scan::resolve_includes(scanned.directives, in.files[i].path, in.files, in.index);
+    const auto resolved = archcheck::scan::resolveIncludes(scanned.directives, in.files[i].path, in.files, in.index);
     apply_resolved(resolved, in.id_map[i], in.id_map, dg, c);
   }
 }
@@ -144,8 +144,8 @@ SccStats compute_scc_stats(const archcheck::graph::DependencyGraph &dg)
 
 int run_graph(const std::filesystem::path &root)
 {
-  const auto files = archcheck::scan::discover_files(root);
-  const auto index = archcheck::scan::build_project_index(files);
+  const auto files = archcheck::scan::discoverFiles(root);
+  const auto index = archcheck::scan::buildProjectIndex(files);
   archcheck::graph::DependencyGraph dg;
   std::vector<archcheck::graph::NodeId> id_map;
   id_map.reserve(files.size());

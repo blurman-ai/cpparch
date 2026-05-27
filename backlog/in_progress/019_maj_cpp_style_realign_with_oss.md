@@ -119,6 +119,8 @@ Style trailing underscore). В guide должны быть **два готовы
 - **2026-05-27** — `clang-format -i` прогнан по всему src/include/tests (commit `7be32d1`, 28 файлов, 115/115 PASSED).
 - **2026-05-27** — создан `.git-blame-ignore-revs` с SHA reformat-коммита (commit `17b1d07`).
 - **2026-05-27** — step 3/3 (renames) **заблокирован** на установку AST-инструмента, оформлено отдельной задачей #020.
+- **2026-05-27** — #020 закрыта (commit `40b31d1`), step 3/3 разблокирован, задача переведена в `in_progress/`.
+- **2026-05-27** — step 3/3 group 1/4: rename через Serena 5 free-функций в `scan`: `scan_includes` → `scanIncludes`, `discover_files` → `discoverFiles`, `build_project_index` → `buildProjectIndex`, `resolve_include` → `resolveInclude`, `resolve_includes` → `resolveIncludes`. Build OK, 115/115 tests PASSED, lizard 0 warnings, dogfood snapshot (`archcheck --graph .`) идентичен до правок (65 nodes / 77 edges). SHA коммита допишется в `.git-blame-ignore-revs`.
 
 ## В работе
 

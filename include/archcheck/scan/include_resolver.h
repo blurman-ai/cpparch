@@ -15,11 +15,11 @@ namespace archcheck::scan
 // that contained the directive. Returns a ResolvedInclude tagged with
 // one of Project / External / Unresolved / Ambiguous per the algorithm
 // described in §4 mini-design of #008.
-ResolvedInclude resolve_include(const IncludeDirective &directive, std::string_view source_file,
+ResolvedInclude resolveInclude(const IncludeDirective &directive, std::string_view source_file,
                                 const std::vector<ProjectFile> &files, const ProjectIndex &index);
 
 // Batch convenience: resolve every directive from a single source TU.
-std::vector<ResolvedInclude> resolve_includes(const std::vector<IncludeDirective> &directives,
+std::vector<ResolvedInclude> resolveIncludes(const std::vector<IncludeDirective> &directives,
                                               std::string_view source_file, const std::vector<ProjectFile> &files,
                                               const ProjectIndex &index);
 

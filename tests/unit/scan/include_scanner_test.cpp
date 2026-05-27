@@ -7,7 +7,7 @@
 using archcheck::scan::DiagnosticKind;
 using archcheck::scan::IncludeDirective;
 using archcheck::scan::IncludeKind;
-using archcheck::scan::scan_includes;
+using archcheck::scan::scanIncludes;
 
 namespace
 {
@@ -17,7 +17,7 @@ bool equal(const IncludeDirective &d, IncludeKind k, std::string_view token, int
   return d.kind == k && d.token == token && d.line == line;
 }
 
-std::vector<IncludeDirective> extract_directives(std::string_view source) { return scan_includes(source).directives; }
+std::vector<IncludeDirective> extract_directives(std::string_view source) { return scanIncludes(source).directives; }
 
 } // namespace
 
@@ -188,7 +188,7 @@ TEST_CASE("scan_includes rejects splice-joined line where # is no longer first-s
 
 TEST_CASE("scan_includes emits MacroInclude diagnostic for #include FOO", "[scan][scanner][macro]")
 {
-  const auto res = scan_includes("#include FOO\n");
+  const auto res = scanIncludes("#include FOO\n");
   REQUIRE(res.directives.empty());
   REQUIRE(res.diagnostics.size() == 1);
   REQUIRE(res.diagnostics[0].kind == DiagnosticKind::MacroInclude);
@@ -198,7 +198,7 @@ TEST_CASE("scan_includes emits MacroInclude diagnostic for #include FOO", "[scan
 
 TEST_CASE("scan_includes captures the full identifier for macro include", "[scan][scanner][macro]")
 {
-  const auto res = scan_includes("#include  BAR_X1\n");
+  const auto res = scanIncludes("#include  BAR_X1\n");
   REQUIRE(res.directives.empty());
   REQUIRE(res.diagnostics.size() == 1);
   REQUIRE(res.diagnostics[0].raw_token == "BAR_X1");
@@ -206,14 +206,14 @@ TEST_CASE("scan_includes captures the full identifier for macro include", "[scan
 
 TEST_CASE("scan_includes does not emit a diagnostic for a real quote include", "[scan][scanner][macro]")
 {
-  const auto res = scan_includes("#include \"x\"\n");
+  const auto res = scanIncludes("#include \"x\"\n");
   REQUIRE(res.directives.size() == 1);
   REQUIRE(res.diagnostics.empty());
 }
 
 TEST_CASE("scan_includes ignores an empty #include with no token", "[scan][scanner][macro]")
 {
-  const auto res = scan_includes("#include\n");
+  const auto res = scanIncludes("#include\n");
   REQUIRE(res.directives.empty());
   REQUIRE(res.diagnostics.empty());
 }
