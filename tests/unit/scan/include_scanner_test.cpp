@@ -1,7 +1,6 @@
+#include <catch2/catch_test_macros.hpp>
 #include <string>
 #include <vector>
-
-#include <catch2/catch_test_macros.hpp>
 
 #include "archcheck/scan/include_scanner.h"
 
@@ -13,213 +12,208 @@ using archcheck::scan::scan_includes;
 namespace
 {
 
-bool equal(const IncludeDirective& d, IncludeKind k, std::string_view token, int line)
+bool equal(const IncludeDirective &d, IncludeKind k, std::string_view token, int line)
 {
-   return d.kind == k && d.token == token && d.line == line;
+  return d.kind == k && d.token == token && d.line == line;
 }
 
-std::vector<IncludeDirective> extract_directives(std::string_view source)
-{
-   return scan_includes(source).directives;
-}
+std::vector<IncludeDirective> extract_directives(std::string_view source) { return scan_includes(source).directives; }
 
 } // namespace
 
-TEST_CASE("scan_includes on empty source returns empty", "[scan][scanner]")
-{
-   REQUIRE(extract_directives("").empty());
-}
+TEST_CASE("scan_includes on empty source returns empty", "[scan][scanner]") { REQUIRE(extract_directives("").empty()); }
 
 TEST_CASE("scan_includes extracts a single quote include", "[scan][scanner]")
 {
-   const auto res = extract_directives("#include \"foo.h\"\n");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Quote, "foo.h", 1));
+  const auto res = extract_directives("#include \"foo.h\"\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Quote, "foo.h", 1));
 }
 
 TEST_CASE("scan_includes extracts a single angle include", "[scan][scanner]")
 {
-   const auto res = extract_directives("#include <vector>\n");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Angle, "vector", 1));
+  const auto res = extract_directives("#include <vector>\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Angle, "vector", 1));
 }
 
 TEST_CASE("scan_includes returns multiple directives with line numbers", "[scan][scanner]")
 {
-   const auto res = extract_directives("#include <a>\n#include \"b\"\n#include <c>\n");
-   REQUIRE(res.size() == 3);
-   REQUIRE(equal(res[0], IncludeKind::Angle, "a", 1));
-   REQUIRE(equal(res[1], IncludeKind::Quote, "b", 2));
-   REQUIRE(equal(res[2], IncludeKind::Angle, "c", 3));
+  const auto res = extract_directives("#include <a>\n#include \"b\"\n#include <c>\n");
+  REQUIRE(res.size() == 3);
+  REQUIRE(equal(res[0], IncludeKind::Angle, "a", 1));
+  REQUIRE(equal(res[1], IncludeKind::Quote, "b", 2));
+  REQUIRE(equal(res[2], IncludeKind::Angle, "c", 3));
 }
 
 TEST_CASE("scan_includes ignores files without includes", "[scan][scanner]")
 {
-   REQUIRE(extract_directives("int main() { return 0; }\n").empty());
+  REQUIRE(extract_directives("int main() { return 0; }\n").empty());
 }
 
 TEST_CASE("scan_includes accepts leading spaces and tabs", "[scan][scanner]")
 {
-   const auto res = extract_directives("   #include <x>\n\t#include \"y\"\n");
-   REQUIRE(res.size() == 2);
-   REQUIRE(equal(res[0], IncludeKind::Angle, "x", 1));
-   REQUIRE(equal(res[1], IncludeKind::Quote, "y", 2));
+  const auto res = extract_directives("   #include <x>\n\t#include \"y\"\n");
+  REQUIRE(res.size() == 2);
+  REQUIRE(equal(res[0], IncludeKind::Angle, "x", 1));
+  REQUIRE(equal(res[1], IncludeKind::Quote, "y", 2));
 }
 
 TEST_CASE("scan_includes handles last line without trailing newline", "[scan][scanner]")
 {
-   const auto res = extract_directives("#include <x>");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Angle, "x", 1));
+  const auto res = extract_directives("#include <x>");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Angle, "x", 1));
 }
 
 TEST_CASE("scan_includes ignores #include inside // line comment", "[scan][scanner][comments]")
 {
-   REQUIRE(extract_directives("// #include \"x\"\n").empty());
+  REQUIRE(extract_directives("// #include \"x\"\n").empty());
 }
 
 TEST_CASE("scan_includes keeps directive when // appears after the token", "[scan][scanner][comments]")
 {
-   const auto res = extract_directives("#include \"x\" // trailing comment\n");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Quote, "x", 1));
+  const auto res = extract_directives("#include \"x\" // trailing comment\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Quote, "x", 1));
 }
 
 TEST_CASE("scan_includes ignores #include inside single-line /* */ block", "[scan][scanner][comments]")
 {
-   REQUIRE(extract_directives("/* #include \"x\" */\n").empty());
+  REQUIRE(extract_directives("/* #include \"x\" */\n").empty());
 }
 
 TEST_CASE("scan_includes ignores #include inside multi-line block comment", "[scan][scanner][comments]")
 {
-   const auto res = extract_directives("/*\n#include \"x\"\n*/\n#include <y>\n");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Angle, "y", 4));
+  const auto res = extract_directives("/*\n#include \"x\"\n*/\n#include <y>\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Angle, "y", 4));
 }
 
 TEST_CASE("scan_includes treats unterminated /* as swallowing the rest of the file", "[scan][scanner][comments]")
 {
-   REQUIRE(extract_directives("/* unterminated\n#include \"x\"\n").empty());
+  REQUIRE(extract_directives("/* unterminated\n#include \"x\"\n").empty());
 }
 
 TEST_CASE("scan_includes does not false-match #include inside an ordinary string literal", "[scan][scanner][strings]")
 {
-   REQUIRE(extract_directives("const char* s = \"#include \\\"x\\\"\";\n").empty());
+  REQUIRE(extract_directives("const char* s = \"#include \\\"x\\\"\";\n").empty());
 }
 
 TEST_CASE("scan_includes does not false-match # inside a character literal", "[scan][scanner][strings]")
 {
-   REQUIRE(extract_directives("char c = '#';\n").empty());
+  REQUIRE(extract_directives("char c = '#';\n").empty());
 }
 
 TEST_CASE("scan_includes ignores #include inside single-line raw string", "[scan][scanner][strings]")
 {
-   REQUIRE(extract_directives("auto s = R\"(#include \"x\")\";\n").empty());
+  REQUIRE(extract_directives("auto s = R\"(#include \"x\")\";\n").empty());
 }
 
 TEST_CASE("scan_includes ignores #include inside raw string with custom delimiter", "[scan][scanner][strings]")
 {
-   REQUIRE(extract_directives("auto s = R\"d(#include \"x\")d\";\n").empty());
+  REQUIRE(extract_directives("auto s = R\"d(#include \"x\")d\";\n").empty());
 }
 
 TEST_CASE("scan_includes ignores #include inside multi-line raw string", "[scan][scanner][strings]")
 {
-   const auto res = extract_directives("auto s = R\"(\n#include \"x\"\n)\";\n#include <y>\n");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Angle, "y", 4));
+  const auto res = extract_directives("auto s = R\"(\n#include \"x\"\n)\";\n#include <y>\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Angle, "y", 4));
 }
 
 TEST_CASE("scan_includes splices continuation inside #include keyword", "[scan][scanner][continuation]")
 {
-   const auto res = extract_directives("#inc\\\nlude \"x\"\n");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Quote, "x", 1));
+  const auto res = extract_directives("#inc\\\nlude \"x\"\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Quote, "x", 1));
 }
 
 TEST_CASE("scan_includes splices continuation between #include and token", "[scan][scanner][continuation]")
 {
-   const auto res = extract_directives("#include \\\n\"x\"\n");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Quote, "x", 1));
+  const auto res = extract_directives("#include \\\n\"x\"\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Quote, "x", 1));
 }
 
 TEST_CASE("scan_includes splices continuation inside include token", "[scan][scanner][continuation]")
 {
-   const auto res = extract_directives("#include \"fo\\\no.h\"\n");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Quote, "foo.h", 1));
+  const auto res = extract_directives("#include \"fo\\\no.h\"\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Quote, "foo.h", 1));
 }
 
 TEST_CASE("scan_includes splices multiple consecutive continuations", "[scan][scanner][continuation]")
 {
-   const auto res = extract_directives("#in\\\nclu\\\nde <x>\n");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Angle, "x", 1));
+  const auto res = extract_directives("#in\\\nclu\\\nde <x>\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Angle, "x", 1));
 }
 
 TEST_CASE("scan_includes does not splice backslash without immediate newline", "[scan][scanner][continuation]")
 {
-   REQUIRE(extract_directives("#include \\ \n<x>\n").empty());
+  REQUIRE(extract_directives("#include \\ \n<x>\n").empty());
 }
 
 TEST_CASE("scan_includes preserves physical line numbers after splice", "[scan][scanner][continuation]")
 {
-   const auto res = extract_directives("// comment\n#in\\\nclude <a>\n#include <b>\n");
-   REQUIRE(res.size() == 2);
-   REQUIRE(equal(res[0], IncludeKind::Angle, "a", 2));
-   REQUIRE(equal(res[1], IncludeKind::Angle, "b", 4));
+  const auto res = extract_directives("// comment\n#in\\\nclude <a>\n#include <b>\n");
+  REQUIRE(res.size() == 2);
+  REQUIRE(equal(res[0], IncludeKind::Angle, "a", 2));
+  REQUIRE(equal(res[1], IncludeKind::Angle, "b", 4));
 }
 
 TEST_CASE("scan_includes rejects #include preceded by code on the same line", "[scan][scanner][first-sig]")
 {
-   REQUIRE(extract_directives("int x; #include \"y\"\n").empty());
+  REQUIRE(extract_directives("int x; #include \"y\"\n").empty());
 }
 
 TEST_CASE("scan_includes rejects #include preceded by a single non-ws char", "[scan][scanner][first-sig]")
 {
-   REQUIRE(extract_directives("; #include \"y\"\n").empty());
+  REQUIRE(extract_directives("; #include \"y\"\n").empty());
 }
 
 TEST_CASE("scan_includes finds only the first #include on a line", "[scan][scanner][first-sig]")
 {
-   const auto res = extract_directives("#include \"a\" #include \"b\"\n");
-   REQUIRE(res.size() == 1);
-   REQUIRE(equal(res[0], IncludeKind::Quote, "a", 1));
+  const auto res = extract_directives("#include \"a\" #include \"b\"\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Quote, "a", 1));
 }
 
-TEST_CASE("scan_includes rejects splice-joined line where # is no longer first-significant", "[scan][scanner][first-sig]")
+TEST_CASE("scan_includes rejects splice-joined line where # is no longer first-significant",
+          "[scan][scanner][first-sig]")
 {
-   REQUIRE(extract_directives("int x; \\\n#include \"y\"\n").empty());
+  REQUIRE(extract_directives("int x; \\\n#include \"y\"\n").empty());
 }
 
 TEST_CASE("scan_includes emits MacroInclude diagnostic for #include FOO", "[scan][scanner][macro]")
 {
-   const auto res = scan_includes("#include FOO\n");
-   REQUIRE(res.directives.empty());
-   REQUIRE(res.diagnostics.size() == 1);
-   REQUIRE(res.diagnostics[0].kind == DiagnosticKind::MacroInclude);
-   REQUIRE(res.diagnostics[0].raw_token == "FOO");
-   REQUIRE(res.diagnostics[0].line == 1);
+  const auto res = scan_includes("#include FOO\n");
+  REQUIRE(res.directives.empty());
+  REQUIRE(res.diagnostics.size() == 1);
+  REQUIRE(res.diagnostics[0].kind == DiagnosticKind::MacroInclude);
+  REQUIRE(res.diagnostics[0].raw_token == "FOO");
+  REQUIRE(res.diagnostics[0].line == 1);
 }
 
 TEST_CASE("scan_includes captures the full identifier for macro include", "[scan][scanner][macro]")
 {
-   const auto res = scan_includes("#include  BAR_X1\n");
-   REQUIRE(res.directives.empty());
-   REQUIRE(res.diagnostics.size() == 1);
-   REQUIRE(res.diagnostics[0].raw_token == "BAR_X1");
+  const auto res = scan_includes("#include  BAR_X1\n");
+  REQUIRE(res.directives.empty());
+  REQUIRE(res.diagnostics.size() == 1);
+  REQUIRE(res.diagnostics[0].raw_token == "BAR_X1");
 }
 
 TEST_CASE("scan_includes does not emit a diagnostic for a real quote include", "[scan][scanner][macro]")
 {
-   const auto res = scan_includes("#include \"x\"\n");
-   REQUIRE(res.directives.size() == 1);
-   REQUIRE(res.diagnostics.empty());
+  const auto res = scan_includes("#include \"x\"\n");
+  REQUIRE(res.directives.size() == 1);
+  REQUIRE(res.diagnostics.empty());
 }
 
 TEST_CASE("scan_includes ignores an empty #include with no token", "[scan][scanner][macro]")
 {
-   const auto res = scan_includes("#include\n");
-   REQUIRE(res.directives.empty());
-   REQUIRE(res.diagnostics.empty());
+  const auto res = scan_includes("#include\n");
+  REQUIRE(res.directives.empty());
+  REQUIRE(res.diagnostics.empty());
 }
