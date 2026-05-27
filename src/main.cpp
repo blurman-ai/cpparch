@@ -8,10 +8,12 @@
 #include <string_view>
 
 #include "archcheck/diff/regression_report.h"
+#include "archcheck/git/git_object_file_source.h"
 #include "archcheck/git/git_state.h"
 #include "archcheck/graph/algorithms.h"
 #include "archcheck/graph/dependency_graph.h"
 #include "archcheck/graph/graph_builder.h"
+#include "archcheck/scan/disk_file_source.h"
 #include "archcheck/scan/include_scanner.h"
 #include "archcheck/scan/project_files.h"
 #include "archcheck/version.h"
@@ -30,7 +32,11 @@ void print_help()
             << "  archcheck --help\n"
             << "  archcheck --scan  <path>             (preview: discover + scan #includes)\n"
             << "  archcheck --graph <path>             (preview: build dependency graph + SCC stats)\n"
-            << "  archcheck --diff  <revspec> [path]   (regression vs git ref; revspec = 'a..b' or '<ref>')\n"
+            << "  archcheck --diff  [--diff-mode=disk|memory] <revspec> [path]\n"
+            << "                                       (regression vs git ref; revspec = 'a..b' or '<ref>')\n"
+            << "\n"
+            << "  --diff-mode=memory (default) reads git blobs in-process via `git cat-file --batch`.\n"
+            << "  --diff-mode=disk falls back to materialising each ref in a temporary worktree.\n"
             << "\n"
             << "Configuration parsing, default rules, and reporters land in subsequent\n"
             << "v0.1 commits. See docs/architecture-spec.md.\n";
@@ -130,26 +136,68 @@ bool tryFastPathNoCppChanges(const std::filesystem::path &repoRoot, const archch
   return true;
 }
 
-int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed)
+enum class DiffMode
 {
-  auto baselineTree = materialize_or_report(repoRoot, parsed.baseline, "baseline");
-  auto currentTree = materialize_or_report(repoRoot, parsed.current, "current");
-  if (!baselineTree || !currentTree)
+  Memory, // git cat-file --batch (default)
+  Disk    // git worktree add (legacy fallback)
+};
+
+// Materialise one side of the revspec as a FileSource. For WORKTREE always
+// use the on-disk source. For real refs: in Memory mode read blobs directly;
+// in Disk mode go through `git worktree add` via materializeRef.
+archcheck::graph::GraphBuildResult buildSideMemory(const std::filesystem::path &repoRoot, const std::string &ref,
+                                                   bool &ok)
+{
+  if (ref == archcheck::git::kWorktreeRef)
+  {
+    archcheck::scan::DiskFileSource src(repoRoot);
+    ok = true;
+    return archcheck::graph::buildGraphForSource(src);
+  }
+  archcheck::git::GitObjectFileSource src(repoRoot, ref);
+  if (!src.valid())
+  {
+    ok = false;
+    return {};
+  }
+  ok = true;
+  return archcheck::graph::buildGraphForSource(src);
+}
+
+archcheck::graph::GraphBuildResult buildSideDisk(const std::filesystem::path &repoRoot, const std::string &ref,
+                                                 const char *role, bool &ok)
+{
+  auto tree = materialize_or_report(repoRoot, ref, role);
+  if (!tree)
+  {
+    ok = false;
+    return {};
+  }
+  ok = true;
+  return archcheck::graph::buildGraphForPath(tree->path());
+}
+
+int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed, DiffMode mode)
+{
+  bool okBase = false, okCurr = false;
+  const auto baseline = (mode == DiffMode::Memory) ? buildSideMemory(repoRoot, parsed.baseline, okBase)
+                                                   : buildSideDisk(repoRoot, parsed.baseline, "baseline", okBase);
+  const auto current = (mode == DiffMode::Memory) ? buildSideMemory(repoRoot, parsed.current, okCurr)
+                                                  : buildSideDisk(repoRoot, parsed.current, "current", okCurr);
+  if (!okBase || !okCurr)
     return 2;
 
-  const auto baseline = archcheck::graph::buildGraphForPath(baselineTree->path());
-  const auto current = archcheck::graph::buildGraphForPath(currentTree->path());
   const auto report = archcheck::diff::buildRegressionReport(baseline.graph, current.graph);
-
   std::cout << "baseline_ref:   " << parsed.baseline << '\n'
             << "current_ref:    " << parsed.current << '\n'
+            << "diff_mode:      " << (mode == DiffMode::Memory ? "memory" : "disk") << '\n'
             << "baseline_nodes: " << baseline.graph.nodeCount() << '\n'
             << "current_nodes:  " << current.graph.nodeCount() << '\n';
   archcheck::diff::writeTextReport(report, std::cout);
   return report.hasRegression() ? 1 : 0;
 }
 
-int run_diff(std::string_view revspec, const std::filesystem::path &root)
+int run_diff(std::string_view revspec, const std::filesystem::path &root, DiffMode mode)
 {
   const auto parsed = archcheck::git::parseRevspec(revspec);
   if (!parsed)
@@ -165,19 +213,60 @@ int run_diff(std::string_view revspec, const std::filesystem::path &root)
   }
   if (tryFastPathNoCppChanges(*repoRoot, *parsed))
     return 0;
-  return runDiffFullPath(*repoRoot, *parsed);
+  return runDiffFullPath(*repoRoot, *parsed, mode);
+}
+
+bool parseDiffMode(std::string_view raw, DiffMode &out)
+{
+  if (raw == "memory")
+  {
+    out = DiffMode::Memory;
+    return true;
+  }
+  if (raw == "disk")
+  {
+    out = DiffMode::Disk;
+    return true;
+  }
+  return false;
+}
+
+// Strip a leading `--diff-mode=...` from argv starting at `idx`. Returns
+// the new idx on success; -1 on malformed value. Mutates `mode` in place.
+int consumeDiffModeFlag(int argc, char *argv[], int idx, DiffMode &mode)
+{
+  constexpr std::string_view kPrefix = "--diff-mode=";
+  while (idx < argc)
+  {
+    const std::string_view a{argv[idx]};
+    if (a.size() <= kPrefix.size() || a.compare(0, kPrefix.size(), kPrefix) != 0)
+      return idx;
+    if (!parseDiffMode(a.substr(kPrefix.size()), mode))
+    {
+      std::cerr << "archcheck: invalid --diff-mode value '" << a.substr(kPrefix.size())
+                << "' (expected 'disk' or 'memory')\n";
+      return -1;
+    }
+    ++idx;
+  }
+  return idx;
 }
 
 int dispatch_diff(int argc, char *argv[])
 {
-  if (argc < 3)
+  DiffMode mode = DiffMode::Memory;
+  const int idx = consumeDiffModeFlag(argc, argv, 2, mode);
+  if (idx < 0)
+    return 2;
+  if (idx >= argc)
   {
     std::cerr << "archcheck: --diff requires <revspec> [path]\n";
     return 2;
   }
-  const std::string_view revspec{argv[2]};
-  const std::filesystem::path root = argc >= 4 ? std::filesystem::path{argv[3]} : std::filesystem::current_path();
-  return run_diff(revspec, root);
+  const std::string_view revspec{argv[idx]};
+  const std::filesystem::path root =
+      (idx + 1 < argc) ? std::filesystem::path{argv[idx + 1]} : std::filesystem::current_path();
+  return run_diff(revspec, root, mode);
 }
 
 int dispatch_with_path(std::string_view arg, int argc, char *argv[])

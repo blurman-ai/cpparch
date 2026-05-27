@@ -2,7 +2,8 @@
 
 **Дата создания:** 2026-05-27
 **Дата старта:** 2026-05-27
-**Статус:** wip
+**Дата завершения:** 2026-05-27
+**Статус:** completed
 **Модуль:** SCAN, GRAPH, PERF
 **Приоритет:** major
 **Сложность:** L (3-5 дней)
@@ -45,32 +46,55 @@ pygit2/libgit2 или `git cat-file --batch`. Это правильный пут
 
 - [x] Спроектировать `archcheck::scan::FileSource` (без `I`-префикса — стиль-гайд запрещает): `list() -> vector<ProjectFile>`, `read(path) -> string`
 - [x] Перевести `scan::discoverFiles` + `buildGraphForPath` на работу через эту абстракцию (нынешний код становится `DiskFileSource`)
-- [ ] Добавить `git::GitObjectFileSource(repo, ref)`: enumerate через `git ls-tree -r <ref>`, content через `git cat-file --batch` (один пайп, batch-протокол)
-- [ ] В `run_diff` использовать `GitObjectFileSource` для baseline и (опционально) для current, оставив `DiskFileSource` для `WORKTREE`
-- [ ] Бенчмарк: на том же `gm` `--diff` должен сократиться с ~75 с до <5 с
-- [ ] Тесты:
-  - unit для `GitObjectFileSource` на temp git-репо (читает блобы, видит правильное дерево)
-  - integration `--diff` через in-memory путь — все 6 кейсов из `git_diff_test.cpp` должны зелениться без модификации (тестируется через тот же API `diffRefs`)
-- [ ] CLI-флаг `--diff-mode=disk|memory` для отката, default `memory`
-- [ ] Удалить `git worktree add` из `materializeRef` для не-WORKTREE кейса (но оставить как fallback через `--diff-mode=disk`)
-- [ ] Перепрогнать `bench_materialize.sh` с новой 6-й методикой `git-objects` (in-memory чтение, scan читает из map<path, content>)
+- [x] Добавить `git::GitObjectFileSource(repo, ref)`: enumerate через `git ls-tree -r <ref>`, content через `git cat-file --batch` (один долгоживущий процесс, batch-протокол)
+- [x] В `run_diff` использовать `GitObjectFileSource` для refs, `DiskFileSource` для `WORKTREE`
+- [x] Бенчмарк: на `gm` `--diff` сократился с ~60-90 с (disk методы) до **0.49 с** (in-memory). Цель «<5 с» перевыполнена с запасом, ~120× ускорение.
+- [x] Тесты:
+  - 4 unit для `GitObjectFileSource` на temp git-репо (extension filter, blob byte-equality, parity vs DiskFileSource, missing path → empty)
+  - 4 integration `--diff` через memory-путь — added edge / closed cycle / no-op / `<ref>..WORKTREE`. Результаты идентичны disk-варианту.
+- [x] CLI-флаг `--diff-mode=disk|memory`, default `memory`. `--help` обновлён.
+- [x] `materializeRef` оставлен (escape hatch через `--diff-mode=disk`). Решено не удалять: на случай странных репо (submodules / LFS / sparse) полезен. После v0.2 если жалоб нет — можно убрать.
+- [x] `scripts/bench_materialize.sh` обновлён 6-й методикой `git-objects` (materialize=0 мс, scan = полный `--diff` цикл через `git cat-file --batch`).
 
 ## Сделано
 
 - **2026-05-27** — `scan::FileSource` (абстрактная база) + `scan::DiskFileSource` (обёртка над текущим `discoverFiles` + `ifstream`). Названо без `I`-префикса согласно [docs/code_style.md](../../docs/code_style.md) §«Что мы НЕ делаем».
 - **2026-05-27** — `graph::buildGraphForSource(FileSource&)` стал source-of-truth pipeline, `buildGraphForPath(root)` — тонкий wrapper через `DiskFileSource(root)`. Поведение байт-в-байт прежнее.
-- Все 131 тест зелёные после рефактора. Lizard `--CCN 15 --length 30 --arguments 5 --warnings_only src/ include/ tests/` — clean.
+- **2026-05-27** — `git::GitObjectFileSource(repoRoot, ref)`: один долгоживущий `git cat-file --batch` процесс (fork/exec, full-duplex пайпы, RAII close+wait). `list()` через одноразовый `git ls-tree -r --name-only <ref>` + фильтр по `hasProjectExtension` и excluded-dir-segments. `read()` парсит batch-протокол (`<sha> <type> <size>\n<payload>\n`); blob → payload, иначе → empty.
+- **2026-05-27** — `main.cpp::run_diff` принимает `DiffMode`. Для refs — `GitObjectFileSource`, для `WORKTREE` — `DiskFileSource`. CLI: `--diff-mode=disk|memory`, default `memory`. Disk-режим оставлен как escape hatch.
+- **Бенчмарк на gm (2089 файлов, Release):**
 
-## В работе
+  | Метод | Materialize | Scan |
+  |---|---|---|
+  | worktree | 28.3 с | 0.16 с |
+  | archive | 32.3 с | 0.17 с |
+  | checkout-index | 27.9 с | 0.19 с |
+  | restore | 29.4 с | 0.17 с |
+  | shared-clone | 46.5 с | 0.47 с |
+  | **git-objects** | **3 мс** | **485 мс (полный --diff = 2 графа)** |
 
-- (нет активного шага — готов перейти к `GitObjectFileSource`)
+  Полный `--diff` цикл через memory-путь = **0.49 с против ~60-90 с** для disk-методов (≈ 2× materialize+scan). **~120× ускорение.**
 
-## Следующие шаги
+- Все **142 теста зелёные** (131 → 142; +4 unit GitObjectFileSource, +4 integration memory-parity, +3 changed-file тесты из соседнего шага). Lizard `--CCN 15 --length 30 --arguments 5 --warnings_only` — clean.
 
-1. `git::GitObjectFileSource(repoRoot, ref)`: один долгоживущий `git cat-file --batch` процесс; `list()` через `git ls-tree -r --name-only <ref>` + фильтр по тем же расширениям, что и `discoverFiles`.
-2. Unit-тесты на temp git-репо (списки совпадают с disk; содержимое блобов совпадает с `ifstream`).
-3. Подключить к `run_diff` (с CLI-флагом `--diff-mode=disk|memory`, default `memory`); проверить, что 6 интеграционных кейсов в `git_diff_test.cpp` зелёные без модификации.
-4. Замерить через обновлённый `bench_materialize.sh`. Если ≥ 10× — обсудить libgit2.
+## Принцип работы
+
+```
+run_diff(revspec, root, mode):
+   parseRevspec → (baseline, current)
+   findRepoRoot(root) → repoRoot
+   tryFastPathNoCppChanges    # из #023
+   for side in (baseline, current):
+      if side == WORKTREE: DiskFileSource(repoRoot)
+      elif mode == Memory:  GitObjectFileSource(repoRoot, side)
+      else:                 materializeRef + DiskFileSource(tree)
+      buildGraphForSource(source) → GraphBuildResult
+   buildRegressionReport(baseline, current) → отчёт
+```
+
+`GitObjectFileSource` владеет одним долгоживущим `git cat-file --batch` процессом (RAII). При `read(path)` пишет `<ref>:<path>\n` в stdin, читает заголовок + payload из stdout. `list()` — одноразовый `git ls-tree -r --name-only <ref>` (более простой протокол; цена — один extra fork на пробег, ~3 мс).
+
+`FileSource` — абстрактная база с `list()` + `read(path)`. `buildGraphForSource(FileSource&)` — единственный point of truth; `buildGraphForPath(root)` — wrapper через `DiskFileSource(root)`.
 
 ## Ключевые решения
 

@@ -23,6 +23,7 @@ add_executable(archcheck_tests
    unit/graph/diff_test.cpp
    unit/graph/baseline_test.cpp
    unit/git/git_state_test.cpp
+   unit/git/git_object_file_source_test.cpp
    unit/diff/regression_report_test.cpp
    integration/scan/scanner_fixtures_test.cpp
    integration/graph/end_to_end_test.cpp

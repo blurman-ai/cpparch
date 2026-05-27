@@ -10,6 +10,7 @@ add_library(archcheck_core STATIC
    graph/baseline.cpp
    graph/graph_builder.cpp
    git/git_state.cpp
+   git/git_object_file_source.cpp
    diff/regression_report.cpp
 )
 add_library(archcheck::core ALIAS archcheck_core)

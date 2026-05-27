@@ -10,8 +10,10 @@
 #include <vector>
 
 #include "archcheck/diff/regression_report.h"
+#include "archcheck/git/git_object_file_source.h"
 #include "archcheck/git/git_state.h"
 #include "archcheck/graph/graph_builder.h"
+#include "archcheck/scan/disk_file_source.h"
 
 namespace
 {
@@ -74,6 +76,39 @@ archcheck::diff::RegressionReport diffRefs(const fs::path &repo, const std::stri
   REQUIRE(headTree.has_value());
   const auto baseline = archcheck::graph::buildGraphForPath(baseTree->path());
   const auto current = archcheck::graph::buildGraphForPath(headTree->path());
+  return archcheck::diff::buildRegressionReport(baseline.graph, current.graph);
+}
+
+// In-memory variant: read blobs through git's object DB, no worktree-add.
+// `headRef == kWorktreeRef` falls back to a DiskFileSource on the working tree
+// (uncommitted state lives on disk, not in any blob).
+archcheck::diff::RegressionReport diffRefsMemory(const fs::path &repo, const std::string &baseRef,
+                                                 const std::string &headRef)
+{
+  archcheck::graph::GraphBuildResult baseline;
+  archcheck::graph::GraphBuildResult current;
+  if (baseRef == archcheck::git::kWorktreeRef)
+  {
+    archcheck::scan::DiskFileSource s(repo);
+    baseline = archcheck::graph::buildGraphForSource(s);
+  }
+  else
+  {
+    archcheck::git::GitObjectFileSource s(repo, baseRef);
+    REQUIRE(s.valid());
+    baseline = archcheck::graph::buildGraphForSource(s);
+  }
+  if (headRef == archcheck::git::kWorktreeRef)
+  {
+    archcheck::scan::DiskFileSource s(repo);
+    current = archcheck::graph::buildGraphForSource(s);
+  }
+  else
+  {
+    archcheck::git::GitObjectFileSource s(repo, headRef);
+    REQUIRE(s.valid());
+    current = archcheck::graph::buildGraphForSource(s);
+  }
   return archcheck::diff::buildRegressionReport(baseline.graph, current.graph);
 }
 
@@ -209,6 +244,75 @@ TEST_CASE("git diff: changedCppFiles (a..b) docs-only PR → empty list", "[diff
   const auto changed = archcheck::git::changedCppFiles(repo.path, "HEAD~1", "HEAD");
   REQUIRE(changed.has_value());
   REQUIRE(changed->empty());
+}
+
+TEST_CASE("git diff (memory): added edge → same report as disk path", "[diff][git][integration][memory]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  writeFile(repo.path / "a.h", "#include \"b.h\"\n");
+  writeFile(repo.path / "b.h", "// b\n");
+  writeFile(repo.path / "c.h", "// c\n");
+  commitAll(repo.path, "baseline");
+  writeFile(repo.path / "a.h", "#include \"b.h\"\n#include \"c.h\"\n");
+  commitAll(repo.path, "PR adds edge");
+
+  const auto report = diffRefsMemory(repo.path, "HEAD~1", "HEAD");
+  REQUIRE(report.addedEdges.size() == 1);
+  REQUIRE(report.addedEdges[0].from == "a.h");
+  REQUIRE(report.addedEdges[0].to == "c.h");
+  REQUIRE(report.removedEdges.empty());
+  REQUIRE(report.grownCycles.empty());
+  REQUIRE(report.hasRegression());
+}
+
+TEST_CASE("git diff (memory): closed cycle → grownCycles non-empty", "[diff][git][integration][memory]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  writeFile(repo.path / "a.h", "#include \"b.h\"\n");
+  writeFile(repo.path / "b.h", "#include \"c.h\"\n");
+  writeFile(repo.path / "c.h", "// c\n");
+  commitAll(repo.path, "baseline");
+  writeFile(repo.path / "c.h", "#include \"a.h\"\n");
+  commitAll(repo.path, "PR closes cycle");
+
+  const auto report = diffRefsMemory(repo.path, "HEAD~1", "HEAD");
+  REQUIRE(report.grownCycles.size() == 1);
+  REQUIRE(report.grownCycles[0].currentSize == 3);
+  REQUIRE(report.grownCycles[0].baselineSize == 0);
+  REQUIRE(report.hasRegression());
+}
+
+TEST_CASE("git diff (memory): no-op PR → no regression", "[diff][git][integration][memory]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  writeFile(repo.path / "a.h", "#include \"b.h\"\n");
+  writeFile(repo.path / "b.h", "// b\n");
+  commitAll(repo.path, "baseline");
+  writeFile(repo.path / "README.md", "irrelevant\n");
+  commitAll(repo.path, "docs only");
+
+  const auto report = diffRefsMemory(repo.path, "HEAD~1", "HEAD");
+  REQUIRE_FALSE(report.hasRegression());
+}
+
+TEST_CASE("git diff (memory): <ref>..WORKTREE picks up uncommitted edge",
+          "[diff][git][integration][memory]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  writeFile(repo.path / "a.h", "#include \"b.h\"\n");
+  writeFile(repo.path / "b.h", "// b\n");
+  commitAll(repo.path, "baseline");
+  writeFile(repo.path / "c.h", "// c\n");
+  writeFile(repo.path / "a.h", "#include \"b.h\"\n#include \"c.h\"\n");
+
+  const auto report = diffRefsMemory(repo.path, "HEAD", archcheck::git::kWorktreeRef);
+  REQUIRE(report.addedEdges.size() == 1);
+  REQUIRE(report.addedEdges[0].from == "a.h");
+  REQUIRE(report.addedEdges[0].to == "c.h");
 }
 
 TEST_CASE("git diff: changedCppFiles (a..WORKTREE) catches uncommitted + untracked C++ files",

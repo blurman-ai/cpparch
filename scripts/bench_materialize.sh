@@ -12,6 +12,10 @@
 #   3. checkout-index   — read-tree to temp index + checkout-index --prefix
 #   4. restore          — git restore --source --worktree (modern porcelain)
 #   5. shared-clone     — git clone --local --no-checkout + checkout
+#   6. git-objects      — no materialisation; archcheck reads blobs via
+#                          `git cat-file --batch` (#024). The "scan" column
+#                          here is total time to build one in-memory graph
+#                          (no disk I/O at all). materialize=0 ms.
 
 set -u  # no -e: we want the script to continue past one bad method
 
@@ -67,6 +71,11 @@ materialize() {
          git clone --local --no-checkout --quiet "$REPO" "$out" \
             && git -C "$out" checkout --quiet --detach "$SHA"
          ;;
+      git-objects)
+         # Sentinel: nothing on disk. run_once special-cases the scan step
+         # to invoke archcheck against the ref directly (no materialisation).
+         mkdir -p "$out"
+         ;;
       *) echo "unknown method: $method" >&2; return 1 ;;
    esac
 }
@@ -98,16 +107,32 @@ run_once() {
    mat_ms=$((mat_t1 - mat_t0))
 
    local files
-   files=$(find "$out" -type f \( -name '*.h' -o -name '*.hpp' -o -name '*.c' \
-              -o -name '*.cpp' -o -name '*.cxx' -o -name '*.cc' \) | wc -l)
+   if [[ "$method" == "git-objects" ]]; then
+      # No worktree on disk; count files in the ref tree instead.
+      files=$(git -C "$REPO" ls-tree -r --name-only "$SHA" \
+              | grep -Ec '\.(h|hpp|hxx|hh|c|cc|cpp|cxx|ipp|tpp|inl|inc)$')
+   else
+      files=$(find "$out" -type f \( -name '*.h' -o -name '*.hpp' -o -name '*.c' \
+                 -o -name '*.cpp' -o -name '*.cxx' -o -name '*.cc' \) | wc -l)
+   fi
 
    local scan_t0 scan_t1 scan_ms gout nodes edges
    scan_t0=$(now_ms)
-   gout=$("$ARCHCHECK" --graph "$out" 2>/dev/null)
+   if [[ "$method" == "git-objects" ]]; then
+      # Full `--diff` cycle in memory mode: builds two graphs straight from
+      # the object DB, no worktree on disk anywhere. For apples-to-apples
+      # comparison with the other methods, the disk total of one full diff
+      # is roughly 2 × (materialize + scan).
+      gout=$("$ARCHCHECK" --diff "--diff-mode=memory" "$SHA^..$SHA" "$REPO" 2>/dev/null)
+      nodes=$(awk '/^baseline_nodes:/{print $2}' <<<"$gout")
+      edges=$(awk '/^added_edges:/{print $2}' <<<"$gout")
+   else
+      gout=$("$ARCHCHECK" --graph "$out" 2>/dev/null)
+      nodes=$(awk '/^nodes:/{print $2}' <<<"$gout")
+      edges=$(awk '/^edges:/{print $2}' <<<"$gout")
+   fi
    scan_t1=$(now_ms)
    scan_ms=$((scan_t1 - scan_t0))
-   nodes=$(awk '/^nodes:/{print $2}' <<<"$gout")
-   edges=$(awk '/^edges:/{print $2}' <<<"$gout")
 
    cleanup "$method" "$out" "$tmp"
 
@@ -117,12 +142,12 @@ run_once() {
 
 # Warm: ensures git object cache is populated, OS filecache likewise.
 echo "--- warmup (results discarded) ---"
-for m in worktree archive checkout-index restore shared-clone; do
+for m in worktree archive checkout-index restore shared-clone git-objects; do
    out=$(run_once "$m")
    echo "warm: $out"
 done
 echo
 echo "--- measured ---"
-for m in worktree archive checkout-index restore shared-clone; do
+for m in worktree archive checkout-index restore shared-clone git-objects; do
    run_once "$m"
 done
