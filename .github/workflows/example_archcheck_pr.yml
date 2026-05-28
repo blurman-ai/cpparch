@@ -1,6 +1,12 @@
 # Example GitHub Actions job for users of archcheck: comment on a PR when
 # it introduces new edges or new/grown cycles vs. the merge base.
 #
+# Three visibility channels used here:
+#   1. $GITHUB_STEP_SUMMARY — full report one click away from the run page.
+#   2. Sticky PR comment via marocchino/sticky-pull-request-comment — live in
+#      the PR conversation tab, updated in-place on every push (no spam).
+#   3. Failed step → red Check automatically appears next to the PR.
+#
 # Copy into your project's `.github/workflows/` and adjust the install step
 # to use a release binary or a Docker image once those ship.
 #
@@ -13,10 +19,15 @@ name: archcheck (PR diff)
 on:
   pull_request:
     branches: [main, master]
+  merge_group:  # required for GitHub Merge Queue; job name must match pull_request
 
 jobs:
   archcheck-pr-diff:
     runs-on: ubuntu-latest
+    # pull-requests: write is required for sticky-comment; read is sufficient
+    # for the merge_group event (no PR to comment on there).
+    permissions:
+      pull-requests: write
     steps:
       - name: Checkout (with full history)
         uses: actions/checkout@v4
@@ -29,14 +40,27 @@ jobs:
           cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build
 
-      - name: archcheck --diff origin/${{ github.base_ref }}..HEAD
+      - name: Run archcheck --diff
+        id: archcheck
         run: |
           ./build/src/archcheck --diff "origin/${{ github.base_ref }}..HEAD" . \
             | tee archcheck-diff.txt
+        # exit 1 means regression found — keep going so we can post the comment
+        continue-on-error: true
 
-      - name: Upload diff report
+      - name: Publish report to Step Summary
         if: always()
-        uses: actions/upload-artifact@v4
+        run: cat archcheck-diff.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post sticky PR comment
+        # merge_group has no associated PR — skip the comment step there.
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
-          name: archcheck-diff
+          header: archcheck-diff
+          recreate: false
           path: archcheck-diff.txt
+
+      - name: Fail the job if archcheck found a regression
+        if: steps.archcheck.outcome == 'failure'
+        run: exit 1

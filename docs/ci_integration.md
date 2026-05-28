@@ -215,6 +215,43 @@ reporter показывает только пути, аннотации буду
 [depcruise-pr-check](https://github.com/marketplace/actions/depcruise-pr-check),
 который рисует mermaid-граф добавленных зависимостей в PR-комментарии.
 
+Готовый snippet (требует `permissions: pull-requests: write` на job-уровне):
+
+```yaml
+- name: Run archcheck --diff
+  id: archcheck
+  run: |
+    ./archcheck --diff "origin/${{ github.base_ref }}..HEAD" . \
+      | tee archcheck-diff.txt
+  continue-on-error: true
+
+- name: Post sticky PR comment
+  if: always() && github.event_name == 'pull_request'
+  uses: marocchino/sticky-pull-request-comment@v2
+  with:
+    header: archcheck-diff   # update-in-place key; prevents comment spam on force-push
+    recreate: false
+    path: archcheck-diff.txt
+
+- name: Fail the job if archcheck found a regression
+  if: steps.archcheck.outcome == 'failure'
+  run: exit 1
+```
+
+`header: archcheck-diff` — идентификатор для update-in-place: при
+повторном push в PR-ветку action находит свой предыдущий комментарий и
+обновляет его, а не создаёт новый.
+
+`if: always() && github.event_name == 'pull_request'` — два условия:
+`always()` публикует отчёт даже при регрессии (exit 1);
+`github.event_name == 'pull_request'` пропускает шаг для `merge_group`
+(там нет PR для комментирования).
+
+`continue-on-error: true` на шаге archcheck + финальный fail-шаг —
+стандартный паттерн «дать всем шагам отработать, но завалить job».
+
+Полный рабочий пример: [example_archcheck_pr.yml](../.github/workflows/example_archcheck_pr.yml).
+
 ### 3. Review comments на конкретные строки
 
 Это инструмент линтеров (clang-tidy, reviewdog `github-pr-review`).
@@ -247,9 +284,9 @@ reporter показывает только пути, аннотации буду
 - **Не вызывает GitHub API.** Tool остаётся git-host-agnostic. Public/
   private cloud, GitLab self-hosted, Bitbucket, Gitea — везде одинаково.
   Публикация — задача CI-шага после archcheck.
-- **Не комментирует PR сам.** См. канал 2; задача
-  [#025](backlog/new/025_maj_pr_comment_integration.md) добавит ready-made
-  шаг с `marocchino/sticky-pull-request-comment` в example workflow.
+- **Не комментирует PR сам.** Публикация — adapter-step в YAML (канал 2);
+  готовый snippet с `marocchino/sticky-pull-request-comment` — выше и в
+  [example_archcheck_pr.yml](../.github/workflows/example_archcheck_pr.yml).
 - **Не разбирает `.diff` / `.patch`.** Снапшоты графа дают точный ответ;
   построчный diff не показал бы «появился новый цикл A→B→C→A», если
   ни одного из этих рёбер сама PR не добавила.
@@ -279,4 +316,4 @@ archcheck --diff HEAD~1 .          # baseline = HEAD~1, current = WORKTREE
 - [#018](backlog/wip/018_crt_git_diff_analysis.md) — реализация `--diff` (wip, готова к коммиту).
 - [#022](backlog/new/022_min_diff_merge_commit_coverage.md) — тест на PR с merge-commit-ом.
 - [#023](backlog/new/023_maj_diff_skip_when_no_cpp_changes.md) — fast-path при отсутствии C/C++ изменений.
-- [#025](backlog/new/025_maj_pr_comment_integration.md) — публикация отчёта комментарием на PR.
+- [#025](backlog/wip/025_maj_pr_comment_integration.md) — публикация отчёта комментарием на PR.
