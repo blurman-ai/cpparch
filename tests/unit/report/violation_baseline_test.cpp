@@ -5,10 +5,10 @@
 #include "archcheck/report/violation_baseline.h"
 
 using archcheck::report::BaselineError;
-using archcheck::report::ViolationBaseline;
 using archcheck::report::filterNew;
 using archcheck::report::loadBaseline;
 using archcheck::report::saveBaseline;
+using archcheck::report::ViolationBaseline;
 using archcheck::rules::Violation;
 using archcheck::rules::ViolationList;
 
