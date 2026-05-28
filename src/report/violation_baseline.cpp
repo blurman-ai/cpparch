@@ -17,17 +17,17 @@ namespace
 std::string jsonEscape(const std::string &s)
 {
   std::string out;
-  out.reserve(s.size()); // LCOV_EXCL_BR_LINE
+  out.reserve(s.size());
   for (const char c : s)
   {
     if (c == '"')
-      out += "\\\""; // LCOV_EXCL_BR_LINE
+      out += "\\\"";
     else if (c == '\\')
-      out += "\\\\"; // LCOV_EXCL_BR_LINE
+      out += "\\\\";
     else if (c == '\n')
-      out += "\\n"; // LCOV_EXCL_BR_LINE
+      out += "\\n";
     else
-      out += c; // LCOV_EXCL_BR_LINE
+      out += c;
   }
   return out;
 }
@@ -35,24 +35,24 @@ std::string jsonEscape(const std::string &s)
 std::string jsonUnescape(std::string_view s)
 {
   std::string out;
-  out.reserve(s.size()); // LCOV_EXCL_BR_LINE
+  out.reserve(s.size());
   for (std::size_t i = 0; i < s.size(); ++i)
   {
     if (s[i] == '\\' && i + 1 < s.size())
     {
       ++i;
       if (s[i] == '"')
-        out += '"'; // LCOV_EXCL_BR_LINE
+        out += '"';
       else if (s[i] == '\\')
-        out += '\\'; // LCOV_EXCL_BR_LINE
+        out += '\\';
       else if (s[i] == 'n')
-        out += '\n'; // LCOV_EXCL_BR_LINE
+        out += '\n';
       else
-        out += s[i]; // LCOV_EXCL_BR_LINE
+        out += s[i];
     }
     else
     {
-      out += s[i]; // LCOV_EXCL_BR_LINE
+      out += s[i];
     }
   }
   return out;
@@ -62,7 +62,7 @@ std::string jsonUnescape(std::string_view s)
 // Returns nullopt if the key is not found or the value is unterminated.
 std::optional<std::string> extractString(std::string_view line, std::string_view key)
 {
-  const std::string needle = "\"" + std::string(key) + "\": \""; // LCOV_EXCL_BR_LINE
+  const std::string needle = "\"" + std::string(key) + "\": \"";
   const auto pos = line.find(needle);
   if (pos == std::string_view::npos)
     return std::nullopt;
@@ -73,7 +73,7 @@ std::optional<std::string> extractString(std::string_view line, std::string_view
     if (line[i] == '\\')
       ++i; // skip escaped character
     else if (line[i] == '"')
-      return jsonUnescape(line.substr(start, i - start)); // LCOV_EXCL_BR_LINE
+      return jsonUnescape(line.substr(start, i - start));
     ++i;
   }
   return std::nullopt; // unterminated string

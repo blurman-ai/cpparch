@@ -13,8 +13,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$ROOT/build/coverage"
 
-MIN_LINES="${MIN_LINES:-70}"
-MIN_FUNCTIONS="${MIN_FUNCTIONS:-60}"
+MIN_LINES="${MIN_LINES:-90}"
+MIN_FUNCTIONS="${MIN_FUNCTIONS:-90}"
 MIN_BRANCHES="${MIN_BRANCHES:-40}"
 
 # ── helpers ──────────────────────────────────────────────────────────────────
