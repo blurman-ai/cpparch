@@ -17,7 +17,7 @@ bool is_mirror_dir_path(std::string_view path)
 {
   for (std::string_view prefix : kMirrorPrefixes)
   {
-    if (path.find(prefix) == 0)
+    if (path.find(prefix) == 0) // cppcheck-suppress stlIfStrFind
       return true;
     std::string needle;
     needle.reserve(prefix.size() + 1);
