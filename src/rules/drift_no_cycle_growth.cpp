@@ -15,10 +15,9 @@ ViolationList DriftNoCycleGrowth::check(const graph::DependencyGraph &graph,
   ViolationList result;
   for (const auto &scc : graph::grownSccs(baseline_, graph))
   {
-    std::string msg = scc.baselineSize == 0
-                          ? "new cycle (" + std::to_string(scc.currentSize) + " members):"
-                          : "cycle grew from " + std::to_string(scc.baselineSize) + " to " +
-                                std::to_string(scc.currentSize) + " members:";
+    std::string msg = scc.baselineSize == 0 ? "new cycle (" + std::to_string(scc.currentSize) + " members):"
+                                            : "cycle grew from " + std::to_string(scc.baselineSize) + " to " +
+                                                  std::to_string(scc.currentSize) + " members:";
     for (const auto &m : scc.members)
       msg += " " + std::string(graph.pathOf(m));
     result.push_back({"DRIFT.2", std::string(graph.pathOf(scc.members.front())), 0, msg});
