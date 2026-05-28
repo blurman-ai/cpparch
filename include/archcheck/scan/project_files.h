@@ -36,6 +36,10 @@ std::vector<ProjectFile> discoverFiles(const std::filesystem::path &root);
 // re-implementing the canonical set.
 bool hasProjectExtension(const std::filesystem::path &p);
 
+// Returns true for header-only extensions (.h .hh .hpp .hxx .ipp .tpp .inl .inc).
+// Used by text-scan rules (SF.7, SF.8) that apply only to headers.
+bool isHeaderFile(const std::filesystem::path &p);
+
 // Build exact-path + '/'-segment suffix indexes over `files`. The NodeId
 // of a file equals its index in the input vector.
 ProjectIndex buildProjectIndex(const std::vector<ProjectFile> &files);
