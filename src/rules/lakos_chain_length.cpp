@@ -17,9 +17,9 @@ ViolationList LakosChainLength::check(const graph::DependencyGraph &graph,
   {
     if (depths[i] > threshold_)
     {
-      result.push_back({"Lakos.ChainLength", std::string(graph.pathOf(graph::NodeId{i})), 0,
-                        "include chain depth " + std::to_string(depths[i]) + " exceeds threshold " +
-                            std::to_string(threshold_)});
+      result.push_back(
+          {"Lakos.ChainLength", std::string(graph.pathOf(graph::NodeId{i})), 0,
+           "include chain depth " + std::to_string(depths[i]) + " exceeds threshold " + std::to_string(threshold_)});
     }
   }
   return result;
