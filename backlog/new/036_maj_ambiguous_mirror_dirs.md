@@ -1,8 +1,8 @@
 # [SCAN][CLI] Ambiguous из зеркальных директорий: single_include/, _amalgamated
 
 **Дата создания:** 2026-05-28
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-05-28
+**Статус:** wip
 **Модуль:** SCAN / CLI
 **Приоритет:** major
 **Сложность:** S
@@ -47,19 +47,33 @@ scan:
 
 ## План выполнения
 
-- [ ] `src/scan/include_resolver.cpp`: при ambiguous — отдавать предпочтение пути без well-known mirror dirs
-- [ ] Список well-known dirs: `single_include`, `amalgamate`, `amalgamated`, `dist`, `release/include`, `generated`
-- [ ] Проверить: nlohmann/json → 0 ambiguous
+- [x] `src/scan/include_resolver.cpp`: при ambiguous — отдавать предпочтение пути без well-known mirror dirs
+- [x] Список well-known dirs: `single_include`, `amalgamate`, `amalgamated`, `dist`, `release/include`, `generated`
+- [x] Проверить: nlohmann/json → 0 ambiguous (было 333, стало 0 ✓)
 - [ ] Проверить: fmt, spdlog, Catch2 — нет регрессий
-- [ ] Тест: два кандидата, один в `single_include/` → выбирается второй, не ambiguous
+- [x] Тест: два кандидата, один в `single_include/` → выбирается второй, не ambiguous
 
 ## Сделано
 
-- (пусто)
+- Реализован вариант А (heuristic): `kMirrorPrefixes` + `is_mirror_dir_path()` в `include_resolver.cpp`
+- Фильтрация в `resolve_by_suffix`: если ровно 1 кандидат не в mirror-dir → `Project`, иначе `Ambiguous` как раньше
+- Пробросан параметр `files` через цепочку `resolveInclude → resolve_quote/resolve_angle → resolve_by_suffix`
+- Добавлены 2 теста: happy path (`single_include` пропускается) + edge case (оба в mirror → Ambiguous)
+- Сборка чистая, 739 тестов прошли, lizard без предупреждений
+- `starts_with` заменён на `path.find(prefix) == 0` (clang 11 не поддерживает C++20 `starts_with`)
+
+## В работе
+
+- Ручная проверка на nlohmann/json (`./archcheck --graph /tmp/json`)
+
+## Ключевые решения
+
+- `path.find(prefix) == 0` вместо `starts_with` — clang 11 на Astra Linux не имеет `std::string_view::starts_with` даже с `-std=c++20`
+- Передаём `*candidates` (не `preferred`) в `make_ambiguous` когда фильтрация не помогла — сохраняем полную информацию о конфликте
 
 ## Изменённые файлы
 
 | Файл | Изменение |
 |------|-----------|
-| `src/scan/include_resolver.cpp` | mirror-dir heuristic |
-| `tests/unit/scan/include_resolver_test.cpp` | тест mirror-prefer |
+| `src/scan/include_resolver.cpp` | `kMirrorPrefixes`, `is_mirror_dir_path()`, фильтрация в `resolve_by_suffix`, проброс `files` |
+| `tests/unit/scan/include_resolver_test.cpp` | 2 новых теста mirror-prefer |

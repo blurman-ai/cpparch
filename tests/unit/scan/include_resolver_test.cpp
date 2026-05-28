@@ -143,6 +143,24 @@ TEST_CASE("resolve_include quote: source at repo root, dir-relative degenerate",
   REQUIRE(r.target == NodeId{1});
 }
 
+TEST_CASE("resolve_include angle: single_include candidate is skipped", "[scan][resolver][mirror]")
+{
+  const auto files = files_of({"src/nlohmann/json.hpp", "single_include/nlohmann/json.hpp"});
+  const ProjectIndex index = buildProjectIndex(files);
+  const ResolvedInclude r = resolveInclude(angle("nlohmann/json.hpp"), "src/main.cpp", files, index);
+  REQUIRE(r.resolution == Resolution::Project);
+  REQUIRE(r.target == NodeId{0});
+}
+
+TEST_CASE("resolve_include angle: both mirror candidates -> still Ambiguous", "[scan][resolver][mirror]")
+{
+  const auto files = files_of({"single_include/a/foo.h", "amalgamated/a/foo.h"});
+  const ProjectIndex index = buildProjectIndex(files);
+  const ResolvedInclude r = resolveInclude(angle("a/foo.h"), "src/main.cpp", files, index);
+  REQUIRE(r.resolution == Resolution::Ambiguous);
+  REQUIRE(r.candidates.size() == 2);
+}
+
 TEST_CASE("resolve_includes batch preserves order and per-directive verdicts", "[scan][resolver][batch]")
 {
   const auto files = files_of({"src/a.cpp", "src/a.h", "include/lib/b.h"});

@@ -1,5 +1,6 @@
 #include "archcheck/scan/include_resolver.h"
 
+#include <array>
 #include <string>
 #include <string_view>
 
@@ -8,6 +9,25 @@ namespace archcheck::scan
 
 namespace
 {
+
+constexpr std::array<std::string_view, 6> kMirrorPrefixes = {"single_include/", "amalgamate/", "amalgamated/",
+                                                             "dist/",           "generated/",  "release/include/"};
+
+bool is_mirror_dir_path(std::string_view path)
+{
+  for (std::string_view prefix : kMirrorPrefixes)
+  {
+    if (path.find(prefix) == 0)
+      return true;
+    std::string needle;
+    needle.reserve(prefix.size() + 1);
+    needle += '/';
+    needle.append(prefix);
+    if (path.find(needle) != std::string_view::npos)
+      return true;
+  }
+  return false;
+}
 
 std::string source_directory(std::string_view sourceFile)
 {
@@ -46,8 +66,8 @@ const std::vector<NodeId> *find_suffix(const ProjectIndex &index, const std::str
   return (it == index.suffixIndex.end()) ? nullptr : &it->second;
 }
 
-ResolvedInclude resolve_by_suffix(const IncludeDirective &d, std::string_view source, const ProjectIndex &index,
-                                  Resolution miss)
+ResolvedInclude resolve_by_suffix(const IncludeDirective &d, std::string_view source,
+                                  const std::vector<ProjectFile> &files, const ProjectIndex &index, Resolution miss)
 {
   const std::vector<NodeId> *candidates = find_suffix(index, d.token);
   if (candidates == nullptr || candidates->empty())
@@ -58,10 +78,17 @@ ResolvedInclude resolve_by_suffix(const IncludeDirective &d, std::string_view so
   {
     return make_project(d, source, candidates->front());
   }
+  std::vector<NodeId> preferred;
+  for (NodeId id : *candidates)
+    if (!is_mirror_dir_path(files[id].path))
+      preferred.push_back(id);
+  if (preferred.size() == 1)
+    return make_project(d, source, preferred.front());
   return make_ambiguous(d, source, *candidates);
 }
 
-ResolvedInclude resolve_quote(const IncludeDirective &d, std::string_view source, const ProjectIndex &index)
+ResolvedInclude resolve_quote(const IncludeDirective &d, std::string_view source, const std::vector<ProjectFile> &files,
+                              const ProjectIndex &index)
 {
   const std::string relative = source_directory(source) + d.token;
   if (const NodeId *hit = find_exact(index, relative))
@@ -72,28 +99,29 @@ ResolvedInclude resolve_quote(const IncludeDirective &d, std::string_view source
   {
     return make_project(d, source, *hit);
   }
-  return resolve_by_suffix(d, source, index, Resolution::Unresolved);
+  return resolve_by_suffix(d, source, files, index, Resolution::Unresolved);
 }
 
-ResolvedInclude resolve_angle(const IncludeDirective &d, std::string_view source, const ProjectIndex &index)
+ResolvedInclude resolve_angle(const IncludeDirective &d, std::string_view source, const std::vector<ProjectFile> &files,
+                              const ProjectIndex &index)
 {
   if (const NodeId *hit = find_exact(index, d.token))
   {
     return make_project(d, source, *hit);
   }
-  return resolve_by_suffix(d, source, index, Resolution::External);
+  return resolve_by_suffix(d, source, files, index, Resolution::External);
 }
 
 } // namespace
 
 ResolvedInclude resolveInclude(const IncludeDirective &directive, std::string_view sourceFile,
-                               const std::vector<ProjectFile> & /*files*/, const ProjectIndex &index)
+                               const std::vector<ProjectFile> &files, const ProjectIndex &index)
 {
   if (directive.kind == IncludeKind::Quote)
   {
-    return resolve_quote(directive, sourceFile, index);
+    return resolve_quote(directive, sourceFile, files, index);
   }
-  return resolve_angle(directive, sourceFile, index);
+  return resolve_angle(directive, sourceFile, files, index);
 }
 
 std::vector<ResolvedInclude> resolveIncludes(const std::vector<IncludeDirective> &directives,
