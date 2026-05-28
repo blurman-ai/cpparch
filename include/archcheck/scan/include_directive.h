@@ -17,6 +17,7 @@ struct IncludeDirective
   IncludeKind kind;
   std::string token;
   int line;
+  bool conditional = false;
 };
 
 enum class DiagnosticKind

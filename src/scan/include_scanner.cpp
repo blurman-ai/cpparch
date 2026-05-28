@@ -142,7 +142,26 @@ bool is_ident_start(char c) { return (c == '_') || (c >= 'A' && c <= 'Z') || (c 
 
 bool is_ident_cont(char c) { return is_ident_start(c) || (c >= '0' && c <= '9'); }
 
-void emit_directive(std::string_view line, int line_no, std::size_t i, ScanResult &out)
+bool is_pp_keyword(std::string_view line, std::string_view kw)
+{
+  std::size_t i = skip_ws(line, 0);
+  if (i >= line.size() || line[i] != '#')
+    return false;
+  i = skip_ws(line, i + 1);
+  if (line.compare(i, kw.size(), kw) != 0)
+    return false;
+  const std::size_t after = i + kw.size();
+  return after >= line.size() || !is_ident_cont(line[after]);
+}
+
+bool opens_conditional(std::string_view line)
+{
+  return is_pp_keyword(line, "if") || is_pp_keyword(line, "ifdef") || is_pp_keyword(line, "ifndef");
+}
+
+bool closes_conditional(std::string_view line) { return is_pp_keyword(line, "endif"); }
+
+void emit_directive(std::string_view line, int line_no, std::size_t i, bool conditional, ScanResult &out)
 {
   const char open = line[i];
   const char close = (open == '"') ? '"' : '>';
@@ -156,6 +175,7 @@ void emit_directive(std::string_view line, int line_no, std::size_t i, ScanResul
       (open == '"') ? IncludeKind::Quote : IncludeKind::Angle,
       std::string{line.substr(start, end - start)},
       line_no,
+      conditional,
   });
 }
 
@@ -173,7 +193,7 @@ void emit_macro_include(std::string_view line, int line_no, std::size_t i, ScanR
   });
 }
 
-void try_extract(std::string_view line, int line_no, ScanResult &out)
+void try_extract(std::string_view line, int line_no, bool conditional, ScanResult &out)
 {
   std::size_t i = skip_ws(line, 0);
   if (line.compare(i, kIncludeKeyword.size(), kIncludeKeyword) != 0)
@@ -188,7 +208,7 @@ void try_extract(std::string_view line, int line_no, ScanResult &out)
   const char c = line[i];
   if (c == '"' || c == '<')
   {
-    emit_directive(line, line_no, i, out);
+    emit_directive(line, line_no, i, conditional, out);
   }
   else if (is_ident_start(c))
   {
@@ -215,11 +235,17 @@ ScanResult scanIncludes(std::string_view source)
   const std::string_view view{cleaned};
   ScanResult out;
   std::size_t line_start = 0;
+  int depth = 0;
   for (std::size_t i = 0; i <= view.size(); ++i)
   {
     if (i == view.size() || view[i] == '\n')
     {
-      try_extract(view.substr(line_start, i - line_start), line_at(joined, line_start), out);
+      const std::string_view ln = view.substr(line_start, i - line_start);
+      if (opens_conditional(ln))
+        ++depth;
+      else if (closes_conditional(ln) && depth > 0)
+        --depth;
+      try_extract(ln, line_at(joined, line_start), depth > 0, out);
       line_start = i + 1;
     }
   }

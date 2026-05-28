@@ -217,3 +217,34 @@ TEST_CASE("scan_includes ignores an empty #include with no token", "[scan][scann
   REQUIRE(res.directives.empty());
   REQUIRE(res.diagnostics.empty());
 }
+
+TEST_CASE("scan_includes marks include inside #ifdef as conditional", "[scan][scanner][conditional]")
+{
+  const auto res = scanIncludes("#ifdef MACRO\n#include \"foo.h\"\n#endif\n");
+  REQUIRE(res.directives.size() == 1);
+  REQUIRE(res.directives[0].token == "foo.h");
+  REQUIRE(res.directives[0].conditional == true);
+}
+
+TEST_CASE("scan_includes marks include outside #ifdef as non-conditional", "[scan][scanner][conditional]")
+{
+  const auto res = scanIncludes("#include \"bar.h\"\n#ifdef MACRO\n#endif\n");
+  REQUIRE(res.directives.size() == 1);
+  REQUIRE(res.directives[0].token == "bar.h");
+  REQUIRE(res.directives[0].conditional == false);
+}
+
+TEST_CASE("scan_includes handles nested #if blocks correctly", "[scan][scanner][conditional]")
+{
+  const auto res = scanIncludes(
+      "#if A\n#include \"a.h\"\n#if B\n#include \"b.h\"\n#endif\n#include \"c.h\"\n#endif\n#include \"d.h\"\n");
+  REQUIRE(res.directives.size() == 4);
+  REQUIRE(res.directives[0].token == "a.h");
+  REQUIRE(res.directives[0].conditional == true);
+  REQUIRE(res.directives[1].token == "b.h");
+  REQUIRE(res.directives[1].conditional == true);
+  REQUIRE(res.directives[2].token == "c.h");
+  REQUIRE(res.directives[2].conditional == true);
+  REQUIRE(res.directives[3].token == "d.h");
+  REQUIRE(res.directives[3].conditional == false);
+}

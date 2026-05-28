@@ -41,6 +41,20 @@ struct CycleFinder
   }
 };
 
+bool allEdgesConditional(const graph::DependencyGraph &g, graph::NodeId start, const std::vector<graph::NodeId> &path)
+{
+  if (path.empty())
+    return false;
+  if (!g.isConditionalEdge(start, path.front()))
+    return false;
+  for (std::size_t i = 0; i + 1 < path.size(); ++i)
+  {
+    if (!g.isConditionalEdge(path[i], path[i + 1]))
+      return false;
+  }
+  return g.isConditionalEdge(path.back(), start);
+}
+
 std::string buildCycleMessage(const graph::DependencyGraph &g, const std::vector<graph::NodeId> &path,
                               graph::NodeId start)
 {
@@ -74,6 +88,8 @@ ViolationList Sf9NoCycles::check(const graph::DependencyGraph &graph,
       if (members.count(next) && finder.dfs(next))
         break;
     }
+    if (allEdgesConditional(graph, start, finder.path))
+      continue;
     result.push_back({"SF.9", std::string(graph.pathOf(start)), 0, buildCycleMessage(graph, finder.path, start)});
   }
   return result;

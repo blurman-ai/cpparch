@@ -23,7 +23,7 @@ void applyResolved(const std::vector<scan::ResolvedInclude> &resolved, NodeId so
     switch (r.resolution)
     {
     case scan::Resolution::Project:
-      dg.addEdge(source, idMap[r.target]);
+      dg.addEdge(source, idMap[r.target], r.directive.conditional);
       ++c.edges;
       break;
     case scan::Resolution::External:

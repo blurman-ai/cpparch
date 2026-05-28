@@ -34,6 +34,8 @@ const std::vector<NodeId> &empty_neighbors()
 
 bool contains(const std::vector<NodeId> &v, NodeId id) { return std::find(v.begin(), v.end(), id) != v.end(); }
 
+std::uint64_t edge_key(NodeId from, NodeId to) { return (static_cast<std::uint64_t>(from.value) << 32) | to.value; }
+
 } // namespace
 
 NodeId DependencyGraph::addNode(std::string_view path)
@@ -50,15 +52,24 @@ NodeId DependencyGraph::addNode(std::string_view path)
   return id;
 }
 
-void DependencyGraph::addEdge(NodeId from, NodeId to)
+void DependencyGraph::addEdge(NodeId from, NodeId to, bool conditional)
 {
   auto &fwd = forward_[from];
   if (contains(fwd, to))
   {
+    if (!conditional)
+      conditionalEdges_.erase(edge_key(from, to));
     return;
   }
   fwd.push_back(to);
   reverse_[to].push_back(from);
+  if (conditional)
+    conditionalEdges_.insert(edge_key(from, to));
+}
+
+bool DependencyGraph::isConditionalEdge(NodeId from, NodeId to) const
+{
+  return conditionalEdges_.count(edge_key(from, to)) > 0;
 }
 
 bool DependencyGraph::hasEdge(NodeId from, NodeId to) const

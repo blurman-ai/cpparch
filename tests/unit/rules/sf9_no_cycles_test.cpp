@@ -69,3 +69,27 @@ TEST_CASE("SF.9: two separate cycles produce two violations", "[rules][sf9]")
   Sf9NoCycles rule;
   REQUIRE(rule.check(g, {}).size() == 2);
 }
+
+TEST_CASE("SF.9: all-conditional cycle produces no violations", "[rules][sf9]")
+{
+  DependencyGraph g;
+  const auto a = g.addNode("foo.h");
+  const auto b = g.addNode("foo-inl.h");
+  g.addEdge(a, b, /*conditional=*/true);
+  g.addEdge(b, a, /*conditional=*/true);
+
+  Sf9NoCycles rule;
+  REQUIRE(rule.check(g, {}).empty());
+}
+
+TEST_CASE("SF.9: mixed cycle (one unconditional edge) still reports violation", "[rules][sf9]")
+{
+  DependencyGraph g;
+  const auto a = g.addNode("a.h");
+  const auto b = g.addNode("b.h");
+  g.addEdge(a, b, /*conditional=*/true);
+  g.addEdge(b, a, /*conditional=*/false);
+
+  Sf9NoCycles rule;
+  REQUIRE(rule.check(g, {}).size() == 1);
+}
