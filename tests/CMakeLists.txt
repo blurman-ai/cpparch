@@ -27,6 +27,11 @@ add_executable(archcheck_tests
    unit/diff/regression_report_test.cpp
    integration/scan/scanner_fixtures_test.cpp
    integration/graph/end_to_end_test.cpp
+   unit/rules/lakos_chain_length_test.cpp
+   unit/rules/lakos_god_headers_test.cpp
+   unit/rules/sf7_using_namespace_test.cpp
+   unit/rules/sf8_include_guard_test.cpp
+   unit/rules/sf9_no_cycles_test.cpp
    integration/diff/git_diff_test.cpp
 )
 target_link_libraries(archcheck_tests
@@ -34,8 +39,8 @@ target_link_libraries(archcheck_tests
       archcheck::core
       Catch2::Catch2WithMain
 )
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
-   target_link_libraries(archcheck_tests PRIVATE stdc++fs)
+if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_link_libraries(archcheck_tests PRIVATE stdc++fs)
 endif()
 target_compile_definitions(archcheck_tests PRIVATE
    ARCHCHECK_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/fixtures"

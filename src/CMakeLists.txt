@@ -12,6 +12,14 @@ add_library(archcheck_core STATIC
    git/git_state.cpp
    git/git_object_file_source.cpp
    diff/regression_report.cpp
+   report/json_reporter.cpp
+   report/text_reporter.cpp
+   rules/lakos_chain_length.cpp
+   rules/lakos_god_headers.cpp
+   rules/sf7_using_namespace.cpp
+   rules/sf8_include_guard.cpp
+   rules/sf9_no_cycles.cpp
+   rules/rule_set.cpp
 )
 add_library(archcheck::core ALIAS archcheck_core)
 
@@ -21,8 +29,8 @@ target_include_directories(archcheck_core PUBLIC
 
 target_link_libraries(archcheck_core PUBLIC ryml::ryml)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
-   target_link_libraries(archcheck_core PUBLIC stdc++fs)
+if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_link_libraries(archcheck_core PUBLIC stdc++fs)
 endif()
 
 target_compile_features(archcheck_core PUBLIC cxx_std_20)
