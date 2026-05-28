@@ -17,8 +17,7 @@ ViolationList LakosGodHeaders::check(const graph::DependencyGraph &graph,
     if (fanIn > threshold_)
     {
       result.push_back({"Lakos.GodHeader", std::string(graph.pathOf(id)), 0,
-                        "fan-in " + std::to_string(fanIn) + " exceeds threshold " +
-                            std::to_string(threshold_)});
+                        "fan-in " + std::to_string(fanIn) + " exceeds threshold " + std::to_string(threshold_)});
     }
   }
   return result;

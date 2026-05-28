@@ -40,8 +40,8 @@ void writeJsonReport(const rules::ViolationList &violations, std::ostream &out)
   for (std::size_t i = 0; i < violations.size(); ++i)
   {
     const auto &v = violations[i];
-    out << "    {\"rule\": \"" << jsonEscape(v.ruleId) << "\", \"file\": \"" << jsonEscape(v.file) << "\", \"line\": "
-        << v.line << ", \"message\": \"" << jsonEscape(v.message) << "\"}";
+    out << "    {\"rule\": \"" << jsonEscape(v.ruleId) << "\", \"file\": \"" << jsonEscape(v.file)
+        << "\", \"line\": " << v.line << ", \"message\": \"" << jsonEscape(v.message) << "\"}";
     if (i + 1 < violations.size())
       out << ',';
     out << '\n';

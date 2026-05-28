@@ -220,7 +220,8 @@ std::vector<std::size_t> computeIncludeDepths(const DependencyGraph &g)
   // Memoised DFS on condensation DAG → depth per SCC
   std::vector<std::size_t> sccDepth(nSccs, 0);
   std::vector<bool> done(nSccs, false);
-  std::function<std::size_t(std::size_t)> dfs = [&](std::size_t u) -> std::size_t {
+  std::function<std::size_t(std::size_t)> dfs = [&](std::size_t u) -> std::size_t
+  {
     if (done[u])
       return sccDepth[u];
     done[u] = true;

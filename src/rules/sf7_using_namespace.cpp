@@ -39,8 +39,7 @@ ViolationList scanFile(std::string_view path, const std::string &source)
     ++line;
     const auto raw = std::string_view(source).substr(start, len);
     if (hasUsingNamespace(stripLineComment(raw)))
-      result.push_back({"SF.7", std::string(path), line,
-                        "'using namespace' at global scope in header (SF.7)"});
+      result.push_back({"SF.7", std::string(path), line, "'using namespace' at global scope in header (SF.7)"});
     if (end == std::string::npos)
       break;
     start = end + 1;

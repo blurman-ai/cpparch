@@ -14,35 +14,35 @@ namespace
 
 struct CycleFinder
 {
-   const graph::DependencyGraph &g;
-   const std::unordered_set<graph::NodeId> &members;
-   graph::NodeId target;
-   std::unordered_set<graph::NodeId> vis;
-   std::vector<graph::NodeId> path;
+  const graph::DependencyGraph &g;
+  const std::unordered_set<graph::NodeId> &members;
+  graph::NodeId target;
+  std::unordered_set<graph::NodeId> vis;
+  std::vector<graph::NodeId> path;
 
-   bool dfs(graph::NodeId cur)
-   {
-      if (cur == target)
-         return true;
-      if (vis.count(cur))
-         return false;
-      vis.insert(cur);
-      path.push_back(cur);
-      for (graph::NodeId next : g.successors(cur))
-      {
-         if (!members.count(next))
-            continue;
-         if (dfs(next))
-            return true;
-      }
-      path.pop_back();
-      vis.erase(cur);
+  bool dfs(graph::NodeId cur)
+  {
+    if (cur == target)
+      return true;
+    if (vis.count(cur))
       return false;
-   }
+    vis.insert(cur);
+    path.push_back(cur);
+    for (graph::NodeId next : g.successors(cur))
+    {
+      if (!members.count(next))
+        continue;
+      if (dfs(next))
+        return true;
+    }
+    path.pop_back();
+    vis.erase(cur);
+    return false;
+  }
 };
 
 std::string buildCycleMessage(const graph::DependencyGraph &g, const std::vector<graph::NodeId> &path,
-                               graph::NodeId start)
+                              graph::NodeId start)
 {
   std::string s = "cycle: ";
   s += g.pathOf(start);

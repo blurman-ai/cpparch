@@ -347,7 +347,8 @@ TEST_CASE("git diff: merge-commit HEAD → A..M sees union of edges from both pa
 
   const auto fromA = diffRefs(repo.path, "A", "HEAD");
   REQUIRE(fromA.addedEdges.size() == 2);
-  const auto hasEdge = [&](std::string_view to) {
+  const auto hasEdge = [&](std::string_view to)
+  {
     return std::any_of(fromA.addedEdges.begin(), fromA.addedEdges.end(),
                        [&](const auto &e) { return e.from == "a.h" && e.to == to; });
   };
