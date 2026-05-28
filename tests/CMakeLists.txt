@@ -28,6 +28,8 @@ add_executable(archcheck_tests
    unit/report/violation_baseline_test.cpp
    integration/scan/scanner_fixtures_test.cpp
    integration/graph/end_to_end_test.cpp
+   unit/rules/drift_no_shortcut_edge_test.cpp
+   unit/rules/drift_no_cycle_growth_test.cpp
    unit/rules/lakos_chain_length_test.cpp
    unit/rules/lakos_god_headers_test.cpp
    unit/rules/sf7_using_namespace_test.cpp

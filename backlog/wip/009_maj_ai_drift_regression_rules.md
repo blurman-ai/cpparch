@@ -1,13 +1,13 @@
 # [RULES/DRIFT] AI-oriented drift-regression rules
 
 **Дата создания:** 2026-05-26
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-05-28
+**Статус:** wip
 **Модуль:** RULES/DRIFT
 **Приоритет:** major
 **Сложность:** M (2-4 дня на дизайн, реализация отдельными шагами)
 **Блокирует:** —
-**Заблокирован:** #008 (dependency_graph_foundation)
+**Заблокирован:** ~~#008 (dependency_graph_foundation)~~ ✅
 **Related:** #006 (spec_refactor)
 
 ## Цель
@@ -25,67 +25,70 @@ hygiene checks и полностью user-declared architecture policy есть
 Рабочее название для соседней линии, где агент читает репозиторий и выводит
 проверяемые архитектурные гипотезы: **AI-assisted rule synthesis**.
 
-Их задача — отвечать не на вопрос “что у вас вообще плохо”, а на вопрос:
+Их задача — отвечать не на вопрос "что у вас вообще плохо", а на вопрос:
 
 > какой локально-удобный, но глобально-размывающий архитектуру шаг был только что сделан в изменении?
 
-Такие правила особенно полезны в эпоху AI-кодинга: агент часто не создаёт
-откровенный мусор, а делает правдоподобный shortcut или локальную структурную
-докрутку, которая размывает уже сложившийся граф.
-
-Для первого прототипа scope нужно жёстко сузить:
-
-- `DRIFT.1 no_new_shortcut_edge`
-- `DRIFT.2 no_new_cycle_or_cycle_growth`
-
-Остальные `DRIFT.*` правила считаются перспективными, но выносятся во вторую
-волну, потому что требуют repo inference, настройки порогов или git history.
+Для первого прототипа scope жёстко сужен до `DRIFT.1` и `DRIFT.2`.
 
 ## План выполнения
 
-- [ ] Зафиксировать `DRIFT.1` и `DRIFT.2` как единственный scope первого прототипа
-- [ ] Для обоих правил зафиксировать входные данные, алгоритм, expected output и false-positive profile
-- [ ] Зафиксировать default severity: `warning`
-- [ ] Зафиксировать suppression / allow-механику для `DRIFT.1`
-- [ ] Привязать оба правила к отдельному `graph-baseline`, а не к обычному violation baseline
-- [ ] Подготовить маленькие reference-сценарии для `shortcut edge` и `cycle growth`
-- [ ] Вынести `DRIFT.3+` в отдельную follow-up группу
+- [x] Зафиксировать `DRIFT.1` и `DRIFT.2` как единственный scope первого прототипа
+- [x] Реализовать `DRIFT.1 no_new_shortcut_edge` + unit tests
+- [x] Реализовать `DRIFT.2 no_new_cycle_or_cycle_growth` + unit tests
+- [x] Зафиксировать suppression-механику: `--save-graph-baseline` → обновить граф-baseline
+- [x] Привязать правила к graph-baseline через конструктор (не к violation baseline)
+- [x] CLI: `--drift-baseline <file>` + `--save-graph-baseline <file>`
+- [ ] Подготовить fixtures (`drift_shortcut_edge`, `drift_cycle_growth`)
+- [ ] Вынести `DRIFT.3+` в отдельную follow-up задачу
 
 ## Сделано
 
-- (пусто)
+- **DRIFT.1 `DriftNoShortcutEdge`**: новое ребро между двумя файлами, оба из которых существовали в baseline. Новые файлы не флагируются. 6 unit tests, все зелёные.
+- **DRIFT.2 `DriftNoCycleGrowth`**: SCC (цикл) вырос или появился новый. Использует `graph::grownSccs()`. 5 unit tests, все зелёные.
+- **`makeDriftRuleSet(baseline)`** в `rule_set.h/.cpp` — фабрика для обоих DRIFT-правил.
+- **CLI**: `--drift-baseline <file>` запускает дефолтные правила + DRIFT; `--save-graph-baseline <file>` сохраняет граф включений как baseline.
+- Полный прогон: 713 assertions, 209 test cases — всё зелёное.
 
 ## В работе
 
-- (пусто)
+- Fixtures для ручного и integration-тестирования (пока нет)
 
 ## Следующие шаги
 
-1. Держать scope первого прототипа только на `DRIFT.1` и `DRIFT.2`
-2. Привязать их к graph primitives из #008
-3. После этого заводить follow-up tasks для второй волны `DRIFT.*`
+1. Создать `fixtures/drift_shortcut_edge/` и `fixtures/drift_cycle_growth/` (pass + fail)
+2. Добавить интеграционный тест, который запускает `--drift-baseline` на фикстуры
+3. Завести `backlog/future/` задачу для второй волны `DRIFT.3+`
 
 ## Ключевые решения
 
 | Решение | Причина |
 |---------|---------|
-| Drift rules — отдельное семейство, а не подвид SF/Lakos | У них другая продуктовая цель: ловить structural regression |
-| Первый прототип = только `DRIFT.1` и `DRIFT.2` | Это самые чистые и наименее спорные diff-based правила |
-| Первая реализация = `warning`, не `error` | Сначала нужно проверить полезность сигнала на реальных репозиториях |
-| Делать ставку на `graph-baseline + diff`, а не на абсолютные smell thresholds | Это лучше бьётся с AI-induced architectural drift |
+| DRIFT rules хранят baseline в конструкторе | Чисто вписывается в `IRule` без изменения интерфейса |
+| DRIFT.1 флагирует только рёбра, где оба конца в baseline | Новые файлы могут include что угодно — это не shortcut |
+| Suppression = обновить граф-baseline через `--save-graph-baseline` | Консистентно с violation baseline паттерном, не нужна отдельная allow-list |
+| `--drift-baseline` запускает и дефолтные правила, и DRIFT | Один проход, полный отчёт |
+| Severity: warning реализована через стандартный `Violation` (без поля severity) | Поля `ruleId` достаточно — при необходимости добавить severity в `Violation` позже |
 
 ## Изменённые файлы
 
 | Файл | Изменение |
 |------|-----------|
-| docs/architecture-spec.md | scope и формализация первого прототипа `DRIFT.*` |
-| src/rules/drift/* | будущая реализация правил |
-| tests/integration/drift/* | будущие сценарии |
-| tests/unit/rules/drift/* | будущие unit tests |
+| `include/archcheck/rules/drift_no_shortcut_edge.h` | новый — DRIFT.1 |
+| `src/rules/drift_no_shortcut_edge.cpp` | новый — DRIFT.1 impl |
+| `include/archcheck/rules/drift_no_cycle_growth.h` | новый — DRIFT.2 |
+| `src/rules/drift_no_cycle_growth.cpp` | новый — DRIFT.2 impl |
+| `include/archcheck/rules/rule_set.h` | добавлен `makeDriftRuleSet` |
+| `src/rules/rule_set.cpp` | реализация `makeDriftRuleSet` |
+| `src/CMakeLists.txt` | добавлены два новых .cpp |
+| `src/main.cpp` | `--drift-baseline`, `--save-graph-baseline`, `applyDriftFile` |
+| `tests/unit/rules/drift_no_shortcut_edge_test.cpp` | новый — 6 тестов |
+| `tests/unit/rules/drift_no_cycle_growth_test.cpp` | новый — 5 тестов |
+| `tests/CMakeLists.txt` | добавлены два новых теста |
 
 ## Fixtures (если правило)
 
 - [ ] `fixtures/drift_shortcut_edge/pass/`
-- [ ] `fixtures/drift_shortcut_edge/fail_*/`
+- [ ] `fixtures/drift_shortcut_edge/fail_new_coupling/`
 - [ ] `fixtures/drift_cycle_growth/pass/`
-- [ ] `fixtures/drift_cycle_growth/fail_*/`
+- [ ] `fixtures/drift_cycle_growth/fail_new_cycle/`
