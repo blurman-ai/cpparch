@@ -20,16 +20,20 @@ Unit-тесты DRIFT.1/DRIFT.2 покрывают логику правил. Ф
 
 ## План выполнения
 
-- [ ] Создать `fixtures/drift_shortcut_edge/pass/` — файлы идентичны baseline, нарушений нет
-- [ ] Создать `fixtures/drift_shortcut_edge/fail_new_coupling/` — `a.h` теперь включает `b.h`, которого не было в baseline
-- [ ] Создать `fixtures/drift_cycle_growth/pass/` — цикл не изменился относительно baseline
-- [ ] Создать `fixtures/drift_cycle_growth/fail_new_cycle/` — новый цикл `a.h ↔ b.h`
-- [ ] Написать интеграционный тест в `tests/integration/rules/drift_fixtures_test.cpp`
-- [ ] Зарегистрировать в `tests/CMakeLists.txt`
+- [x] Создать `fixtures/drift_shortcut_edge/pass/` — файлы идентичны baseline, нарушений нет
+- [x] Создать `fixtures/drift_shortcut_edge/fail_new_coupling/` — `a.h` добавляет shortcut a→c поверх a→b→c
+- [x] Создать `fixtures/drift_cycle_growth/pass/` — цикл не изменился относительно baseline
+- [x] Создать `fixtures/drift_cycle_growth/fail_new_cycle/` — новый цикл `a.h ↔ b.h`
+- [x] Написать интеграционный тест в `tests/integration/rules/drift_fixtures_test.cpp`
+- [x] Зарегистрировать в `tests/CMakeLists.txt`
 
 ## Сделано
 
-- (пусто)
+- Все 4 фикстуры созданы с ручными `baseline.graph.yml` (формат v1)
+- `tests/integration/rules/drift_fixtures_test.cpp` — 4 теста, все зелёные
+- Добавлен в `tests/CMakeLists.txt`
+- Полный suite: 213 test cases / 726 assertions — OK
+- lizard чист
 
 ## В работе
 
@@ -37,9 +41,7 @@ Unit-тесты DRIFT.1/DRIFT.2 покрывают логику правил. Ф
 
 ## Следующие шаги
 
-1. Создать `.h` файлы для каждой фикстуры
-2. Сгенерировать `baseline.graph.yml` через `archcheck --save-graph-baseline` на "baseline"-варианте фикстуры
-3. Написать тест, аналогичный `scanner_fixtures_test.cpp` и `end_to_end_test.cpp`
+1. Коммит и перенос в `completed/`
 
 ## Ключевые решения
 
@@ -47,19 +49,23 @@ Unit-тесты DRIFT.1/DRIFT.2 покрывают логику правил. Ф
 |---------|---------|
 | baseline.graph.yml хранится прямо в папке фикстуры | Фикстура самодостаточна, тест не генерирует baseline на лету |
 | pass/ = файлы совпадают с baseline | Нет изменений → нет нарушений DRIFT |
+| fail_new_cycle триггерит и DRIFT.1 и DRIFT.2 | b.h→a.h — новое ребро между двумя узлами baseline → оба правила срабатывают; тест фильтрует по ruleId |
+| `build_graph_from_dir` вынесен в отдельный хелпер | lizard --length 30; run_drift_check оставался бы 36 строк |
 
 ## Изменённые файлы
 
 | Файл | Изменение |
 |------|-----------|
-| `fixtures/drift_shortcut_edge/` | новый |
-| `fixtures/drift_cycle_growth/` | новый |
-| `tests/integration/rules/drift_fixtures_test.cpp` | новый |
-| `tests/CMakeLists.txt` | добавить новый тест |
+| `fixtures/drift_shortcut_edge/pass/` | новый (a.h, b.h, c.h, baseline.graph.yml) |
+| `fixtures/drift_shortcut_edge/fail_new_coupling/` | новый (a.h adds a→c shortcut) |
+| `fixtures/drift_cycle_growth/pass/` | новый (a↔b cycle, baseline совпадает) |
+| `fixtures/drift_cycle_growth/fail_new_cycle/` | новый (baseline a→b only; current a↔b) |
+| `tests/integration/rules/drift_fixtures_test.cpp` | новый — 4 интеграционных теста |
+| `tests/CMakeLists.txt` | добавлен новый тест |
 
 ## Fixtures
 
-- [ ] `fixtures/drift_shortcut_edge/pass/`
-- [ ] `fixtures/drift_shortcut_edge/fail_new_coupling/`
-- [ ] `fixtures/drift_cycle_growth/pass/`
-- [ ] `fixtures/drift_cycle_growth/fail_new_cycle/`
+- [x] `fixtures/drift_shortcut_edge/pass/`
+- [x] `fixtures/drift_shortcut_edge/fail_new_coupling/`
+- [x] `fixtures/drift_cycle_growth/pass/`
+- [x] `fixtures/drift_cycle_growth/fail_new_cycle/`

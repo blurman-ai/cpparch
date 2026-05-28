@@ -1,0 +1,6 @@
+format_version: "1"
+nodes:
+  - "a.h"
+  - "b.h"
+edges:
+  - [0, 1]
