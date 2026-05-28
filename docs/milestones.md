@@ -129,18 +129,390 @@
 
 ---
 
-### Сравнительная таблица fmt vs spdlog
+---
 
-| Метрика | fmt | spdlog |
+## 2026-05-28 — Прогоны на Catch2, nlohmann/json, abseil-cpp
+
+**Версия archcheck:** commit `c480e39`
+
+---
+
+### Прогон 5 — `Catch2` (catchorg/Catch2)
+
+- **Масштаб:** 414 project files.
+- **Домен:** C++ unit test framework, header-based, современный C++17/20.
+- **Commit:** `69e0473f6e98d47c93518424c08ee69ee632c0f0`
+- **Время:** 0.23 s (graph) + 0.30 s (rules).
+
+**Результат (--graph):**
+- nodes 414 / edges 1305 / **sccs_cyclic 0** — полностью ацикличен.
+- external 828 / unresolved 0 / ambiguous 0 / macro_includes 0.
+
+**Результат (default rules) — 24 нарушения:**
+- SF.7 (18), GodHeader (5), ChainLength (1), SF.9 (0).
+
+**Разбор нарушений и ручная проверка:**
+
+**SF.7 — частичные ложные срабатывания.**
+Три категории:
+
+1. `extras/catch_amalgamated.hpp` — 9 hits. Это **сгенерированный** single-header amalgam, не исходный код. Сканировать его бессмысленно. Нужен механизм исключения vendor/generated файлов.
+
+2. `src/catch2/catch_tostring.hpp:270,291` — **ложное срабатывание**. Контекст (проверено вручную):
+   ```cpp
+   struct StringMaker<bool> {
+       static std::string convert(bool b) {
+           using namespace std::string_literals;  // внутри тела функции!
+           return b ? "true"s : "false"s;
+       }
+   };
+   ```
+   `using namespace` — внутри тела метода, не на глобальном уровне. SF.7 срабатывает, так как наш сканер не отслеживает глубину вложенности `{}`. Баг в реализации.
+
+3. `src/catch2/generators/catch_generators.hpp:251,255,259` — **ложное срабатывание**. Контекст:
+   ```cpp
+   #define GENERATE(...) \
+     Catch::Generators::generate(...,
+       [](){ using namespace Catch::Generators; return makeGenerators(__VA_ARGS__); })
+   ```
+   `using namespace` — внутри лямбды в макросе. Не глобальная область. Баг тот же.
+
+4. `src/catch2/reporters/catch_reporter_automake.hpp:30` и три других reporter — **вероятное реальное нарушение**. Подлежит отдельной проверке.
+
+**GodHeader — структурные, не архитектурные дефекты:**
+- `catch_test_macros.hpp` fan-in **108** — проверено: 116 прямых `#include` по всему репо. Это главный тестовый макро-заголовок библиотеки тестирования — он и обязан быть везде. Аналог `<cassert>` в assert-тестах.
+- `catch_move_and_forward.hpp` fan-in 58 — utility-враппер `std::move/forward`, ожидаемо везде.
+- `catch_compiler_capabilities.hpp` fan-in 31, `catch_enforce.hpp` fan-in 31, `catch_stringref.hpp` fan-in 36 — базовые утилиты.
+
+**Вывод:** Собственный C++ код Catch2 — **чистый**. Все осмысленные SF.7 попали либо в amalgam (исключить), либо оказались ложными из-за отсутствия brace-depth tracking. GodHeaders — структурные (тест-фреймворк по определению имеет центральный макро-заголовок).
+
+---
+
+### Прогон 6 — `nlohmann/json` (nlohmann/json)
+
+- **Масштаб:** 491 project files.
+- **Домен:** Header-only JSON library, C++11/14/17/20. Один основной заголовок `json.hpp` + детальные `detail/`.
+- **Commit:** `d10879bca8f0aa790105446075a9525b34a3f718`
+- **Время:** 0.43 s (graph) + 0.61 s (rules).
+
+**Результат (--graph):**
+- nodes 491 / edges **376** (edges < nodes!) / **sccs_cyclic 0** — ацикличен.
+- external 1502 / unresolved 10 / **ambiguous 333** / macro_includes 0.
+
+**Аномалия — edges < nodes:** граф — лес. nlohmann/json организован как звезда: `json.hpp` тянет всё, остальные `detail/` заголовки включают мало чего кроме базовых утилит. Большинство узлов — листья без входящих рёбер.
+
+**Аномалия — 333 ambiguous:** проверено вручную. Причина:
+```
+/tmp/json/include/nlohmann/json.hpp         ← основной исходник
+/tmp/json/single_include/nlohmann/json.hpp  ← сгенерированный amalgam
+```
+Оба файла с именем `json.hpp`. Любой `#include <nlohmann/json.hpp>` помечается как ambiguous. Аналогично для `json_fwd.hpp`. Нужен механизм исключения `single_include/` / `_amalgamated` директорий.
+
+**Результат (default rules) — 20 нарушений:**
+- SF.7 (10), SF.8 (4), GodHeader (1), ChainLength (5).
+
+**Разбор:**
+
+**SF.7 (10)** — **все 10 в `tests/thirdparty/`**: doctest (9) + LLVM Fuzzer (1). Ни одного нарушения в собственном коде nlohmann/json.
+
+**SF.8 (4):**
+- `tests/abi/include/nlohmann/json_v3_10_5.hpp` — снапшот старой версии для ABI-тестов, не настоящий заголовок.
+- `tests/cmake_target_include_directories/project/Bar.hpp` — тестовый helper.
+- `tests/thirdparty/doctest/doctest.h`, `Fuzzer/FuzzerMerge.h` — сторонний код.
+
+**GodHeader `doctest_compatibility.h` fan-in 77** — проверено: 77 тестовых файлов его включают. Compat-shim для тест-фреймворка, аналогично `catch_test_macros.hpp`.
+
+**ChainLength `json.hpp` depth 14** — по дизайну: это single-header библиотека, `json.hpp` включает весь `detail/`. Ожидаемо.
+
+**Вывод:** Собственный C++ код nlohmann/json — **чистый**. Все нарушения: сторонний код (doctest, Fuzzer), сгенерированные снапшоты (ABI) или test helpers. Основные проблемы — инфраструктурные (ambiguous из-за `single_include/`), а не архитектурные.
+
+---
+
+### Прогон 7 — `abseil-cpp` (abseil/abseil-cpp)
+
+- **Масштаб:** 892 project files.
+- **Домен:** Google C++ base library. Модульная, строго ацикличная по политике Google.
+- **Commit:** `e7a10c8ec2ab4a251d1523812f10318431f1a14a`
+- **Время:** 0.81 s (graph) + 1.06 s (rules).
+
+**Результат (--graph):**
+- nodes 892 / edges 4115 / **sccs_cyclic 0** — ацикличен.
+- external 3533 / unresolved 466 / ambiguous 0 / macro_includes 1.
+- 466 unresolved — Abseil использует `<absl/...>` include-пути; без `-I` они не резолвятся. Не ошибка.
+
+**Результат (default rules) — 489 нарушений:**
+- ChainLength (383), SF.8 (85), GodHeader (21), SF.7 (0!), SF.9 (0).
+
+**Разбор нарушений и ручная проверка:**
+
+**SF.7 (0) — Abseil полностью чист по этому правилу.** Подтверждает что Google Code Style запрещает `using namespace`.
+
+**SF.8 (85) — преимущественно ложные срабатывания.** Причина выявлена вручную:
+```cpp
+// absl/base/config.h — строки 1-47: Apache 2.0 copyright header
+// Copyright 2017 The Abseil Authors.
+// Licensed under the Apache License...
+// ...16 строк лицензии + пустые строки = 47 непустых строк...
+#ifndef ABSL_BASE_CONFIG_H_     ← строка 48 (вне нашего лимита kScanLines=30)
+#define ABSL_BASE_CONFIG_H_
+```
+Наш лимит `kScanLines = 30` не хватает. Abseil следует Apache 2.0, у него длинный copyright блок. Guard реально есть — мы его просто не видим. **Баг в реализации SF.8.**
+
+Дополнительно: `spinlock_linux.inc`, `spinlock_posix.inc` и др. — это `.inc` платформенные фрагменты без guard по дизайну (они подключаются ровно один раз через `#if PLATFORM`). Сканировать их на SF.8 некорректно.
+
+**GodHeader — реальные, структурные:**
+- `absl/base/config.h` fan-in **507** — проверено: 508 прямых `#include` по репо. Это фундаментальный конфиг-заголовок всей библиотеки. По смыслу — уровень `<stddef.h>`. Намеренно везде.
+- `absl/base/attributes.h` fan-in **191** — аннотации для компиляторов (ABSL_ATTRIBUTE_*). Аналогично.
+- `absl/base/macros.h` fan-in 95, `absl/base/optimization.h` fan-in 82, `absl/base/internal/raw_logging.h` fan-in 98 — все базовые утилитные заголовки Abseil.
+
+Эти god-headers — **не баги**, это архитектура большой библиотеки с четким фундаментальным слоем. Порог 30 слишком мал для таких проектов.
+
+**ChainLength (383):** самое глубокое — `absl/time/flag_test.cc` depth **25**. Путь: тест → flags → logging → time → синхронизация → ... Реальный, не ложный. В большой монолитной библиотеке с богатой семантикой тест-файлы закономерно имеют длинные цепочки.
+
+**Вывод:** Abseil — реально чистый проект (0 SF.7, 0 SF.9). Большинство из 489 "нарушений" — артефакты двух конкретных багов в нашей реализации (SF.8 kScanLines слишком мал; GodHeader порог 30 не применим к библиотечным фундаментальным заголовкам). ChainLength в 383 файлах — технически нарушение, но ожидаемо для крупного монорепо.
+
+---
+
+### Сводная таблица пяти OSS-прогонов
+
+| Проект | Nodes | Edges | Cyclic SCCs | SF.7 | SF.8 | GodHeader | ChainLength | Время |
+|---|---|---|---|---|---|---|---|---|
+| fmt | 72 | 157 | 0 | 10* | 6* | 0 | 0 | 0.28 s |
+| spdlog | 149 | 439 | 22† | 10* | 1* | 2 | ~30 | 0.16 s |
+| Catch2 | 414 | 1305 | 0 | 18‡ | 0 | 5§ | 1§ | 0.30 s |
+| nlohmann/json | 491 | 376 | 0 | 10* | 4* | 1§ | 5§ | 0.61 s |
+| abseil-cpp | 892 | 4115 | 0 | 0 | 85‡‡ | 21§ | 383 | 1.06 s |
+
+*все в bundled/third-party коде, не в собственном  
+†все `foo.h ↔ foo-inl.h` паттерн под `#ifdef SPDLOG_HEADER_ONLY` — задача #032  
+‡часть ложные (brace-depth не отслеживается) — баг SF.7  
+‡‡все ложные (kScanLines=30 < длина Apache 2.0 copyright) — баг SF.8  
+§структурные (библиотечный или тест-фреймворковый паттерн, не дефект)
+
+### Выявленные баги в реализации (по итогам 5 прогонов)
+
+| # | Правило | Описание бага | Пример |
+|---|---|---|---|
+| B1 | SF.7 | Не отслеживается глубина `{}` → `using namespace` внутри функций/лямбд репортится | `catch_tostring.hpp:270` |
+| B2 | SF.8 | `kScanLines=30` < длина Apache/MIT copyright → guard не найден | все abseil заголовки |
+| B3 | SF.8 | `.inc` фрагменты не должны проверяться на guard (они по дизайну без него) | `spinlock_linux.inc` |
+| B4 | ambiguous | `single_include/` / amalgam-директории дублируют файлы → false ambiguous | nlohmann `single_include/` |
+| B5 | GodHeader | Порог 30 слишком мал для фундаментальных заголовков библиотек | `absl/base/config.h` fan-in 507 |
+
+---
+
+## 2026-05-28 — folly (Meta)
+
+**Версия archcheck:** commit `c480e39`
+
+### Прогон 8 — `folly` (facebook/folly)
+
+- **Масштаб:** 2311 project files.
+- **Домен:** Meta C++ base library. Большой монорепо, корпоративный, реальный production-код.
+- **Commit:** `acc9ce5aad8ca78c6bb498eefbfc569779edb19c`
+- **Время:** 1.57 s (graph) + 2.17 s (rules).
+
+**Результат (--graph):**
+- nodes 2311 / edges 8763 / **sccs_cyclic 9** / largest_scc 6.
+- external 4794 / unresolved 8 / ambiguous 0 / macro_includes 1.
+
+**Результат (default rules) — 1719 нарушений:**
+- ChainLength 1560, GodHeader 47, SF.8 86, SF.9 9, SF.7 17.
+
+---
+
+**SF.9 — 9 циклов, два разных класса:**
+
+**Класс 1 — unconditional `-inl.h` паттерн (7 циклов):**
+Аналог spdlog, но БЕЗ `#ifdef`-охраны. Примеры:
+```
+folly/channels/ChannelProcessor.h:252  #include <folly/channels/ChannelProcessor-inl.h>
+folly/channels/MultiplexChannel.h      #include <folly/channels/MultiplexChannel-inl.h>
+folly/fibers/Baton.h:321               #include <folly/fibers/Baton-inl.h>
+```
+Включение безусловное — templates всегда inline. Технически цикл существует. Не архитектурная проблема, но задача #032 (conditional includes) не покроет их — нужен отдельный подход к unconditional `-inl.h`.
+
+**Класс 2 — кросс-компонентная цепочка (1 цикл, largest_scc=6):**
+```
+folly/fibers/Baton-inl.h
+  → folly/fibers/FiberManagerInternal.h
+  → folly/fibers/FiberManagerInternal-inl.h
+  → folly/fibers/Baton.h
+  → folly/fibers/Baton-inl.h
+```
+Baton и FiberManager взаимозависимы внутри одного модуля. Реальная coupling, но в пределах `folly/fibers/` — может быть принятым дизайном.
+
+**Класс 3 — НАСТОЯЩИЙ архитектурный цикл (1 цикл):**
+```
+folly/futures/Future.h:39    #include <folly/futures/Promise.h>
+folly/futures/Promise.h:490  #include <folly/futures/Future.h>
+```
+Проверено вручную — прямой взаимный include, **без охранного `#ifdef`**. `Future` (read-end) и `Promise` (write-end) одного async-примитива взаимно включают друг друга. Это первая настоящая архитектурная находка среди всех прогонов. Workaround: forward declarations или общий `FutureBase.h` — Facebook очевидно выбрали pragmatic coupling.
+
+---
+
+**SF.7 — новый тип ложных срабатываний:**
+
+Помимо brace-depth (баг B1) обнаружен **баг B6: сканер не убирает блочные `/* ... */` комментарии**.
+
+Примеры (проверено вручную):
+```cpp
+// folly/FixedString.h:447 — внутри Doxygen \code block:
+ * \code
+ *   using namespace folly;          ← SF.7 срабатывает — ложное, это doc-comment
+ *   return makeFixedString("****");
+ * \endcode
+
+// folly/FixedString.h:2897 — аналогично:
+ * \code
+ * using namespace folly::string_literals;   ← внутри комментария
+ * \endcode
+```
+
+```cpp
+// folly/coro/safe/Captures.h:52 — inside named namespace (brace-depth > 0):
+namespace lite_tuple {
+    using namespace ::folly::detail::lite_tuple;  ← B1 bug, не глобальный scope
+}
+```
+
+**SF.8 — тот же баг B2 что в abseil:**
+`folly/AtomicHashMap.h` — `#pragma once` на строке **78**. Apache 2.0 license + длинный Doxygen-заголовок перед guard. Все 86 нарушений SF.8 — ложные.
+
+---
+
+**GodHeader (47) — смесь структурных и потенциально реальных:**
+
+| Заголовок | Fan-in | Оценка |
 |---|---|---|
-| Nodes | 72 | 149 |
-| Edges | 157 | 439 |
-| Cyclic SCCs | **0** | **22** |
-| God-headers | 0 | 2 (`common.h` fan-in 38) |
-| ChainLength violations | 0 | ~30 |
-| SF.7 | 10 (intentional) | 10 (bundled fmt) |
-| SF.8 | 6 (deprecated + gtest) | 1 (bundled fmt) |
-| Scan time (Debug) | 0.28 s | 0.16 s |
+| `folly/portability/GTest.h` | **635** | структурный: gtest-враппер для всех тестов |
+| `folly/Portability.h` | **317** | структурный: platform config (≈ `absl/base/config.h`) |
+| `folly/Range.h` | **155** | потенциально реальный: строковый range, включается везде |
+| `folly/Traits.h` | **116** | утилитный, пограничный |
+| `folly/ScopeGuard.h` | **105** | утилитный, ожидаемо высокий |
+| `folly/Utility.h` | **98** | утилитный |
+| `folly/String.h` | **91** | строки — потенциально реальный |
+
+`Range.h` (155) и `String.h` (91) интересны — это не platform-config, а конкретные библиотечные классы. Высокий fan-in может быть признаком плохой изоляции компонентов в большом монорепо.
+
+**ChainLength (1560):** ожидаемо для крупного монорепо. Глубина до 21+ (например `folly/tracing/test/StaticTracepointTest.cpp` depth 21).
+
+---
+
+**Итог folly:** инструмент нашёл **одну реальную архитектурную находку** — взаимный include `Future.h ↔ Promise.h`. Остальное — либо известные паттерны (`-inl.h`), либо ложные срабатывания из-за уже выявленных багов (B1, B2, B6). **Баг B6 (блочные комментарии в SF.7) обнаружен впервые** на этом прогоне.
+
+---
+
+## 2026-05-28 — grpc (Google)
+
+**Версия archcheck:** commit `c480e39`
+
+### Прогон 9 — `grpc` (grpc/grpc)
+
+- **Масштаб:** 4493 project files.
+- **Домен:** Google RPC framework. Огромный монорепо: C++, C, Objective-C, Python. Встроенный `third_party/upb` (C-библиотека protobuf).
+- **Commit:** `05ffa9265bd5f4846a5e3dc46d91ba739ad17ef6`
+- **Время:** 3.66 s (graph) + 4.92 s (rules).
+
+**Результат (--graph):**
+- nodes 4493 / edges 29448 / **sccs_cyclic 1** / largest_scc 2.
+- external 8384 / **unresolved 6434** / **ambiguous 492** / macro_includes 0.
+- 6434 unresolved — protobuf-generated заголовки и внешние зависимости без `-I` путей. Ожидаемо.
+
+**Результат (default rules) — 3501 нарушение:**
+- ChainLength 3215, GodHeader 171, SF.8 115, SF.7 **0**, SF.9 **0**.
+
+---
+
+**SF.9: 0 в отчёте, но sccs_cyclic=1 в --graph.**
+Несоответствие требует расследования. Единственный SCC размером 2 — предположительно в `third_party/upb` (C-код), где цикл между `.c` и `.h` файлами. SF.9 может не репортить его по причине фильтрации или особенностей обхода. **Требует отдельной проверки.**
+
+**SF.7: 0** — Google Code Style строго запрещает `using namespace`. Подтверждено на всём grpc-коде.
+
+---
+
+**SF.8 (115 нарушений):**
+
+Распределение:
+- **103 в `third_party/upb`** — C-код с BSD лицензией и длинными docstring'ами перед `#ifndef`. Баг B2 (kScanLines).
+- **12 в grpc собственном коде** — три категории:
+
+  1. **Objective-C заголовки** — `examples/objective-c/` — **новый ложный паттерн** (B7). ObjC-файлы используют `#import` и `@interface`, не C++ guards:
+     ```objc
+     // AppDelegate.h
+     #import <UIKit/UIKit.h>
+     @interface AppDelegate : UIResponder <UIApplicationDelegate>
+     ```
+     Наш сканер проверяет их на `#pragma once` / `#ifndef` — не находит — репортит SF.8. Нужно исключать `.h` файлы с ObjC-синтаксисом.
+
+  2. **Examples без guard** — `examples/cpp/interceptors/caching_interceptor.h` — Apache 2.0 header + нет `#pragma once`. Вероятно реальное нарушение.
+
+  3. **third_party** — ложные B2.
+
+---
+
+**GodHeader (171 нарушений, 156 в собственном коде grpc):**
+
+Топ:
+
+| Заголовок | Fan-in | Характер |
+|---|---|---|
+| `include/grpc/grpc.h` | **626** | Главный публичный API grpc. Проверено: 632 прямых `#include`. Структурный. |
+| `include/grpc/event_engine/event_engine.h` | **286** | Ядро EventEngine — используется везде внутри |
+| `include/grpc/grpc_security.h` | **209** | Публичный security API |
+| `include/grpc/impl/channel_arg_names.h` | **183** | Строковые константы channel args |
+| `include/grpc/credentials.h` | **157** | Credentials API |
+| `third_party/upb/upb/port/def.inc` | **930** | macro def-файл для всего upb — C-паттерн |
+| `third_party/upb/upb/port/undef.inc` | **842** | macro undef-файл — парный к def.inc |
+
+156 god-headers в grpc собственном коде — очень много. Часть обусловлена тем, что `include/grpc/` — это публичный C API библиотеки, предназначенный включаться везде. Но количество (156!) говорит о том, что внутренние заголовки `src/core/` тоже имеют очень высокий fan-in. Это может быть реальным архитектурным сигналом.
+
+**ChainLength (3215):** grpc + upb + тесты дают цепочки глубиной до 28 (`src/core/ext/transport/chttp2/transport/write_cycle.h` depth 27).
+
+---
+
+**Итог grpc:** Собственный C++ код grpc — **0 SF.7, 0 SF.9**. Дисциплина высокая. Основной шум:
+- third_party/upb (C, встроенная зависимость) — вызывает большинство SF.8 и GodHeader ложных
+- ObjC-файлы (B7) — новый класс ложных SF.8
+- 156 GodHeaders в grpc собственном коде — частично структурные (public API), частично возможный реальный сигнал
+
+---
+
+## Сводная таблица и известный шум (все прогоны)
+
+### Результаты по проектам
+
+| Проект | Nodes | Edges | SCCs | Raw | **Сигнал** | Время |
+|---|---|---|---|---|---|---|
+| fmt | 72 | 157 | 0 | 16 | **0** | 0.28 s |
+| spdlog | 149 | 439 | 22 | ~43 | **2** (god-headers) | 0.16 s |
+| Catch2 | 414 | 1305 | 0 | 24 | **0** | 0.30 s |
+| nlohmann/json | 491 | 376 | 0 | 20 | **0** | 0.61 s |
+| abseil-cpp | 892 | 4115 | 0 | 489 | **0** | 1.06 s |
+| folly | 2311 | 8763 | 9 | 1719 | **1** (Future↔Promise) | 2.17 s |
+| grpc | 4493 | 29448 | 1 | 3421 | **?** (нужно дочистить) | 4.92 s |
+
+**Сигнал** = нарушения после исключения известного шума (см. ниже).
+
+---
+
+### Известный шум — пропускаем, не фиксим сейчас
+
+При чтении отчётов следующие находки считаются **заведомо ложными** — игнорируем их, задачи уже заведены:
+
+| Баг | Правило | Что пропускаем | Задача |
+|---|---|---|---|
+| B1 | SF.7 | `using namespace` внутри `{}` — функции, лямбды, namespace-блоки | #035 |
+| B2 | SF.8 | Заголовки с длинным Apache/BSD copyright: `#pragma once` / `#ifndef` за пределами kScanLines=30 | #034 |
+| B3 | SF.8 | `.inc` файлы (платформенные фрагменты без guard по дизайну) | #034 |
+| B4 | ambiguous | `single_include/`, `amalgamate/` — дублирующие директории | #036 |
+| B5 | GodHeader | fan-in > 100 у фундаментальных конфиг-заголовков (`config.h`, portability) | #037 |
+| B6 | SF.7 | `using namespace` внутри `/* */` комментариев (Doxygen `\code`) | #038 |
+| — | SF.9 | `foo-inl.h ↔ foo.h` паттерн (header-only / dual-mode библиотеки) | #032 |
+| — | SF.7/SF.8 | Код в `third_party/`, `bundled/`, `single_include/` | конфиг exclude |
+| — | SF.8 | ObjC-файлы с `@interface`/`#import` за пределами 30 строк | **FIXED** (#034) |
+
+**ObjC-файлы с маркерами в первых 30 строках** — исправлено в commit текущей сессии: `isObjcFile()` проверка в SF.8.
 
 ---
 

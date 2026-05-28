@@ -77,6 +77,7 @@ From [docs/MVP.md](docs/MVP.md): *"If feature cannot be tested with fixtures —
 - [docs/MVP.md](docs/MVP.md) — MVP scope and acceptance criteria. Shorter, English. Use this to decide whether something belongs in v0.1.
 - [README.md](README.md) — public-facing pitch; example config and CLI shape live here.
 - [docs/research/constraint_decay.md](docs/research/constraint_decay.md) — первопричина проекта: пересказ статьи Dente et al. (EURECOM, 2026) о constraint decay и разбор HN-дискуссии. Читать, когда нужно вспомнить *зачем*.
+- [docs/dev/coverage_constraints.md](docs/dev/coverage_constraints.md) — почему branch coverage застрял на ~63% и что с этим делать: ограничение lcov 1.13 на Astra Linux 1.7 (GCC 8.x не размечает throw-arcs так, чтобы lcov их убирал). Branches-порог намеренно оставлен на 40%.
 
 ## Working principles from the spec
 
