@@ -1,5 +1,7 @@
 #include "archcheck/rules/rule_set.h"
 
+#include "archcheck/rules/drift_no_cycle_growth.h"
+#include "archcheck/rules/drift_no_shortcut_edge.h"
 #include "archcheck/rules/lakos_chain_length.h"
 #include "archcheck/rules/lakos_god_headers.h"
 #include "archcheck/rules/sf7_using_namespace.h"
@@ -17,6 +19,14 @@ std::vector<std::unique_ptr<IRule>> makeDefaultRuleSet()
   rules.push_back(std::make_unique<Sf8IncludeGuard>());
   rules.push_back(std::make_unique<LakosGodHeaders>());
   rules.push_back(std::make_unique<LakosChainLength>());
+  return rules;
+}
+
+std::vector<std::unique_ptr<IRule>> makeDriftRuleSet(graph::DependencyGraph baseline)
+{
+  std::vector<std::unique_ptr<IRule>> rules;
+  rules.push_back(std::make_unique<DriftNoShortcutEdge>(baseline));
+  rules.push_back(std::make_unique<DriftNoCycleGrowth>(std::move(baseline)));
   return rules;
 }
 
