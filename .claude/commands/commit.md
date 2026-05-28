@@ -8,8 +8,23 @@ Argument (optional): подсказка типа (например `/commit fix`
 
 1. `git status` — посмотреть изменённые/неотслеживаемые файлы.
 2. `git diff` — посмотреть содержимое изменений.
-3. Если есть тест-лог (`build/test_log.txt`, `build/Testing/Temporary/LastTest.log`) — прочитать, извлечь имя сьюта, список тестов, PASSED/FAILED. Нет лога — секция тестов пропускается.
-4. Проанализировать изменения и собрать сообщение по схеме Conventional Commits:
+3. **Lint-gate** — запустить на изменённых `.h`/`.cpp` файлах:
+
+   ```bash
+   # clang-format: только изменённые C++ файлы
+   git diff --name-only HEAD | grep -E '\.(h|cpp)$' | xargs -r clang-format --dry-run --Werror
+
+   # cppcheck: всегда на src/ include/ (дёшево, ~1 сек)
+   cppcheck --enable=warning,performance,portability \
+            --inline-suppr --error-exitcode=1 \
+            --suppress=missingIncludeSystem --quiet \
+            -I include src/ include/
+   ```
+
+   Если хотя бы одна проверка упала — **остановиться**, вывести ошибки и не продолжать до исправления.
+
+4. Если есть тест-лог (`build/test_log.txt`, `build/Testing/Temporary/LastTest.log`) — прочитать, извлечь имя сьюта, список тестов, PASSED/FAILED. Нет лога — секция тестов пропускается.
+5. Проанализировать изменения и собрать сообщение по схеме Conventional Commits:
 
    ```
    <type>(<scope>): <subject>
@@ -19,14 +34,14 @@ Argument (optional): подсказка типа (например `/commit fix`
    [optional trailers]
    ```
 
-5. **Показать сообщение пользователю и ЖДАТЬ подтверждения.** Запрошены правки — переписать и показать снова.
-6. Аккуратно застейджить только релевантные файлы:
+6. **Показать сообщение пользователю и ЖДАТЬ подтверждения.** Запрошены правки — переписать и показать снова.
+7. Аккуратно застейджить только релевантные файлы:
    - Никаких `.env`, ключей, секретов.
    - Бинарники — только если пользователь явно попросил.
    - Связанные `.h` и `.cpp` — вместе.
-7. Создать коммит через heredoc.
-8. `git push origin master` (direct push разрешён admin-у; если работа на feature-ветке — `git push -u origin <branch>`).
-9. `git status` после — убедиться, что прошло.
+8. Создать коммит через heredoc.
+9. `git push origin master` (direct push разрешён admin-у; если работа на feature-ветке — `git push -u origin <branch>`).
+10. `git status` после — убедиться, что прошло.
 
 ## Type — что выбирать
 
