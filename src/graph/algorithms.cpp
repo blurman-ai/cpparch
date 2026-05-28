@@ -1,6 +1,7 @@
 #include "archcheck/graph/algorithms.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <queue>
@@ -235,6 +236,37 @@ std::vector<std::size_t> computeIncludeDepths(const DependencyGraph &g)
   for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(count); ++i)
     result[i] = sccDepth[nodeToScc[i]];
   return result;
+}
+
+std::vector<std::size_t> computeFanIn(const DependencyGraph &g)
+{
+  const std::size_t n = g.nodeCount();
+  std::vector<std::size_t> fanIn(n, 0);
+  for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(n); ++i)
+    for (const NodeId succ : g.successors(NodeId{i}))
+      ++fanIn[succ.value];
+  return fanIn;
+}
+
+GraphMetrics computeGraphMetrics(const DependencyGraph &g)
+{
+  GraphMetrics m;
+  m.nodeCount = g.nodeCount();
+  if (m.nodeCount == 0)
+    return m;
+
+  const auto depths = computeIncludeDepths(g);
+  m.maxChainLength = *std::max_element(depths.begin(), depths.end());
+
+  const auto fanIn = computeFanIn(g);
+  m.maxFanIn = *std::max_element(fanIn.begin(), fanIn.end());
+
+  const auto n32 = static_cast<std::uint32_t>(m.nodeCount);
+  for (std::uint32_t i = 0; i < n32; ++i)
+    m.ccd += reachableFrom(g, NodeId{i}).size();
+  m.acd = static_cast<double>(m.ccd) / static_cast<double>(m.nodeCount);
+  m.nccd = m.acd / std::log2(static_cast<double>(m.nodeCount) + 1.0);
+  return m;
 }
 
 } // namespace archcheck::graph

@@ -347,8 +347,7 @@ TEST_CASE("git diff: merge-commit HEAD → A..M sees union of edges from both pa
 
   const auto fromA = diffRefs(repo.path, "A", "HEAD");
   REQUIRE(fromA.addedEdges.size() == 2);
-  const auto hasEdge = [&](std::string_view to)
-  {
+  const auto hasEdge = [&](std::string_view to) {
     return std::any_of(fromA.addedEdges.begin(), fromA.addedEdges.end(),
                        [&](const auto &e) { return e.from == "a.h" && e.to == to; });
   };
@@ -381,4 +380,94 @@ TEST_CASE("git diff: changedCppFiles (a..WORKTREE) catches uncommitted + untrack
   const auto changed = archcheck::git::changedCppFiles(repo.path, "HEAD", archcheck::git::kWorktreeRef);
   REQUIRE(changed.has_value());
   REQUIRE(changed->size() == 2);
+}
+
+// --- metric regression tests (git-based) ---
+
+TEST_CASE("git diff: PR deepens include chain → chainLengthGrown detected", "[diff][git][integration][metrics]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  // baseline: a -> b (depth 1)
+  writeFile(repo.path / "a.h", "#include \"b.h\"\n");
+  writeFile(repo.path / "b.h", "// b\n");
+  commitAll(repo.path, "baseline");
+  // PR adds b -> c -> d, max depth becomes 3
+  writeFile(repo.path / "b.h", "#include \"c.h\"\n");
+  writeFile(repo.path / "c.h", "#include \"d.h\"\n");
+  writeFile(repo.path / "d.h", "// d\n");
+  commitAll(repo.path, "PR deepens chain");
+
+  const auto report = diffRefs(repo.path, "HEAD~1", "HEAD");
+  REQUIRE(report.chainLengthGrown.has_value());
+  REQUIRE(report.chainLengthGrown->current > report.chainLengthGrown->baseline);
+  REQUIRE(report.hasRegression());
+}
+
+TEST_CASE("git diff: PR creates god-header → newGodHeaders non-empty", "[diff][git][integration][metrics]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  // baseline: hub.h with 2 includers (below threshold 3)
+  writeFile(repo.path / "hub.h", "// hub\n");
+  writeFile(repo.path / "c0.h", "#include \"hub.h\"\n");
+  writeFile(repo.path / "c1.h", "#include \"hub.h\"\n");
+  commitAll(repo.path, "baseline");
+  // PR adds a third includer → crosses threshold
+  writeFile(repo.path / "c2.h", "#include \"hub.h\"\n");
+  commitAll(repo.path, "PR adds third includer");
+
+  archcheck::git::GitError err;
+  auto baseTree = archcheck::git::materializeRef(repo.path, "HEAD~1", err);
+  auto headTree = archcheck::git::materializeRef(repo.path, "HEAD", err);
+  REQUIRE(baseTree.has_value());
+  REQUIRE(headTree.has_value());
+  const auto baseline = archcheck::graph::buildGraphForPath(baseTree->path());
+  const auto current = archcheck::graph::buildGraphForPath(headTree->path());
+
+  archcheck::diff::MetricThresholds t;
+  t.godHeaderFanIn = 2; // threshold = 2; 3 includers crosses it
+  const auto report = archcheck::diff::buildRegressionReport(baseline.graph, current.graph, t);
+  REQUIRE(report.newGodHeaders.size() == 1);
+  REQUIRE(report.newGodHeaders[0] == "hub.h");
+  REQUIRE(report.hasRegression());
+}
+
+TEST_CASE("git diff: PR increases NCCD → nccdDelta detected", "[diff][git][integration][metrics]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  // baseline: three isolated headers
+  writeFile(repo.path / "a.h", "// a\n");
+  writeFile(repo.path / "b.h", "// b\n");
+  writeFile(repo.path / "c.h", "// c\n");
+  commitAll(repo.path, "baseline");
+  // PR densely connects them: a->b, a->c, b->c
+  writeFile(repo.path / "a.h", "#include \"b.h\"\n#include \"c.h\"\n");
+  writeFile(repo.path / "b.h", "#include \"c.h\"\n");
+  commitAll(repo.path, "PR densifies graph");
+
+  const auto report = diffRefs(repo.path, "HEAD~1", "HEAD");
+  REQUIRE(report.nccdDelta.has_value());
+  REQUIRE(*report.nccdDelta > 0.0);
+  REQUIRE(report.hasRegression());
+}
+
+TEST_CASE("git diff (memory): chain length regression detected via GitObjectFileSource",
+          "[diff][git][integration][metrics][memory]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  writeFile(repo.path / "a.h", "#include \"b.h\"\n");
+  writeFile(repo.path / "b.h", "// b\n");
+  commitAll(repo.path, "baseline");
+  writeFile(repo.path / "b.h", "#include \"c.h\"\n");
+  writeFile(repo.path / "c.h", "#include \"d.h\"\n");
+  writeFile(repo.path / "d.h", "// d\n");
+  commitAll(repo.path, "PR deepens chain");
+
+  const auto report = diffRefsMemory(repo.path, "HEAD~1", "HEAD");
+  REQUIRE(report.chainLengthGrown.has_value());
+  REQUIRE(report.chainLengthGrown->current > report.chainLengthGrown->baseline);
+  REQUIRE(report.hasRegression());
 }
