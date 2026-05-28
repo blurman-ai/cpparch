@@ -2,7 +2,7 @@
 
 **Дата создания:** 2026-05-26
 **Дата старта:** 2026-05-28
-**Статус:** wip
+**Статус:** done
 **Модуль:** RULES/DRIFT
 **Приоритет:** major
 **Сложность:** M (2-4 дня на дизайн, реализация отдельными шагами)
@@ -92,3 +92,31 @@ hygiene checks и полностью user-declared architecture policy есть
 - [ ] `fixtures/drift_shortcut_edge/fail_new_coupling/`
 - [ ] `fixtures/drift_cycle_growth/pass/`
 - [ ] `fixtures/drift_cycle_growth/fail_new_cycle/`
+
+---
+
+**Дата завершения:** 2026-05-28
+
+## Как работает
+
+Два правила реализуют `IRule` и хранят копию baseline-графа в конструкторе:
+
+- **DRIFT.1 `DriftNoShortcutEdge`**: вызывает `graph::addedEdges(baseline, current)`, фильтрует рёбра где оба конца (`from` и `to`) существовали в baseline. Флагирует каждое такое ребро — это «shortcut»: существующий файл добавил новую зависимость на другой существующий файл. Новые файлы не флагируются.
+- **DRIFT.2 `DriftNoCycleGrowth`**: вызывает `graph::grownSccs(baseline, current)`, одно нарушение на каждый выросший или новый SCC ≥ 2.
+
+## Чем управляется
+
+- `archcheck --drift-baseline <file> [path]` — запускает дефолтные правила + DRIFT.1/DRIFT.2.
+- `archcheck --save-graph-baseline <file> [path]` — сохраняет граф включений как YAML (suppression: сохранить после ревью → новые рёбра перестанут быть «added»).
+- `makeDriftRuleSet(baseline)` в `rule_set.h` — фабрика, создаёт оба правила.
+
+## С чем связана
+
+- `graph::addedEdges()` / `graph::grownSccs()` из `include/archcheck/graph/diff.h`
+- `graph::loadBaseline()` / `graph::saveBaseline()` из `include/archcheck/graph/baseline.h`
+- `IRule` из `include/archcheck/rules/i_rule.h`
+- Фикстуры и интеграционный тест — задача #040
+
+## Диагностика
+
+Если DRIFT.1 не флагирует ожидаемый shortcut: проверить что оба файла действительно есть в baseline (`archcheck --save-graph-baseline` + просмотр YAML). Если DRIFT.2 молчит на новый цикл: проверить что цикл действительно появился только в current (`--diff HEAD~1..HEAD`).
