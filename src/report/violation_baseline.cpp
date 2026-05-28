@@ -17,17 +17,17 @@ namespace
 std::string jsonEscape(const std::string &s)
 {
   std::string out;
-  out.reserve(s.size());           // LCOV_EXCL_BR_LINE
+  out.reserve(s.size()); // LCOV_EXCL_BR_LINE
   for (const char c : s)
   {
     if (c == '"')
-      out += "\\\"";               // LCOV_EXCL_BR_LINE
+      out += "\\\""; // LCOV_EXCL_BR_LINE
     else if (c == '\\')
-      out += "\\\\";               // LCOV_EXCL_BR_LINE
+      out += "\\\\"; // LCOV_EXCL_BR_LINE
     else if (c == '\n')
-      out += "\\n";                // LCOV_EXCL_BR_LINE
+      out += "\\n"; // LCOV_EXCL_BR_LINE
     else
-      out += c;                    // LCOV_EXCL_BR_LINE
+      out += c; // LCOV_EXCL_BR_LINE
   }
   return out;
 }
@@ -35,24 +35,24 @@ std::string jsonEscape(const std::string &s)
 std::string jsonUnescape(std::string_view s)
 {
   std::string out;
-  out.reserve(s.size());     // LCOV_EXCL_BR_LINE
+  out.reserve(s.size()); // LCOV_EXCL_BR_LINE
   for (std::size_t i = 0; i < s.size(); ++i)
   {
     if (s[i] == '\\' && i + 1 < s.size())
     {
       ++i;
       if (s[i] == '"')
-        out += '"';           // LCOV_EXCL_BR_LINE
+        out += '"'; // LCOV_EXCL_BR_LINE
       else if (s[i] == '\\')
-        out += '\\';          // LCOV_EXCL_BR_LINE
+        out += '\\'; // LCOV_EXCL_BR_LINE
       else if (s[i] == 'n')
-        out += '\n';          // LCOV_EXCL_BR_LINE
+        out += '\n'; // LCOV_EXCL_BR_LINE
       else
-        out += s[i];          // LCOV_EXCL_BR_LINE
+        out += s[i]; // LCOV_EXCL_BR_LINE
     }
     else
     {
-      out += s[i];            // LCOV_EXCL_BR_LINE
+      out += s[i]; // LCOV_EXCL_BR_LINE
     }
   }
   return out;
@@ -131,8 +131,8 @@ void saveBaseline(const ViolationBaseline &baseline, const std::filesystem::path
   for (std::size_t i = 0; i < vs.size(); ++i)
   {
     const auto &v = vs[i];
-    f << "    {\"rule\": \"" << jsonEscape(v.ruleId) << "\", \"file\": \"" << jsonEscape(v.file) << "\", \"line\": "
-      << v.line << ", \"message\": \"" << jsonEscape(v.message) << "\"}";
+    f << "    {\"rule\": \"" << jsonEscape(v.ruleId) << "\", \"file\": \"" << jsonEscape(v.file)
+      << "\", \"line\": " << v.line << ", \"message\": \"" << jsonEscape(v.message) << "\"}";
     if (i + 1 < vs.size())
       f << ',';
     f << '\n';
