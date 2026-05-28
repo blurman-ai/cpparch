@@ -2,7 +2,7 @@
 
 **Дата создания:** 2026-05-28
 **Дата старта:** —
-**Статус:** new
+**Статус:** completed
 **Модуль:** RULES
 **Приоритет:** major
 **Сложность:** S
@@ -67,12 +67,14 @@ for (each line) {
 
 ## Сделано
 
-- (пусто)
+- Реализованы совместно с #035 в одном коммите `71e4fa3`
+- `updateBlockCommentState()` обрабатывает `/* */` блоки; строки внутри комментария возвращают пустой `string_view`
+- Тест: `using namespace` в Doxygen `\code` блоке → нет нарушения
 
 ## Изменённые файлы
 
 | Файл | Изменение |
 |------|-----------|
-| `src/rules/sf7_using_namespace.cpp` | block comment state tracking |
-| `tests/unit/rules/sf7_test.cpp` | тест block comment |
-| `fixtures/sf7/pass_using_in_block_comment/` | новая фикстура |
+| `src/rules/sf7_using_namespace.cpp` | `inBlockComment` state в `updateBlockCommentState()` |
+| `tests/unit/rules/sf7_using_namespace_test.cpp` | тесты block comment |
+| `fixtures/sf7_using_namespace/pass_using_in_block_comment/a.h` | новый |

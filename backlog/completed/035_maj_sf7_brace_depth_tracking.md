@@ -2,7 +2,7 @@
 
 **Дата создания:** 2026-05-28
 **Дата старта:** —
-**Статус:** new
+**Статус:** completed
 **Модуль:** RULES
 **Приоритет:** major
 **Сложность:** S
@@ -69,12 +69,16 @@ for (each line) {
 
 ## Сделано
 
-- (пусто)
+- Реализованы совместно с #038 в одном коммите `71e4fa3`
+- `updateBlockCommentState()` хелпер + `braceDepth` в `scanFile`: два loop-прохода по строке (`{` до check, `}` после) — корректно обрабатывает inline-лямбды
+- 5 новых unit-тестов: function body, inline lambda, after closing brace, block comment, after block comment
+- Фикстуры: `fixtures/sf7_using_namespace/pass_using_inside_function/`, `pass_using_in_block_comment/`
 
 ## Изменённые файлы
 
 | Файл | Изменение |
 |------|-----------|
-| `src/rules/sf7_using_namespace.cpp` | brace_depth tracking |
-| `tests/unit/rules/sf7_test.cpp` | тест функционального scope |
-| `fixtures/sf7/pass_using_inside_function/` | новая фикстура |
+| `src/rules/sf7_using_namespace.cpp` | `updateBlockCommentState()` + `braceDepth` + `inBlockComment` в `scanFile` |
+| `tests/unit/rules/sf7_using_namespace_test.cpp` | 5 новых тестов |
+| `fixtures/sf7_using_namespace/pass_using_inside_function/a.h` | новый |
+| `fixtures/sf7_using_namespace/pass_using_in_block_comment/a.h` | новый |

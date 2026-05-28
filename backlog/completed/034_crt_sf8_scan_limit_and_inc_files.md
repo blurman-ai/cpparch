@@ -2,7 +2,7 @@
 
 **Дата создания:** 2026-05-28
 **Дата старта:** —
-**Статус:** new
+**Статус:** completed
 **Модуль:** RULES
 **Приоритет:** critical
 **Сложность:** S
@@ -51,11 +51,15 @@ Abseil использует Apache 2.0 лицензионный заголово
 
 ## Сделано
 
-- (пусто)
+- `kScanLines` 30 → 60: покрывает Apache 2.0 copyright блоки (~47 непустых строк)
+- `isIncFile()` хелпер + `if (isIncFile(path)) continue;` в `check()` — `.inc` пропускаются SF.8, но остаются в include-графе
+- 2 новых unit-теста + фикстура `fixtures/sf8_include_guard/pass/long_copyright_guard.h`
+- Коммит: `d9b74c2` `fix(rules/sf8): raise kScanLines to 60 and skip .inc fragments (#034)`
 
 ## Изменённые файлы
 
 | Файл | Изменение |
 |------|-----------|
-| `src/rules/sf8_include_guard.cpp` | kScanLines → 60, skip .inc |
-| `tests/unit/rules/sf8_test.cpp` | тест long-copyright guard |
+| `src/rules/sf8_include_guard.cpp` | `kScanLines` 30→60; `isIncFile()` + skip в `check()` |
+| `tests/unit/rules/sf8_include_guard_test.cpp` | 2 новых теста: long-copyright guard, .inc fragment |
+| `fixtures/sf8_include_guard/pass/long_copyright_guard.h` | новый — Apache 2.0 copyright + guard на строке 32 |
