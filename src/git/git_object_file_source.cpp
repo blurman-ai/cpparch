@@ -249,7 +249,7 @@ std::string GitObjectFileSource::read(const std::string &repoRelativePath)
   const auto sp2 = header.find(' ', sp1 + 1);
   if (sp2 == std::string::npos)
     return {};
-  const std::string_view type{header.data() + sp1 + 1, sp2 - sp1 - 1};
+  const std::string_view type = std::string_view{header}.substr(sp1 + 1, sp2 - sp1 - 1);
   if (type != "blob")
     return {};
   const std::size_t size = static_cast<std::size_t>(std::strtoull(header.data() + sp2 + 1, nullptr, 10));
