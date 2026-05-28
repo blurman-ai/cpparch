@@ -11,14 +11,18 @@ Argument (optional): подсказка типа (например `/commit fix`
 3. **Lint-gate** — запустить на изменённых `.h`/`.cpp` файлах:
 
    ```bash
-   # clang-format: только изменённые C++ файлы
-   git diff --name-only HEAD | grep -E '\.(h|cpp)$' | xargs -r clang-format --dry-run --Werror
+   # clang-format: изменённые + новые (untracked) C++ файлы
+   { git diff --name-only HEAD; git ls-files --others --exclude-standard; } \
+     | grep -E '\.(h|cpp)$' | xargs -r clang-format --dry-run --Werror
 
    # cppcheck: всегда на src/ include/ (дёшево, ~1 сек)
    cppcheck --enable=warning,performance,portability \
             --inline-suppr --error-exitcode=1 \
             --suppress=missingIncludeSystem --quiet \
             -I include src/ include/
+
+   # lizard: complexity/length пороги (как в CI)
+   lizard --CCN 15 --length 30 --arguments 5 --warnings_only src/ include/ tests/
    ```
 
    Если хотя бы одна проверка упала — **остановиться**, вывести ошибки и не продолжать до исправления.
