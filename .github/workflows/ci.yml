@@ -42,10 +42,19 @@ jobs:
             cc: gcc-13
             cxx: g++-13
             apt-pkg: g++-13
+            extra-cmake-flags: ""
           - compiler: clang-18
             cc: clang-18
             cxx: clang++-18
             apt-pkg: clang-18
+            extra-cmake-flags: ""
+          - compiler: clang-18-libc++
+            cc: clang-18
+            cxx: clang++-18
+            apt-pkg: clang-18 libc++-18-dev libc++abi-18-dev
+            extra-cmake-flags: >-
+              -DCMAKE_CXX_FLAGS="-stdlib=libc++"
+              -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++"
 
     env:
       CC: ${{ matrix.cc }}
@@ -69,7 +78,7 @@ jobs:
             deps-${{ runner.os }}-${{ matrix.compiler }}-
 
       - name: Configure
-        run: cmake -B build/debug -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -B build/debug -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug ${{ matrix.extra-cmake-flags }}
 
       - name: Build
         run: cmake --build build/debug
