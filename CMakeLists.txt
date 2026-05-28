@@ -23,6 +23,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "" FORCE)
 # Options.
 option(ARCHCHECK_BUILD_TESTS "Build archcheck tests" ON)
 option(ARCHCHECK_ENABLE_WARNINGS "Enable strict warning flags" ON)
+option(ARCHCHECK_ENABLE_COVERAGE "Build with gcov/lcov coverage instrumentation (GCC/Clang only)" OFF)
 
 # Warnings — strict by default.
 if(ARCHCHECK_ENABLE_WARNINGS)
@@ -31,6 +32,18 @@ if(ARCHCHECK_ENABLE_WARNINGS)
    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
       add_compile_options(/W4 /WX)
    endif()
+endif()
+
+# Coverage instrumentation — GCC/Clang only, requires lcov for HTML report.
+if(ARCHCHECK_ENABLE_COVERAGE)
+   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+      message(FATAL_ERROR "ARCHCHECK_ENABLE_COVERAGE requires GCC or Clang")
+   endif()
+   if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+      message(WARNING "Coverage is most meaningful with Debug build type")
+   endif()
+   add_compile_options(--coverage -O0 -fno-inline)
+   add_link_options(--coverage)
 endif()
 
 # Dependencies — fetched at configure time, no system installs required.
