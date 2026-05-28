@@ -71,9 +71,9 @@ TEST_CASE("GitObjectFileSource: list() filters by extension, sorted, POSIX paths
   seed(repo.path);
   writeFile(repo.path / "a.h", "// a\n");
   writeFile(repo.path / "sub" / "b.cpp", "// b\n");
-  writeFile(repo.path / "README.md", "docs\n");        // must be filtered out
-  writeFile(repo.path / "config.yaml", "x: 1\n");      // filtered out
-  writeFile(repo.path / "build" / "x.cpp", "// x\n");  // excluded dir
+  writeFile(repo.path / "README.md", "docs\n");       // must be filtered out
+  writeFile(repo.path / "config.yaml", "x: 1\n");     // filtered out
+  writeFile(repo.path / "build" / "x.cpp", "// x\n"); // excluded dir
   commitAll(repo.path, "init");
 
   archcheck::git::GitObjectFileSource src(repo.path, "HEAD");
@@ -99,8 +99,7 @@ TEST_CASE("GitObjectFileSource: read() returns blob content byte-for-byte", "[gi
   REQUIRE(src.read("b.h") == contentB);
 }
 
-TEST_CASE("GitObjectFileSource: parity with DiskFileSource on the same commit",
-          "[git][file_source][unit][parity]")
+TEST_CASE("GitObjectFileSource: parity with DiskFileSource on the same commit", "[git][file_source][unit][parity]")
 {
   TempRepo repo;
   seed(repo.path);
@@ -122,8 +121,7 @@ TEST_CASE("GitObjectFileSource: parity with DiskFileSource on the same commit",
   }
 }
 
-TEST_CASE("GitObjectFileSource: read() on non-existent path returns empty",
-          "[git][file_source][unit]")
+TEST_CASE("GitObjectFileSource: read() on non-existent path returns empty", "[git][file_source][unit]")
 {
   TempRepo repo;
   seed(repo.path);
