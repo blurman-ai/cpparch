@@ -41,3 +41,32 @@ TEST_CASE("Lakos.GodHeader: default threshold is 30", "[rules][lakos][god]")
 {
   CHECK(LakosGodHeaders::kDefaultThreshold == 30);
 }
+
+TEST_CASE("Lakos.GodHeader: known PCH names are excluded", "[rules][lakos][god]")
+{
+  for (const auto *name : {"pch.h", "stdafx.h", "precompiled.h", "precompiled_header.h"})
+  {
+    DependencyGraph g;
+    const auto pch = g.addNode(name);
+    for (int i = 0; i < 6; ++i)
+    {
+      const auto n = g.addNode(std::string("x") + std::to_string(i) + ".cpp");
+      g.addEdge(n, pch);
+    }
+    LakosGodHeaders rule(5);
+    CHECK(rule.check(g, {}).empty());
+  }
+}
+
+TEST_CASE("Lakos.GodHeader: extra excludes via constructor", "[rules][lakos][god]")
+{
+  DependencyGraph g;
+  const auto hub = g.addNode("sub/my_pch.h");
+  for (int i = 0; i < 6; ++i)
+  {
+    const auto n = g.addNode("y" + std::to_string(i) + ".cpp");
+    g.addEdge(n, hub);
+  }
+  LakosGodHeaders rule(5, {"my_pch.h"});
+  REQUIRE(rule.check(g, {}).empty());
+}

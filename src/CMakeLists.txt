@@ -15,6 +15,8 @@ add_library(archcheck_core STATIC
    report/json_reporter.cpp
    report/text_reporter.cpp
    report/violation_baseline.cpp
+   rules/drift_no_shortcut_edge.cpp
+   rules/drift_no_cycle_growth.cpp
    rules/lakos_chain_length.cpp
    rules/lakos_god_headers.cpp
    rules/sf7_using_namespace.cpp
