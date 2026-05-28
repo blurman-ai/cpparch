@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -30,6 +31,18 @@ struct GrownCycle
   std::size_t currentSize = 0;
 };
 
+struct MetricDelta
+{
+  std::size_t baseline = 0;
+  std::size_t current = 0;
+};
+
+struct MetricThresholds
+{
+  std::size_t chainLengthLimit = 10; // unused in comparison; reserved for rule engine
+  std::size_t godHeaderFanIn = 30;
+};
+
 // Aggregate result of comparing two dependency graphs. All NodeIds are
 // resolved to paths up-front so the report stays valid after the source
 // graphs go out of scope.
@@ -38,11 +51,19 @@ struct RegressionReport
   std::vector<AddedEdge> addedEdges;
   std::vector<RemovedEdge> removedEdges;
   std::vector<GrownCycle> grownCycles;
+  std::optional<MetricDelta> chainLengthGrown; // set when current max depth > baseline
+  std::vector<std::string> newGodHeaders;      // nodes crossing godHeaderFanIn threshold
+  std::optional<double> nccdDelta;             // set when NCCD increased
 
-  bool hasRegression() const { return !addedEdges.empty() || !grownCycles.empty(); }
+  bool hasRegression() const
+  {
+    return !addedEdges.empty() || !grownCycles.empty() || chainLengthGrown.has_value() || !newGodHeaders.empty() ||
+           (nccdDelta.has_value() && *nccdDelta > 0.0);
+  }
 };
 
-RegressionReport buildRegressionReport(const graph::DependencyGraph &baseline, const graph::DependencyGraph &current);
+RegressionReport buildRegressionReport(const graph::DependencyGraph &baseline, const graph::DependencyGraph &current,
+                                       MetricThresholds thresholds = {});
 
 void writeTextReport(const RegressionReport &r, std::ostream &out);
 
