@@ -22,6 +22,30 @@ bool hasPragmaOnce(std::string_view line)
 
 bool hasIfndefGuard(std::string_view line) { return line.find("#ifndef") != std::string_view::npos; }
 
+// Objective-C files use #import and @interface — not C++ headers, skip SF.8.
+bool isObjcFile(const std::string &source)
+{
+  std::size_t start = 0;
+  int seen = 0;
+  while (start <= source.size() && seen < kScanLines)
+  {
+    const auto end = source.find('\n', start);
+    const auto len = (end == std::string::npos) ? source.size() - start : end - start;
+    const auto line = std::string_view(source).substr(start, len);
+    if (!line.empty())
+    {
+      ++seen;
+      if (line.find("@interface") != std::string_view::npos || line.find("@implementation") != std::string_view::npos ||
+          line.find("#import") != std::string_view::npos)
+        return true;
+    }
+    if (end == std::string::npos)
+      break;
+    start = end + 1;
+  }
+  return false;
+}
+
 bool hasIncludeGuard(const std::string &source)
 {
   int seen = 0;
@@ -57,7 +81,10 @@ ViolationList Sf8IncludeGuard::check(const graph::DependencyGraph &graph,
     const auto path = graph.pathOf(id);
     if (!archcheck::scan::isHeaderFile(std::filesystem::path(path)))
       continue;
-    if (!hasIncludeGuard(readFile(path)))
+    const auto source = readFile(path);
+    if (isObjcFile(source))
+      continue;
+    if (!hasIncludeGuard(source))
       result.push_back({"SF.8", std::string(path), 1, "header missing #pragma once or include guard (SF.8)"});
   }
   return result;

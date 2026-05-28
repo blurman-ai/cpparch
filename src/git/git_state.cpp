@@ -77,27 +77,32 @@ void collectChild(int outRead, int errRead, pid_t pid, GitRun &r)
       WIFEXITED(status) ? WEXITSTATUS(status) : -1; // LCOV_EXCL_BR_LINE — false branch requires signal-killed child
 }
 
+// Returns forked pid, or -1 on pipe/fork failure (sets r.err).
+pid_t tryForkWithPipes(std::array<int, 2> &outPipe, std::array<int, 2> &errPipe, GitRun &r)
+{
+  if (pipe(outPipe.data()) != 0 || pipe(errPipe.data()) != 0)
+  {
+    r.err = "pipe() failed"; // LCOV_EXCL_LINE
+    return -1;               // LCOV_EXCL_LINE
+  }
+  const pid_t pid = fork();
+  if (pid < 0)
+  {
+    r.err = "fork() failed"; // LCOV_EXCL_LINE
+    return -1;               // LCOV_EXCL_LINE
+  }
+  return pid;
+}
+
 // fork/exec `git <args>` (no shell). cwd may be empty (== inherit).
 GitRun runGit(const std::vector<std::string> &args, const std::filesystem::path &cwd)
 {
   GitRun r;
   std::array<int, 2> outPipe{};
   std::array<int, 2> errPipe{};
-  if (pipe(outPipe.data()) != 0 || pipe(errPipe.data()) != 0)
-  {
-    // LCOV_EXCL_START — OS-level failure, not triggerable in unit tests
-    r.err = "pipe() failed";
-    return r;
-    // LCOV_EXCL_STOP
-  }
-  const pid_t pid = fork();
+  const pid_t pid = tryForkWithPipes(outPipe, errPipe, r);
   if (pid < 0)
-  {
-    // LCOV_EXCL_START — OS-level failure
-    r.err = "fork() failed";
-    return r;
-    // LCOV_EXCL_STOP
-  }
+    return r;   // LCOV_EXCL_LINE
   if (pid == 0) // LCOV_EXCL_BR_LINE — branch taken only in child process
   {
     // LCOV_EXCL_START — child-side of fork; gcov collects data from parent only

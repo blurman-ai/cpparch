@@ -3,14 +3,17 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "archcheck/diff/regression_report.h"
 #include "archcheck/git/git_object_file_source.h"
 #include "archcheck/git/git_state.h"
 #include "archcheck/graph/algorithms.h"
+#include "archcheck/graph/baseline.h"
 #include "archcheck/graph/dependency_graph.h"
 #include "archcheck/graph/graph_builder.h"
 #include "archcheck/report/json_reporter.h"
@@ -36,6 +39,8 @@ void print_help()
             << "  archcheck --format json [path]               (JSON output)\n"
             << "  archcheck --save-baseline <file> [path]      (save current violations as baseline)\n"
             << "  archcheck --baseline <file> [path]           (report only new violations vs baseline)\n"
+            << "  archcheck --save-graph-baseline <file> [path] (save include graph snapshot for drift checks)\n"
+            << "  archcheck --drift-baseline <file> [path]    (check + DRIFT.1/DRIFT.2 vs saved graph)\n"
             << "  archcheck --version\n"
             << "  archcheck --help\n"
             << "  archcheck --scan  <path>                     (preview: discover + scan #includes)\n"
@@ -43,7 +48,8 @@ void print_help()
             << "  archcheck --diff  [--diff-mode=disk|memory] <revspec> [path]\n"
             << "                                               (regression vs git ref; revspec = 'a..b' or '<ref>')\n"
             << "\n"
-            << "Default rules (no config required): SF.7, SF.8, SF.9, Lakos.GodHeader, Lakos.ChainLength\n";
+            << "Default rules (no config required): SF.7, SF.8, SF.9, Lakos.GodHeader, Lakos.ChainLength\n"
+            << "Drift rules (require --drift-baseline):        DRIFT.1 (shortcut edges), DRIFT.2 (cycle growth)\n";
 }
 
 enum class OutputFormat
@@ -63,6 +69,7 @@ struct BaselineOpts
 {
   BaselineMode mode = BaselineMode::None;
   std::filesystem::path file;
+  std::optional<std::filesystem::path> driftFile; // --drift-baseline <file>
 };
 
 // Returns 0 on success, 2 on I/O error (already printed to stderr).
@@ -124,21 +131,55 @@ int applyBaselineAndReport(archcheck::rules::ViolationList all, OutputFormat fmt
   return all.empty() ? 0 : 1;
 }
 
+int applyDriftFile(const std::filesystem::path &driftFile, std::vector<std::unique_ptr<archcheck::rules::IRule>> &rules)
+{
+  std::ifstream in(driftFile);
+  if (!in)
+  {
+    std::cerr << "archcheck: cannot open drift baseline: " << driftFile.string() << '\n';
+    return 2;
+  }
+  auto [g, err] = archcheck::graph::loadBaseline(in);
+  if (err)
+  {
+    std::cerr << "archcheck: drift baseline error: " << err->message << '\n';
+    return 2;
+  }
+  for (auto &r : archcheck::rules::makeDriftRuleSet(std::move(g)))
+    rules.push_back(std::move(r));
+  return 0;
+}
+
 int run_check(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts baseline = {})
 {
   const auto built = archcheck::graph::buildGraphForPath(root);
   archcheck::scan::DiskFileSource src(root);
   auto readFile = [&](std::string_view path) -> std::string { return src.read(std::string(path)); };
-
-  const auto rules = archcheck::rules::makeDefaultRuleSet();
+  auto rules = archcheck::rules::makeDefaultRuleSet();
+  if (baseline.driftFile)
+    if (const int rc = applyDriftFile(*baseline.driftFile, rules); rc != 0)
+      return rc;
   archcheck::rules::ViolationList all;
   for (const auto &rule : rules)
   {
     auto v = rule->check(built.graph, readFile);
     all.insert(all.end(), v.begin(), v.end());
   }
-
   return applyBaselineAndReport(std::move(all), fmt, baseline);
+}
+
+int run_save_graph_baseline(const std::filesystem::path &root, const std::filesystem::path &file)
+{
+  const auto built = archcheck::graph::buildGraphForPath(root);
+  std::ofstream out(file);
+  if (!out)
+  {
+    std::cerr << "archcheck: cannot write graph baseline: " << file.string() << '\n';
+    return 2;
+  }
+  archcheck::graph::saveBaseline(built.graph, out);
+  std::cout << "graph baseline saved: " << built.graph.nodeCount() << " node(s) \xe2\x86\x92 " << file.string() << '\n';
+  return 0;
 }
 
 std::string read_file(const std::filesystem::path &p)
@@ -368,6 +409,30 @@ int dispatch_diff(int argc, char *argv[])
   return run_diff(revspec, root, mode);
 }
 
+int dispatch_drift_baseline(int argc, char *argv[])
+{
+  if (argc < 3)
+  {
+    std::cerr << "archcheck: --drift-baseline requires <file>\n";
+    return 2;
+  }
+  const std::filesystem::path driftFile{argv[2]};
+  const std::filesystem::path root = (argc > 3) ? std::filesystem::path{argv[3]} : std::filesystem::current_path();
+  return run_check(root, OutputFormat::Text, {BaselineMode::None, {}, driftFile});
+}
+
+int dispatch_save_graph_baseline(int argc, char *argv[])
+{
+  if (argc < 3)
+  {
+    std::cerr << "archcheck: --save-graph-baseline requires <file>\n";
+    return 2;
+  }
+  const std::filesystem::path file{argv[2]};
+  const std::filesystem::path root = (argc > 3) ? std::filesystem::path{argv[3]} : std::filesystem::current_path();
+  return run_save_graph_baseline(root, file);
+}
+
 int dispatch_baseline(std::string_view arg, int argc, char *argv[])
 {
   if (argc < 3)
@@ -378,7 +443,7 @@ int dispatch_baseline(std::string_view arg, int argc, char *argv[])
   const BaselineMode mode = (arg == "--save-baseline") ? BaselineMode::Save : BaselineMode::Load;
   const std::filesystem::path file{argv[2]};
   const std::filesystem::path root = (argc > 3) ? std::filesystem::path{argv[3]} : std::filesystem::current_path();
-  return run_check(root, OutputFormat::Text, {mode, file});
+  return run_check(root, OutputFormat::Text, {mode, file, {}});
 }
 
 int dispatch_format(int argc, char *argv[])
@@ -411,28 +476,38 @@ int dispatch_with_path(std::string_view arg, int argc, char *argv[])
   return run_graph(argv[2]);
 }
 
-int dispatch(int argc, char *argv[])
+bool dispatchBuiltins(std::string_view arg)
 {
-  const std::string_view arg{argv[1]};
   if (arg == "--version" || arg == "-V")
   {
     print_version();
-    return 0;
+    return true;
   }
   if (arg == "--help" || arg == "-h")
   {
     print_help();
-    return 0;
+    return true;
   }
+  return false;
+}
+
+int dispatch(int argc, char *argv[])
+{
+  const std::string_view arg{argv[1]};
+  if (dispatchBuiltins(arg))
+    return 0;
   if (arg == "--baseline" || arg == "--save-baseline")
     return dispatch_baseline(arg, argc, argv);
+  if (arg == "--drift-baseline")
+    return dispatch_drift_baseline(argc, argv);
+  if (arg == "--save-graph-baseline")
+    return dispatch_save_graph_baseline(argc, argv);
   if (arg == "--scan" || arg == "--graph")
     return dispatch_with_path(arg, argc, argv);
   if (arg == "--diff")
     return dispatch_diff(argc, argv);
   if (arg == "--format")
     return dispatch_format(argc, argv);
-  // Treat any non-flag argument as a path to check
   if (!arg.empty() && arg[0] != '-')
     return run_check(std::filesystem::path{argv[1]}, OutputFormat::Text);
   std::cerr << "archcheck: unknown argument '" << arg << "'\n";

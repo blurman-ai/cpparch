@@ -195,19 +195,10 @@ bool hasPath(const DependencyGraph &g, NodeId from, NodeId to)
   return false;
 }
 
-std::vector<std::size_t> computeIncludeDepths(const DependencyGraph &g)
+std::vector<std::unordered_set<std::size_t>> buildCondensation(std::size_t nSccs, std::size_t count,
+                                                               const DependencyGraph &g,
+                                                               const std::vector<std::size_t> &nodeToScc)
 {
-  const std::size_t count = g.nodeCount();
-  const auto sccs = computeScc(g);
-
-  // Map each original node → SCC index
-  std::vector<std::size_t> nodeToScc(count);
-  for (std::size_t si = 0; si < sccs.size(); ++si)
-    for (const auto id : sccs[si])
-      nodeToScc[id.value] = si;
-
-  // Build condensation adjacency (SCC index → set of successor SCC indices)
-  const std::size_t nSccs = sccs.size();
   std::vector<std::unordered_set<std::size_t>> condEdges(nSccs);
   for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(count); ++i)
     for (const auto succ : g.successors(NodeId{i}))
@@ -216,26 +207,41 @@ std::vector<std::size_t> computeIncludeDepths(const DependencyGraph &g)
       if (u != v)
         condEdges[u].insert(v);
     }
+  return condEdges;
+}
 
-  // Memoised DFS on condensation DAG → depth per SCC
-  std::vector<std::size_t> sccDepth(nSccs, 0);
+std::vector<std::size_t> computeSccDepths(const std::vector<std::unordered_set<std::size_t>> &condEdges)
+{
+  const std::size_t nSccs = condEdges.size();
+  std::vector<std::size_t> depth(nSccs, 0);
   std::vector<bool> done(nSccs, false);
   std::function<std::size_t(std::size_t)> dfs = [&](std::size_t u) -> std::size_t
   {
     if (done[u])
-      return sccDepth[u];
+      return depth[u];
     done[u] = true;
     for (const std::size_t v : condEdges[u])
-      sccDepth[u] = std::max(sccDepth[u], dfs(v) + 1);
-    return sccDepth[u];
+      depth[u] = std::max(depth[u], dfs(v) + 1);
+    return depth[u];
   };
   for (std::size_t i = 0; i < nSccs; ++i)
     dfs(i);
+  return depth;
+}
 
-  // Map back to per-node result
+std::vector<std::size_t> computeIncludeDepths(const DependencyGraph &g)
+{
+  const std::size_t count = g.nodeCount();
+  const auto sccs = computeScc(g);
+  const std::size_t nSccs = sccs.size();
+  std::vector<std::size_t> nodeToScc(count);
+  for (std::size_t si = 0; si < nSccs; ++si)
+    for (const auto id : sccs[si])
+      nodeToScc[id.value] = si;
+  const auto depth = computeSccDepths(buildCondensation(nSccs, count, g, nodeToScc));
   std::vector<std::size_t> result(count);
   for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(count); ++i)
-    result[i] = sccDepth[nodeToScc[i]];
+    result[i] = depth[nodeToScc[i]];
   return result;
 }
 

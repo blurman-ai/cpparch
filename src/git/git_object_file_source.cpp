@@ -85,6 +85,17 @@ void drain(int fd, std::string &sink)
 }
 // LCOV_EXCL_STOP
 
+void parentCollect(int outRead, int outWrite, pid_t pid, OneShot &r)
+{
+  ::close(outWrite);
+  drain(outRead, r.out);
+  ::close(outRead);
+  int status = 0;
+  ::waitpid(pid, &status, 0);
+  r.exitCode =
+      WIFEXITED(status) ? WEXITSTATUS(status) : -1; // LCOV_EXCL_BR_LINE — false branch requires signal-killed child
+}
+
 OneShot runGitOneShot(const std::vector<std::string> &args, const std::filesystem::path &cwd)
 {
   OneShot r;
@@ -107,13 +118,7 @@ OneShot runGitOneShot(const std::vector<std::string> &args, const std::filesyste
     execGitChild(args, cwd, outPipe[1]);
     // LCOV_EXCL_STOP
   }
-  ::close(outPipe[1]);
-  drain(outPipe[0], r.out);
-  ::close(outPipe[0]);
-  int status = 0;
-  ::waitpid(pid, &status, 0);
-  r.exitCode =
-      WIFEXITED(status) ? WEXITSTATUS(status) : -1; // LCOV_EXCL_BR_LINE — false branch requires signal-killed child
+  parentCollect(outPipe[0], outPipe[1], pid, r);
   return r;
 }
 

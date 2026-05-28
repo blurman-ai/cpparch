@@ -11,10 +11,9 @@
 namespace archcheck::diff
 {
 
-RegressionReport buildRegressionReport(const graph::DependencyGraph &baseline, const graph::DependencyGraph &current,
-                                       MetricThresholds thresholds)
+void collectEdgesAndCycles(const graph::DependencyGraph &baseline, const graph::DependencyGraph &current,
+                           RegressionReport &r)
 {
-  RegressionReport r;
   for (const auto &e : graph::addedEdges(baseline, current))
     r.addedEdges.push_back(
         {std::string{current.pathOf(e.from)}, std::string{current.pathOf(e.to)}}); // LCOV_EXCL_BR_LINE
@@ -31,30 +30,40 @@ RegressionReport buildRegressionReport(const graph::DependencyGraph &baseline, c
       gc.members.emplace_back(current.pathOf(m)); // LCOV_EXCL_BR_LINE
     r.grownCycles.push_back(std::move(gc));       // LCOV_EXCL_BR_LINE
   }
+}
 
-  const auto bm = graph::computeGraphMetrics(baseline);
-  const auto cm = graph::computeGraphMetrics(current);
-
-  if (cm.maxChainLength > bm.maxChainLength)
-    r.chainLengthGrown = MetricDelta{bm.maxChainLength, cm.maxChainLength};
-
+std::vector<std::string> detectNewGodHeaders(const graph::DependencyGraph &baseline,
+                                             const graph::DependencyGraph &current, std::uint32_t fanInThreshold)
+{
   const auto bFanIn = graph::computeFanIn(baseline);
   const auto cFanIn = graph::computeFanIn(current);
   std::unordered_set<std::string> baselineGodSet;
   for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(baseline.nodeCount()); ++i)
-    if (bFanIn[i] > thresholds.godHeaderFanIn)
+    if (bFanIn[i] > fanInThreshold)
       baselineGodSet.insert(std::string{baseline.pathOf(graph::NodeId{i})});
+  std::vector<std::string> result;
   for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(current.nodeCount()); ++i)
-    if (cFanIn[i] > thresholds.godHeaderFanIn)
+    if (cFanIn[i] > fanInThreshold)
     {
       auto name = std::string{current.pathOf(graph::NodeId{i})};
       if (!baselineGodSet.count(name))
-        r.newGodHeaders.push_back(std::move(name));
+        result.push_back(std::move(name));
     }
+  return result;
+}
 
+RegressionReport buildRegressionReport(const graph::DependencyGraph &baseline, const graph::DependencyGraph &current,
+                                       MetricThresholds thresholds)
+{
+  RegressionReport r;
+  collectEdgesAndCycles(baseline, current, r);
+  const auto bm = graph::computeGraphMetrics(baseline);
+  const auto cm = graph::computeGraphMetrics(current);
+  if (cm.maxChainLength > bm.maxChainLength)
+    r.chainLengthGrown = MetricDelta{bm.maxChainLength, cm.maxChainLength};
+  r.newGodHeaders = detectNewGodHeaders(baseline, current, thresholds.godHeaderFanIn);
   if (cm.nccd > bm.nccd)
     r.nccdDelta = cm.nccd - bm.nccd;
-
   return r;
 }
 
