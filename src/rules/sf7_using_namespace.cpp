@@ -27,19 +27,49 @@ bool hasUsingNamespace(std::string_view line)
   return after != std::string_view::npos && line.compare(after, 9, "namespace") == 0;
 }
 
+// Returns the visible portion of `raw` and advances `inBlockComment` state.
+// Approximate: for single-line /* ... */ returns only text before "/*".
+std::string_view updateBlockCommentState(std::string_view raw, bool &inBlockComment)
+{
+  if (inBlockComment)
+  {
+    const auto close = raw.find("*/");
+    if (close == std::string_view::npos)
+      return {};
+    inBlockComment = false;
+    return raw.substr(close + 2);
+  }
+  const auto open = raw.find("/*");
+  if (open == std::string_view::npos)
+    return raw;
+  inBlockComment = (raw.find("*/", open + 2) == std::string_view::npos);
+  return raw.substr(0, open);
+}
+
 ViolationList scanFile(std::string_view path, const std::string &source)
 {
   ViolationList result;
   int line = 0;
+  int braceDepth = 0;
+  bool inBlockComment = false;
   std::size_t start = 0;
   while (start <= source.size())
   {
     const auto end = source.find('\n', start);
     const auto len = (end == std::string::npos) ? source.size() - start : end - start;
     ++line;
-    const auto raw = std::string_view(source).substr(start, len);
-    if (hasUsingNamespace(stripLineComment(raw)))
+    const auto vis = updateBlockCommentState(std::string_view(source).substr(start, len), inBlockComment);
+    const auto noComment = stripLineComment(vis);
+    for (const char c : noComment)
+      if (c == '{')
+        ++braceDepth;
+    if (braceDepth == 0 && hasUsingNamespace(noComment))
       result.push_back({"SF.7", std::string(path), line, "'using namespace' at global scope in header (SF.7)"});
+    for (const char c : noComment)
+      if (c == '}')
+        --braceDepth;
+    if (braceDepth < 0)
+      braceDepth = 0;
     if (end == std::string::npos)
       break;
     start = end + 1;

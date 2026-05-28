@@ -63,3 +63,74 @@ TEST_CASE("SF.7: multiple violations in one file", "[rules][sf7]")
   CHECK(v[0].line == 2);
   CHECK(v[1].line == 3);
 }
+
+TEST_CASE("SF.7: using namespace inside function body — no violation", "[rules][sf7]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  Sf7UsingNamespace rule;
+  const auto src = "#pragma once\n"
+                   "struct S {\n"
+                   "  static std::string f() {\n"
+                   "    using namespace std::string_literals;\n"
+                   "    return \"x\"s;\n"
+                   "  }\n"
+                   "};\n";
+  REQUIRE(rule.check(g, makeReadFile(src)).empty());
+}
+
+TEST_CASE("SF.7: using namespace inside inline lambda — no violation", "[rules][sf7]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  Sf7UsingNamespace rule;
+  const auto src = "#pragma once\n"
+                   "auto g = []{ using namespace Catch::Generators; return 42; };\n";
+  REQUIRE(rule.check(g, makeReadFile(src)).empty());
+}
+
+TEST_CASE("SF.7: using namespace after closing brace — violation", "[rules][sf7]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  Sf7UsingNamespace rule;
+  const auto src = "#pragma once\n"
+                   "struct Foo {};\n"
+                   "using namespace std;\n";
+  const auto v = rule.check(g, makeReadFile(src));
+  REQUIRE(v.size() == 1);
+  CHECK(v[0].line == 3);
+}
+
+TEST_CASE("SF.7: using namespace inside block comment — no violation", "[rules][sf7]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  Sf7UsingNamespace rule;
+  const auto src = "#pragma once\n"
+                   "/**\n"
+                   " * \\code\n"
+                   " *   using namespace folly;\n"
+                   " * \\endcode\n"
+                   " */\n"
+                   "class Foo {};\n";
+  REQUIRE(rule.check(g, makeReadFile(src)).empty());
+}
+
+TEST_CASE("SF.7: using namespace after block comment closes — violation", "[rules][sf7]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  Sf7UsingNamespace rule;
+  const auto src = "#pragma once\n"
+                   "/* doc */\n"
+                   "using namespace std;\n";
+  const auto v = rule.check(g, makeReadFile(src));
+  REQUIRE(v.size() == 1);
+  CHECK(v[0].line == 3);
+}
