@@ -15,6 +15,7 @@
 #include "archcheck/graph/graph_builder.h"
 #include "archcheck/report/json_reporter.h"
 #include "archcheck/report/text_reporter.h"
+#include "archcheck/report/violation_baseline.h"
 #include "archcheck/rules/rule_set.h"
 #include "archcheck/scan/disk_file_source.h"
 #include "archcheck/scan/include_scanner.h"
@@ -33,6 +34,8 @@ void print_help()
             << "Usage:\n"
             << "  archcheck [path]                             (check: run all default rules on path or cwd)\n"
             << "  archcheck --format json [path]               (JSON output)\n"
+            << "  archcheck --save-baseline <file> [path]      (save current violations as baseline)\n"
+            << "  archcheck --baseline <file> [path]           (report only new violations vs baseline)\n"
             << "  archcheck --version\n"
             << "  archcheck --help\n"
             << "  archcheck --scan  <path>                     (preview: discover + scan #includes)\n"
@@ -49,26 +52,93 @@ enum class OutputFormat
   Json
 };
 
-int run_check(const std::filesystem::path &root, OutputFormat fmt)
+enum class BaselineMode
+{
+  None,
+  Load,
+  Save
+};
+
+struct BaselineOpts
+{
+  BaselineMode mode = BaselineMode::None;
+  std::filesystem::path file;
+};
+
+// Returns 0 on success, 2 on I/O error (already printed to stderr).
+int trySaveBaseline(const archcheck::rules::ViolationList &all, const std::filesystem::path &file)
+{
+  try
+  {
+    archcheck::report::saveBaseline({all}, file);
+  }
+  catch (const archcheck::report::BaselineError &e)
+  {
+    std::cerr << "archcheck: " << e.what() << '\n';
+    return 2;
+  }
+  std::cout << "baseline saved: " << all.size() << " violation(s) → " << file.string() << '\n';
+  return 0;
+}
+
+// Filters `all` in-place. Returns suppressed count, or -1 on error (already printed to stderr).
+int tryLoadAndFilter(archcheck::rules::ViolationList &all, const std::filesystem::path &file)
+{
+  try
+  {
+    const auto b = archcheck::report::loadBaseline(file);
+    const auto filtered = archcheck::report::filterNew(all, b);
+    const int suppressed = static_cast<int>(all.size() - filtered.size());
+    all = filtered;
+    return suppressed;
+  }
+  catch (const archcheck::report::BaselineError &e)
+  {
+    std::cerr << "archcheck: " << e.what() << '\n';
+    return -1;
+  }
+}
+
+int applyBaselineAndReport(archcheck::rules::ViolationList all, OutputFormat fmt, const BaselineOpts &baseline)
+{
+  if (baseline.mode == BaselineMode::Save)
+    return trySaveBaseline(all, baseline.file);
+
+  std::size_t suppressed = 0;
+  if (baseline.mode == BaselineMode::Load)
+  {
+    const int n = tryLoadAndFilter(all, baseline.file);
+    if (n < 0)
+      return 2;
+    suppressed = static_cast<std::size_t>(n);
+  }
+
+  if (fmt == OutputFormat::Json)
+    archcheck::report::writeJsonReport(all, std::cout);
+  else
+    archcheck::report::writeTextReport(all, std::cout);
+
+  if (suppressed > 0 && fmt == OutputFormat::Text)
+    std::cout << "suppressed: " << suppressed << " known violation(s) (run without --baseline to see all)\n";
+
+  return all.empty() ? 0 : 1;
+}
+
+int run_check(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts baseline = {})
 {
   const auto built = archcheck::graph::buildGraphForPath(root);
   archcheck::scan::DiskFileSource src(root);
   auto readFile = [&](std::string_view path) -> std::string { return src.read(std::string(path)); };
 
   const auto rules = archcheck::rules::makeDefaultRuleSet();
-  archcheck::rules::ViolationList violations;
+  archcheck::rules::ViolationList all;
   for (const auto &rule : rules)
   {
     auto v = rule->check(built.graph, readFile);
-    violations.insert(violations.end(), v.begin(), v.end());
+    all.insert(all.end(), v.begin(), v.end());
   }
 
-  if (fmt == OutputFormat::Json)
-    archcheck::report::writeJsonReport(violations, std::cout);
-  else
-    archcheck::report::writeTextReport(violations, std::cout);
-
-  return violations.empty() ? 0 : 1;
+  return applyBaselineAndReport(std::move(all), fmt, baseline);
 }
 
 std::string read_file(const std::filesystem::path &p)
@@ -298,6 +368,37 @@ int dispatch_diff(int argc, char *argv[])
   return run_diff(revspec, root, mode);
 }
 
+int dispatch_baseline(std::string_view arg, int argc, char *argv[])
+{
+  if (argc < 3)
+  {
+    std::cerr << "archcheck: " << arg << " requires <file>\n";
+    return 2;
+  }
+  const BaselineMode mode = (arg == "--save-baseline") ? BaselineMode::Save : BaselineMode::Load;
+  const std::filesystem::path file{argv[2]};
+  const std::filesystem::path root = (argc > 3) ? std::filesystem::path{argv[3]} : std::filesystem::current_path();
+  return run_check(root, OutputFormat::Text, {mode, file});
+}
+
+int dispatch_format(int argc, char *argv[])
+{
+  if (argc < 3)
+  {
+    std::cerr << "archcheck: --format requires a value (text|json)\n";
+    return 2;
+  }
+  const std::string_view fmt{argv[2]};
+  if (fmt != "json" && fmt != "text")
+  {
+    std::cerr << "archcheck: unknown format '" << fmt << "' (expected text|json)\n";
+    return 2;
+  }
+  const auto format = (fmt == "json") ? OutputFormat::Json : OutputFormat::Text;
+  const std::filesystem::path root = (argc > 3) ? std::filesystem::path{argv[3]} : std::filesystem::current_path();
+  return run_check(root, format);
+}
+
 int dispatch_with_path(std::string_view arg, int argc, char *argv[])
 {
   if (argc < 3)
@@ -323,27 +424,14 @@ int dispatch(int argc, char *argv[])
     print_help();
     return 0;
   }
+  if (arg == "--baseline" || arg == "--save-baseline")
+    return dispatch_baseline(arg, argc, argv);
   if (arg == "--scan" || arg == "--graph")
     return dispatch_with_path(arg, argc, argv);
   if (arg == "--diff")
     return dispatch_diff(argc, argv);
   if (arg == "--format")
-  {
-    if (argc < 3)
-    {
-      std::cerr << "archcheck: --format requires a value (text|json)\n";
-      return 2;
-    }
-    const std::string_view fmt{argv[2]};
-    if (fmt != "json" && fmt != "text")
-    {
-      std::cerr << "archcheck: unknown format '" << fmt << "' (expected text|json)\n";
-      return 2;
-    }
-    const auto format = (fmt == "json") ? OutputFormat::Json : OutputFormat::Text;
-    const std::filesystem::path root = (argc > 3) ? std::filesystem::path{argv[3]} : std::filesystem::current_path();
-    return run_check(root, format);
-  }
+    return dispatch_format(argc, argv);
   // Treat any non-flag argument as a path to check
   if (!arg.empty() && arg[0] != '-')
     return run_check(std::filesystem::path{argv[1]}, OutputFormat::Text);

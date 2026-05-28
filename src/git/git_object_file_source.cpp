@@ -64,10 +64,11 @@ void drain(int fd, std::string &sink)
     const ssize_t n = ::read(fd, buf.data(), buf.size());
     if (n <= 0)
       break;
-    sink.append(buf.data(), static_cast<std::size_t>(n));
+    sink.append(buf.data(), static_cast<std::size_t>(n)); // LCOV_EXCL_BR_LINE
   }
 }
 
+// LCOV_EXCL_START — child-process code; runs after fork(), not visible to gcov in parent
 [[noreturn]] void execGitChild(const std::vector<std::string> &args, const std::filesystem::path &cwd, int outFd)
 {
   ::dup2(outFd, STDOUT_FILENO);
@@ -82,31 +83,37 @@ void drain(int fd, std::string &sink)
   ::execvp("git", argv.data());
   _exit(127);
 }
+// LCOV_EXCL_STOP
 
 OneShot runGitOneShot(const std::vector<std::string> &args, const std::filesystem::path &cwd)
 {
   OneShot r;
   std::array<int, 2> outPipe{};
   if (::pipe(outPipe.data()) != 0)
-    return r;
+    return r; // LCOV_EXCL_LINE — OS-level failure
   const pid_t pid = ::fork();
   if (pid < 0)
   {
+    // LCOV_EXCL_START — OS-level failure
     ::close(outPipe[0]);
     ::close(outPipe[1]);
     return r;
+    // LCOV_EXCL_STOP
   }
-  if (pid == 0)
+  if (pid == 0) // LCOV_EXCL_BR_LINE — branch taken only in child process
   {
+    // LCOV_EXCL_START — child-side of fork
     ::close(outPipe[0]);
     execGitChild(args, cwd, outPipe[1]);
+    // LCOV_EXCL_STOP
   }
   ::close(outPipe[1]);
   drain(outPipe[0], r.out);
   ::close(outPipe[0]);
   int status = 0;
   ::waitpid(pid, &status, 0);
-  r.exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  r.exitCode =
+      WIFEXITED(status) ? WEXITSTATUS(status) : -1; // LCOV_EXCL_BR_LINE — false branch requires signal-killed child
   return r;
 }
 
@@ -123,6 +130,7 @@ GitObjectFileSource::~GitObjectFileSource() { closeChild(); }
 namespace
 {
 
+// LCOV_EXCL_START — child-process code after fork()
 [[noreturn]] void execCatFileBatch(const std::filesystem::path &cwd, int childStdin, int childStdout)
 {
   ::dup2(childStdin, STDIN_FILENO);
@@ -134,6 +142,7 @@ namespace
   ::execvp("git", argv);
   _exit(127);
 }
+// LCOV_EXCL_STOP
 
 } // namespace
 
@@ -142,15 +151,17 @@ bool GitObjectFileSource::spawnCatFileBatch()
   std::array<int, 2> inPipe{};
   std::array<int, 2> outPipe{};
   if (::pipe(inPipe.data()) != 0 || ::pipe(outPipe.data()) != 0)
-    return false;
+    return false; // LCOV_EXCL_LINE — OS-level failure
   const pid_t pid = ::fork();
   if (pid < 0)
-    return false;
-  if (pid == 0)
+    return false; // LCOV_EXCL_LINE — OS-level failure
+  if (pid == 0)   // LCOV_EXCL_BR_LINE — branch taken only in child process
   {
+    // LCOV_EXCL_START — child-side of fork
     ::close(inPipe[1]);
     ::close(outPipe[0]);
     execCatFileBatch(repoRoot_, inPipe[0], outPipe[1]);
+    // LCOV_EXCL_STOP
   }
   ::close(inPipe[0]);
   ::close(outPipe[1]);

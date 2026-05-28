@@ -143,6 +143,78 @@ TEST_CASE("loadBaseline reports MalformedSchema on out-of-range edge", "[graph][
   REQUIRE(err->kind == BaselineLoadError::Kind::MalformedSchema);
 }
 
+TEST_CASE("loadBaseline reports MalformedSchema when top-level is not a mapping", "[graph][baseline][errors]")
+{
+  const std::string text = "- just a sequence\n";
+  std::istringstream is(text);
+  auto [g, err] = loadBaseline(is);
+  REQUIRE(err.has_value());
+  REQUIRE(err->kind == BaselineLoadError::Kind::MalformedSchema);
+}
+
+TEST_CASE("loadBaseline reports MalformedSchema when format_version is not a scalar", "[graph][baseline][errors]")
+{
+  const std::string text = "format_version:\n"
+                           "  - nested: value\n"
+                           "nodes: []\n"
+                           "edges: []\n";
+  std::istringstream is(text);
+  auto [g, err] = loadBaseline(is);
+  REQUIRE(err.has_value());
+  REQUIRE(err->kind == BaselineLoadError::Kind::MalformedSchema);
+}
+
+TEST_CASE("loadBaseline reports MalformedSchema when nodes is not a sequence", "[graph][baseline][errors]")
+{
+  const std::string text = "format_version: \"1\"\n"
+                           "nodes: scalar_value\n"
+                           "edges: []\n";
+  std::istringstream is(text);
+  auto [g, err] = loadBaseline(is);
+  REQUIRE(err.has_value());
+  REQUIRE(err->kind == BaselineLoadError::Kind::MalformedSchema);
+}
+
+TEST_CASE("loadBaseline reports MalformedSchema when edge is not a pair", "[graph][baseline][errors]")
+{
+  const std::string text = "format_version: \"1\"\n"
+                           "nodes:\n"
+                           "   - \"a.h\"\n"
+                           "   - \"b.h\"\n"
+                           "edges:\n"
+                           "   - [0, 1, 0]\n"; // triple, not pair
+  std::istringstream is(text);
+  auto [g, err] = loadBaseline(is);
+  REQUIRE(err.has_value());
+  REQUIRE(err->kind == BaselineLoadError::Kind::MalformedSchema);
+}
+
+TEST_CASE("loadBaseline reports MalformedSchema when edge index is not integer", "[graph][baseline][errors]")
+{
+  const std::string text = "format_version: \"1\"\n"
+                           "nodes:\n"
+                           "   - \"a.h\"\n"
+                           "edges:\n"
+                           "   - [abc, 0]\n";
+  std::istringstream is(text);
+  auto [g, err] = loadBaseline(is);
+  REQUIRE(err.has_value());
+  REQUIRE(err->kind == BaselineLoadError::Kind::MalformedSchema);
+}
+
+TEST_CASE("saveBaseline handles empty graph (no nodes, no edges)", "[graph][baseline][roundtrip]")
+{
+  DependencyGraph empty;
+  const std::string text = save_to_string(empty);
+  REQUIRE(text.find("nodes:") != std::string::npos);
+  REQUIRE(text.find("edges:") != std::string::npos);
+
+  std::istringstream is(text);
+  auto [loaded, err] = loadBaseline(is);
+  REQUIRE_FALSE(err.has_value());
+  REQUIRE(loaded.nodeCount() == 0);
+}
+
 TEST_CASE("loadBaseline restores the original graph topology", "[graph][baseline][roundtrip]")
 {
   const DependencyGraph g = make_sample_a();

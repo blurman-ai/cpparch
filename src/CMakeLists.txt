@@ -14,6 +14,7 @@ add_library(archcheck_core STATIC
    diff/regression_report.cpp
    report/json_reporter.cpp
    report/text_reporter.cpp
+   report/violation_baseline.cpp
    rules/lakos_chain_length.cpp
    rules/lakos_god_headers.cpp
    rules/sf7_using_namespace.cpp

@@ -66,6 +66,11 @@ std::vector<Edge> remapped_sorted_edges(const DependencyGraph &g, const std::vec
 
 void write_nodes_block(std::ostream &out, const std::vector<std::string> &nodes)
 {
+  if (nodes.empty())
+  {
+    out << "nodes: []\n";
+    return;
+  }
   out << "nodes:\n";
   for (const auto &p : nodes)
   {
@@ -75,6 +80,11 @@ void write_nodes_block(std::ostream &out, const std::vector<std::string> &nodes)
 
 void write_edges_block(std::ostream &out, const std::vector<Edge> &edges)
 {
+  if (edges.empty())
+  {
+    out << "edges: []\n";
+    return;
+  }
   out << "edges:\n";
   for (const auto &e : edges)
   {

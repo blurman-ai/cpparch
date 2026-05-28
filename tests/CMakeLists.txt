@@ -25,6 +25,7 @@ add_executable(archcheck_tests
    unit/git/git_state_test.cpp
    unit/git/git_object_file_source_test.cpp
    unit/diff/regression_report_test.cpp
+   unit/report/violation_baseline_test.cpp
    integration/scan/scanner_fixtures_test.cpp
    integration/graph/end_to_end_test.cpp
    unit/rules/lakos_chain_length_test.cpp
