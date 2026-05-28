@@ -13,6 +13,9 @@
 #include "archcheck/graph/algorithms.h"
 #include "archcheck/graph/dependency_graph.h"
 #include "archcheck/graph/graph_builder.h"
+#include "archcheck/report/json_reporter.h"
+#include "archcheck/report/text_reporter.h"
+#include "archcheck/rules/rule_set.h"
 #include "archcheck/scan/disk_file_source.h"
 #include "archcheck/scan/include_scanner.h"
 #include "archcheck/scan/project_files.h"
@@ -28,18 +31,44 @@ void print_help()
   std::cout << "archcheck - architecture rules for C++ projects\n"
             << "\n"
             << "Usage:\n"
+            << "  archcheck [path]                             (check: run all default rules on path or cwd)\n"
+            << "  archcheck --format json [path]               (JSON output)\n"
             << "  archcheck --version\n"
             << "  archcheck --help\n"
-            << "  archcheck --scan  <path>             (preview: discover + scan #includes)\n"
-            << "  archcheck --graph <path>             (preview: build dependency graph + SCC stats)\n"
+            << "  archcheck --scan  <path>                     (preview: discover + scan #includes)\n"
+            << "  archcheck --graph <path>                     (preview: build dependency graph + SCC stats)\n"
             << "  archcheck --diff  [--diff-mode=disk|memory] <revspec> [path]\n"
-            << "                                       (regression vs git ref; revspec = 'a..b' or '<ref>')\n"
+            << "                                               (regression vs git ref; revspec = 'a..b' or '<ref>')\n"
             << "\n"
-            << "  --diff-mode=memory (default) reads git blobs in-process via `git cat-file --batch`.\n"
-            << "  --diff-mode=disk falls back to materialising each ref in a temporary worktree.\n"
-            << "\n"
-            << "Configuration parsing, default rules, and reporters land in subsequent\n"
-            << "v0.1 commits. See docs/architecture-spec.md.\n";
+            << "Default rules (no config required): SF.7, SF.8, SF.9, Lakos.GodHeader, Lakos.ChainLength\n";
+}
+
+enum class OutputFormat
+{
+  Text,
+  Json
+};
+
+int run_check(const std::filesystem::path &root, OutputFormat fmt)
+{
+  const auto built = archcheck::graph::buildGraphForPath(root);
+  archcheck::scan::DiskFileSource src(root);
+  auto readFile = [&](std::string_view path) -> std::string { return src.read(std::string(path)); };
+
+  const auto rules = archcheck::rules::makeDefaultRuleSet();
+  archcheck::rules::ViolationList violations;
+  for (const auto &rule : rules)
+  {
+    auto v = rule->check(built.graph, readFile);
+    violations.insert(violations.end(), v.begin(), v.end());
+  }
+
+  if (fmt == OutputFormat::Json)
+    archcheck::report::writeJsonReport(violations, std::cout);
+  else
+    archcheck::report::writeTextReport(violations, std::cout);
+
+  return violations.empty() ? 0 : 1;
 }
 
 std::string read_file(const std::filesystem::path &p)
@@ -298,6 +327,26 @@ int dispatch(int argc, char *argv[])
     return dispatch_with_path(arg, argc, argv);
   if (arg == "--diff")
     return dispatch_diff(argc, argv);
+  if (arg == "--format")
+  {
+    if (argc < 3)
+    {
+      std::cerr << "archcheck: --format requires a value (text|json)\n";
+      return 2;
+    }
+    const std::string_view fmt{argv[2]};
+    if (fmt != "json" && fmt != "text")
+    {
+      std::cerr << "archcheck: unknown format '" << fmt << "' (expected text|json)\n";
+      return 2;
+    }
+    const auto format = (fmt == "json") ? OutputFormat::Json : OutputFormat::Text;
+    const std::filesystem::path root = (argc > 3) ? std::filesystem::path{argv[3]} : std::filesystem::current_path();
+    return run_check(root, format);
+  }
+  // Treat any non-flag argument as a path to check
+  if (!arg.empty() && arg[0] != '-')
+    return run_check(std::filesystem::path{argv[1]}, OutputFormat::Text);
   std::cerr << "archcheck: unknown argument '" << arg << "'\n";
   print_help();
   return 2;
@@ -308,9 +357,6 @@ int dispatch(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
   if (argc < 2)
-  {
-    print_help();
-    return 0;
-  }
+    return run_check(std::filesystem::current_path(), OutputFormat::Text);
   return dispatch(argc, argv);
 }
