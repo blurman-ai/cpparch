@@ -273,7 +273,7 @@ std::string GitObjectFileSource::read(const std::string &repoRelativePath)
   if (!readExact(content, size))
     return {};
   char trailer = 0;
-  (void)::read(stdoutFd_, &trailer, 1);
+  [[maybe_unused]] auto n = ::read(stdoutFd_, &trailer, 1);
   return content;
 }
 
