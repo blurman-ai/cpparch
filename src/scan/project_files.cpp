@@ -16,6 +16,10 @@ constexpr std::array<std::string_view, 12> kExtensions = {
     ".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".ipp", ".tpp", ".inl", ".inc",
 };
 
+constexpr std::array<std::string_view, 8> kHeaderExtensions = {
+    ".h", ".hh", ".hpp", ".hxx", ".ipp", ".tpp", ".inl", ".inc",
+};
+
 constexpr std::array<std::string_view, 6> kExcludedExact = {
     ".git", "build", ".cache", ".idea", ".vscode", "out",
 };
@@ -26,6 +30,12 @@ bool has_project_extension(const std::filesystem::path &p)
 {
   const std::string ext = p.extension().string();
   return std::find(kExtensions.begin(), kExtensions.end(), ext) != kExtensions.end();
+}
+
+bool is_header_file(const std::filesystem::path &p)
+{
+  const std::string ext = p.extension().string();
+  return std::find(kHeaderExtensions.begin(), kHeaderExtensions.end(), ext) != kHeaderExtensions.end();
 }
 
 bool is_excluded_dir_name(std::string_view name)
@@ -101,5 +111,7 @@ ProjectIndex buildProjectIndex(const std::vector<ProjectFile> &files)
 }
 
 bool hasProjectExtension(const std::filesystem::path &p) { return has_project_extension(p); }
+
+bool isHeaderFile(const std::filesystem::path &p) { return is_header_file(p); }
 
 } // namespace archcheck::scan
