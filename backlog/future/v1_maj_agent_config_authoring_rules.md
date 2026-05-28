@@ -8,66 +8,108 @@
 **Сложность:** M (контракт + примеры + anti-slop guardrails)
 **Целевой релиз:** v1 phase 1 (post-MVP)
 **Блокирует:** практическое использование AI synthesis без ручного написания конфига
-**Заблокирован:** —
-**Related:** future/v1_maj_config_format_minimal_contract.md, future/v1_maj_ai_config_synthesis_eval_protocol.md, future/010_maj_ai_rule_synthesis_contract.md
+**Заблокирован:** future/v1_maj_config_format_minimal_contract.md
+**Related:** future/v1_maj_ai_config_synthesis_eval_protocol.md, future/010_maj_ai_rule_synthesis_contract.md
 
 ## Цель
 
-Зафиксировать правила, по которым внешний агент может заполнять `.archcheck.yml.draft`, не выдумывая архитектуру и не маскируя догадки под факты.
+Зафиксировать правила, по которым агент заполняет `.archcheck.yml.draft` — не выдумывая
+архитектуру и не маскируя догадки под факты. Агент пишет только `.draft`, не финальный config.
 
-## Контекст
+## Целевой формат вывода агента
 
-Сама идея AI-assisted config synthesis нужна как мост:
+Агент заполняет `.archcheck.yml.draft` в схеме из `v1_maj_config_format_minimal_contract.md`.
+Приоритет типов правил:
+1. **`layers`** — если есть directional hierarchy — использовать его, не раскрывать в N×(N-1) пар `forbidden`.
+2. **`independence`** — если модули одного уровня не должны знать друг о друге.
+3. **`forbidden`** — точечные запреты которые не вписываются в layers.
 
-- first run без конфига даёт signal;
-- затем агент помогает сделать draft;
-- пользователь только правит и подтверждает, а не пишет YAML с нуля.
+Каждое правило и каждый модуль — YAML-комментарий с источником (`observed` / `inferred` / `speculative`).
 
-Проблема в том, что без контракта агент быстро начнёт:
+## Разрешённые источники истины
 
-- выдумывать несуществующие слои;
-- переносить архитектурные паттерны из других проектов;
-- делать слишком жёсткие запреты на слабом основании;
-- выдавать "красивый" YAML, который не соответствует реальности репо.
+- Реальная файловая структура (пути, имена директорий)
+- Include-граф (кто реально включает кого)
+- README / ARCHITECTURE.md если есть
+- Явные naming conventions (префиксы, суффиксы)
 
-Поэтому нужен не только формат конфига, но и **правила поведения агента**.
+## Запрещённое поведение агента
+
+- Выдумывать слои которых нет в репо (нет `domain/` → не писать `domain` module)
+- Переносить архитектурные паттерны из других проектов без evidence
+- Делать `forbidden` на слабом основании (`speculative` → только `# TODO`, не правило)
+- Скрывать неуверенность: все `speculative` поля должны быть явно помечены
+
+## Уровни уверенности
+
+| Уровень | Когда | В .draft |
+|---------|-------|----------|
+| `observed` | Прямо видно в файловой структуре или include-графе | Пишем как правило |
+| `inferred` | Следует из naming/README, не подтверждено графом | Правило + `# inferred` |
+| `speculative` | Common pattern, нет evidence в репо | `# TODO` комментарий, не правило |
+
+## Что человек обязан проверить перед accept
+
+- Каждый `modules.*.paths` — реально ли файлы существуют
+- Каждое `layers` / `independence` правило — не нарушает ли существующий код
+- Все `# inferred` и `# speculative` комментарии — подтвердить или удалить
+
+## Пример хорошего draft
+
+```yaml
+version: 1
+
+modules:
+  core:
+    paths: ["include/spdlog/**"]            # observed: directory exists
+  sinks:
+    paths: ["include/spdlog/sinks/**"]      # observed: directory exists
+  details:
+    paths: ["include/spdlog/details/**"]    # observed: directory exists
+
+rules:
+  - type: layers
+    name: spdlog-layering
+    layers: [sinks, core, details]          # inferred: sinks include core, details is low-level
+    # TODO: verify sinks do not include details directly
+
+  - type: independence
+    name: sinks-independent
+    modules: [sinks]                        # speculative: typical pattern, not verified
+```
+
+## Пример плохого draft (запрещён)
+
+```yaml
+# НЕ ДЕЛАТЬ ТАК — нет директорий в репо:
+modules:
+  presentation:
+    paths: ["src/presentation/**"]    # BAD: не существует
+  business_logic:
+    paths: ["src/business/**"]        # BAD: выдумано
+
+rules:
+  - type: forbidden
+    name: no-circular                 # BAD: слишком широко, без evidence
+    from: [business_logic]
+    to: [presentation]
+```
 
 ## План выполнения
 
-- [ ] Выписать allowed sources of truth: layout, include graph, naming, README, existing docs
-- [ ] Выписать forbidden behavior: не выдумывать domain model, не invent layer names без evidence
-- [ ] Зафиксировать уровни уверенности: `observed`, `inferred`, `speculative`
-- [ ] Решить, как агент маркирует гипотезы в `.draft`
-- [ ] Определить минимальный output contract: comments with rationale, no hidden assumptions
-- [ ] Описать, что именно человек должен проверить перед accept
-- [ ] Добавить 2-3 good/bad synthesis examples
+- [ ] Написать `docs/ai_config_authoring_rules.md`: allowed sources, forbidden behavior, уровни уверенности
+- [ ] Добавить 2 полных примера: good draft и bad draft с аннотациями
+- [ ] Зафиксировать минимальный output contract: что должно быть в каждом поле `.draft`
+- [ ] Описать checklist для человека перед accept
+- [ ] Связать с `synthesize`-command design когда он появится
 
 ## Сделано
 
 - (пусто)
 
-## В работе
-
-- (пусто)
-
-## Следующие шаги
-
-1. Сначала описать ограничения агента, потом уже мерить Claude/Codex
-2. Проверить contract на одном простом OSS repo до масштабирования
-3. После фиксации contract связать его с `synthesize`-command design
-
-## Ключевые решения
-
-| Решение | Причина |
-|---------|---------|
-| Агент пишет только `.draft`, не финальный config | Человек остаётся владельцем архитектурной истины |
-| Гипотезы маркируются явно | Нужно отделять факт репо от догадки модели |
-| Сначала contract, потом benchmark | Иначе неясно, что считать хорошим output |
-
 ## Изменённые файлы
 
 | Файл | Изменение |
 |------|-----------|
-| docs/ai_config_authoring_rules.md | новый контракт для агента |
+| docs/ai_config_authoring_rules.md | контракт для агента |
 | README.md | краткое объяснение `.draft` workflow после стабилизации |
-

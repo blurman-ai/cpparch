@@ -8,63 +8,80 @@
 **Сложность:** M (методика, критерии, шаблоны отчёта)
 **Целевой релиз:** v1 phase 1 (post-MVP)
 **Блокирует:** осмысленную проверку гипотезы "AI снижает барьер входа в config mode"
-**Заблокирован:** —
-**Related:** future/v1_maj_agent_config_authoring_rules.md, future/v1_min_ai_config_synthesis_trial_spdlog.md, future/010_maj_ai_rule_synthesis_contract.md
+**Заблокирован:** future/v1_maj_agent_config_authoring_rules.md
+**Related:** future/v1_min_ai_config_synthesis_trial_spdlog.md, future/010_maj_ai_rule_synthesis_contract.md
 
 ## Цель
 
-Сделать воспроизводимый протокол, по которому можно сравнить Claude и Codex в задаче создания `.archcheck.yml.draft` по реальной кодовой базе.
+Воспроизводимый протокол сравнения Claude и Codex в задаче создания `.archcheck.yml.draft`.
+Мерим практическую полезность draft, не "красоту YAML".
 
-## Контекст
+## Единый входной набор для обеих моделей
 
-Если post-MVP ставка делается на AI как на средство снять барьер mandatory
-config, это надо проверять не впечатлениями, а повторяемым протоколом.
+1. Файловая структура репо (`find src/ include/ -type f | head -200`)
+2. Include-граф в текстовом виде (archcheck --format json или аналог)
+3. README / ARCHITECTURE.md если есть (первые 100 строк)
+4. Системный prompt из `docs/ai_config_authoring_rules.md` (одинаковый для обеих)
 
-Нужно мерить не "красоту YAML", а практическую полезность:
+Контекстный бюджет: ≤ 8k токенов входа. Если репо больше — обрезать по правилу `head -200`.
 
-- насколько draft близок к реальности repo;
-- сколько ручных правок нужно до usable состояния;
-- какие типы ошибок систематически делает модель;
-- можно ли этот workflow рекомендовать пользователю, а не только автору tool-а.
+## Метрики (считать для каждого прогона)
 
-Без общего протокола любые сравнения Claude vs Codex будут слишком шумными.
+| Метрика | Как считать |
+|---------|-------------|
+| **Structural correctness** | Все `modules.*.paths` — реально существующие директории (0/1 per module) |
+| **Rule type quality** | Использованы ли `layers`/`independence` вместо flat `forbidden`? (`layers_used`: yes/no) |
+| **False boundaries** | Количество правил `forbidden`/`layers` которые нарушает существующий код |
+| **Edit distance** | Количество изменённых строк до первого usable конфига (считать git diff) |
+| **Confidence marking** | Все `speculative` помечены? (yes / partial / no) |
+| **Stale entries** | Количество `# TODO` которые человек удалил как бессмысленные |
+
+Pass threshold: `structural correctness` = 100%, `false boundaries` ≤ 2, `edit distance` ≤ 30%.
+
+## Правила fair comparison
+
+- Один и тот же репозиторий, один и тот же git commit
+- Один и тот же системный prompt (из `docs/ai_config_authoring_rules.md`)
+- Один и тот же входной набор артефактов
+- Прогон сохраняется как-есть, без доработки prompt-а под конкретную модель
+
+## Human review sheet (заполнять для каждого прогона)
+
+```
+Repo: ___________  Commit: ___________  Model: ___________  Date: ___________
+
+Modules declared: ___   Modules correct: ___   False modules: ___
+Rules declared: ___   Rule types used: [ ] layers  [ ] independence  [ ] forbidden only
+False boundaries (violations in existing code): ___
+Edit distance to usable (lines changed): ___
+Confidence marking: [ ] full  [ ] partial  [ ] missing
+Stale TODO entries removed: ___
+
+Verdict: [ ] useful as-is  [ ] useful after minor edits  [ ] heavy rewrite needed  [ ] useless
+```
+
+## Что считается "хорошим" draft (критерии по референсам)
+
+- Модули соответствуют реальным директориям (как Deptrac `paths:`)
+- Hierarchy выражена через `layers`, а не flat `forbidden` (как Import Linter `layers` type)
+- Нет выдуманных слоёв (anti-pattern из study ArchUnit vs flat config tools)
+- Каждая неочевидная граница помечена как `inferred` или `speculative`
 
 ## План выполнения
 
-- [ ] Зафиксировать единый prompt contract для обеих моделей
-- [ ] Зафиксировать единый входной набор артефактов репо
-- [ ] Определить метрики: time-to-first-draft, edit-distance-after-human-review, false boundaries, over-restriction, under-specification
-- [ ] Решить формат human review sheet
-- [ ] Определить pass/fail threshold для "draft useful enough"
-- [ ] Описать правила fair comparison: same repo, same task, same context budget class
-- [ ] Подготовить шаблон итогового отчёта
+- [ ] Принять `docs/ai_config_authoring_rules.md` как prerequisite
+- [ ] Зафиксировать единый prompt contract в `docs/ai_config_eval_protocol.md`
+- [ ] Зафиксировать human review sheet в `docs/ai_config_eval_template.md`
+- [ ] Выбрать первый репозиторий (кандидат: spdlog) и провести пилот
+- [ ] После пилота: упростить или ужесточить метрики по результату
 
 ## Сделано
 
 - (пусто)
 
-## В работе
-
-- (пусто)
-
-## Следующие шаги
-
-1. Принять agent-authoring rules как prerequisite
-2. Выбрать первый репозиторий и сделать пилотный прогон
-3. После пилота упростить или ужесточить метрики
-
-## Ключевые решения
-
-| Решение | Причина |
-|---------|---------|
-| Сравнение по одинаковому contract | Иначе сравниваются prompt-ы, а не модели |
-| Считать ручные правки ключевой метрикой | Пользовательский value именно в экономии усилия |
-| Мерить false architectural claims отдельно | Это главный риск synthesis |
-
 ## Изменённые файлы
 
 | Файл | Изменение |
 |------|-----------|
-| docs/ai_config_eval_protocol.md | новая методика оценки |
+| docs/ai_config_eval_protocol.md | методика оценки |
 | docs/ai_config_eval_template.md | шаблон отчёта по прогону |
-

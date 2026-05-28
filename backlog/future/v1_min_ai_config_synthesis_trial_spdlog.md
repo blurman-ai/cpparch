@@ -13,57 +13,68 @@
 
 ## Цель
 
-Проверить на одном известном, но не чрезмерно большом open-source репозитории, может ли Claude и Codex выдать полезный `.archcheck.yml.draft`, который человек не переписывает с нуля.
+Проверить на одном репо: может ли агент выдать полезный `.archcheck.yml.draft` который человек
+не переписывает с нуля.
 
-## Контекст
+## Репозиторий: spdlog
 
-Для первой проверки нужен репозиторий:
+Repo: https://github.com/gabime/spdlog
 
-- узнаваемый;
-- C++;
-- не игрушечный;
-- не слишком большой для ручного review;
-- с достаточно понятной структурой.
+Причины выбора: C++, известный, обозримый, нетривиальная структура.
 
-Первый кандидат: **`spdlog`**.
+Ожидаемая структура модулей для draft (observed, проверить на актуальном коммите):
 
-Причины:
+```
+include/spdlog/          → core (основные заголовки)
+include/spdlog/sinks/    → sinks (output backends)
+include/spdlog/details/  → details (low-level, не для публичного include)
+include/spdlog/fmt/      → fmt (embedded fmt library)
+```
 
-- известный open-source C++ проект;
-- не монстр уровня LLVM / OpenCV / gRPC;
-- есть нетривиальная структура (`include/`, `details/`, `sinks/`, tests, examples);
-- достаточно архитектурного сигнала, чтобы synthesis был не совсем тривиален.
+Ожидаемые правила (inferred, без запуска):
+- `details` — самый низкий уровень, sinks и core могут его включать
+- `sinks` и `core` — не должны зависеть друг от друга (independence?)
+- `fmt` — изолированная embedded lib, никто её не должен включать напрямую кроме details
+
+Это гипотезы — агент должен их подтвердить или опровергнуть по include-графу.
+
+## Входные артефакты для прогона
+
+1. `find include/ -type f -name "*.h" | sort` — файловая структура
+2. Include-граф (запустить archcheck или python include-scanner)
+3. `head -100 README.md`
+4. Системный prompt из `docs/ai_config_authoring_rules.md`
+
+## Что зафиксировать по результату
+
+- Конкретный `git rev-parse HEAD` spdlog на котором шёл прогон
+- `.draft` от Claude — `docs/research/ai_eval/spdlog_claude_draft.yml`
+- `.draft` от Codex — `docs/research/ai_eval/spdlog_codex_draft.yml`
+- Заполненный human review sheet — `docs/research/ai_eval/spdlog_review.md`
+- Финальный usable config после правок — `docs/research/ai_eval/spdlog_final.yml`
+
+## Вывод по итогу (заполнить после)
+
+```
+Verdict Claude: ___
+Verdict Codex: ___
+Edit distance Claude: ___  Codex: ___
+Главные ошибки: ___
+Hypothesis: synthesis useful / not useful / useful with heavy review
+```
 
 ## План выполнения
 
-- [ ] Зафиксировать конкретный revision `spdlog`, на котором идёт прогон
-- [ ] Запустить Claude по принятому protocol и сохранить `.draft`
-- [ ] Запустить Codex по тому же protocol и сохранить `.draft`
-- [ ] Сравнить drafts по human review sheet
-- [ ] Выписать ручные правки до первого usable config
-- [ ] Сделать короткий вывод: synthesis useful / not useful / useful only with heavy review
+- [ ] Зафиксировать конкретный commit spdlog
+- [ ] Собрать входные артефакты
+- [ ] Запустить Claude по протоколу, сохранить `.draft`
+- [ ] Запустить Codex по тому же протоколу, сохранить `.draft`
+- [ ] Заполнить review sheet по метрикам из eval_protocol
+- [ ] Написать вывод: synthesis useful / not useful / useful with heavy review
 
 ## Сделано
 
 - (пусто)
-
-## В работе
-
-- (пусто)
-
-## Следующие шаги
-
-1. После фиксации protocol выбрать конкретный commit `spdlog`
-2. Прогнать обе модели без подгонки prompt-а под одну из них
-3. Сохранить оба результата в репо как research artifacts
-
-## Ключевые решения
-
-| Решение | Причина |
-|---------|---------|
-| Первый repo = `spdlog` | Достаточно известный и при этом обозримый |
-| Один pilot до масштабирования | Сначала проверить саму гипотезу, потом размножать по репозиториям |
-| Сохранять не только итог, но и ручные правки | Иначе не видно реальную цену synthesis |
 
 ## Изменённые файлы
 
@@ -72,3 +83,4 @@
 | docs/research/ai_eval/spdlog_claude_draft.yml | артефакт прогона Claude |
 | docs/research/ai_eval/spdlog_codex_draft.yml | артефакт прогона Codex |
 | docs/research/ai_eval/spdlog_review.md | сравнение и выводы |
+| docs/research/ai_eval/spdlog_final.yml | финальный config после правок |

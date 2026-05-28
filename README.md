@@ -14,7 +14,7 @@ C++ projects degrade over time:
 
 Code review doesn’t catch this.  
 Linters don’t check architecture.  
-**AI-generated code accelerates the drift** — agents suffer *constraint decay* (EURECOM, 2026): ~30 pp drop in assertion pass rate when functional tasks gain structural constraints. The prompt degrades with context; CI doesn’t.
+**AI-generated code accelerates the drift** — agents suffer *constraint decay* ([Dente et al., EURECOM, 2026](docs/research/constraint_decay.md)): ~30 pp drop in assertion pass rate when functional tasks gain structural constraints. The prompt degrades with context; CI doesn’t.
 
 **archcheck enforces architectural rules in CI.**
 

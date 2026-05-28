@@ -1,6 +1,77 @@
-# Backlog Review — 2026-05-28
+# Backlog Review — 2026-05-28 (обновлено 2026-05-28: MVP readiness + real project)
 
-Всего задач: **7 активных** (4 wip + 3 future) + **26 завершённых**.
+> **Фокус-вопрос:** что осталось до MVP и когда можно запустить на реальном OS-проекте?
+> Оба режима: статический анализ кода (`archcheck [path]`) и анализ коммитов (`archcheck --diff`).
+
+## TL;DR
+
+**MVP функционально завершён.** `archcheck 0.1.0` собирается, 173/173 тестов, все 5 дефолтных правил работают, `--diff` для commit-анализа работает. **Запустить на реальном проекте можно сегодня.** До официального "MVP done" остаётся: закрыть #025 (smoke-test, ~1ч) + #027 (branch coverage → 90%, ~2-3 дня). Итого: **2-3 рабочих дня.**
+
+---
+
+## Режим 1 — статический анализ: `archcheck [path]`
+
+**Что работает сегодня:**
+- SF.7 (using namespace в заголовках), SF.8 (include guard), SF.9 (циклы в include-графе)
+- Lakos.GodHeader (fan-in > 30), Lakos.ChainLength (глубина > 10)
+- Text + JSON output, exit codes 0/1/2
+- Include resolution через **suffix-matching** — без `compile_commands.json` покрывает ~80-90% реальных `#include`; системные хедеры помечаются `external` и не участвуют в графе (ложных позитивов нет)
+
+**Главный пробел для legacy-кода:**
+В CLI нет `--baseline <file>` для подавления уже существующих нарушений. Первый запуск на legacy-проекте покажет всё сразу — может быть overwhelming. *Обходной путь:* `--diff main..HEAD` (режим 2) показывает только новые нарушения — достаточно для CI.
+
+**Попробовать прямо сейчас:**
+```bash
+archcheck --graph /path/to/oss-project   # nodes/edges/scc статистика
+archcheck /path/to/oss-project           # полный check всех правил
+archcheck --format json /path/to/project # для CI-интеграции
+```
+
+---
+
+## Режим 2 — анализ коммитов: `archcheck --diff`
+
+**Что работает сегодня:**
+- Строит граф из git-объектов in-memory (без worktree на диске)
+- Сравнивает до/после → показывает только **новые** dependency-рёбра
+- `WORKTREE` ref — включает uncommitted changes
+- Merge-commit поддержан, fast-path если нет C++ изменений
+
+**Типовые use-cases:**
+```bash
+# Новые рёбра за последний коммит
+archcheck --diff HEAD~1..HEAD /path/to/project
+
+# Регрессии в PR (CI)
+archcheck --diff main..feature-branch /path/to/project
+
+# Найти какой коммит ухудшил архитектуру — shell-оркестровка поверх инструмента
+git log --format=%H main..feature | while read sha; do
+  echo "=== $sha ===" && archcheck --diff "${sha}~1..${sha}" /path
+done
+```
+
+**Пробел:** `--diff` показывает новые рёбра, но не скаляр "насколько сложнее стало". Для ранжирования коммитов по сложности можно использовать `--graph` (выдаёт scc_cyclic, largest_scc) — нужна внешняя оркестровка. Это осознанный scope, не баг.
+
+---
+
+## Пробелы vs MVP.md acceptance criteria
+
+| Пункт | Состояние |
+|-------|-----------|
+| compile_commands.json support | ❌ нет (suffix-match — работает для большинства проектов) |
+| Module mapping + YAML rules | ❌ нет (→ v0.2, решение задокументировано) |
+| `archcheck init` command | ❌ нет (не приоритет v0.1) |
+| `--baseline <file>` для check-режима | ❌ нет в CLI (модуль в коде есть, CLI не подключён) |
+| Cycle detection | ✅ SF.9 |
+| Text + JSON output | ✅ |
+| Exit codes 0/1/2/3 | ✅ |
+| Fixtures для всех правил | ✅ (5 наборов pass/fail) |
+| CI workflow | ✅ (example + PR comment) |
+
+---
+
+Всего задач: **2 WIP + 7 future** + **28 завершённых**.
 
 ---
 

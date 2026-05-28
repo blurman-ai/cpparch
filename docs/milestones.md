@@ -89,6 +89,61 @@
 
 ---
 
+## 2026-05-28 — Первые прогоны на известных OSS-проектах: fmt и spdlog
+
+**Версия archcheck:** commit `c480e39`
+
+### Прогон 3 — `fmt` (fmtlib/fmt)
+- **Масштаб:** 72 project files.
+- **Домен:** Строковое форматирование, header-only + compiled modes. C++11/14/17/20.
+- **Команда:** `archcheck --graph /tmp/fmt` + `archcheck /tmp/fmt`
+- **Commit:** `0acf106c52f5c7f068ce6313f2ca310c7d5e8b63`
+- **Время:** 0.19 s + 0.28 s wall clock.
+- **Результат (--graph):**
+  - nodes 72 / edges 157 / **sccs_cyclic 0** (граф ацикличен).
+  - external 311 / unresolved 9 / ambiguous 0 / macro_includes 0.
+- **Результат (default rules) — 16 нарушений:**
+  - **SF.7 (10):** все в `include/fmt/base.h`, `chrono.h`, `format.h`, `compile.h`, `format-inl.h` + один в `test/gtest/gmock/gmock.h`. Паттерн: `using namespace fmt::v11::detail` внутри implementation headers — намеренный приём. Не баг архитектуры.
+  - **SF.8 (6):** `include/fmt/core.h` — заглушка-редирект на `base.h` (deprecated compatibility shim), не настоящий заголовок; gtest/gmock-заголовки без guard; `test/scan.h`, `test/util.h` — тест-хелперы.
+  - **GodHeader: 0, ChainLength: 0, SF.9 (cycles): 0.**
+- **Вывод:** fmt — эталонно чистый проект по include-архитектуре. Нулевые циклы, нет god-headers, нет длинных цепочек. Все SF.7/SF.8 находки объяснимы специальными паттернами или third-party (gtest). Подтверждает роль fmt как baseline-референса.
+
+---
+
+### Прогон 4 — `spdlog` (gabime/spdlog)
+- **Масштаб:** 149 project files.
+- **Домен:** Logging library, C++11/14/17. Поддерживает header-only и compiled режимы одновременно.
+- **Команда:** `archcheck --graph /tmp/spdlog` + `archcheck /tmp/spdlog`
+- **Commit:** `2e71fdf3c1e8d6299b8129e402ab705e6fb494ba`
+- **Время:** 0.09 s + 0.16 s wall clock.
+- **Результат (--graph):**
+  - nodes 149 / edges 439 / **sccs_cyclic 22** / largest_scc 2.
+  - external 305 / unresolved 2 / ambiguous 0 / macro_includes 0.
+- **Результат (default rules) — нарушения:**
+  - **SF.9 / cycles (22):** ВСЕ имеют форму `foo-inl.h ↔ foo.h`. Это намеренный паттерн dual-mode: в compiled-режиме `spdlog.h` включает `*-inl.h` которые back-include соответствующий `.h`. Технически цикл — архитектурно это форма conditional inline. Не баг, но SF.9 выдаёт правомерно.
+  - **SF.7 (10):** `include/spdlog/fmt/bundled/` — встроенная копия fmt; `sinks/win_eventlog_sink.h` — один `using namespace`. Bundled fmt объясняет большинство.
+  - **SF.8 (1):** `fmt/bundled/core.h` — тот же deprecated redirect что и в fmt.
+  - **GodHeader (2):** `common.h` fan-in **38** (порог 30), `details/null_mutex.h` fan-in **31**. Реальные god-headers — почти весь проект зависит от `common.h`.
+  - **ChainLength (много):** глубина 11–15 у sink-файлов и bench/. Обусловлено embedded fmt + разветвлённым include-деревом spdlog.
+- **Ключевой инсайт:** "22 цикла" — не провал дизайна, а fingerprint dual-mode паттерна `-inl.h`. При появлении конфига нужен exclude для `*-inl.h`-пар или специальная настройка threshold для этого паттерна. `common.h` как god-header — настоящая находка: это центр тяжести всего графа.
+
+---
+
+### Сравнительная таблица fmt vs spdlog
+
+| Метрика | fmt | spdlog |
+|---|---|---|
+| Nodes | 72 | 149 |
+| Edges | 157 | 439 |
+| Cyclic SCCs | **0** | **22** |
+| God-headers | 0 | 2 (`common.h` fan-in 38) |
+| ChainLength violations | 0 | ~30 |
+| SF.7 | 10 (intentional) | 10 (bundled fmt) |
+| SF.8 | 6 (deprecated + gtest) | 1 (bundled fmt) |
+| Scan time (Debug) | 0.28 s | 0.16 s |
+
+---
+
 ## Шаблон записи
 
 ```
