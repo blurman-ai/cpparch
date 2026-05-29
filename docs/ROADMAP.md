@@ -6,7 +6,7 @@ _2026-05-29 · phase: **v0.1 (ready to tag)**_
 
 **v0.1 release** — функционально готов; критичных blocker'ов нет.
 
-Открытых критичных багов нет (#049 закрыт 2026-05-29). Решение по SF.21 зафиксировано: перенесён в v0.3 (preview в v0.2 через `--with-clang`), см. [#050](../backlog/wip/050_min_sf21_anonymous_namespace.md).
+Открытых критичных багов нет (#049 закрыт 2026-05-29). Решение по SF.21 зафиксировано: перенесён в v0.3 (preview в v0.2 через `--with-clang`), см. [#050](../backlog/future/050_min_sf21_anonymous_namespace.md).
 
 «Что в работе прямо сейчас» — `backlog/wip/`. Очередь — `backlog/new/`.
 «Что уже зашипилось» — [CHANGELOG.md](../CHANGELOG.md).
@@ -30,14 +30,14 @@ _2026-05-29 · phase: **v0.1 (ready to tag)**_
 - `.archcheck.yml` v1: spec закрыт; loader в работе (#051) — modules + typed rules (`layers` / `independence` / `forbidden`)
 - `--with-clang` opt-in libclang backend (спайк #043 → backend #042)
 - Semantic SF rules: SF.2, SF.5, SF.10, SF.11
-- SF.21 — preview через `--with-clang` (default-ON в v0.3, см. [#050](../backlog/wip/050_min_sf21_anonymous_namespace.md))
+- SF.21 — preview через `--with-clang` (default-ON в v0.3, см. [#050](../backlog/future/050_min_sf21_anonymous_namespace.md))
 - SARIF output (для GitHub Code Scanning)
 - `archcheck init`
 
 ## v0.3 — расширение правил + AI loop
 
 - C / I / NL секции Core Guidelines: C.121, C.133, C.134, I.2, I.3, I.22, NL.27
-- SF.21 — default-ON (см. [#050](../backlog/wip/050_min_sf21_anonymous_namespace.md))
+- SF.21 — default-ON (см. [#050](../backlog/future/050_min_sf21_anonymous_namespace.md))
 - BDE: no-inter-component-friendship, external-linkage-in-header
 - DRIFT расширения (intrinsic-only)
 - AI rule synthesis contract — `archcheck synthesize` (#010)
