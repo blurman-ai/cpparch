@@ -179,6 +179,68 @@ Rule parse_rule(const ryml::ConstNodeRef &node, const std::string &file)
                     "rule '" + name + "' has unknown type '" + type + "' (expected: layers, independence, forbidden)");
 }
 
+void validate_member_list(const std::vector<std::string> &items, const std::string &field, const std::string &rule_name,
+                          const std::unordered_set<std::string> &known_modules, const std::string &file)
+{
+  std::unordered_set<std::string> seen;
+  for (const auto &name : items)
+  {
+    if (known_modules.count(name) == 0)
+    {
+      throw ConfigError(file, 0, 0,
+                        "rule '" + rule_name + "' references unknown module '" + name + "' in '" + field + "'");
+    }
+    if (!seen.insert(name).second)
+    {
+      throw ConfigError(file, 0, 0, "rule '" + rule_name + "' has duplicate '" + name + "' in '" + field + "'");
+    }
+  }
+}
+
+void validate_forbidden_disjoint(const ForbiddenRule &rule, const std::string &file)
+{
+  std::unordered_set<std::string> from_set(rule.from.begin(), rule.from.end());
+  for (const auto &t : rule.to)
+  {
+    if (from_set.count(t) > 0)
+    {
+      throw ConfigError(file, 0, 0, "rule '" + rule.name + "' has module '" + t + "' in both 'from' and 'to'");
+    }
+  }
+}
+
+struct RuleValidator
+{
+  const std::unordered_set<std::string> &modules;
+  const std::string &file;
+
+  void operator()(const LayersRule &r) const { validate_member_list(r.layers, "layers", r.name, modules, file); }
+  void operator()(const IndependenceRule &r) const
+  {
+    validate_member_list(r.modules, "modules", r.name, modules, file);
+  }
+  void operator()(const ForbiddenRule &r) const
+  {
+    validate_member_list(r.from, "from", r.name, modules, file);
+    validate_member_list(r.to, "to", r.name, modules, file);
+    validate_forbidden_disjoint(r, file);
+  }
+};
+
+void cross_validate(const Config &config, const std::string &file)
+{
+  std::unordered_set<std::string> modules;
+  for (const auto &m : config.modules)
+  {
+    modules.insert(m.name);
+  }
+  const RuleValidator visitor{modules, file};
+  for (const auto &rule : config.rules)
+  {
+    std::visit(visitor, rule);
+  }
+}
+
 void parse_rules(const ryml::ConstNodeRef &root, const std::string &file, Config &config)
 {
   const auto rules_node = root["rules"];
@@ -233,6 +295,7 @@ Config load(const std::filesystem::path &path)
   validate_top_keys(root, path.string());
   parse_modules(root, path.string(), config);
   parse_rules(root, path.string(), config);
+  cross_validate(config, path.string());
   return config;
 }
 
