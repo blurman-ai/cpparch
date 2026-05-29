@@ -1,38 +1,56 @@
-# Backlog Review — 2026-05-29
+# Backlog Review — 2026-05-29 (late)
 
-> **Фокус-вопрос:** после "MVP done" — куда едем дальше? Что протухло за день, какие быстрые победы, какие узлы решений впереди.
+> Обновление к утреннему ревью. С тех пор закрыто 6 задач (#043, #044, #047, #048→fixture, #049, v1_maj_config_format), три переехали в `future/` после спайка #043, заведено 2 новые задачи (#048 drift methodology, #053 fast-backend line dup), одна стартовала (#051 config loader).
 
 ## TL;DR
 
-Очередь `wip/` пустая, всё активное теперь в `new/` (9 задач). Один задача уже сделана в коде (#039 — SF.8 ObjC), просто файл застрял — перенести в `completed/`. Остальные 8 разбиваются на чёткие тройки:
+- `wip/`: **1** (#051 config_loader_v1 — стартовала сегодня).
+- `new/`: **7** активных, заблокированных извне — нет.
+- **Быстрые победы**: #046 (color TTY decision, ≤2 ч), #048 drift methodology (≤1 ч doc + helper).
+- **Средние**: #029, #032, #045.
+- **Большая**: #053 (fast-backend line duplication — L, целится в v0.2).
+- **Под скоупом / unknown**: #041 (audit hardcoded strings — `Сложность: unknown`, перекрывается с config-format/loader). Подвешено с утреннего ревью, **решение надо принять сегодня-завтра** пока #051 в работе.
 
-- **Быстрые победы (полдня каждая)**: #044 (README sync), #046 (color TTY — решить и закрыть). Берём первыми.
-- **Узел решения**: #043 (libclang perf spike) блокирует #042 (clang semantic backend). Цифра из спайка решает, нужен ли двух-бекендный план в v0.1 или схема упрощается.
-- **Средняя инженерия**: #029 (metric regressions), #032 (conditional includes в spdlog), #045 (sync MVP/spec/ADR).
-- **Под вопросом**: #041 (audit hardcoded strings) — единственная задача с `Сложность: unknown`. Перекрывается с future-задачей `v1_maj_config_format_minimal_contract`; либо доскопить, либо слить.
-
-Всего в очереди: **9 задач** (1 готова, 4 quick win/M, 2 связанные multi-day, 1 design, 1 под скоупом). Заблокированных по внешним причинам — нет.
-
----
-
-## Протухшие / сделано, но не перенесено
-
-| Файл | Причина | Рекомендация |
-|------|---------|--------------|
-| `new/039_min_sf8_objc_header_exclusion.md` | `isObjcFile()` уже в [src/rules/sf8_include_guard.cpp:27](src/rules/sf8_include_guard.cpp#L27), регрессионные тесты добавлены в `a5ec300`. Сама задача помечена как "OUT-OF-SCOPE / документировать as known limitation" — но фактически закрыта реализацией. | **Move to completed** — дописать секцию «Как работает», указать коммиты `76066e1` / `a5ec300` |
-
-> Note: `wip/047_crt_scan_utf8_bom.md` уже в `git status` как D + ?? в `completed/` — это незакоммиченный переезд, не «протухшее». Будет закрыт ближайшим коммитом.
+**Коллизия номеров:** `new/048_maj_drift_clean_checkout_methodology.md` использует номер, уже занятый `completed/048_maj_fixture_libresprite_pr581.md`. Перенумеровать новую (например в #054).
 
 ---
 
-## Быстрые победы (quick win)
+## Закрыто с прошлого ревью (за день)
+
+| Файл | Что закрыло |
+|------|-------------|
+| #039 SF.8 ObjC exclusion | перенесено в `completed/` ✅ |
+| #043 spike clang perf | завершён, `docs/dev/spike_clang_perf.md`. Подтвердил двух-бекендную схему (libclang ×1350 медленнее regex). |
+| #044 README sync | done |
+| #047 UTF-8 BOM | done |
+| #048 LibreSprite PR#581 fixture | done (номер занят) |
+| #049 SF.9 include guard false conditional | done |
+| `v1_maj_config_format_minimal_contract` | спека `docs/config_format.md` зафиксирована, перешла в completed |
+
+Переехали в `future/` после спайка #043:
+- #042 (clang semantic backend) — v0.2
+- #050 (SF.21 anon namespace) — v0.3
+- #052 (cross-TU duplication AST) — v0.2
+- #033 (AI drift dataset) — v0.2+, `Статус: in-progress`
+
+---
+
+## WIP
+
+| Файл | Стартовала | Скоуп |
+|------|------------|-------|
+| `wip/051_maj_config_loader_v1.md` | 2026-05-29 | YAML→`Config` struct + валидация + fixtures. Loader-only, без подключения к rule pipeline. По git-логу: phase 1 (rules dispatcher) и phase 2 закоммичены (`2893aed`, `574516d`, `f3377ce`). Активная работа. |
+
+---
+
+## Быстрые победы
 
 | Файл | Цель | Модуль | Оценка |
 |------|------|--------|--------|
-| `new/044_crt_docs_readme_sync_shipped.md` | Привести README к актуальному CLI (`archcheck [path]`, `--baseline`, `--format json`), убрать выдуманные `check --config` / `init` / `baseline create`, добавить раздел Planned. | DOCS | S (~полдня) |
-| `new/046_min_docs_color_tty_decision.md` | Решить track A (реализовать isatty + ANSI + `NO_COLOR`) или B (убрать обещание из спека). Стоимость одинаковая. | DOCS / REPORT | XS (≤ 2ч) |
+| `new/046_min_docs_color_tty_decision.md` | Track A (isatty + ANSI + NO_COLOR) или B (убрать из роадмапа). Одинаковая стоимость. | DOCS / REPORT | XS (≤2ч) |
+| `new/048_maj_drift_clean_checkout_methodology.md` | Доказана причина false positives на DRIFT.1 (dirty checkout). Нужен helper-скрипт `clean_checkout.sh` + параграф в методичке. | RESEARCH | S (≤1ч) |
 
-Обе — нулевой инженерный риск, помогают позиционированию. **Брать сразу.**
+Обе — без инженерного риска, обе разблокируют дальнейшее: #046 закрывает doc/code drift, #048 делает воспроизводимыми все будущие drift-прогоны.
 
 ---
 
@@ -40,28 +58,25 @@
 
 | Файл | Цель | Модуль | Сложность |
 |------|------|--------|-----------|
-| `new/029_maj_metric_regression_detection.md` | Расширить `RegressionReport` метрическими регрессиями (chain length, новые god-headers, NCCD дельта); `computeFanIn` + `computeGraphMetrics` в `algorithms`. Полный план + git-интеграционные тесты прописаны. | GRAPH / DIFF | M |
-| `new/032_maj_conditional_include_cycles.md` | Помечать `#include`-рёбра внутри `#ifdef` как `conditional`; SF.9 пропускает all-conditional циклы. Снимает 22 false positive на spdlog. Чёткие шаги, fixture план. | SCAN / RULES | M |
-| `new/043_maj_spike_clang_perf.md` | Измерить wall-clock + RSS `clang_parseTranslationUnit` + `getInclusions` на spdlog/fmt. Одна цифра закрывает вопрос «нужен ли fast-backend в v0.1». | SCAN (spike) | S (1–2 дня) |
-| `new/045_maj_docs_sync_roadmap_mvp_spec.md` | Зонтик-таск: переписать `MVP.md`, выровнять `architecture-spec.md` v0.1/v0.2, завести `docs/decisions/` (ADR-001..003). | DOCS | M (1–2 дня) |
-
-Никакой из них не нужен `compile_commands.json` или внешних блокеров — все можно брать в любом порядке.
+| `new/029_maj_metric_regression_detection.md` | chain length / new god-headers / CCD-ACD-NCCD дельты в `RegressionReport` + git-интеграционные тесты. | GRAPH / DIFF | M |
+| `new/032_maj_conditional_include_cycles.md` | `#include` под `#ifdef` → `conditional` edge; SF.9 пропускает all-conditional циклы. Снимает 22 FP на spdlog. | SCAN / RULES | M |
+| `new/045_maj_docs_sync_roadmap_mvp_spec.md` | MVP.md переписать с нуля, выровнять spec v0.1/v0.2, ADR-001..003. После #044 имеет на что ссылаться. | DOCS | M (1–2 дня) |
 
 ---
 
-## Сложные / с зависимостями
+## Сложные
 
-| Файл | Блокер / Горизонт |
-|------|-------------------|
-| `new/042_maj_clang_semantic_backend.md` | Заблокирован #043: скоуп зависит от ответа спайка. Если libclang приемлемо медленный — упрощается до «libclang-only default». Если нет — три фазы (042a/b/c) с двух-бекендной схемой. **Не трогать до #043.** |
+| Файл | Цель | Сложность | Замечание |
+|------|------|-----------|-----------|
+| `new/053_maj_fast_backend_line_duplication_pass.md` | Порт line-based Type-1 spike в `src/scan/` как off-by-default проход; cross-component reuse-edge сигнал + ratio. | L | Целится в v0.2, после спайка `experiments/line_duplication/`. Не блокирует ничего в v0.1. Связана с #052 (AST-слой) — два слоя одной темы. |
 
 ---
 
-## Без анализа (нужно исследование)
+## Без анализа / под вопросом
 
-| Файл | Что не хватает |
-|------|----------------|
-| `new/041_maj_audit_hardcoded_strings.md` | `Сложность: unknown`. План есть, но первая фаза — grep-инвентаризация, без которой нельзя оценить объём `Config` struct. Должна предшествовать `v1_maj_config_format_minimal_contract` (future/), а не идти параллельно. Решение: либо доскопить до «сделать только grep-таблицу + классификацию», либо переложить в `future/` рядом с config-format. |
+| Файл | Что не хватает | Рекомендация |
+|------|----------------|--------------|
+| `new/041_maj_audit_hardcoded_strings.md` | `Сложность: unknown`. Висит с 2026-05-28. Перекрывается с #051 (config_loader_v1) и с `docs/config_format.md`. | Решить **сейчас**, пока #051 в работе: либо доскопить до «фаза 0: grep-таблица + классификация» и втянуть как input в #051 фазу 2, либо переложить в `future/`. Один параллельный поток на config, не два. |
 
 ---
 
@@ -69,34 +84,42 @@
 
 | Файлы | Предложение |
 |-------|-------------|
-| `new/044` (README sync) ↔ `new/045` (MVP/spec/ADR sync) | Не дубли — разные документы и аудитории. Уже взаимно линкуют через `Related:` и оба ссылаются на одно решение #028. Делать в порядке #044 → #045 (внешний срез сначала, чтобы было на что ссылаться из ADR). |
-| `new/042` ↔ `new/043` | Сознательная пара (spike → owner). `#043 Блокирует: #042` прописан. |
-| `new/041` (audit hardcoded) ↔ `future/v1_maj_config_format_minimal_contract` | Скрытое пересечение: первая хочет вынести дефолты в `Config` struct, вторая определяет shape `.archcheck.yml`. Должна быть одна линия "config defaults → config format" а не два параллельных потока. Добавить в обоих `Related:`. |
+| `new/053` (fast line dup) ↔ `future/052` (AST duplication) | Сознательная пара (cheap layer + precise layer). `Related:` в обе стороны прописан. Не дубль. |
+| `new/041` (audit strings) ↔ `wip/051` (config loader) ↔ `docs/config_format.md` | Скрытое пересечение: #041 хочет вынести дефолты в Config, #051 уже это делает по спеке. Линковать `Related:` и/или поглотить #041. |
+| `new/045` (docs sync) ↔ `completed/044` (README sync) | #044 закрыт, #045 опирается на него — связь корректна. |
+
+---
+
+## Коллизии и гигиена
+
+- **#048 номер занят дважды.** `completed/048_maj_fixture_libresprite_pr581.md` (закрыта сегодня) и `new/048_maj_drift_clean_checkout_methodology.md`. Перенумеровать новую → **#054** (после #053). Это вопрос гигиены: `Related: #048` в любых других файлах станет двусмысленным.
+- **`new/033_maj_ai_drift_dataset.md`** — нет в `new/`, перенесена в `future/` со статусом `in-progress`. Если работа над ней активна — формально это `wip/`, не `future/`. Либо вернуть в `wip/`, либо статус поправить на `paused`/`new`.
 
 ---
 
 ## Состояние future/ и pending/
 
-- `future/` — 7 задач (005 SARIF, 010 AI rule synthesis, 033 AI drift dataset, четыре `v1_*` post-MVP). Все корректно за горизонтом v0.1, трогать не надо.
-- `pending/027_maj_coverage_90_percent.md` — по правилу `[[feedback_pending_folder]]` в `pending/` не лезу. Если статус нужно поднять — это явная команда, не review.
+- `future/` — 9 задач: 005 SARIF, 010 AI rule synthesis, 033 AI drift dataset, 042 clang backend, 050 SF.21, 052 cross-TU dup, три `v1_*`. Все за горизонтом v0.1.
+- `pending/` — не трогаю (правило [[feedback_pending_folder]]).
 
 ---
 
 ## Сводка
 
-- Всего активных: **9** (`backlog/new/`).
-- Уже сделано, надо перенести: **1** (#039).
-- Quick win: **2** (#044, #046).
-- Средние: **4** (#029, #032, #043, #045).
-- С зависимостью: **1** (#042 — ждёт #043).
+- WIP: **1** (#051).
+- Активных в `new/`: **7**.
+- Quick win: **2** (#046, #048 drift methodology).
+- Средние: **3** (#029, #032, #045).
+- Большая: **1** (#053).
 - Под вопросом скоуп: **1** (#041).
 - Заблокировано внешне: **0**.
+- Закрыто с утра: **6** + 4 переезда в `future/`.
 
-## Рекомендуемый порядок ближайших ходов
+## Рекомендуемый порядок ходов
 
-1. **5 минут** — перенести #039 в `completed/` с дописанной секцией «Как работает».
-2. **Полдня** — взять #044 (README sync). Простая, заметная пользователю, готовит почву для #045.
-3. **2 часа** — параллельно #046 (TTY color). Развилка одного шага.
-4. **1–2 дня** — #043 спайк. Разблокирует и/или упрощает #042.
-5. **Параллельно** — #029 или #032 в зависимости от настроения: метрики или real-world FP на spdlog.
-6. **Решить про #041** — доскопить до grep-инвентаря, либо отложить в `future/` рядом с config-format.
+1. **5 мин гигиены** — перенумеровать `new/048` → `#054`; поправить статус `future/033` на `wip/` или `paused`.
+2. **Решить #041** — пока #051 в работе, либо втянуть фазу 0, либо в `future/`.
+3. **#048 drift methodology** — 1 час, разблокирует будущие drift-прогоны.
+4. **#046 color TTY** — 2 часа, закроет doc↔code drift.
+5. **Дождаться #051** — потом #029 / #032 / #045 в любом порядке.
+6. **#053** — после v0.1 ката, это v0.2-материал.
