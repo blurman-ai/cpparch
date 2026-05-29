@@ -1,6 +1,6 @@
 # archcheck — STATUS
 
-_Обновлено: 2026-05-29 · commit `446fe61` · фаза: **v0.1 (близко к завершению)**_
+_Обновлено: 2026-05-29 · commit `cc5cca9` · фаза: **v0.1 (близко к завершению)**_
 
 ## Состояние одним абзацем
 
@@ -24,7 +24,7 @@ archcheck сегодня сканирует C++ проекты **без `compile
 - ⬜ **SF.21** — не реализован, задачи в backlog нет. Решить, тянем ли в v0.1.
 - ✅ **SF.9 / cycles** — [src/rules/sf9_no_cycles.cpp](../src/rules/sf9_no_cycles.cpp); conditional-cycle suppression — продолжение в #032.
 - ✅ **Include chain length** (default 10) — [src/rules/lakos_chain_length.cpp](../src/rules/lakos_chain_length.cpp).
-- ✅ **God-headers** (default fan-in 30) — [src/rules/lakos_god_headers.cpp](../src/rules/lakos_god_headers.cpp); PCH-exclusion (#031).
+- ✅ **God-headers** (default fan-in 50) — [src/rules/lakos_god_headers.cpp](../src/rules/lakos_god_headers.cpp); PCH-exclusion (#031), порог поднят 30 → 50 (#037).
 - ✅ **CCD / ACD / NCCD** — вычисляются в [include/archcheck/graph/algorithms.h](../include/archcheck/graph/algorithms.h); NCCD-delta в `RegressionReport`.
 - ✅ **`--baseline` режим** — `--baseline` + `--save-baseline` (#030).
 
@@ -34,12 +34,12 @@ archcheck сегодня сканирует C++ проекты **без `compile
 
 ## Известный шум
 
-Таблица B1–B7 в [docs/milestones.md](milestones.md) §«Известный шум — пропускаем». Закрыто: B1 / B2 / B3 / B6 (#034 #035 #038). Открыто и тянет на v0.1+: #032 (conditional cycles в `-inl.h`-парах), #037 (structural god-header threshold), #039 (ObjC `@interface` headers). НЕ копировать таблицу сюда.
+Таблица B1–B7 в [docs/milestones.md](milestones.md) §«Известный шум — пропускаем». Закрыто: B1 / B2 / B3 / B5 / B6 / B7 (#034 #035 #037 #038). Открыто и тянет на v0.1+: #032 (conditional cycles в `-inl.h`-парах). НЕ копировать таблицу сюда.
 
 ## Сейчас в работе / следующие 1–3 шага
 
 - `backlog/wip/` **пуст** — активной задачи нет.
-- Кандидаты из `new/`: #032 (conditional cycles, закрывает класс false-cycle на spdlog/folly), #037 (structural godheader, режет десятки ложных), #041 (аудит захардкоженных строк, гигиена перед v0.1).
+- Кандидаты из `new/`: #032 (conditional cycles, закрывает класс false-cycle на spdlog/folly), #041 (аудит захардкоженных строк, гигиена перед v0.1).
 - Перед закрытием v0.1: открыть задачу под grpc-mismatch (см. секцию выше) и принять решение по SF.21.
 
 ## Указатели

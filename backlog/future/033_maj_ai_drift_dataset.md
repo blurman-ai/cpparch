@@ -1,14 +1,14 @@
 # [RESEARCH/FIXTURES] AI-assisted C++ repos as architectural drift test cases
 
 **Дата создания:** 2026-05-28
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-05-29
+**Статус:** in-progress
 **Модуль:** RESEARCH/FIXTURES
 **Приоритет:** major
 **Сложность:** M (исследование ~2 дня, интеграция в fixtures — отдельно)
 **Целевой релиз:** v0.2+
 **Блокирует:** —
-**Заблокирован:** #009 (ai_drift_regression_rules)
+**Заблокирован:** ~~#009 (ai_drift_regression_rules)~~ ✅ DRIFT.1/DRIFT.2 готовы
 **Related:** #009 (ai_drift_regression_rules), #030 (baseline_file_flag)
 
 ## Цель
@@ -108,6 +108,11 @@ git log --all --grep='Claude\|Generated with\|Co-Authored-By' \
 ## Сделано
 
 - Первичное исследование кандидатов (2026-05-28): 8 репо оценено, Tier 1/Tier 2 выделены
+- **2026-05-29: первый прогон DRIFT на реальных репо.** Результаты в [docs/research/ai_drift_cases.md](../../docs/research/ai_drift_cases.md):
+  - **LibreSprite PR #581** (60eed0f → 276fdbd): **1 DRIFT.1 hit** — `app/ui/toolbar.cpp -> app/pref/preferences.h` (коммит `0aa57ad` "toolbar shortcut badges"). Эталонный shortcut edge, агент протащил include из preferences-слоя в UI-виджет, который раньше с ним не общался.
+  - **vmecpp PR #360** (df63271 → 5eabd51, asymmetric infra): 0 DRIFT — крупный рефактор без дрейфа.
+  - **vmecpp PR #340** (b44fb7f → a7797dc, consolidate constants): 0 DRIFT — рефакторинг сделан корректно.
+- Подтверждено: DRIFT-правила не дают false-positive шума на нормальном AI-коде; срабатывают именно на тех находках, под которые проектировались.
 
 ## В работе
 
@@ -115,9 +120,13 @@ git log --all --grep='Claude\|Generated with\|Co-Authored-By' \
 
 ## Следующие шаги
 
-1. Подождать реализации DRIFT.1/DRIFT.2 в #009
-2. Начать с LibreSprite — наименьший из Tier 1, понятная архитектура
-3. Зафиксировать конкретные commit SHA для before/after в этом файле
+1. ~~Подождать реализации DRIFT.1/DRIFT.2 в #009~~ ✅
+2. ~~Начать с LibreSprite — наименьший из Tier 1, понятная архитектура~~ ✅ (PR #581 hit)
+3. ~~Зафиксировать конкретные commit SHA для before/after в этом файле~~ ✅ (в docs/research/ai_drift_cases.md)
+4. Превратить LibreSprite-hit в минимальный fixture `fixtures/drift_real_world/libresprite_pr581/`
+5. Прогнать PrusaSlicer AI fork PR — третий Tier 1 кейс
+6. Добавить 2-3 Tier 2 кейса (BambuStudio #10794, nodos-dev/sys-device)
+7. Когда корпус ≥ 5 PR — обновить README демонстрацией на реальных данных
 
 ## Ключевые решения
 

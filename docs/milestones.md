@@ -516,6 +516,113 @@ namespace lite_tuple {
 
 ---
 
+## 2026-05-29 — Первый прогон DRIFT.1/DRIFT.2 на реальных AI-PR'ах
+
+**Версия archcheck:** commit `cc5cca9`
+
+Первая боевая валидация DRIFT-правил (реализованы в #009) на реальных публичных
+репозиториях с верифицированными AI-assisted коммитами. Подробный отчёт:
+[docs/research/ai_drift_cases.md](research/ai_drift_cases.md). Связанная задача:
+[backlog/future/033_maj_ai_drift_dataset.md](../backlog/future/033_maj_ai_drift_dataset.md).
+
+Метод: `archcheck --save-graph-baseline` на before-SHA → `archcheck --drift-baseline` на after-SHA.
+
+### Прогон 10 — LibreSprite PR #581 (macOS / menu-search / toolbar badges)
+- **Масштаб:** 1253 узла графа, src-tree LibreSprite.
+- **Домен:** C++ GUI app (pixel-art editor, fork Aseprite). Серия Claude Opus 4.5 коммитов.
+- **Before/After SHA:** `60eed0f` → `276fdbd` (PR head).
+- **Команда:** `archcheck --drift-baseline /tmp/libresprite_before.graph.json src`
+- **Результат:**
+  - **DRIFT.1: 1 hit.** Shortcut edge: `app/ui/toolbar.cpp -> app/pref/preferences.h`.
+  - **DRIFT.2: 0** (новых циклов нет).
+  - 288 нарушений из дефолтных правил — pre-existing legacy (ChainLength, GodHeader, SF.8), не дрейф.
+- **Источник находки:** коммит `0aa57ad` "Add keyboard shortcut badges to toolbar icons"
+  (Co-Authored-By: Claude Opus 4.5). Агент добавил `#include "app/pref/preferences.h"`
+  в `toolbar.cpp` чтобы прочитать новую preference `show_tool_shortcuts`.
+- **Инсайт:** эталонный shortcut edge именно того класса, под который DRIFT.1
+  и проектировался — локально удобно, глобально размывает архитектуру (UI-виджет
+  начинает зависеть от preferences-слоя напрямую), обычными линтерами не ловится.
+- **Верификация (skeptic-pre-empt, 2026-05-29):** ребро могло быть «не дрейфом, а
+  схождением к upstream Aseprite, где include всегда был». Проверено тремя
+  командами `git` против самого форка LibreSprite (sandbox клон):
+  ```
+  $ git show 60eed0f:src/app/ui/toolbar.cpp | grep -n 'app/pref/preferences.h'
+  ABSENT at before-SHA
+  $ git show 276fdbd:src/app/ui/toolbar.cpp | grep -n 'app/pref/preferences.h'
+  15:#include "app/pref/preferences.h"
+  $ git log --oneline 60eed0f..pr-581 -- src/app/ui/toolbar.cpp
+  0aa57ad Add keyboard shortcut badges to toolbar icons
+  ```
+  Один коммит в PR-диапазоне трогает `toolbar.cpp`, он же добавляет include
+  (`git log -p -S` подтвердил единственное `+#include "app/pref/preferences.h"`),
+  отката внутри PR нет. **Вердикт: A — CONFIRMED.** Граф самого репозитория
+  действительно изменился; ребро (re)introduced AI-коммитом, а не унаследовано.
+  Контекст для демо: edge присутствует в upstream `aseprite/aseprite`
+  `src/app/ui/toolbar.cpp`; форк LibreSprite на 60eed0f его не нёс; AI-коммит
+  0aa57ad вернул зависимость. Это снимает возражение «просто re-convergence».
+- **Следствие:** fixture `fixtures/drift_real_world/libresprite_pr581/`
+  разблокирован — заведена задача #048 в `backlog/new/`.
+
+### Прогон 11 — vmecpp PR #360 (asymmetric VMEC infrastructure)
+- **Масштаб:** 232 узла графа, scientific C++ + Python bindings.
+- **Домен:** Stellarator equilibrium solver. Крупный merged PR Claude Code.
+- **Before/After SHA:** `df63271` → `5eabd51` (merge commit).
+- **Результат:** **DRIFT.1: 0, DRIFT.2: 0.** 3 Lakos.GodHeader — pre-existing.
+- **Инсайт:** большой архитектурный AI-рефактор без дрейфа. Полезный негативный сигнал.
+
+### Прогон 12 — vmecpp PR #340 (consolidate algorithmic constants)
+- **Масштаб:** 232 узла.
+- **Before/After SHA:** `b44fb7f` → `a7797dc` (merge commit).
+- **Результат:** **DRIFT.1: 0, DRIFT.2: 0.** Те же 3 pre-existing GodHeader.
+- **Инсайт:** консолидация констант в общий header — корректный рефактор,
+  не создаёт обратных рёбер.
+
+### Прогон 13 — BambuStudio PR #10794 (color cutting / dovetail / sculpting)
+- **Масштаб:** 3019 узлов графа, большой C++/wxWidgets monorepo.
+- **Домен:** Slicer для 3D-печати, форк PrusaSlicer. Один большой merge commit
+  "Integrate AG changes into root source tree" (adamgasoft) — 247 файлов, +16302/-6176.
+- **Before/After SHA:** `2263815` → `a206a95` (PR-10794 head).
+- **Команда:** `archcheck --drift-baseline /tmp/bambustudio_before.graph.json src`
+- **Результат:**
+  - **DRIFT.1: 3 hit'а** (из них **2 реальных**, 1 false-positive).
+  - **DRIFT.2: 0** (новых циклов нет).
+  - 884 нарушения из дефолтных правил — pre-existing legacy.
+- **Реальные DRIFT.1:**
+  - `slic3r/GUI/FilamentMapDialog.hpp -> slic3r/GUI/Widgets/CheckBox.hpp`
+  - `slic3r/GUI/FilamentMapPanel.hpp -> slic3r/GUI/Widgets/SwitchButton.hpp`
+  - Оба — диалог/panel уровень тащит include низкоуровневого виджета напрямую.
+    Классический shortcut UI-слоя.
+- **False-positive (1) — баг в нашем сканере:**
+  `slic3r/GUI/MsgDialog.cpp -> slic3r/GUI/MsgDialog.hpp`. Проверка вручную: include
+  существует в обеих ревизиях. Причина — UTF-8 BOM (`EF BB BF`) в первой строке
+  before-файла, наш `include_scanner` BOM не зачищает, первая строка не матчит regex,
+  ребро теряется в baseline, в after-ревизии (без BOM) видится как новое.
+  Заведена задача **#047** (critical, ~15 мин фикс).
+
+### Сводка по DRIFT-прогону
+| Repo | PR | Files | DRIFT.1 | DRIFT.2 | Real | Вердикт |
+|------|----|-------|---------|---------|------|---------|
+| LibreSprite | #581 toolbar/menu/macOS | 1253 | 1 | 0 | 1 | hit |
+| vmecpp | #360 asymmetric infra | 232 | 0 | 0 | 0 | clean |
+| vmecpp | #340 consolidate constants | 232 | 0 | 0 | 0 | clean |
+| BambuStudio | #10794 color cutting/dovetail | 3019 | 3 | 0 | 2 | hit + scanner bug |
+
+**Главный результат:**
+- DRIFT-правила работают как задумано — 3 из 4 PR подтвердили класс находки
+  (shortcut edges через границы модулей), 2 чистых рефактора прошли без false-positive.
+- Обнаружен **критичный баг в сканере** (UTF-8 BOM) — задача #047.
+- Корпус кейсов для fixtures: 3 реальных hit'а + 2 clean'а на разнотипных проектах
+  (pixel-art editor, scientific solver, 3D-print slicer).
+
+Артефакты прогонов:
+- Клоны: `sandbox/drift_repos/{LibreSprite,vmecpp,BambuStudio}`
+- Graph baselines: `/tmp/libresprite_before.graph.json`, `/tmp/vmecpp_before.graph.json`,
+  `/tmp/vmecpp_pr340_before.graph.json`, `/tmp/bambustudio_before.graph.json`
+- Полные drift-отчёты: `/tmp/libresprite_drift.txt`, `/tmp/vmecpp_drift.txt`,
+  `/tmp/bambustudio_drift.txt`
+
+---
+
 ## Шаблон записи
 
 ```
