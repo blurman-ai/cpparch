@@ -85,3 +85,21 @@ TEST_CASE("SF.8: .inc fragment is not checked", "[rules][sf8]")
   Sf8IncludeGuard rule;
   REQUIRE(rule.check(g, makeReadFile("// platform fragment, no guard\n")).empty());
 }
+
+TEST_CASE("SF.8: UTF-8 BOM before #pragma once → no violation", "[rules][sf8][bom]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  Sf8IncludeGuard rule;
+  REQUIRE(rule.check(g, makeReadFile("\xEF\xBB\xBF#pragma once\nclass Foo {};\n")).empty());
+}
+
+TEST_CASE("SF.8: UTF-8 BOM before #ifndef guard → no violation", "[rules][sf8][bom]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  Sf8IncludeGuard rule;
+  REQUIRE(rule.check(g, makeReadFile("\xEF\xBB\xBF#ifndef A_H\n#define A_H\nclass Foo {};\n#endif\n")).empty());
+}

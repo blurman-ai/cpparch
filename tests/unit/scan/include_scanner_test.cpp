@@ -248,3 +248,33 @@ TEST_CASE("scan_includes handles nested #if blocks correctly", "[scan][scanner][
   REQUIRE(res.directives[3].token == "d.h");
   REQUIRE(res.directives[3].conditional == false);
 }
+
+TEST_CASE("scan_includes strips UTF-8 BOM before first #include", "[scan][scanner][bom]")
+{
+  const auto res = extract_directives("\xEF\xBB\xBF#include \"foo.h\"\n");
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Quote, "foo.h", 1));
+}
+
+TEST_CASE("scan_includes with BOM yields the same set as without BOM", "[scan][scanner][bom]")
+{
+  const std::string_view body = "#pragma once\n#include \"a.h\"\n#include <b.h>\n";
+  const auto with_bom = scanIncludes(std::string("\xEF\xBB\xBF") + std::string(body));
+  const auto without_bom = scanIncludes(body);
+  REQUIRE(with_bom.directives.size() == without_bom.directives.size());
+  for (std::size_t i = 0; i < without_bom.directives.size(); ++i)
+  {
+    REQUIRE(with_bom.directives[i].kind == without_bom.directives[i].kind);
+    REQUIRE(with_bom.directives[i].token == without_bom.directives[i].token);
+    REQUIRE(with_bom.directives[i].line == without_bom.directives[i].line);
+  }
+}
+
+TEST_CASE("scan_includes does not strip BOM that appears later in the source", "[scan][scanner][bom]")
+{
+  // Only a leading BOM is meaningful; an embedded BOM stays in source.
+  const auto res = extract_directives("#include \"foo.h\"\n\xEF\xBB\xBF#include \"bar.h\"\n");
+  // The second #include is preceded by BOM, so it is not first-significant on its line.
+  REQUIRE(res.size() == 1);
+  REQUIRE(equal(res[0], IncludeKind::Quote, "foo.h", 1));
+}
