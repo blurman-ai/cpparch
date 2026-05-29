@@ -86,6 +86,31 @@ TEST_CASE("SF.8: .inc fragment is not checked", "[rules][sf8]")
   REQUIRE(rule.check(g, makeReadFile("// platform fragment, no guard\n")).empty());
 }
 
+TEST_CASE("SF.8: Objective-C header with @interface is not checked", "[rules][sf8]")
+{
+  DependencyGraph g;
+  g.addNode("AppDelegate.h");
+
+  Sf8IncludeGuard rule;
+  REQUIRE(rule.check(g, makeReadFile("#import <UIKit/UIKit.h>\n"
+                                     "@interface AppDelegate : UIResponder\n"
+                                     "@end\n"))
+              .empty());
+}
+
+TEST_CASE("SF.8: Objective-C header with #import is not checked", "[rules][sf8]")
+{
+  DependencyGraph g;
+  g.addNode("Foo.h");
+
+  Sf8IncludeGuard rule;
+  REQUIRE(rule.check(g, makeReadFile("// Apache 2.0 boilerplate\n"
+                                     "#import <Foundation/Foundation.h>\n"
+                                     "@implementation Foo\n"
+                                     "@end\n"))
+              .empty());
+}
+
 TEST_CASE("SF.8: UTF-8 BOM before #pragma once → no violation", "[rules][sf8][bom]")
 {
   DependencyGraph g;
