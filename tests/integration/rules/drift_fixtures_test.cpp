@@ -106,3 +106,11 @@ TEST_CASE("drift fixture: cycle_growth/fail_new_cycle — DRIFT.2 fires", "[drif
   const auto drift2 = std::count_if(v.begin(), v.end(), [](const auto &x) { return x.ruleId == "DRIFT.2"; });
   REQUIRE(drift2 == 1);
 }
+
+TEST_CASE("drift fixture: real_world/libresprite_pr581 — DRIFT.1 fires on toolbar -> preferences", "[drift][fixtures]")
+{
+  const auto v = run_drift_check("drift_real_world/libresprite_pr581");
+  REQUIRE(v.size() == 1);
+  REQUIRE(v[0].ruleId == "DRIFT.1");
+  REQUIRE(v[0].message.find("app/ui/toolbar.cpp -> app/pref/preferences.h") != std::string::npos);
+}

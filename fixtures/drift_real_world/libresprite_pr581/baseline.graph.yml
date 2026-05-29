@@ -1,0 +1,7 @@
+format_version: "1"
+nodes:
+  - "app/pref/preferences.h"
+  - "app/ui/toolbar.cpp"
+  - "app/ui/toolbar.h"
+edges:
+  - [1, 2]
