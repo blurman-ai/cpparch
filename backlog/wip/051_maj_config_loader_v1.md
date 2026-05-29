@@ -99,18 +99,59 @@
 
 ## Сделано
 
-- (пусто)
+### 2026-05-29 — фаза 1 (skeleton) и фаза 2 (parsing + validation), без line numbers
+
+Public API + полный validation loop для v1 phase 1 schema. Loader не подключён к pipeline и не имеет caller'ов — `archcheck_core` собирается, тесты `235/235` зелёные на каждом шаге.
+
+**Реализовано в `src/config/config_loader.cpp`:**
+
+- `read_file()` — чтение YAML, ошибка "cannot open" если файл не открывается.
+- `parse_version()` — top-level map, `version: 1` обязателен; другие версии → "unsupported schema version".
+- `validate_top_keys()` — отвергает любые top-level ключи кроме `version` / `modules` / `rules`; обязательное присутствие `modules` и `rules`.
+- `parse_modules()` + helpers (`is_valid_module_char`, `validate_module_name`, `parse_module_def`):
+  - `modules:` — non-empty map.
+  - Имена матчат `[a-z0-9_-]+`, уникальны.
+  - `paths:` — non-empty list непустых строк.
+- `parse_rules()` + `parse_rule()` + три парсера типов:
+  - Каждый rule имеет `type` и `name`, name уникален.
+  - `type` диспатчится в `LayersRule` / `IndependenceRule` / `ForbiddenRule`, неизвестный type → ошибка.
+- `cross_validate()` + `RuleValidator` struct + helpers:
+  - Каждое имя модуля в `layers` / `independence.modules` / `forbidden.from` / `forbidden.to` существует в `modules:`.
+  - Без повторов внутри списка.
+  - `forbidden.from ∩ to = ∅`.
+
+**Все ошибки** идут через `ConfigError(file, line, col, msg)`. Line/col пока 0:0 (фаза 2.5 — ryml location API — не сделана).
+
+**Закрытые открытые вопросы:**
+
+1. **YAML-парсер** — `ryml` v0.7.0 (уже в `CMakeLists.txt:55-65`, archcheck_core линкуется к `ryml::ryml`). `yaml-cpp` не рассматриваем.
+3. **Config error vs warning** — only errors (exit 2). Warnings соблазнительны, но размывают контракт.
 
 ## В работе
 
-- (пусто)
+- Фаза 2.5: ryml location-resolution в `ConfigError` (заменить 0:0 на реальные line/col из `tree.location()`).
+- Фаза 3: 4 pass + 9 fail fixtures + Catch2 tests.
+- Фаза 4: CLI `--config` + exit 2 на `ConfigError`.
+
+## Коммиты
+
+| SHA | Описание |
+|-----|----------|
+| `047fd0d` | `feat(config): add Config struct types for v1 phase 1 schema` |
+| `a1120b2` | `chore(tasks): add #052 cross-TU duplication detector…` — параллельная сессия захватила staged-файлы и закоммитила loader skeleton (config_loader.h/cpp + CMake wiring) под чужим subject. Атрибуция в коммите некорректна, но код мой. |
+| `3e046ef` | `feat(config): reject unknown top-level keys, require modules/rules` |
+| `4d9a172` | `feat(config): parse and validate modules block` |
+| `2893aed` | `feat(config): parse rules block — dispatcher + layers type` |
+| `574516d` | `feat(config): parse independence and forbidden rule types` |
+| `f3377ce` | `feat(config): cross-rule validation — module existence and disjoint sets` |
 
 ## Следующие шаги
 
-1. Подтвердить YAML-парсер (открытый вопрос 1) и завести FetchContent.
-2. Пройти фазы 1→4 последовательно. Кандидат на спинофф в 051a/b/c при переезде в `wip/`, если фазы расползутся.
-3. После закрытия — отдельная задача "config → rule pipeline": резолв `paths:` в файлы, применение `layers`/`independence`/`forbidden` к графу включений, генерация violations. Разблокирует practical use конфига.
-4. После практической задачи — снять блок с `future/v1_maj_agent_config_authoring_rules.md` (агенту есть куда писать, формат подтверждён реальным loader-ом).
+1. Фаза 2.5: рефакторинг `ConfigError` так, чтобы throw-сайты получали `ryml::ConstNodeRef` и извлекали `tree.location(node)` — line/col становятся реальными.
+2. Фаза 3: сначала fixtures на диск, потом Catch2 тесты на них — по одному pass-test на fixture, по одному fail-test на категорию ошибок.
+3. Фаза 4: CLI flag + exit code wiring (loader всё ещё без подключения к pipeline — только проверка прочитанного).
+4. Перенос в `completed/` с секциями "Как работает / Чем управляется / С чем связана / Диагностика", bullet в CHANGELOG.
+5. После закрытия — отдельная задача "config → rule pipeline": резолв `paths:` в файлы, применение правил к графу. Разблокирует practical use конфига и снимает блок с `future/v1_maj_agent_config_authoring_rules.md`.
 
 ## Ключевые решения
 
