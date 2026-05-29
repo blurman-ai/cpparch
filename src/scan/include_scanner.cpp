@@ -230,6 +230,10 @@ int line_at(const Joined &joined, std::size_t offset)
 
 ScanResult scanIncludes(std::string_view source)
 {
+  constexpr std::string_view kUtf8Bom = "\xEF\xBB\xBF";
+  // GCC8-COMPAT: libstdc++ 8 lacks std::string_view::starts_with; use compare().
+  if (source.size() >= kUtf8Bom.size() && source.compare(0, kUtf8Bom.size(), kUtf8Bom) == 0)
+    source.remove_prefix(kUtf8Bom.size());
   const Joined joined = join_continuations(source);
   const std::string cleaned = preprocess(joined.text);
   const std::string_view view{cleaned};
