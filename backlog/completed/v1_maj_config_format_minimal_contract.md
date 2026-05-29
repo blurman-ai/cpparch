@@ -2,7 +2,8 @@
 
 **Дата создания:** 2026-05-28
 **Дата старта:** 2026-05-29
-**Статус:** in progress
+**Дата завершения:** 2026-05-29
+**Статус:** done
 **Модуль:** CONFIG
 **Приоритет:** major
 **Сложность:** S (спека и примеры, без реализации)
@@ -81,7 +82,7 @@ rules:
 - [x] Явно выписать что в scope v1 phase 1 и что нет (таблица)
 - [x] Описать backwards compatibility: `version: 1` — намеренный SemVer для schema
 - [x] Синхронизировать `docs/architecture-spec.md` §«Анализ по конфигу» (старый формат → pointer на новый док)
-- [ ] Завести implementation-task на `src/config/` loader — отдельная задача, следующий шаг
+- [x] Завести implementation-task на `src/config/` loader — `backlog/new/051_maj_config_loader_v1.md`
 
 ## Сделано
 
@@ -100,14 +101,48 @@ rules:
 
 ## Открытые вопросы / follow-up
 
-- **Следующая задача:** implementation-task на `src/config/` loader (YAML → `Config` struct через `ryml`, валидация полей, line-numbered errors по схеме phase 1). Завести в `backlog/new/` отдельно.
+- **Следующая задача:** [`backlog/new/051_maj_config_loader_v1.md`](../new/051_maj_config_loader_v1.md) — implementation на `src/config/` loader (YAML → `Config` struct, валидация по `docs/config_format.md`, line-numbered errors, fixtures: 4 pass + 9 fail).
 - **README.md config example** синхронизировать **после** того, как loader подтвердит схему на реальном репо — не сейчас, иначе риск разъехаться с реальным поведением до первого end-to-end прогона.
 - **v1 phase 2** (`defaults`, `thresholds`, `baseline`, `ignore`) — отдельная спека, после того как phase 1 загружается loader-ом и проходит fixtures.
 - **Открытые вопросы внутри phase 1**: на момент закрытия не осталось — все дизайнерские развилки разрешены в `docs/config_format.md`.
 
 ## Изменённые файлы
 
-| Файл | Изменение |
-|------|-----------|
-| docs/config_format.md | новая спецификация минимального формата (создан) |
-| docs/architecture-spec.md | §«Анализ по конфигу»: старый формат заменён на короткий пример + pointer |
+| Файл | Изменение | Коммит |
+|------|-----------|--------|
+| docs/config_format.md | новая спецификация минимального формата (создан) | `4a14717` |
+| docs/architecture-spec.md | §«Анализ по конфигу»: старый формат заменён на короткий пример + pointer | `4a14717` |
+
+## Как работает
+
+Контракт разделён на два слоя:
+
+1. **`docs/config_format.md`** — авторитативный источник формата. Описывает три top-level ключа (`version` / `modules` / `rules`), три типа правил (`layers` / `independence` / `forbidden`), их семантику, диагностический формат (`[rule:<name>]`) и SemVer-контракт схемы. Имеет четыре reference-примера, по которым loader (#051) валидируется fixtures-ами.
+2. **`docs/architecture-spec.md` §«Анализ по конфигу»** — короткий обзор с указателем на (1). Не дублирует формат, не разъезжается во времени.
+
+Ключевая идея — **typed contracts**: тип правила определяет семантику (`layers`/`independence` — implicit allowlist, `forbidden` — explicit blocklist), пользователь миксует per-rule в одном конфиге. Глобальный выбор "allowlist project vs blocklist project" не нужен. Модель скопирована с Import Linter.
+
+`name` обязателен у каждого правила — он машинно-читаемый id в диагностике (`[rule:<name>]`), и переименование = breaking change для baseline (это сознательно).
+
+## Чем управляется
+
+- **Авторитет:** `docs/config_format.md` — single source of truth. Любой другой документ (spec, README, AI agent prompt) ссылается сюда, не дублирует формат.
+- **Эволюция:** SemVer внутри схемы. Добавление top-level ключа с default-значением — MINOR (всё ещё `version: 1`). Удаление ключа / смена семантики — MAJOR (`version: 2`). Архcheck-binary читает любой `version: 1` весь свой lifetime.
+- **Расширение в phase 2:** `defaults`, `thresholds`, `baseline`, `ignore` — добавляются как новые ключи, без поломки phase 1 конфигов.
+
+## С чем связана
+
+- **Производит:** контракт, по которому пишется loader → [`#051`](../new/051_maj_config_loader_v1.md).
+- **Разблокирует:** [`v1_maj_agent_config_authoring_rules.md`](../future/v1_maj_agent_config_authoring_rules.md) — без формата AI-агенту не было целевой формы для `.draft`. Эта зависимость снимается **после** #051 (агенту нужен работающий loader, чтобы валидировать вывод).
+- **Замещает:** §«Анализ по конфигу» в `architecture-spec.md` v2.1 (старый формат `module: X, forbidden_deps: [Y]` + pattern-правила + `defaults` + `thresholds` в одной портянке). Старая секция теперь pointer.
+- **Соседствует с:** [`#010`](../future/010_maj_ai_rule_synthesis_contract.md) — старый общий synthesize-контракт (CLI shape, heuristic vs wrapper-prompt). #010 шире (про CLI и режимы), эта задача — про сам формат YAML, который synthesize должен производить.
+
+## Диагностика
+
+Если эта задача "разъехалась" с реальностью, симптомы и где смотреть:
+
+- **Конфиг loader (#051) валидирует не то, что в спеке** — править `docs/config_format.md` (это контракт), потом синхронизировать loader. Не наоборот.
+- **README показывает старый формат** — он намеренно не синхронизирован, README sync ждёт end-to-end прогона через loader (см. follow-up выше).
+- **AI-агент пишет config в произвольной форме** — значит [`v1_maj_agent_config_authoring_rules.md`](../future/v1_maj_agent_config_authoring_rules.md) ещё не реализована, агент не знает про targeted формат. Это нормально до того, как #051 закроется.
+- **Кто-то предлагает добавить `defaults`/`severity`/pattern-правила в phase 1** — отказывать, это phase 2 или dropped, причины зафиксированы в таблице "What is **not** in v1 phase 1" в `docs/config_format.md`.
+- **Конфликт между `architecture-spec` §«Анализ по конфигу» и `docs/config_format.md`** — `config_format.md` побеждает. Spec — обзорный документ.
