@@ -44,6 +44,27 @@ int parse_version(const ryml::ConstNodeRef &root, const std::string &file)
   return v;
 }
 
+void validate_top_keys(const ryml::ConstNodeRef &root, const std::string &file)
+{
+  for (const auto &child : root.children())
+  {
+    const ryml::csubstr key = child.key();
+    const std::string k(key.data(), key.size());
+    if (k != "version" && k != "modules" && k != "rules")
+    {
+      throw ConfigError(file, 0, 0, "unknown top-level key '" + k + "' (expected: version, modules, rules)");
+    }
+  }
+  if (!root.has_child("modules"))
+  {
+    throw ConfigError(file, 0, 0, "missing required top-level key 'modules'");
+  }
+  if (!root.has_child("rules"))
+  {
+    throw ConfigError(file, 0, 0, "missing required top-level key 'rules'");
+  }
+}
+
 } // namespace
 
 Config load(const std::filesystem::path &path)
@@ -54,6 +75,7 @@ Config load(const std::filesystem::path &path)
 
   Config config;
   config.version = parse_version(root, path.string());
+  validate_top_keys(root, path.string());
   return config;
 }
 
