@@ -1,89 +1,27 @@
-# Backlog Review — 2026-05-28 (обновлено 2026-05-28: MVP readiness + real project)
+# Backlog Review — 2026-05-29
 
-> **Фокус-вопрос:** что осталось до MVP и когда можно запустить на реальном OS-проекте?
-> Оба режима: статический анализ кода (`archcheck [path]`) и анализ коммитов (`archcheck --diff`).
+> **Фокус-вопрос:** после "MVP done" — куда едем дальше? Что протухло за день, какие быстрые победы, какие узлы решений впереди.
 
 ## TL;DR
 
-**MVP функционально завершён.** `archcheck 0.1.0` собирается, 173/173 тестов, все 5 дефолтных правил работают, `--diff` для commit-анализа работает. **Запустить на реальном проекте можно сегодня.** До официального "MVP done" остаётся: закрыть #025 (smoke-test, ~1ч) + #027 (branch coverage → 90%, ~2-3 дня). Итого: **2-3 рабочих дня.**
+Очередь `wip/` пустая, всё активное теперь в `new/` (9 задач). Один задача уже сделана в коде (#039 — SF.8 ObjC), просто файл застрял — перенести в `completed/`. Остальные 8 разбиваются на чёткие тройки:
+
+- **Быстрые победы (полдня каждая)**: #044 (README sync), #046 (color TTY — решить и закрыть). Берём первыми.
+- **Узел решения**: #043 (libclang perf spike) блокирует #042 (clang semantic backend). Цифра из спайка решает, нужен ли двух-бекендный план в v0.1 или схема упрощается.
+- **Средняя инженерия**: #029 (metric regressions), #032 (conditional includes в spdlog), #045 (sync MVP/spec/ADR).
+- **Под вопросом**: #041 (audit hardcoded strings) — единственная задача с `Сложность: unknown`. Перекрывается с future-задачей `v1_maj_config_format_minimal_contract`; либо доскопить, либо слить.
+
+Всего в очереди: **9 задач** (1 готова, 4 quick win/M, 2 связанные multi-day, 1 design, 1 под скоупом). Заблокированных по внешним причинам — нет.
 
 ---
 
-## Режим 1 — статический анализ: `archcheck [path]`
-
-**Что работает сегодня:**
-- SF.7 (using namespace в заголовках), SF.8 (include guard), SF.9 (циклы в include-графе)
-- Lakos.GodHeader (fan-in > 30), Lakos.ChainLength (глубина > 10)
-- Text + JSON output, exit codes 0/1/2
-- Include resolution через **suffix-matching** — без `compile_commands.json` покрывает ~80-90% реальных `#include`; системные хедеры помечаются `external` и не участвуют в графе (ложных позитивов нет)
-
-**Главный пробел для legacy-кода:**
-В CLI нет `--baseline <file>` для подавления уже существующих нарушений. Первый запуск на legacy-проекте покажет всё сразу — может быть overwhelming. *Обходной путь:* `--diff main..HEAD` (режим 2) показывает только новые нарушения — достаточно для CI.
-
-**Попробовать прямо сейчас:**
-```bash
-archcheck --graph /path/to/oss-project   # nodes/edges/scc статистика
-archcheck /path/to/oss-project           # полный check всех правил
-archcheck --format json /path/to/project # для CI-интеграции
-```
-
----
-
-## Режим 2 — анализ коммитов: `archcheck --diff`
-
-**Что работает сегодня:**
-- Строит граф из git-объектов in-memory (без worktree на диске)
-- Сравнивает до/после → показывает только **новые** dependency-рёбра
-- `WORKTREE` ref — включает uncommitted changes
-- Merge-commit поддержан, fast-path если нет C++ изменений
-
-**Типовые use-cases:**
-```bash
-# Новые рёбра за последний коммит
-archcheck --diff HEAD~1..HEAD /path/to/project
-
-# Регрессии в PR (CI)
-archcheck --diff main..feature-branch /path/to/project
-
-# Найти какой коммит ухудшил архитектуру — shell-оркестровка поверх инструмента
-git log --format=%H main..feature | while read sha; do
-  echo "=== $sha ===" && archcheck --diff "${sha}~1..${sha}" /path
-done
-```
-
-**Пробел:** `--diff` показывает новые рёбра, но не скаляр "насколько сложнее стало". Для ранжирования коммитов по сложности можно использовать `--graph` (выдаёт scc_cyclic, largest_scc) — нужна внешняя оркестровка. Это осознанный scope, не баг.
-
----
-
-## Пробелы vs MVP.md acceptance criteria
-
-| Пункт | Состояние |
-|-------|-----------|
-| compile_commands.json support | ❌ нет (suffix-match — работает для большинства проектов) |
-| Module mapping + YAML rules | ❌ нет (→ v0.2, решение задокументировано) |
-| `archcheck init` command | ❌ нет (не приоритет v0.1) |
-| `--baseline <file>` для check-режима | ❌ нет в CLI (модуль в коде есть, CLI не подключён) |
-| Cycle detection | ✅ SF.9 |
-| Text + JSON output | ✅ |
-| Exit codes 0/1/2/3 | ✅ |
-| Fixtures для всех правил | ✅ (5 наборов pass/fail) |
-| CI workflow | ✅ (example + PR comment) |
-
----
-
-Всего задач: **2 WIP + 7 future** + **28 завершённых**.
-
----
-
-## Протухшие (сделано, но осталось в wip/)
+## Протухшие / сделано, но не перенесено
 
 | Файл | Причина | Рекомендация |
 |------|---------|--------------|
-| `wip/018_crt_git_diff_analysis.md` | Все чекбоксы закрыты, «Сделано» полное, код в коммите `54911d0` | **Move to completed** — немедленно |
-| `wip/022_min_diff_merge_commit_coverage.md` | Все чекбоксы закрыты, «Сделано» полное, коммит `f6771b3` | **Move to completed** — немедленно |
-| `wip/023_maj_diff_skip_when_no_cpp_changes.md` | Все чекбоксы закрыты, `changedCppFiles` есть в коде (grep подтверждён), код в коммите `54911d0` | **Move to completed** — немедленно |
+| `new/039_min_sf8_objc_header_exclusion.md` | `isObjcFile()` уже в [src/rules/sf8_include_guard.cpp:27](src/rules/sf8_include_guard.cpp#L27), регрессионные тесты добавлены в `a5ec300`. Сама задача помечена как "OUT-OF-SCOPE / документировать as known limitation" — но фактически закрыта реализацией. | **Move to completed** — дописать секцию «Как работает», указать коммиты `76066e1` / `a5ec300` |
 
-Примечание по #023: код был включён в коммит `54911d0` (#018, #024) — имя задачи не упомянуто явно, но функциональность подтверждена grep-ом.
+> Note: `wip/047_crt_scan_utf8_bom.md` уже в `git status` как D + ?? в `completed/` — это незакоммиченный переезд, не «протухшее». Будет закрыт ближайшим коммитом.
 
 ---
 
@@ -91,33 +29,39 @@ done
 
 | Файл | Цель | Модуль | Оценка |
 |------|------|--------|--------|
-| `wip/025_maj_pr_comment_integration.md` | Sticky PR-comment + Step Summary + merge_group в example workflow | CI, DOC | S (~1-2 часа) |
+| `new/044_crt_docs_readme_sync_shipped.md` | Привести README к актуальному CLI (`archcheck [path]`, `--baseline`, `--format json`), убрать выдуманные `check --config` / `init` / `baseline create`, добавить раздел Planned. | DOCS | S (~полдня) |
+| `new/046_min_docs_color_tty_decision.md` | Решить track A (реализовать isatty + ANSI + `NO_COLOR`) или B (убрать обещание из спека). Стоимость одинаковая. | DOCS / REPORT | XS (≤ 2ч) |
 
-Задача хорошо спланирована, не требует изменений продакшен-кода (только YAML workflow + docs). Прямой следующий шаг.
+Обе — нулевой инженерный риск, помогают позиционированию. **Брать сразу.**
 
 ---
 
 ## Средние задачи
 
-_Нет активных средних задач — всё либо quick win, либо future._
+| Файл | Цель | Модуль | Сложность |
+|------|------|--------|-----------|
+| `new/029_maj_metric_regression_detection.md` | Расширить `RegressionReport` метрическими регрессиями (chain length, новые god-headers, NCCD дельта); `computeFanIn` + `computeGraphMetrics` в `algorithms`. Полный план + git-интеграционные тесты прописаны. | GRAPH / DIFF | M |
+| `new/032_maj_conditional_include_cycles.md` | Помечать `#include`-рёбра внутри `#ifdef` как `conditional`; SF.9 пропускает all-conditional циклы. Снимает 22 false positive на spdlog. Чёткие шаги, fixture план. | SCAN / RULES | M |
+| `new/043_maj_spike_clang_perf.md` | Измерить wall-clock + RSS `clang_parseTranslationUnit` + `getInclusions` на spdlog/fmt. Одна цифра закрывает вопрос «нужен ли fast-backend в v0.1». | SCAN (spike) | S (1–2 дня) |
+| `new/045_maj_docs_sync_roadmap_mvp_spec.md` | Зонтик-таск: переписать `MVP.md`, выровнять `architecture-spec.md` v0.1/v0.2, завести `docs/decisions/` (ADR-001..003). | DOCS | M (1–2 дня) |
+
+Никакой из них не нужен `compile_commands.json` или внешних блокеров — все можно брать в любом порядке.
 
 ---
 
-## Сложные / заблокированные (future/)
+## Сложные / с зависимостями
 
 | Файл | Блокер / Горизонт |
 |------|-------------------|
-| `future/005_maj_sarif_reporter_spec.md` | v0.2+; нет реализации violations/reporter ещё |
-| `future/009_maj_ai_drift_regression_rules.md` | v0.3+; требует детального дизайна и rules-framework |
-| `future/010_maj_ai_rule_synthesis_contract.md` | v0.3+; парная к #009 (synthesis ↔ drift) |
-
-Все три корректно лежат в future/ — трогать не нужно.
+| `new/042_maj_clang_semantic_backend.md` | Заблокирован #043: скоуп зависит от ответа спайка. Если libclang приемлемо медленный — упрощается до «libclang-only default». Если нет — три фазы (042a/b/c) с двух-бекендной схемой. **Не трогать до #043.** |
 
 ---
 
 ## Без анализа (нужно исследование)
 
-_Нет — все активные задачи имеют полноценный контекст и план._
+| Файл | Что не хватает |
+|------|----------------|
+| `new/041_maj_audit_hardcoded_strings.md` | `Сложность: unknown`. План есть, но первая фаза — grep-инвентаризация, без которой нельзя оценить объём `Config` struct. Должна предшествовать `v1_maj_config_format_minimal_contract` (future/), а не идти параллельно. Решение: либо доскопить до «сделать только grep-таблицу + классификацию», либо переложить в `future/` рядом с config-format. |
 
 ---
 
@@ -125,12 +69,34 @@ _Нет — все активные задачи имеют полноценны
 
 | Файлы | Предложение |
 |-------|-------------|
-| `future/009` и `future/010` | Сознательная пара (synthesis ↔ drift regression), **не** дубли. Держать как есть, добавить `Related:` уже прописан в обоих. |
+| `new/044` (README sync) ↔ `new/045` (MVP/spec/ADR sync) | Не дубли — разные документы и аудитории. Уже взаимно линкуют через `Related:` и оба ссылаются на одно решение #028. Делать в порядке #044 → #045 (внешний срез сначала, чтобы было на что ссылаться из ADR). |
+| `new/042` ↔ `new/043` | Сознательная пара (spike → owner). `#043 Блокирует: #042` прописан. |
+| `new/041` (audit hardcoded) ↔ `future/v1_maj_config_format_minimal_contract` | Скрытое пересечение: первая хочет вынести дефолты в `Config` struct, вторая определяет shape `.archcheck.yml`. Должна быть одна линия "config defaults → config format" а не два параллельных потока. Добавить в обоих `Related:`. |
 
 ---
 
-## Следующие действия (приоритет)
+## Состояние future/ и pending/
 
-1. **Сейчас**: переместить `018`, `022`, `023` → `completed/` (5 мин).
-2. **Далее**: взять `#025` (PR-comment UX) — готовый план, 1-2 часа.
-3. **Future**: `005` SARIF spec разблокируется когда появится rules-framework (v0.2).
+- `future/` — 7 задач (005 SARIF, 010 AI rule synthesis, 033 AI drift dataset, четыре `v1_*` post-MVP). Все корректно за горизонтом v0.1, трогать не надо.
+- `pending/027_maj_coverage_90_percent.md` — по правилу `[[feedback_pending_folder]]` в `pending/` не лезу. Если статус нужно поднять — это явная команда, не review.
+
+---
+
+## Сводка
+
+- Всего активных: **9** (`backlog/new/`).
+- Уже сделано, надо перенести: **1** (#039).
+- Quick win: **2** (#044, #046).
+- Средние: **4** (#029, #032, #043, #045).
+- С зависимостью: **1** (#042 — ждёт #043).
+- Под вопросом скоуп: **1** (#041).
+- Заблокировано внешне: **0**.
+
+## Рекомендуемый порядок ближайших ходов
+
+1. **5 минут** — перенести #039 в `completed/` с дописанной секцией «Как работает».
+2. **Полдня** — взять #044 (README sync). Простая, заметная пользователю, готовит почву для #045.
+3. **2 часа** — параллельно #046 (TTY color). Развилка одного шага.
+4. **1–2 дня** — #043 спайк. Разблокирует и/или упрощает #042.
+5. **Параллельно** — #029 или #032 в зависимости от настроения: метрики или real-world FP на spdlog.
+6. **Решить про #041** — доскопить до grep-инвентаря, либо отложить в `future/` рядом с config-format.
