@@ -9,7 +9,7 @@
 **Целевой релиз:** v0.2+ (SARIF output появляется в v0.2 per roadmap)
 **Блокирует:** реализация sarif_reporter (отдельной таской позже)
 **Заблокирован:** —
-**Related:** #001 (dogfood_static_analyzers — текущий strict report тоже может перейти на SARIF)
+**Related:** #001 (dogfood_static_analyzers — текущий strict report тоже может перейти на SARIF), #6 (gh — audit Issue 7: фаза неоднозначна)
 
 ## Цель
 
@@ -23,6 +23,7 @@ SARIF 2.1.0 — OASIS-стандарт, JSON, понимают GitHub Code Scann
 
 ## План выполнения
 
+- [ ] **Решить целевую фазу.** Аудит #6 Issue 7: roadmap (`architecture-spec.md` line 656) кладёт SARIF в v0.2, а эта задача лежит в `future/` (по конвенции = v0.3+). Параллельно `tests` декларация «SARIF с v0.1» в «Ключевых решениях» ниже — третий вариант. Решение принять явно: v0.2 → переместить файл в `new/` и завести парную implementation-таску; v0.3+ → обновить roadmap в спеке. Должна остаться ровно одна формулировка.
 - [ ] Решить формат `ruleId`: предложение — `archcheck/core-guidelines/SF.7`, `archcheck/lakos/no-cycles`, `archcheck/martin/instability`. Авторитет = namespace, имя правила = последний сегмент
 - [ ] `tool.driver.name` = `archcheck`, `version` = из CMake
 - [ ] `rules[]` секция: для каждого правила — `id`, `name`, `shortDescription`, `fullDescription`, `helpUri` (ссылка на Core Guidelines / Lakos главу), `defaultConfiguration.level`
