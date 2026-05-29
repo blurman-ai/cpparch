@@ -186,7 +186,7 @@ C++ community консервативнее джавовского. "Clean archit
 
 - **Acyclic physical dependencies** — главное правило книги. Граф зависимостей компонентов должен быть DAG ("levelizable" в терминологии Lakos).
 - **Levelizability** — каждой ноде графа можно присвоить уникальный уровень (длину самой длинной цепочки до листьев).
-- **God-headers** — компоненты с in-degree выше порога (по умолчанию 30) репортятся как кандидаты на расщепление. Прямое следствие максимизации **fan-in/fan-out** Lakos.
+- **God-headers** — компоненты с in-degree выше порога (по умолчанию 50) репортятся как кандидаты на расщепление. Прямое следствие максимизации **fan-in/fan-out** Lakos.
 - **Длина include-цепочек** — если самая длинная цепочка `#include` превышает порог (по умолчанию 10) — предупреждение. Ломает время сборки и тестируемость.
 
 CCD/ACD/NCCD сами по себе не пороговые правила (не "проходит/не проходит"), но публикуются в отчёте и могут использоваться в `--baseline` режиме: "NCCD не должен расти от коммита к коммиту".
@@ -449,7 +449,7 @@ defaults:
 # 4. Пороги Lakos-метрик.
 thresholds:
   max_include_depth: 10
-  god_header_fan_in: 30
+  god_header_fan_in: 50
   nccd_warning: 2.0
 ```
 
@@ -636,7 +636,7 @@ tests/
 - YAML-конфиг: `forbidden_deps` / `allowed_deps` между модулями (по path-glob).
 - **Core правила:**
   - Циклы зависимостей (SF.9).
-  - God-headers (Lakos): in-degree > threshold (default 30).
+  - God-headers (Lakos): in-degree > threshold (default 50).
   - Длина include-цепочек (Lakos): > threshold (default 10).
   - SF.7 (using namespace в `.h` — text-scan, approximate).
   - SF.8 (include guards / `#pragma once`).

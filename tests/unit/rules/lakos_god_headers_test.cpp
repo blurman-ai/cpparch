@@ -37,9 +37,9 @@ TEST_CASE("Lakos.GodHeader: fan-in exceeds threshold → violation", "[rules][la
   CHECK(v[0].message.find("6") != std::string::npos);
 }
 
-TEST_CASE("Lakos.GodHeader: default threshold is 30", "[rules][lakos][god]")
+TEST_CASE("Lakos.GodHeader: default threshold is 50", "[rules][lakos][god]")
 {
-  CHECK(LakosGodHeaders::kDefaultThreshold == 30);
+  CHECK(LakosGodHeaders::kDefaultThreshold == 50);
 }
 
 TEST_CASE("Lakos.GodHeader: known PCH names are excluded", "[rules][lakos][god]")

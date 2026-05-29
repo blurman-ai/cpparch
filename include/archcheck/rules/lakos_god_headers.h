@@ -11,7 +11,7 @@ namespace archcheck::rules
 class LakosGodHeaders final : public IRule
 {
 public:
-  static constexpr std::size_t kDefaultThreshold = 30;
+  static constexpr std::size_t kDefaultThreshold = 50;
 
   explicit LakosGodHeaders(std::size_t threshold = kDefaultThreshold,
                            std::unordered_set<std::string> extraExcludes = {})
