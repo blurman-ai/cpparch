@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "archcheck/config/config_loader.h"
 #include "archcheck/diff/regression_report.h"
 #include "archcheck/git/git_object_file_source.h"
 #include "archcheck/git/git_state.h"
@@ -37,6 +38,7 @@ void print_help()
             << "Usage:\n"
             << "  archcheck [path]                             (check: run all default rules on path or cwd)\n"
             << "  archcheck --format json [path]               (JSON output)\n"
+            << "  archcheck --config <path> [check-path]       (validate .archcheck.yml v1 and run check)\n"
             << "  archcheck --save-baseline <file> [path]      (save current violations as baseline)\n"
             << "  archcheck --baseline <file> [path]           (report only new violations vs baseline)\n"
             << "  archcheck --save-graph-baseline <file> [path] (save include graph snapshot for drift checks)\n"
@@ -446,6 +448,26 @@ int dispatch_baseline(std::string_view arg, int argc, char *argv[])
   return run_check(root, OutputFormat::Text, {mode, file, {}});
 }
 
+int dispatch_config(int argc, char *argv[])
+{
+  if (argc < 3)
+  {
+    std::cerr << "archcheck: --config requires <path>\n";
+    return 2;
+  }
+  try
+  {
+    (void)archcheck::config::load(argv[2]);
+  }
+  catch (const archcheck::config::ConfigError &e)
+  {
+    std::cerr << "archcheck: " << e.what() << '\n';
+    return 2;
+  }
+  const std::filesystem::path root = (argc > 3) ? std::filesystem::path{argv[3]} : std::filesystem::current_path();
+  return run_check(root, OutputFormat::Text);
+}
+
 int dispatch_format(int argc, char *argv[])
 {
   if (argc < 3)
@@ -508,6 +530,8 @@ int dispatch(int argc, char *argv[])
     return dispatch_diff(argc, argv);
   if (arg == "--format")
     return dispatch_format(argc, argv);
+  if (arg == "--config")
+    return dispatch_config(argc, argv);
   if (!arg.empty() && arg[0] != '-')
     return run_check(std::filesystem::path{argv[1]}, OutputFormat::Text);
   std::cerr << "archcheck: unknown argument '" << arg << "'\n";
