@@ -23,6 +23,7 @@ add_library(archcheck_core STATIC
    rules/sf8_include_guard.cpp
    rules/sf9_no_cycles.cpp
    rules/rule_set.cpp
+   config/config_loader.cpp
 )
 add_library(archcheck::core ALIAS archcheck_core)
 
