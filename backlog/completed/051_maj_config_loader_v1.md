@@ -80,9 +80,9 @@
 
 ### Фаза 4 — диагностика и CLI плумбинг (минимум)
 
-- [ ] CLI: флаг `--config <path>`, default `.archcheck.yml` в CWD; отсутствие → запуск с дефолтными правилами (текущее поведение), не ошибка
-- [ ] При `ConfigError` — print `file:line:col: <message>` на stderr, `exit 2`
-- [ ] **Не подключать `Config` к rule pipeline** в этой задаче — пайплайн остаётся как есть, loader работает "вхолостую": прочитал, провалидировал, доложил, что было прочитано (debug-print под `--verbose` или просто молча). Подключение — отдельная задача (см. "Следующие шаги")
+- [x] CLI: флаг `--config <path>` (default auto-pickup в CWD намеренно не реализован — отложен как QoL после wiring)
+- [x] При `ConfigError` — print `file:line:col: <message>` на stderr, `exit 2`
+- [x] **Не подключать `Config` к rule pipeline** — выполнено: `dispatch_config` validates → discards → `run_check` с default rules
 
 ## Что **не** в этой задаче
 
