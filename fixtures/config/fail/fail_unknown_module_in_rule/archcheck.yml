@@ -1,0 +1,11 @@
+version: 1
+
+modules:
+  a:
+    paths: ["src/a/**"]
+
+rules:
+  - type: forbidden
+    name: ghost-ref
+    from: [ghost]
+    to:   [a]

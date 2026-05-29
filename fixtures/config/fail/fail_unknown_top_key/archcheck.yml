@@ -1,0 +1,10 @@
+version: 1
+
+modules:
+  core:
+    paths: ["src/**"]
+
+rules: []
+
+defaults:
+  core_guidelines: true

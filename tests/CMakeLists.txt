@@ -37,6 +37,7 @@ add_executable(archcheck_tests
    unit/rules/sf9_no_cycles_test.cpp
    integration/diff/git_diff_test.cpp
    integration/rules/drift_fixtures_test.cpp
+   unit/config/test_loader.cpp
 )
 target_link_libraries(archcheck_tests
    PRIVATE

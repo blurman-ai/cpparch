@@ -1,0 +1,13 @@
+version: 1
+
+modules:
+  core:
+    paths: ["src/core/**"]
+  ui:
+    paths: ["src/ui/**"]
+
+rules:
+  - type: forbidden
+    name: core-no-ui
+    from: [core]
+    to:   [ui]

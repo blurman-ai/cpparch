@@ -1,0 +1,14 @@
+version: 1
+
+modules:
+  domain:
+    paths: ["src/domain/**"]
+  app:
+    paths: ["src/app/**"]
+  infra:
+    paths: ["src/infra/**"]
+
+rules:
+  - type: layers
+    name: main-layering
+    layers: [app, domain, infra]

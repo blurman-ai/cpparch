@@ -1,0 +1,27 @@
+version: 1
+
+modules:
+  public_api:
+    paths: ["include/myproj/**"]
+  core:
+    paths: ["src/core/**"]
+  billing:
+    paths: ["src/features/billing/**"]
+  search:
+    paths: ["src/features/search/**"]
+  infra:
+    paths: ["src/infra/**"]
+
+rules:
+  - type: layers
+    name: vertical-layering
+    layers: [billing, search, public_api, core, infra]
+
+  - type: independence
+    name: features-isolated
+    modules: [billing, search]
+
+  - type: forbidden
+    name: public-no-infra
+    from: [public_api]
+    to:   [infra]

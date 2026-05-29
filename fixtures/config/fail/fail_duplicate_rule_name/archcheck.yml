@@ -1,0 +1,17 @@
+version: 1
+
+modules:
+  a:
+    paths: ["src/a/**"]
+  b:
+    paths: ["src/b/**"]
+
+rules:
+  - type: forbidden
+    name: dup
+    from: [a]
+    to:   [b]
+  - type: forbidden
+    name: dup
+    from: [b]
+    to:   [a]

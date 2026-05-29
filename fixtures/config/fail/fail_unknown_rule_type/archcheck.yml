@@ -1,0 +1,11 @@
+version: 1
+
+modules:
+  a:
+    paths: ["src/a/**"]
+
+rules:
+  - type: required
+    name: not-in-phase-1
+    from: [a]
+    to:   [a]

@@ -1,0 +1,10 @@
+version: 1
+
+modules:
+  a:
+    paths: ["src/a/**"]
+
+rules:
+  - type: layers
+    name: empty
+    layers: []
