@@ -2,7 +2,8 @@
 
 **Дата создания:** 2026-05-29
 **Дата старта:** 2026-05-29
-**Статус:** wip
+**Дата завершения:** 2026-05-29
+**Статус:** done
 **Модуль:** SCAN/include_scanner
 **Приоритет:** critical (даёт false-positive в DRIFT и, вероятно, в SF.8)
 **Сложность:** S (≤ 15 мин: strip BOM на старте scan'а файла)
@@ -100,9 +101,10 @@ if (content.starts_with(kUtf8Bom))
 
 1. ~~Strip BOM в `include_scanner`~~ ✅
 2. ~~Фикстура `fixtures/scan/utf8_bom/`~~ ✅
-3. Прогнать DRIFT повторно на BambuStudio PR #10794 — убедиться, что
-   `MsgDialog.cpp -> MsgDialog.hpp` ушёл из shortcut-edge'ов. (Требует
-   локальный clone BambuStudio; вынести в отдельный milestone-прогон.)
+3. ~~Прогнать DRIFT повторно на BambuStudio PR #10794~~ ✅
+   **2026-05-29 повтор на свежем clone `~/oss/BambuStudio`** (см.
+   milestones.md «Прогон 14 — DRIFT re-run после BOM-фикса»): DRIFT.1 3 → **2**.
+   FP `MsgDialog.cpp -> MsgDialog.hpp` исчез, два реальных hit'а сохранились.
 4. Перепроверить SF.8 reports из прежних milestones (abseil, folly) —
    нет ли там скрытых BOM, формально не нужно после фикса, но полезно
    для уверенности. (Низкий приоритет — substring-find SF.8 был устойчив.)

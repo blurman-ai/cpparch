@@ -113,6 +113,14 @@ git log --all --grep='Claude\|Generated with\|Co-Authored-By' \
   - **vmecpp PR #360** (df63271 → 5eabd51, asymmetric infra): 0 DRIFT — крупный рефактор без дрейфа.
   - **vmecpp PR #340** (b44fb7f → a7797dc, consolidate constants): 0 DRIFT — рефакторинг сделан корректно.
 - Подтверждено: DRIFT-правила не дают false-positive шума на нормальном AI-коде; срабатывают именно на тех находках, под которые проектировались.
+- **2026-05-29 (вторая сессия): корпус расширен до 33 PR на 10 репозиториях.**
+  Полный рабочий лог: [docs/research/ai_drift_runlog.md](../../docs/research/ai_drift_runlog.md).
+  Прогон 15 в milestones.md. Итог: **12 DRIFT.1 hit'ов на 7 PR'ах** (21% PR'ов
+  с drift'ом). Новые репо с hit'ами: BambuStudio #10794 (2), IrredenEngine #727 (2),
+  Kartend #27 (5), Skyrim #2326 (1), Skyrim #2207 (1). 4 архетипа подтверждены:
+  UI→widgets, UI-config→core, generic→features, system→component, data→ui-config.
+- **Найдены 2 бага в archcheck по ходу прогона:** #047 (BOM, closed) и #048
+  (методология dirty checkout, new). Helper `scripts/drift_run.sh` написан.
 
 ## В работе
 

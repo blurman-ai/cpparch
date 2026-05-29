@@ -77,6 +77,26 @@ AI-коммит 0aa57ad его (re)introduced. Фрейминг для демо:
 upstream Aseprite; LibreSprite по своей истории его терял; AI-коммит вернул его
 именно в той ситуации, которую DRIFT.1 и должен ловить».
 
+## Обновление 2026-05-29 (вторая сессия)
+
+Корпус расширен до **33 PR'ов на 10 репозиториях**. Полная таблица —
+[ai_drift_runlog.md](ai_drift_runlog.md). Дополнительные find'ы:
+
+| Repo | PR | DRIFT.1 | Архетип |
+|------|----|---------|---------|
+| jakildev/IrredenEngine | #727 render LOD Phase 1 | 2 | system→component_lod, system→lod_utils |
+| EtherAura/Kartend | #27 promote uiconstants | 5 | data/settings → ui/uiconstants ×4 + data→utils/view |
+| community-shaders/skyrim | #2326 fix singleton ptr | 1 | State.cpp → Features/InteriorSun |
+| community-shaders/skyrim | #2207 refactor common Util | 1 | VRStereoOpt → Utils/UI |
+
+В ходе прогона найден **методологический баг** (#048): partial git checkout
+без `git clean -fdx` оставляет файлы из других ревизий → массовые
+false-positive в DRIFT. Все цифры выше пересчитаны через `scripts/drift_run.sh`
+с full clean checkout.
+
+Итого: 12 подтверждённых DRIFT.1 hit'ов на 7 PR'ах из 33 (21%).
+Архетипы: UI→widgets, generic→features, system→component, ui-config→core-data.
+
 ## BambuStudio PR #10794 — два UI→Widgets shortcut + один false-positive (баг)
 
 ```
