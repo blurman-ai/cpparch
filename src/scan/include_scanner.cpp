@@ -161,6 +161,82 @@ bool opens_conditional(std::string_view line)
 
 bool closes_conditional(std::string_view line) { return is_pp_keyword(line, "endif"); }
 
+std::string_view pp_argument(std::string_view line, std::string_view kw)
+{
+  std::size_t i = skip_ws(line, 0);
+  ++i; // '#'
+  i = skip_ws(line, i);
+  i += kw.size();
+  i = skip_ws(line, i);
+  std::size_t e = i;
+  while (e < line.size() && is_ident_cont(line[e]))
+    ++e;
+  return line.substr(i, e - i);
+}
+
+bool is_shouty_ident(std::string_view s)
+{
+  if (s.empty())
+    return false;
+  if (!(s[0] == '_' || (s[0] >= 'A' && s[0] <= 'Z')))
+    return false;
+  for (char c : s)
+  {
+    if (!(c == '_' || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')))
+      return false;
+  }
+  return true;
+}
+
+bool is_blank_line(std::string_view line) { return skip_ws(line, 0) >= line.size(); }
+
+// Returns the next non-blank line starting at *cursor; advances *cursor past it.
+// Sets line_offset to the starting offset of that line. Returns empty view at EOF.
+std::string_view next_significant_line(std::string_view view, std::size_t &cursor, std::size_t &line_offset)
+{
+  while (cursor <= view.size())
+  {
+    const std::size_t start = cursor;
+    while (cursor < view.size() && view[cursor] != '\n')
+      ++cursor;
+    const std::string_view ln = view.substr(start, cursor - start);
+    if (cursor < view.size())
+      ++cursor; // skip '\n'
+    if (!is_blank_line(ln))
+    {
+      line_offset = start;
+      return ln;
+    }
+    if (start == view.size())
+      break;
+  }
+  return {};
+}
+
+// Detects a classical include-guard:
+//   first non-blank directive is `#ifndef X`
+//   immediately followed (after blanks/comments) by `#define X`
+// Returns offset of the `#ifndef` line in `view`, or npos if not a guard.
+// Comments are already replaced with whitespace by preprocess().
+std::size_t detect_include_guard_offset(std::string_view view)
+{
+  std::size_t cursor = 0;
+  std::size_t ifndef_offset = 0;
+  const std::string_view first = next_significant_line(view, cursor, ifndef_offset);
+  if (first.empty() || !is_pp_keyword(first, "ifndef"))
+    return std::string_view::npos;
+  const auto ident = pp_argument(first, "ifndef");
+  if (!is_shouty_ident(ident))
+    return std::string_view::npos;
+  std::size_t define_offset = 0;
+  const std::string_view second = next_significant_line(view, cursor, define_offset);
+  if (second.empty() || !is_pp_keyword(second, "define"))
+    return std::string_view::npos;
+  if (pp_argument(second, "define") != ident)
+    return std::string_view::npos;
+  return ifndef_offset;
+}
+
 void emit_directive(std::string_view line, int line_no, std::size_t i, bool conditional, ScanResult &out)
 {
   const char open = line[i];
@@ -238,6 +314,7 @@ ScanResult scanIncludes(std::string_view source)
   const std::string cleaned = preprocess(joined.text);
   const std::string_view view{cleaned};
   ScanResult out;
+  const std::size_t guard_offset = detect_include_guard_offset(view);
   std::size_t line_start = 0;
   int depth = 0;
   for (std::size_t i = 0; i <= view.size(); ++i)
@@ -245,7 +322,8 @@ ScanResult scanIncludes(std::string_view source)
     if (i == view.size() || view[i] == '\n')
     {
       const std::string_view ln = view.substr(line_start, i - line_start);
-      if (opens_conditional(ln))
+      const bool is_guard_open = (line_start == guard_offset);
+      if (opens_conditional(ln) && !is_guard_open)
         ++depth;
       else if (closes_conditional(ln) && depth > 0)
         --depth;

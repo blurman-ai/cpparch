@@ -270,6 +270,51 @@ TEST_CASE("scan_includes with BOM yields the same set as without BOM", "[scan][s
   }
 }
 
+TEST_CASE("scan_includes: top-level include in #ifndef-guarded file is not conditional",
+          "[scan][scanner][conditional][guard]")
+{
+  const auto res = scanIncludes("#ifndef MY_HEADER_H\n#define MY_HEADER_H\n#include \"foo.h\"\n#endif\n");
+  REQUIRE(res.directives.size() == 1);
+  REQUIRE(res.directives[0].token == "foo.h");
+  REQUIRE(res.directives[0].conditional == false);
+}
+
+TEST_CASE("scan_includes: guard recognized after leading blank lines and comments",
+          "[scan][scanner][conditional][guard]")
+{
+  const auto res = scanIncludes("// SPDX-License-Identifier: Apache-2.0\n\n/* copyright */\n\n"
+                                "#ifndef GRPC_FOO_H\n#define GRPC_FOO_H\n#include \"bar.h\"\n#endif\n");
+  REQUIRE(res.directives.size() == 1);
+  REQUIRE(res.directives[0].conditional == false);
+}
+
+TEST_CASE("scan_includes: nested #ifdef inside include-guard still marks include conditional",
+          "[scan][scanner][conditional][guard]")
+{
+  const auto res =
+      scanIncludes("#ifndef MY_H\n#define MY_H\n#include \"top.h\"\n#ifdef OPT\n#include \"opt.h\"\n#endif\n#endif\n");
+  REQUIRE(res.directives.size() == 2);
+  REQUIRE(res.directives[0].token == "top.h");
+  REQUIRE(res.directives[0].conditional == false);
+  REQUIRE(res.directives[1].token == "opt.h");
+  REQUIRE(res.directives[1].conditional == true);
+}
+
+TEST_CASE("scan_includes: #ifndef without matching #define is not a guard", "[scan][scanner][conditional][guard]")
+{
+  const auto res = scanIncludes("#ifndef MY_H\n#include \"foo.h\"\n#endif\n");
+  REQUIRE(res.directives.size() == 1);
+  REQUIRE(res.directives[0].conditional == true);
+}
+
+TEST_CASE("scan_includes: #ifndef/#define with mismatched identifier is not a guard",
+          "[scan][scanner][conditional][guard]")
+{
+  const auto res = scanIncludes("#ifndef MY_H\n#define OTHER_H\n#include \"foo.h\"\n#endif\n");
+  REQUIRE(res.directives.size() == 1);
+  REQUIRE(res.directives[0].conditional == true);
+}
+
 TEST_CASE("scan_includes does not strip BOM that appears later in the source", "[scan][scanner][bom]")
 {
   // Only a leading BOM is meaningful; an embedded BOM stays in source.
