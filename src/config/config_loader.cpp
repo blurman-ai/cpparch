@@ -130,6 +130,31 @@ LayersRule parse_layers_rule(const ryml::ConstNodeRef &node, std::string name, c
   return rule;
 }
 
+IndependenceRule parse_independence_rule(const ryml::ConstNodeRef &node, std::string name, const std::string &file)
+{
+  if (!node.has_child("modules"))
+  {
+    throw ConfigError(file, 0, 0, "rule '" + name + "' of type 'independence' requires a 'modules' list");
+  }
+  IndependenceRule rule;
+  rule.name = std::move(name);
+  rule.modules = parse_string_list(node["modules"], "modules", rule.name, file);
+  return rule;
+}
+
+ForbiddenRule parse_forbidden_rule(const ryml::ConstNodeRef &node, std::string name, const std::string &file)
+{
+  if (!node.has_child("from") || !node.has_child("to"))
+  {
+    throw ConfigError(file, 0, 0, "rule '" + name + "' of type 'forbidden' requires both 'from' and 'to' lists");
+  }
+  ForbiddenRule rule;
+  rule.name = std::move(name);
+  rule.from = parse_string_list(node["from"], "from", rule.name, file);
+  rule.to = parse_string_list(node["to"], "to", rule.name, file);
+  return rule;
+}
+
 Rule parse_rule(const ryml::ConstNodeRef &node, const std::string &file)
 {
   if (!node.is_map() || !node.has_child("type") || !node.has_child("name"))
@@ -141,6 +166,14 @@ Rule parse_rule(const ryml::ConstNodeRef &node, const std::string &file)
   if (type == "layers")
   {
     return parse_layers_rule(node, std::move(name), file);
+  }
+  if (type == "independence")
+  {
+    return parse_independence_rule(node, std::move(name), file);
+  }
+  if (type == "forbidden")
+  {
+    return parse_forbidden_rule(node, std::move(name), file);
   }
   throw ConfigError(file, 0, 0,
                     "rule '" + name + "' has unknown type '" + type + "' (expected: layers, independence, forbidden)");
