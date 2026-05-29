@@ -103,6 +103,69 @@ void parse_modules(const ryml::ConstNodeRef &root, const std::string &file, Conf
   }
 }
 
+std::vector<std::string> parse_string_list(const ryml::ConstNodeRef &node, const std::string &field,
+                                           const std::string &rule_name, const std::string &file)
+{
+  if (!node.is_seq() || node.num_children() == 0)
+  {
+    throw ConfigError(file, 0, 0, "rule '" + rule_name + "': '" + field + "' must be a non-empty list");
+  }
+  std::vector<std::string> out;
+  for (const auto &item : node.children())
+  {
+    out.push_back(to_string(item.val()));
+  }
+  return out;
+}
+
+LayersRule parse_layers_rule(const ryml::ConstNodeRef &node, std::string name, const std::string &file)
+{
+  if (!node.has_child("layers"))
+  {
+    throw ConfigError(file, 0, 0, "rule '" + name + "' of type 'layers' requires a 'layers' list");
+  }
+  LayersRule rule;
+  rule.name = std::move(name);
+  rule.layers = parse_string_list(node["layers"], "layers", rule.name, file);
+  return rule;
+}
+
+Rule parse_rule(const ryml::ConstNodeRef &node, const std::string &file)
+{
+  if (!node.is_map() || !node.has_child("type") || !node.has_child("name"))
+  {
+    throw ConfigError(file, 0, 0, "each rule must be a map with 'type' and 'name'");
+  }
+  std::string name = to_string(node["name"].val());
+  std::string type = to_string(node["type"].val());
+  if (type == "layers")
+  {
+    return parse_layers_rule(node, std::move(name), file);
+  }
+  throw ConfigError(file, 0, 0,
+                    "rule '" + name + "' has unknown type '" + type + "' (expected: layers, independence, forbidden)");
+}
+
+void parse_rules(const ryml::ConstNodeRef &root, const std::string &file, Config &config)
+{
+  const auto rules_node = root["rules"];
+  if (!rules_node.is_seq())
+  {
+    throw ConfigError(file, 0, 0, "'rules' must be a list");
+  }
+  std::unordered_set<std::string> names;
+  for (const auto &rule_node : rules_node.children())
+  {
+    Rule rule = parse_rule(rule_node, file);
+    std::string name = std::visit([](const auto &r) { return r.name; }, rule);
+    if (!names.insert(name).second)
+    {
+      throw ConfigError(file, 0, 0, "duplicate rule name '" + name + "'");
+    }
+    config.rules.push_back(std::move(rule));
+  }
+}
+
 void validate_top_keys(const ryml::ConstNodeRef &root, const std::string &file)
 {
   for (const auto &child : root.children())
@@ -136,6 +199,7 @@ Config load(const std::filesystem::path &path)
   config.version = parse_version(root, path.string());
   validate_top_keys(root, path.string());
   parse_modules(root, path.string(), config);
+  parse_rules(root, path.string(), config);
   return config;
 }
 
