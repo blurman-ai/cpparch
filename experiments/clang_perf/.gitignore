@@ -1,0 +1,4 @@
+# Spike runtime artefacts — regeneratable, contain absolute host paths.
+build/
+*.csv
+*.time

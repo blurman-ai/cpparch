@@ -499,7 +499,7 @@ archcheck --metrics
 
 Для include-only правил (SF.7, SF.8, SF.9, циклы, god-headers, длина цепочек) libclang избыточен — эти правила решаются препроцессорным сканированием. libclang нужен только для семантических правил (SF.2, SF.5, SF.10, SF.21, Martin abstractness, правила из C/I секций Core Guidelines).
 
-**Принято: два бекенда, fast по умолчанию.**
+**Принято: два бекенда, fast по умолчанию.** Подтверждено замером (#043, см. [`docs/dev/spike_clang_perf.md`](dev/spike_clang_perf.md)): на spdlog (141 TU) libclang-19 single-thread = ~15 с, regex-baseline = ~11 мс — разница ×1350. На монорепе ~5000 TU libclang-only single-thread = ~9 минут, что несовместимо с CI guard-job'ом «секунды на PR».
 
 - **Fast backend (preprocessor-only)** — default в v0.1. Работает без `compile_commands.json`, мгновенно, на любой build-системе. Покрывает critical-path правила v0.1: `forbidden_deps`/`allowed_deps`, циклы (SF.9), god-headers, длина include-цепочек, SF.7/SF.8.
 - **libclang backend** — opt-in в v0.1 через флаг (`--with-clang`), полноценно появляется в v0.2. Нужен для AST-проверок: SF.2 / SF.5 / SF.10 / SF.11, правила из секций C и I Core Guidelines, Martin's *Abstractness* (A).
@@ -669,7 +669,7 @@ tests/
 
 ## Ключевые риски и open questions
 
-1. **Libclang перформанс (v0.2+).** На больших проектах libclang-бекенд может быть медленным. Митигация: fast backend default-ный, libclang только opt-in для семантических правил; кэширование AST; clangd index bridge — long-term опция.
+1. **Libclang перформанс (v0.2+).** На больших проектах libclang-бекенд может быть медленным — подтверждено замером #043 ([`docs/dev/spike_clang_perf.md`](dev/spike_clang_perf.md)): ~73 мс median/TU, single-thread ~3.5 мин на 2000 TU. Митигация: fast backend default-ный, libclang только opt-in для семантических правил; параллелизм по TU (libclang-индекс per-thread); кэширование AST; clangd index bridge — long-term опция.
 2. **Compile commands availability (v0.2+).** Некоторые проекты не генерируют `compile_commands.json` из коробки (особенно MSBuild). Митигация: fast-бекенд работает без него, поэтому риск касается только пользователей, которые включили `--with-clang`. Документация по генерации для CMake / Bazel / Meson.
 3. **Юзабилити дефолтных правил.** Слишком строгие → пользователь увидит 5000 нарушений и закроет вкладку. Митигация: дефолтные правила консервативные (только SF.7/8/9/21 + циклы + god-headers + длина цепочек), плюс `--baseline` с day one.
 4. **Шаблоны C++ (v0.3+).** Шаблонные классы при инстанциации создают неочевидные межмодульные зависимости. План: на v0.1 правила работают по includes (этого хватает для cycles / god-headers / SF.7/8/21); на v0.3+, когда придут AST-правила, анализировать декларации шаблона; инстанциации — long-term.

@@ -7,8 +7,8 @@
 **Приоритет:** major
 **Сложность:** L (multi-day, разбивается на фазы)
 **Блокирует:** SF.21, SF.2, SF.5, SF.10, SF.11, Martin Abstractness (все семантические правила v0.2+)
-**Заблокирован:** #043 (spike_clang_perf — должен ответить, нужен ли вообще fast-backend в v0.1, иначе скоуп этой задачи усыхает до libclang-only)
-**Related:** #5 (gh — owner-таска), #6 (gh — Issue 6 audit), #006 (spec_refactor — заложил двух-бекендную схему), #028 (rules_engine_mvp — отложил SF.21 "требует libclang"), #035 (sf7_brace_depth — пометил точный парсинг как libclang/v0.2), #008 (dependency_graph_foundation)
+**Заблокирован:** ~~#043 (spike_clang_perf)~~ — **разблокирован 2026-05-29**, спайк подтвердил двух-бекендную схему ([`docs/dev/spike_clang_perf.md`](../../docs/dev/spike_clang_perf.md)): libclang ×1350 медленнее regex, ~9 минут на 5000-TU монорепе single-thread. Скоуп этой задачи остаётся как написан, `--with-clang` сохраняется.
+**Related:** #5 (gh — owner-таска), #6 (gh — Issue 6 audit), #006 (spec_refactor — заложил двух-бекендную схему), #028 (rules_engine_mvp — отложил SF.21 "требует libclang"), #035 (sf7_brace_depth — пометил точный парсинг как libclang/v0.2), #008 (dependency_graph_foundation), #043 (spike_clang_perf — подтвердил архитектуру)
 
 ## Цель
 
@@ -81,9 +81,9 @@
 
 ## Следующие шаги
 
-1. Дождаться итогов спайка #043 (libclang-only vs двух-бекендная схема).
-2. Если двух-бекенд остаётся — начать с фазы 1 (CMake opt-in + скелет).
-3. Если фастбэкенд можно выкинуть — переформулировать задачу как «libclang-default backend» и снять `--with-clang`-флаг.
+1. ~~Дождаться итогов спайка #043~~ — **готово 2026-05-29.** Двух-бекендная схема подтверждена замером.
+2. Начать с фазы 1 (CMake opt-in + скелет `clang_scanner.h/.cpp` + `--with-clang` + решение по `ISemanticRule`).
+3. Учесть в фазе 1: версия libclang **≥18** (на спайке мерилась 19; 11 устаревшая, не цель). Зафиксировать в CMake `find_package`-логике и в CI matrix.
 
 ## Ключевые решения
 
