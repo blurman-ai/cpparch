@@ -119,3 +119,15 @@
 | `docs/dev/spike_clang_perf.md` | отчёт с цифрами и решением (TBD) |
 | `docs/architecture-spec.md` | подтвердить / переписать §«Двух-бекендная схема» (TBD) |
 | `backlog/new/042_maj_clang_semantic_backend.md` | обновить скоуп по результатам (TBD) |
+
+## Чем управляется
+
+<!-- TODO -->
+
+## С чем связана
+
+<!-- TODO -->
+
+## Диагностика
+
+<!-- TODO -->
