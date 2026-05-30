@@ -718,6 +718,44 @@ grep'ом против диффа коммита (реальные новые `#
 
 ---
 
+## 2026-05-30 — Self-dogfood line-dup: нашли свой copy-paste в `cpparch`
+
+**Версия archcheck:** standalone line-dup спайк из #053 (`experiments/line_duplication/main.cpp`), worktree 2026-05-30.
+
+### Прогон 16 — `cpparch` сам в себе (duplication dogfood)
+- **Масштаб:** `cpparch` source tree, app-only режим line-dup sweep.
+- **Домен:** наш собственный CLI tool для архитектурных проверок.
+- **Команда:** standalone line-dup прогон по `cpparch` с exclude `sandbox/` и
+  test-like файлов по умолчанию.
+- **Результат:**
+  - top cross-file duplicate:
+    `src/report/json_reporter.cpp:6 <-> src/report/violation_baseline.cpp:12`
+  - длина блока: **21** значимая строка
+  - похожесть: **100%**
+  - тип находки: **малый локальный дубль / function-level copy-paste**
+- **Ручная проверка:** дубль подтверждён. В обоих файлах живёт одинаковая
+  `jsonEscape(const std::string&)`, экранирующая `"`, `\` и `\n`.
+- **Почему это важно:** это не generated-код, не test twin и не packaging-шум,
+  а настоящий внутренний copy-paste в shipped code.
+- **Инсайт:** по форме это именно тот класс мелких локальных дублей, который
+  часто оставляют AI-ассистенты: вместо общего helper-а функция копируется во
+  второй файл «чтобы быстро поехало». Доказать авторство ИИ здесь нельзя, но
+  паттерн — типичный AI-style copy-paste.
+- **Следствие:** заведена отдельная dogfood-задача
+  [#055](../backlog/completed/055_min_dogfood_json_escape_dedup.md) — вынести
+  `jsonEscape()` в общий report-level helper и после фикса убедиться, что эта
+  пара исчезла из top duplicate list.
+
+**Почему это хороший milestone:**
+- `archcheck` не только проверяет чужие репозитории, но и ловит собственный
+  дублированный код;
+- находка маленькая, точная и понятная — не «страшный процент», а конкретный
+  21-строчный блок с двумя файлами;
+- это честный dogfooding-сюжет для README/демо: **нашли своим же тулом,
+  завели задачу, вынесли в общий util**.
+
+---
+
 ## Шаблон записи
 
 ```
