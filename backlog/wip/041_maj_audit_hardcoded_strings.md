@@ -1,14 +1,14 @@
 # [RULES][CONFIG] Аудит захардкоженных строк и констант
 
 **Дата создания:** 2026-05-28
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-05-30
+**Статус:** wip
 **Модуль:** RULES, CONFIG
 **Приоритет:** major
-**Сложность:** unknown
+**Сложность:** M-L (рефактор дефолтов в Config + walkup + merge; override порогов через YAML = расширение формата phase 2)
 **Блокирует:** —
 **Заблокирован:** —
-**Related:** —
+**Related:** docs/config_format.md (§Discovery & default resolution — модель зафиксирована), completed/051_maj_config_loader_v1.md (phase-1 loader), completed/v1_maj_config_format_minimal_contract.md
 
 ## Цель
 
@@ -19,7 +19,7 @@
 Под маркой «zero-config» в код просачиваются контекстные строки трёх видов:
 
 1. **Паттерны файлов** — расширения `.h`, `.hpp`, `.inc`, пути к системным заголовкам — могут не совпадать с реальным проектом пользователя.
-2. **Пороговые значения** — `chain_length=10`, `fan_in=30`, `brace_depth=1` — вшиты в реализацию правил, но должны быть переопределяемы через `.archcheck.yml`.
+2. **Пороговые значения** — `chain_length=10`, `god_header_fan_in=50` — вшиты в реализацию правил (`kDefaultThreshold` в `.h` каждого правила), но должны быть переопределяемы через `.archcheck.yml`. (NB: `brace_depth=1` из исходной формулировки — это механика парсинга SF.7, не настройка; не выносим.)
 3. **Тексты нарушений** — violation message содержит конкретный контекст («using namespace в заголовочном файле») — это нормально, но формат должен быть консистентен.
 
 «Zero-config» означает «хорошие дефолты», а не «неизменяемые магические числа». Пользователь с нестандартным проектом не должен патчить исходники.
@@ -56,7 +56,20 @@ Hardcoded Config defaults  →  merge  ←  .archcheck.yml (если есть)
 
 ## Сделано
 
-- (пусто)
+- **Инвентарь захардкоженных констант** (2026-05-30):
+
+  | Что | Значение | Где сейчас | Категория |
+  |-----|----------|-----------|-----------|
+  | include chain length | `10` | `include/archcheck/rules/lakos_chain_length.h:11` (`kDefaultThreshold`) | DEFAULT |
+  | god-header fan-in | `50` | `include/archcheck/rules/lakos_god_headers.h:14` (`kDefaultThreshold`) | DEFAULT |
+  | project-расширения | `.c .cc .cpp …` | `src/scan/project_files.cpp:16` (`kProjectExtensions`) | DEFAULT |
+  | header-расширения | `.h .hpp …` | `src/scan/project_files.cpp:19` (`kHeaderExtensions`) | DEFAULT |
+  | `#pragma once` / guard-синтаксис | — | `src/rules/sf8_include_guard.cpp` | FIXED |
+  | `.inc` = single-include | — | `src/rules/sf8_include_guard.cpp:52` | FIXED |
+  | SF.7 brace-depth | `1` | `src/rules/sf7_using_namespace.cpp` | FIXED (парсинг) |
+  | тексты violation | — | все правила | INLINE_OK |
+
+- **Дизайн зафиксирован** в `docs/config_format.md` §«Discovery & default resolution» и в памяти проекта (`project_config_discovery_defaults`): embedded-defaults + file-override; walkup от CWD до FS-root (первый файл выигрывает); `--config` отключает walkup; merge поверх дефолтов.
 
 ## В работе
 
@@ -64,9 +77,13 @@ Hardcoded Config defaults  →  merge  ←  .archcheck.yml (если есть)
 
 ## Следующие шаги
 
-1. Grep числовые константы в `src/rules/`
-2. Grep строковые паттерны в `src/scan/`
-3. Определить shape `Config` struct на основе инвентаря
+> ⚠️ **Scope:** override порогов через YAML = блок `thresholds:`, а это **v1 phase 2** по `docs/config_format.md`. Phase-1 loader (#051) знает только `version`/`modules`/`rules`. Эта задача добавляет `thresholds:` (additive/MINOR, `version: 1` сохраняется) + рефактор дефолтов + walkup.
+
+1. Завести поля в `Config` struct под DEFAULT-константы (`thresholds.chain_length`, `thresholds.god_header_fan_in`, extensions) с in-code дефолтами.
+2. Передавать `Config` в правила (через `IRule`/конструкторы) вместо чтения `kDefaultThreshold`.
+3. Реализовать walkup-поиск `.archcheck.yml` от CWD до FS-root; `--config` отключает.
+4. Парсинг блока `thresholds:` в loader + merge поверх дефолтов; обновить `docs/config_format.md` (перенести `thresholds:` из «not in phase 1» в реализованное).
+5. Fixtures: `pass/` + `fail_*/` на override порога; документировать дефолты в README + `--help`.
 
 ## Ключевые решения
 

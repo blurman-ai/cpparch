@@ -251,6 +251,37 @@ rules:
 
 `layers` establishes the vertical hierarchy. `independence` adds the horizontal constraint that `billing` and `search` (same logical level) must not know about each other — `layers` alone permits this because peers are unconstrained. `forbidden` adds the surgical rule that public headers must not leak `infra` types even though the layering would technically allow it.
 
+## Discovery & default resolution
+
+archcheck follows the **embedded-defaults + file-override** model used by clang-tidy, rustfmt, and clippy — the right fit for a single static binary that must be useful zero-config.
+
+### Where defaults live
+
+Every tunable default lives as a named field on the internal `Config` struct with an in-code initializer — a single source of truth. No magic numbers scattered across rule implementations. The shipped defaults are:
+
+| Default | Value | Rule / subsystem |
+|---------|-------|------------------|
+| include chain length | `10` | `Lakos.ChainLength` |
+| god-header fan-in | `50` | `Lakos.GodHeader` |
+| project source extensions | `.c .cc .cpp .cxx .h .hh .hpp .hxx .ipp .tpp .inl .inc` | `scan` |
+| header extensions | `.h .hh .hpp .hxx .ipp .tpp .inl .inc` | `scan` |
+
+These are compiled into the binary; **no `.archcheck.yml` is required** for a useful run. The rule-mandated constants that are *not* defaults — `#pragma once` / include-guard syntax, `.inc` = single-include semantics, SF.7 brace-depth tracking — stay fixed in code and are intentionally not overridable.
+
+### Where the user file is found
+
+If `--config <path>` is given, that exact file is loaded and discovery is **skipped**.
+
+Otherwise archcheck walks **up** from the current working directory to the filesystem root and loads the **first** `.archcheck.yml` it finds. First-found wins; the search stops there — it does not continue past it and does not merge a chain. This matches `.clang-format` / eslint behaviour and lets archcheck run from any subdirectory of a project.
+
+If no file is found anywhere up the tree, the embedded defaults are used unchanged.
+
+### How they combine
+
+The discovered file is merged **over** the embedded defaults: the user writes only the keys they want to change; every unspecified key keeps its compiled-in default. A key present in the file replaces the corresponding default; a key absent is left untouched.
+
+Threshold overrides (the `thresholds:` block) are a **phase 2** addition (see the table below) and follow exactly this merge model — e.g. a file with only `thresholds: { god_header_fan_in: 30 }` changes that one value and leaves chain length at `10`.
+
 ## What is **not** in v1 phase 1
 
 | Feature                              | Status      | Where it goes        |
