@@ -357,4 +357,28 @@ Config load(const std::filesystem::path &path)
   return config;
 }
 
+std::optional<std::filesystem::path> findConfig(const std::filesystem::path &start)
+{
+  std::error_code ec;
+  std::filesystem::path dir = std::filesystem::absolute(start, ec);
+  if (ec)
+  {
+    dir = start;
+  }
+  for (;;)
+  {
+    const std::filesystem::path candidate = dir / ".archcheck.yml";
+    if (std::filesystem::is_regular_file(candidate, ec))
+    {
+      return candidate;
+    }
+    const std::filesystem::path parent = dir.parent_path();
+    if (parent == dir)
+    {
+      return std::nullopt;
+    }
+    dir = parent;
+  }
+}
+
 } // namespace archcheck::config

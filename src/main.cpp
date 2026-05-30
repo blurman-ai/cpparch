@@ -152,13 +152,32 @@ int applyDriftFile(const std::filesystem::path &driftFile, std::vector<std::uniq
   return 0;
 }
 
-int run_check(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts baseline = {},
-              const archcheck::config::Config &config = {})
+// Walkup-discovers and loads .archcheck.yml from the CWD; embedded defaults if none.
+archcheck::config::Config discoverConfig()
 {
+  const auto found = archcheck::config::findConfig(std::filesystem::current_path());
+  return found ? archcheck::config::load(*found) : archcheck::config::Config{};
+}
+
+int run_check(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts baseline = {},
+              std::optional<archcheck::config::Config> config = std::nullopt)
+{
+  if (!config)
+  {
+    try
+    {
+      config = discoverConfig();
+    }
+    catch (const archcheck::config::ConfigError &e)
+    {
+      std::cerr << "archcheck: " << e.what() << '\n';
+      return 2;
+    }
+  }
   const auto built = archcheck::graph::buildGraphForPath(root);
   archcheck::scan::DiskFileSource src(root);
   auto readFile = [&](std::string_view path) -> std::string { return src.read(std::string(path)); };
-  auto rules = archcheck::rules::makeDefaultRuleSet(config);
+  auto rules = archcheck::rules::makeDefaultRuleSet(*config);
   if (baseline.driftFile)
     if (const int rc = applyDriftFile(*baseline.driftFile, rules); rc != 0)
       return rc;

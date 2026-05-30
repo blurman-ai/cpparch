@@ -67,6 +67,22 @@ TEST_CASE("config loader: thresholds — keep embedded defaults when block absen
   REQUIRE(cfg.thresholds.godHeaderFanIn == 50);
 }
 
+TEST_CASE("config loader: findConfig walks up to the nearest .archcheck.yml", "[config][pass]")
+{
+  const std::filesystem::path deep =
+      std::filesystem::path(ARCHCHECK_FIXTURES_DIR) / "config" / "discovery" / "nested" / "deep";
+  const auto found = archcheck::config::findConfig(deep);
+  REQUIRE(found.has_value());
+  REQUIRE(found->filename() == ".archcheck.yml");
+  REQUIRE(found->parent_path().filename() == "discovery");
+}
+
+TEST_CASE("config loader: findConfig returns nullopt when no config up the tree", "[config][pass]")
+{
+  // Relies on no .archcheck.yml existing at the system temp dir or above.
+  REQUIRE_FALSE(archcheck::config::findConfig(std::filesystem::temp_directory_path()).has_value());
+}
+
 using Catch::Matchers::ContainsSubstring;
 
 TEST_CASE("config loader: rejects unknown top-level key", "[config][fail]")
