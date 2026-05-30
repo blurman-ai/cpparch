@@ -9,7 +9,7 @@
 **Целевой релиз:** v1 phase 1 (post-MVP)
 **Блокирует:** осмысленную проверку гипотезы "AI снижает барьер входа в config mode"
 **Заблокирован:** future/v1_maj_agent_config_authoring_rules.md
-**Related:** future/v1_min_ai_config_synthesis_trial_spdlog.md, future/010_maj_ai_rule_synthesis_contract.md
+**Related:** future/v1_min_ai_config_synthesis_trial_spdlog.md, future/010_maj_ai_rule_synthesis_contract.md, future/v1_maj_ai_config_iterative_loop.md (метрики overfitting: рост exclude / снятие правил)
 
 ## Цель
 

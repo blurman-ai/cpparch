@@ -9,7 +9,7 @@
 **Целевой релиз:** v0.3+ (не v0.1)
 **Блокирует:** —
 **Заблокирован:** #008 (dependency_graph_foundation — synthesis может опираться на тот же graph contract)
-**Related:** #009 (drift_regression_rules — пара synthesis ↔ drift)
+**Related:** #009 (drift_regression_rules — пара synthesis ↔ drift), future/v1_maj_ai_config_iterative_loop.md (итеративный режим поверх этого single-shot контракта)
 
 ## Цель
 
