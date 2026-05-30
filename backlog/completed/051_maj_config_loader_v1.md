@@ -74,9 +74,7 @@
   - `fail_from_to_overlap/` — `from: [a], to: [a, b]`
   - `fail_empty_layers/` — `layers: []`
   - `fail_missing_name/` — правило без `name:`
-- [ ] Catch2 тесты:
-  - `tests/config/test_loader_pass.cpp` — каждый pass-fixture парсится в ожидаемую структуру
-  - `tests/config/test_loader_fail.cpp` — каждый fail-fixture бросает `ConfigError`, сообщение содержит ключевое слово (например, `"duplicate rule name"`)
+- [x] Catch2 тесты: `tests/unit/config/test_loader.cpp` — 4 pass-кейса + 9 fail-кейсов, 13/13 PASSED (слиты в один файл вместо изначально планируемых двух).
 
 ### Фаза 4 — диагностика и CLI плумбинг (минимум)
 
