@@ -45,10 +45,12 @@ struct Options
   std::size_t maxTokens = 400;
   double simThreshold = 0.60;
   std::size_t rareDfCap = 4;
+  double rareDfPct = 0.0;  // --rare-df-pct: if >0, rare cutoff = max(rareDfCap, N*pct/100)
   std::size_t minSharedRare = 2;
   std::size_t top = 25;
   std::string metric = "weighted";  // "weighted" | "plain" — which score gates+sorts
   bool precise = false;  // --partial-precise: token-LCS re-rank + diff view (P3)
+  std::vector<std::string> excludes;  // --exclude substr: skip files whose path contains it
 };
 
 // ---------------------------------------------------------------------------
@@ -615,9 +617,10 @@ struct Pair
 void printUsage()
 {
   std::cout << "usage: partial_duplication <root> [--min-tokens N] [--max-tokens N]\n"
-               "                           [--threshold F] [--rare-df N]\n"
+               "                           [--threshold F] [--rare-df N] [--rare-df-pct P]\n"
                "                           [--min-shared N] [--metric weighted|plain]\n"
-               "                           [--partial-precise] [--top N]\n";
+               "                           [--partial-precise] [--exclude substr]...\n"
+               "                           [--top N]\n";
 }
 
 }  // namespace
@@ -648,6 +651,10 @@ int main(int argc, char** argv)
     {
       opt.rareDfCap = std::stoul(next());
     }
+    else if (arg == "--rare-df-pct")
+    {
+      opt.rareDfPct = std::stod(next());
+    }
     else if (arg == "--min-shared")
     {
       opt.minSharedRare = std::stoul(next());
@@ -663,6 +670,10 @@ int main(int argc, char** argv)
     else if (arg == "--top")
     {
       opt.top = std::stoul(next());
+    }
+    else if (arg == "--exclude")
+    {
+      opt.excludes.push_back(next());
     }
     else if (arg == "-h" || arg == "--help")
     {
@@ -702,7 +713,21 @@ int main(int argc, char** argv)
   {
     for (const auto& e : fs::recursive_directory_iterator(opt.root))
     {
-      if (e.is_regular_file() && isSourceFile(e.path()))
+      if (!e.is_regular_file() || !isSourceFile(e.path()))
+      {
+        continue;
+      }
+      const std::string full = e.path().string();
+      bool skip = false;
+      for (const std::string& ex : opt.excludes)
+      {
+        if (full.find(ex) != std::string::npos)
+        {
+          skip = true;
+          break;
+        }
+      }
+      if (!skip)
       {
         files.push_back(e.path());
       }
@@ -759,7 +784,17 @@ int main(int argc, char** argv)
   // the cheap gate can afford to be loose. Normalized C++ has a tiny alphabet,
   // so a tight rare-token gate alone misses order-divergent copies (case A never
   // shares >=2 df<=4 tokens with its original after id/lit collapsing).
-  const std::size_t effRareDf = opt.precise ? std::max<std::size_t>(opt.rareDfCap, 8) : opt.rareDfCap;
+  // rare-token cutoff. Absolute df caps do not scale: on a 27k-fragment tree
+  // df<=50 prunes every candidate, because even distinctive normalized tokens
+  // recur in hundreds of fragments. --rare-df-pct makes the cutoff a fraction
+  // of N (spike finding #4: rare_df must be relative). Floor keeps small repos
+  // from collapsing the cutoff to ~0.
+  std::size_t effRareDf = opt.precise ? std::max<std::size_t>(opt.rareDfCap, 8) : opt.rareDfCap;
+  if (opt.rareDfPct > 0.0)
+  {
+    const std::size_t pctCut = static_cast<std::size_t>(static_cast<double>(N) * opt.rareDfPct / 100.0);
+    effRareDf = std::max(effRareDf, pctCut);
+  }
   const std::size_t effMinShared = opt.precise ? std::size_t{1} : opt.minSharedRare;
   std::unordered_map<std::string, std::vector<std::size_t>> postings;
   for (std::size_t fi = 0; fi < N; ++fi)
