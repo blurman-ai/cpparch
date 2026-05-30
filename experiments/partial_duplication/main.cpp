@@ -617,7 +617,7 @@ void printUsage()
   std::cout << "usage: partial_duplication <root> [--min-tokens N] [--max-tokens N]\n"
                "                           [--threshold F] [--rare-df N]\n"
                "                           [--min-shared N] [--metric weighted|plain]\n"
-               "                           [--top N]\n";
+               "                           [--partial-precise] [--top N]\n";
 }
 
 }  // namespace
@@ -626,6 +626,7 @@ int main(int argc, char** argv)
 {
   Options opt;
   std::vector<std::string> positional;
+  bool thresholdSet = false;
   for (int i = 1; i < argc; ++i)
   {
     const std::string arg = argv[i];
@@ -641,6 +642,7 @@ int main(int argc, char** argv)
     else if (arg == "--threshold")
     {
       opt.simThreshold = std::stod(next());
+      thresholdSet = true;
     }
     else if (arg == "--rare-df")
     {
@@ -653,6 +655,10 @@ int main(int argc, char** argv)
     else if (arg == "--metric")
     {
       opt.metric = next();
+    }
+    else if (arg == "--partial-precise")
+    {
+      opt.precise = true;
     }
     else if (arg == "--top")
     {
@@ -678,6 +684,14 @@ int main(int argc, char** argv)
   {
     std::cerr << "error: path not found: " << opt.root << "\n";
     return 2;
+  }
+  // token-LCS lives on a higher scale than bag-overlap: the normalized alphabet
+  // (id/lit/keywords/operators) is tiny, so any two C++ bodies share a long
+  // subsequence (~0.7 floor). Give precise mode its own default gate unless the
+  // user pinned --threshold explicitly.
+  if (opt.precise && !thresholdSet)
+  {
+    opt.simThreshold = 0.80;
   }
 
   // 1-2. collect fragments from every source file under root.
@@ -741,12 +755,18 @@ int main(int argc, char** argv)
   }
 
   // 4. inverted index on low-frequency tokens -> candidate pairs.
+  // Precise mode (P3) widens candidate recall: LCS provides the precision, so
+  // the cheap gate can afford to be loose. Normalized C++ has a tiny alphabet,
+  // so a tight rare-token gate alone misses order-divergent copies (case A never
+  // shares >=2 df<=4 tokens with its original after id/lit collapsing).
+  const std::size_t effRareDf = opt.precise ? std::max<std::size_t>(opt.rareDfCap, 8) : opt.rareDfCap;
+  const std::size_t effMinShared = opt.precise ? std::size_t{1} : opt.minSharedRare;
   std::unordered_map<std::string, std::vector<std::size_t>> postings;
   for (std::size_t fi = 0; fi < N; ++fi)
   {
     for (const auto& [sym, cnt] : frags[fi].bag)
     {
-      if (static_cast<std::size_t>(df[sym]) <= opt.rareDfCap)
+      if (static_cast<std::size_t>(df[sym]) <= effRareDf)
       {
         postings[sym].push_back(fi);
       }
@@ -764,12 +784,15 @@ int main(int argc, char** argv)
     }
   }
 
-  // 5. score candidates, keep those above the weighted threshold.
+  // 5. score candidates, keep those above the gating-metric threshold.
+  // gate metric: --partial-precise -> token-LCS; else --metric (weighted|plain).
+  auto scoreOf = [&opt](const Pair& p) -> double
+  { return opt.precise ? p.lcs : (opt.metric == "plain" ? p.plain : p.weighted); };
   std::vector<Pair> reported;
   std::size_t candidateCount = 0;
   for (const auto& [pr, shared] : sharedRare)
   {
-    if (shared < opt.minSharedRare)
+    if (shared < effMinShared)
     {
       continue;
     }
@@ -781,24 +804,26 @@ int main(int argc, char** argv)
     p.weighted = weightedJaccard(frags[p.a], frags[p.b], idf);
     p.plain = plainJaccard(frags[p.a], frags[p.b]);
     p.line = lineOverlap(frags[p.a], frags[p.b]);
-    const double gate = opt.metric == "plain" ? p.plain : p.weighted;
-    if (gate >= opt.simThreshold)
+    if (opt.precise)
+    {
+      p.lcs = lcsRatio(frags[p.a], frags[p.b]);
+    }
+    if (scoreOf(p) >= opt.simThreshold)
     {
       reported.push_back(p);
     }
   }
-  const bool usePlain = opt.metric == "plain";
   std::sort(reported.begin(), reported.end(),
-            [usePlain](const Pair& l, const Pair& r)
-            { return (usePlain ? l.plain : l.weighted) > (usePlain ? r.plain : r.weighted); });
+            [&scoreOf](const Pair& l, const Pair& r) { return scoreOf(l) > scoreOf(r); });
 
   // 6. report.
+  const std::string gateName = opt.precise ? "token-LCS" : (opt.metric == "plain" ? "plain" : "weighted");
   const std::size_t totalPairs = N * (N - 1) / 2;
   std::cout << "scanned " << fileCount << " files, " << N << " fragments\n";
-  std::cout << "candidate pairs (>= " << opt.minSharedRare << " rare tokens, df<="
-            << opt.rareDfCap << "): " << candidateCount << " of " << totalPairs
+  std::cout << "candidate pairs (>= " << effMinShared << " rare tokens, df<="
+            << effRareDf << "): " << candidateCount << " of " << totalPairs
             << " possible\n";
-  std::cout << "reported (" << opt.metric << " overlap >= " << opt.simThreshold
+  std::cout << "reported (" << gateName << " >= " << opt.simThreshold
             << "): " << reported.size() << "\n\n";
 
   const std::size_t shown = std::min(reported.size(), opt.top);
@@ -807,12 +832,58 @@ int main(int argc, char** argv)
     const Pair& p = reported[i];
     const Fragment& fa = frags[p.a];
     const Fragment& fb = frags[p.b];
-    std::cout << "[w=" << p.weighted << "]  " << fa.file << ":" << fa.startLine
-              << "-" << fa.endLine << "  <->  " << fb.file << ":" << fb.startLine
-              << "-" << fb.endLine << "\n";
+    std::cout << "[" << gateName << "=" << scoreOf(p) << "]  " << fa.file << ":"
+              << fa.startLine << "-" << fa.endLine << "  <->  " << fb.file << ":"
+              << fb.startLine << "-" << fb.endLine << "\n";
     std::cout << "         tokens " << fa.tokenCount << "/" << fb.tokenCount
-              << "  plain=" << p.plain << "  line=" << p.line
-              << "  shared-rare=" << p.sharedRare << "\n";
+              << "  weighted=" << p.weighted << "  plain=" << p.plain
+              << "  line=" << p.line;
+    if (opt.precise)
+    {
+      std::cout << "  lcs=" << p.lcs;
+    }
+    std::cout << "  shared-rare=" << p.sharedRare << "\n";
+    if (opt.precise)
+    {
+      const std::vector<DiffOp> ops = diffTokens(fa.seq, fb.seq);
+      std::size_t changed = 0;
+      std::size_t dels = 0;
+      std::size_t ins = 0;
+      for (const DiffOp& o : ops)
+      {
+        changed += o.tag == '~' ? 1 : 0;
+        dels += o.tag == '-' ? 1 : 0;
+        ins += o.tag == '+' ? 1 : 0;
+      }
+      std::cout << "         diff: " << changed << " changed, " << dels
+                << " removed, " << ins << " added\n";
+      std::size_t printed = 0;
+      for (const DiffOp& o : ops)
+      {
+        if (o.tag == '=')
+        {
+          continue;
+        }
+        if (printed == 12)
+        {
+          std::cout << "           ...\n";
+          break;
+        }
+        if (o.tag == '~')
+        {
+          std::cout << "           ~ " << o.a << " -> " << o.b << "\n";
+        }
+        else if (o.tag == '-')
+        {
+          std::cout << "           - " << o.a << "\n";
+        }
+        else
+        {
+          std::cout << "           + " << o.b << "\n";
+        }
+        ++printed;
+      }
+    }
   }
 
   return 0;

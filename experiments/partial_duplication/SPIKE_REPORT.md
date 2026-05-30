@@ -1,10 +1,11 @@
 # partial_duplication spike — report (#056)
 
 **Date:** 2026-05-30
-**Scope:** narrow algorithmic spike (step 3 of #056): `tokenize + normalize +
+**Scope:** algorithmic spike (step 3 of #056): `tokenize + normalize +
 fragment-split + weighted/plain overlap + inverted-index candidates + contrast
-fixtures`. **No** product plumbing (that waits on #053), **no** token-LCS precise
-mode, **no** baseline/gate semantics. Standalone C++20, no libclang, no
+fixtures`, **plus** the P3 token-LCS precise mode + diff-view (added once the bag
+metrics proved insufficient — see "P3" below). **No** product plumbing (that waits
+on #053), **no** baseline/gate semantics. Standalone C++20, no libclang, no
 `compile_commands.json`.
 
 The spike exists to answer one question before the task commits to a default
@@ -126,6 +127,56 @@ split should be revisited before integration.
 
 ---
 
+## P3 — token-LCS precise mode (now implemented)
+
+The conclusion above predicted token-LCS is load-bearing for the
+operator-divergence class. Implemented it behind `--partial-precise`: per-fragment
+**ordered** token stream → LCS length → Dice ratio `2·LCS/(|a|+|b|)`, scored on a
+widened candidate net (LCS supplies the precision, so candidate recall can be
+loose). Each reported pair carries a token-level diff with adjacent delete+insert
+collapsed into a single `changed` op.
+
+It confirms the thesis — **and adds a calibration caveat the bag metrics did not
+have.**
+
+| Case | plain | weighted | **lcs** | verdict |
+|------|------:|---------:|--------:|---------|
+| **A** `computeScore↔computeDelta` | 0.844 | 0.355 | **0.915** | TP — caught |
+| **B** `computeScore↔computeScoreV2` | 0.798 | 0.777 | **0.888** | TP — caught |
+| **C** `joinNonEmpty↔smallestPositive` | 0.616 | 0.375 | **0.734** | FP — rejected |
+| **D** `handleOpcode↔routeEvent` | 0.597 | 0.454 | **0.736** | FP — rejected |
+
+Case A — the one weighting inverts — comes back at the **top** under LCS, and its
+diff is exactly the divergence and nothing else:
+
+```
+[token-LCS=0.915]  acct.cpp:14-23 <-> acct_copy.cpp:17-26   (over 71/71 tokens)
+  diff: 6 changed, 0 removed, 0 added
+    ~ + -> -   (×6)
+```
+
+**New finding — token-LCS has a high floor, so it needs its own (higher)
+threshold.** The normalized alphabet (`id`/`lit`/keywords/operators/brackets) is
+tiny, so *any* two C++ function bodies share a long subsequence: C and D sit at
+**0.73–0.74**, not the ~0.42 a richer alphabet would give. At the bag threshold
+`0.60` LCS reports **19** pairs — C, D and a dozen cross-noise pairs all leak
+through. The real TP/FP boundary is ~**0.80**:
+
+- TPs: A 0.915, B 0.888, and `computeDelta↔computeScoreV2` 0.812 (both copies of
+  the same original — legitimately related).
+- FPs: C 0.734, D 0.736, nearest non-copy (`filler`) pair 0.778.
+
+So precise mode defaults `--threshold` to **0.80** (overridable). At 0.80 the spike
+reports **exactly the 3 true pairs and nothing else** — the first metric on this
+fixture set that gets A, B, C and D all right at once.
+
+**Refined implication for #056:** the two-stage architecture holds — cheap
+bag/rare-token recall + order-sensitive LCS precision — but LCS is *not* a drop-in
+at the bag threshold. It lives on a higher scale and must carry its own calibrated
+gate (roughly: bag ~0.6, LCS ~0.8). Load-bearing for precision: yes. Free: no.
+
+---
+
 ## Secondary finding — `rare_df` must be relative, not absolute
 
 The task says "inverted index on low-frequency tokens" without fixing the cutoff.
@@ -176,10 +227,15 @@ speed.
 
 - ✅ P1 core mechanic (tokenize/normalize/fragment/overlap/index) is proven viable
   and fast.
-- 🔁 **Revise the metric decision.** Default should not be weighted-bag-alone.
-  Strong candidate: plain (or lightly-weighted) bag for recall + token-LCS confirm
-  for precision. Promote P3 from "opt-in" toward "load-bearing for precision."
+- ✅ **P3 token-LCS + diff-view implemented** (`--partial-precise`). It is the only
+  metric that gets A, B, C, D all right at once — but on its own *higher* gate
+  (~0.80), not the bag threshold. Promote P3 from "opt-in" to **load-bearing for
+  precision** in the metric decision below.
+- 🔁 **Revise the metric decision.** Default should not be weighted-bag-alone. The
+  spike's resolution: plain (or lightly-weighted) bag + relative `rare_df` for
+  *recall*, token-LCS at its own ~0.80 gate for *precision*. The task's "weighting
+  обязателен / token-LCS только opt-in" split should be revisited before integration.
 - 🔁 **Recall is fragile.** Absolute `rare_df` and `min_shared ≥ 2` drop true
   diverged copies; make `rare_df` relative and add a fingerprint fallback.
-- ⏸️ P2 (gate/baseline) and P3 (LCS diff-view) intentionally untouched — they
-  belong with the #053-shared plumbing, which is still in flight.
+- ⏸️ P2 (gate/baseline) intentionally untouched — it belongs with the #053-shared
+  plumbing, which is still in flight.
