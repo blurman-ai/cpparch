@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
@@ -38,6 +39,7 @@ struct Options
   std::size_t minWindowChars = 60;
   std::size_t top = 8;
   bool crossOnly = false;
+  bool includeTests = false;
   std::optional<std::string> gitDiff;
   std::optional<std::string> gitCommit;
   std::vector<std::string> excludePatterns = {
@@ -46,6 +48,24 @@ struct Options
     "generated",
     "*_generated*",
     "*.pb.*",
+    "extern",
+    "external",
+    "external_libs",
+    "vendor",
+    "vendored",
+    "deps",
+    "3rdparty",
+    "3rd_party",
+    "thirdparty",
+    "single_include",
+    "amalgamate*",
+    "_deps",
+    "CMakeFiles",
+    "build-*",
+    "*_autogen",
+    "moc_*",
+    "qrc_*",
+    "ui_*",
   };
 };
 
@@ -63,10 +83,27 @@ struct FileData
   std::vector<std::uint8_t> covered;
 };
 
+struct PrunedSubtree
+{
+  std::string path;
+  std::string reason;
+};
+
+// What discovery dropped, so the user can trust the metric: excludes move it a
+// lot. We record pruned subtree roots + reason (cheap, captured at prune time)
+// and a count of files dropped by masks. We deliberately do NOT count sig LOC of
+// excluded trees — that would require walking the very subtrees we skip.
+struct ExclusionAudit
+{
+  std::vector<PrunedSubtree> prunedSubtrees;
+  std::size_t excludedFiles = 0;
+};
+
 struct InputCorpus
 {
   std::vector<FileData> files;
   std::size_t discoveredFiles = 0;
+  ExclusionAudit audit;
 };
 
 struct WindowPos
@@ -105,6 +142,7 @@ struct Result
   std::size_t coveredSigLines = 0;
   double duplicationRatio = 0.0;
   std::vector<Block> blocks;
+  ExclusionAudit audit;
 };
 
 struct CommitDiffReport
@@ -218,6 +256,22 @@ struct BlockKeyHash
   return value.substr(0, prefix.size()) == prefix;
 }
 
+[[nodiscard]] bool endsWith(std::string_view value, std::string_view suffix)
+{
+  return value.size() >= suffix.size() && value.substr(value.size() - suffix.size()) == suffix;
+}
+
+[[nodiscard]] std::string toLowerAscii(std::string_view value)
+{
+  std::string out;
+  out.reserve(value.size());
+
+  for (char ch : value)
+    out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+
+  return out;
+}
+
 [[nodiscard]] bool isCommentOnly(std::string_view raw)
 {
   const std::string trimmed = trim(raw);
@@ -300,6 +354,54 @@ struct BlockKeyHash
   return out;
 }
 
+[[nodiscard]] bool isTestLikeDirName(std::string_view value)
+{
+  static const std::array<std::string_view, 7> kNames = {
+      "test",
+      "tests",
+      "testing",
+      "fixture",
+      "fixtures",
+      "selftest",
+      "selftests",
+  };
+
+  return std::find(kNames.begin(), kNames.end(), value) != kNames.end();
+}
+
+[[nodiscard]] bool isTestLikeFileStem(std::string_view value)
+{
+  return value == "test" || startsWith(value, "test_") || startsWith(value, "test-") || endsWith(value, "_test") ||
+         endsWith(value, "_tests") || endsWith(value, "_unittest");
+}
+
+[[nodiscard]] bool isTestLikePath(const std::string &relativePath)
+{
+  for (const std::string &part : splitPathString(relativePath))
+  {
+    if (isTestLikeDirName(toLowerAscii(part)))
+      return true;
+  }
+
+  return isTestLikeFileStem(toLowerAscii(fs::path(relativePath).stem().string()));
+}
+
+[[nodiscard]] bool isExampleLikeDirName(std::string_view value)
+{
+  return value == "examples" || value == "example" || value == "demos" || value == "demo";
+}
+
+[[nodiscard]] bool isExampleLikePath(const std::string &relativePath)
+{
+  for (const std::string &part : splitPathString(relativePath))
+  {
+    if (isExampleLikeDirName(toLowerAscii(part)))
+      return true;
+  }
+
+  return false;
+}
+
 [[nodiscard]] bool globMatch(std::string_view pattern, std::string_view text)
 {
   std::size_t p = 0;
@@ -369,6 +471,19 @@ private:
   std::vector<std::string> patterns_;
 };
 
+[[nodiscard]] bool shouldExcludePath(const std::string &relativePath,
+                                     const ExcludeMatcher &matcher,
+                                     const Options &options)
+{
+  if (matcher.matches(relativePath))
+    return true;
+
+  if (options.includeTests)
+    return false;
+
+  return isTestLikePath(relativePath) || isExampleLikePath(relativePath);
+}
+
 [[nodiscard]] bool isSkippedDirectoryName(std::string_view name)
 {
   return name == ".git" || name == ".cache" || name == ".idea" || name == ".vscode" || name == "build" ||
@@ -393,29 +508,79 @@ private:
          ext == ".hpp" || ext == ".hxx" || ext == ".ipp" || ext == ".tpp" || ext == ".inl" || ext == ".inc";
 }
 
-[[nodiscard]] std::vector<fs::path> discoverSources(const fs::path &root, const ExcludeMatcher &matcher)
+// Build tree: a directory holding CMakeCache.txt (and everything below it).
+[[nodiscard]] bool isBuildTreeDir(const fs::path &dir)
+{
+  std::error_code ec;
+  return fs::exists(dir / "CMakeCache.txt", ec);
+}
+
+// Nested repository: a child directory with its own VCS metadata. Catches
+// submodules, sandboxes and vendored snapshots with one rule. The scan root is
+// never an entry here, so the project's own repo is not excluded.
+[[nodiscard]] bool isNestedRepoDir(const fs::path &dir)
+{
+  std::error_code ec;
+  return fs::exists(dir / ".git", ec) || fs::exists(dir / ".hg", ec);
+}
+
+// Short label if this directory's whole subtree should be pruned, else nullptr.
+// build-tree / nested-repo are checked before skip-dir so they get the informative
+// label even for a directory that also happens to be named build/out/etc.
+[[nodiscard]] const char *directoryPruneReason(const fs::directory_entry &entry,
+                                               const std::string &relString,
+                                               const ExcludeMatcher &matcher,
+                                               const Options &options)
+{
+  if (isBuildTreeDir(entry.path()))
+    return "build-tree";
+  if (isNestedRepoDir(entry.path()))
+    return "nested-repo";
+  if (isSkippedDirectoryName(entry.path().filename().string()) || hasSkippedDirectoryComponent(relString))
+    return "skip-dir";
+  if (matcher.matches(relString))
+    return "mask";
+  if (!options.includeTests && isTestLikePath(relString))
+    return "test";
+  if (!options.includeTests && isExampleLikePath(relString))
+    return "demo";
+  return nullptr;
+}
+
+[[nodiscard]] std::vector<fs::path> discoverSources(const fs::path &root,
+                                                    const ExcludeMatcher &matcher,
+                                                    const Options &options,
+                                                    ExclusionAudit &audit)
 {
   std::vector<fs::path> files;
+  // NB: iterate the iterator itself (not a range-based for, which copies it) so
+  // disable_recursion_pending() prunes the subtree instead of being a no-op.
+  const fs::recursive_directory_iterator end;
   fs::recursive_directory_iterator it(root, fs::directory_options::skip_permission_denied);
 
-  for (const fs::directory_entry &entry : it)
+  for (; it != end; ++it)
   {
+    const fs::directory_entry &entry = *it;
     const fs::path rel = fs::relative(entry.path(), root);
     const std::string relString = rel.generic_string();
 
     if (entry.is_directory())
     {
-      if (isSkippedDirectoryName(entry.path().filename().string()) || hasSkippedDirectoryComponent(relString) ||
-          matcher.matches(relString))
+      if (const char *reason = directoryPruneReason(entry, relString, matcher, options))
       {
+        if (std::string_view(reason) != "skip-dir")
+          audit.prunedSubtrees.push_back({relString, reason});
         it.disable_recursion_pending();
       }
       continue;
     }
 
-    if (!entry.is_regular_file() || hasSkippedDirectoryComponent(relString) || !hasProjectExtension(entry.path()) ||
-        matcher.matches(relString))
+    if (!entry.is_regular_file() || hasSkippedDirectoryComponent(relString) || !hasProjectExtension(entry.path()))
+      continue;
+
+    if (shouldExcludePath(relString, matcher, options))
     {
+      ++audit.excludedFiles;
       continue;
     }
 
@@ -423,6 +588,8 @@ private:
   }
 
   std::sort(files.begin(), files.end());
+  std::sort(audit.prunedSubtrees.begin(), audit.prunedSubtrees.end(),
+            [](const PrunedSubtree &lhs, const PrunedSubtree &rhs) { return lhs.path < rhs.path; });
   return files;
 }
 
@@ -689,6 +856,7 @@ void markCovered(FileData &file, std::size_t start, std::size_t minLines)
   Result result;
   result.discoveredFiles = corpus.discoveredFiles;
   result.eligibleFiles = corpus.files.size();
+  result.audit = std::move(corpus.audit);
 
   for (const FileData &file : corpus.files)
   {
@@ -753,9 +921,8 @@ void markCovered(FileData &file, std::size_t start, std::size_t minLines)
 [[nodiscard]] InputCorpus loadFilesystemCorpus(const Options &options)
 {
   const ExcludeMatcher matcher(options.excludePatterns);
-  const std::vector<fs::path> discovered = discoverSources(options.root, matcher);
-
   InputCorpus corpus;
+  const std::vector<fs::path> discovered = discoverSources(options.root, matcher, options, corpus.audit);
   corpus.discoveredFiles = discovered.size();
 
   for (const fs::path &relative : discovered)
@@ -794,7 +961,7 @@ void markCovered(FileData &file, std::size_t start, std::size_t minLines)
       continue;
 
     const std::string displayPath = makeDisplayPath(projectFile.path, scopePrefix);
-    if (matcher.matches(displayPath))
+    if (shouldExcludePath(displayPath, matcher, options))
       continue;
 
     ++corpus.discoveredFiles;
@@ -834,7 +1001,7 @@ void markCovered(FileData &file, std::size_t start, std::size_t minLines)
       continue;
 
     const std::string displayPath = makeDisplayPath(repoRelativePath, scopePrefix);
-    if (matcher.matches(displayPath))
+    if (shouldExcludePath(displayPath, matcher, options))
       continue;
 
     out.insert(displayPath);
@@ -980,6 +1147,7 @@ void printUsage(std::ostream &out)
       << "  --min-window-chars N   Ignore windows shorter than N chars (default: 60)\n"
       << "  --top N                Show top N duplicated blocks (default: 8)\n"
       << "  --exclude PATTERN      Add exclude pattern (repeatable)\n"
+      << "  --include-tests        Keep test-like and demo/example files (default: off)\n"
       << "  --cross-only           Show only cross-file blocks in the top list\n"
       << "  --git-diff A..B        Compare baseline/current git refs via blobs\n"
       << "  --git-diff A           Compare git ref A against current working tree\n"
@@ -1046,6 +1214,12 @@ void printUsage(std::ostream &out)
       continue;
     }
 
+    if (arg == "--include-tests")
+    {
+      options.includeTests = true;
+      continue;
+    }
+
     if (startsWith(arg, "--"))
       throw std::runtime_error("unknown option: " + arg);
 
@@ -1095,6 +1269,24 @@ void printTopBlocks(const std::vector<Block> &blocks, const Options &options, st
     std::cout << "  (no blocks)\n";
 }
 
+void printExclusionAudit(const ExclusionAudit &audit)
+{
+  std::cout << "excluded subtrees: " << audit.prunedSubtrees.size() << "  (files dropped by mask: " << audit.excludedFiles
+            << ")\n";
+
+  constexpr std::size_t kMaxListed = 12;
+  std::size_t shown = 0;
+  for (const PrunedSubtree &tree : audit.prunedSubtrees)
+  {
+    std::cout << "  [" << tree.reason << "] " << tree.path << "\n";
+    if (++shown == kMaxListed)
+      break;
+  }
+
+  if (audit.prunedSubtrees.size() > kMaxListed)
+    std::cout << "  (+" << (audit.prunedSubtrees.size() - kMaxListed) << " more)\n";
+}
+
 void printSnapshotReport(const Result &result, const Options &options)
 {
   const std::size_t crossFileBlocks = std::count_if(result.blocks.begin(), result.blocks.end(), isCrossFile);
@@ -1109,6 +1301,7 @@ void printSnapshotReport(const Result &result, const Options &options)
   std::cout << "duplicated blocks: " << result.blocks.size() << "\n";
   std::cout << "cross-file blocks: " << crossFileBlocks << "\n";
 
+  printExclusionAudit(result.audit);
   printTopBlocks(result.blocks, options, "top duplicated blocks");
 }
 
