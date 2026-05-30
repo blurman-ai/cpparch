@@ -3,32 +3,10 @@
 #include <ostream>
 #include <unordered_map>
 
+#include "archcheck/report/json_escape.h"
+
 namespace archcheck::report
 {
-
-namespace
-{
-
-// Minimal JSON string escaping (handles the characters that appear in paths/messages).
-std::string jsonEscape(const std::string &s)
-{
-  std::string out;
-  out.reserve(s.size());
-  for (const char c : s)
-  {
-    if (c == '"')
-      out += "\\\"";
-    else if (c == '\\')
-      out += "\\\\";
-    else if (c == '\n')
-      out += "\\n";
-    else
-      out += c;
-  }
-  return out;
-}
-
-} // namespace
 
 void writeJsonReport(const rules::ViolationList &violations, std::ostream &out)
 {
