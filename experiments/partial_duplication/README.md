@@ -52,14 +52,23 @@ cmake --build /tmp/partial_dup_build
 | `--max-tokens N` | 400 | fragment ceiling (else descend) |
 | `--threshold F` | 0.60 (0.80 if `--partial-precise`) | report pairs with gating metric ≥ F |
 | `--rare-df N` | 4 | a token is "rare" (indexable) if `df ≤ N` |
+| `--rare-df-pct P` | 0 (off) | if >0, rare cutoff = `max(rare-df, N*P/100)` — relative, scales with corpus |
 | `--min-shared N` | 2 | candidate needs ≥ N shared rare tokens |
 | `--metric M` | weighted | `weighted` or `plain` — which score gates+ranks |
 | `--partial-precise` | off | token-LCS re-rank + diff-view; widens recall, gates on LCS (own ~0.80 scale) |
+| `--exclude S` | — | skip files whose path contains substring `S` (repeatable: vendor/build/generated) |
 | `--top N` | 25 | max pairs printed |
+
+On large trees use `--rare-df-pct` (an absolute `--rare-df` prunes every
+candidate once N is in the tens of thousands) and an `--exclude` set for
+vendored / generated / build paths — see `OSS_SWEEP_REPORT.md`.
 
 ## Layout
 
 - `main.cpp` — the spike (standalone: lex/normalize, fragments, bag overlap,
-  inverted-index candidates, and the `--partial-precise` token-LCS + diff-view).
+  inverted-index candidates, the `--partial-precise` token-LCS + diff-view,
+  `--exclude` and `--rare-df-pct`).
 - `cases/` — contrast fixtures A–E (see SPIKE_REPORT.md).
 - `SPIKE_REPORT.md` — method, results, and what it means for #056.
+- `OSS_SWEEP_REPORT.md` — run across 19 OSS repos: cross-component findings +
+  the relative-`rare_df` scaling result.
