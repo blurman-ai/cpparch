@@ -1,0 +1,10 @@
+version: 1
+
+modules:
+  core:
+    paths: ["src/**"]
+
+rules: []
+
+thresholds:
+  chain_lenght: 7

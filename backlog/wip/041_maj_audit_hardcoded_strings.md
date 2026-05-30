@@ -72,6 +72,7 @@ Hardcoded Config defaults  →  merge  ←  .archcheck.yml (если есть)
 - **Дизайн зафиксирован** в `docs/config_format.md` §«Discovery & default resolution» и в памяти проекта (`project_config_discovery_defaults`): embedded-defaults + file-override; walkup от CWD до FS-root (первый файл выигрывает); `--config` отключает walkup; merge поверх дефолтов.
 - **Шаг 1 (2026-05-30):** `Config::thresholds` (`struct Thresholds { chainLength=10; godHeaderFanIn=50; }`) заведён в `include/archcheck/config/config.h` как single source of truth.
 - **Шаг 2 (2026-05-30):** `Config` протянут в пайплайн. `makeDefaultRuleSet(const Config&)` передаёт `config.thresholds` в конструкторы `LakosGodHeaders`/`LakosChainLength`; `run_check` принимает `Config`; `dispatch_config` больше не выбрасывает загруженный конфиг (`(void)load` → передаётся в `run_check`). 248/248 тестов зелёные. `kDefaultThreshold` правил оставлен как дефолт конструктора (его пинят тесты + прямое создание) — литералы `10/50` теперь дублируются в двух местах, дедуп — мелкий follow-up.
+- **Шаг 3 (2026-05-30):** loader парсит опциональный блок `thresholds:` (`chain_length`, `god_header_fan_in`), валидирует положительные int, мержит поверх дефолтов; неизвестный/неположительный ключ → exit 2. Фикстуры (`pass/thresholds`, `fail_unknown_threshold_key`, `fail_threshold_not_positive`) + 4 теста. `docs/config_format.md` обновлён (секция `thresholds`, убрано из «not in phase 1»). **End-to-end override работает:** `chain_length: 2` на глубокой цепочке → нарушения, дефолт → чисто. 252/252 тестов, coverage 95.0% PASS.
 
 ## В работе
 
@@ -83,9 +84,9 @@ Hardcoded Config defaults  →  merge  ←  .archcheck.yml (если есть)
 
 1. ✅ Завести поля в `Config` struct под DEFAULT-константы (`thresholds`) с in-code дефолтами.
 2. ✅ Передать `Config` в правила (`makeDefaultRuleSet(const Config&)`); плумбинг через `run_check`; `dispatch_config` больше не выбрасывает конфиг.
-3. Парсинг блока `thresholds:` в loader + merge поверх дефолтов; обновить `docs/config_format.md` (перенести `thresholds:` из «not in phase 1» в реализованное). **← без этого end-to-end override ещё не работает.**
-4. Реализовать walkup-поиск `.archcheck.yml` от CWD до FS-root; `--config` отключает.
-5. Fixtures: `pass/` + `fail_*/` на override порога; документировать дефолты в README + `--help`.
+3. ✅ Парсинг блока `thresholds:` в loader + merge поверх дефолтов; `docs/config_format.md` обновлён; фикстуры + тесты; end-to-end override работает.
+4. Реализовать walkup-поиск `.archcheck.yml` от CWD до FS-root; `--config` отключает. **← осталось: zero-arg запуск сейчас не подхватывает `.archcheck.yml` из дерева.**
+5. Вынести `kProjectExtensions`/`kHeaderExtensions` (scan) в `Config` + override (расширения файлов — третий вид DEFAULT из инвентаря, пока не тронут). Документировать дефолты в README + `--help`.
 6. (follow-up) Дедуп литералов `10/50`: убрать `kDefaultThreshold` из правил или сослать на `Config` без инверсии зависимости; обновить тесты, пинящие `kDefaultThreshold`.
 
 ## Ключевые решения

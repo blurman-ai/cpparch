@@ -53,12 +53,38 @@ TEST_CASE("config loader: mixed — all three rule types in one config", "[confi
   REQUIRE(std::holds_alternative<archcheck::config::ForbiddenRule>(cfg.rules[2]));
 }
 
+TEST_CASE("config loader: thresholds — overrides chain_length and god_header_fan_in", "[config][pass]")
+{
+  const auto cfg = archcheck::config::load(fixture("pass", "thresholds"));
+  REQUIRE(cfg.thresholds.chainLength == 7);
+  REQUIRE(cfg.thresholds.godHeaderFanIn == 25);
+}
+
+TEST_CASE("config loader: thresholds — keep embedded defaults when block absent", "[config][pass]")
+{
+  const auto cfg = archcheck::config::load(fixture("pass", "tiny"));
+  REQUIRE(cfg.thresholds.chainLength == 10);
+  REQUIRE(cfg.thresholds.godHeaderFanIn == 50);
+}
+
 using Catch::Matchers::ContainsSubstring;
 
 TEST_CASE("config loader: rejects unknown top-level key", "[config][fail]")
 {
   REQUIRE_THROWS_WITH(archcheck::config::load(fixture("fail", "fail_unknown_top_key")),
                       ContainsSubstring("unknown top-level key"));
+}
+
+TEST_CASE("config loader: rejects unknown threshold key", "[config][fail]")
+{
+  REQUIRE_THROWS_WITH(archcheck::config::load(fixture("fail", "fail_unknown_threshold_key")),
+                      ContainsSubstring("unknown threshold key"));
+}
+
+TEST_CASE("config loader: rejects non-positive threshold", "[config][fail]")
+{
+  REQUIRE_THROWS_WITH(archcheck::config::load(fixture("fail", "fail_threshold_not_positive")),
+                      ContainsSubstring("must be a positive integer"));
 }
 
 TEST_CASE("config loader: rejects unsupported schema version", "[config][fail]")

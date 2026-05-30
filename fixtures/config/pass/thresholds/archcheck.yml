@@ -1,0 +1,11 @@
+version: 1
+
+modules:
+  core:
+    paths: ["src/core/**"]
+
+rules: []
+
+thresholds:
+  chain_length: 7
+  god_header_fan_in: 25

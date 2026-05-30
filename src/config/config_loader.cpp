@@ -1,6 +1,7 @@
 #include "archcheck/config/config_loader.h"
 
 #include <algorithm>
+#include <charconv>
 #include <fstream>
 #include <ryml.hpp>
 #include <ryml_std.hpp>
@@ -272,15 +273,57 @@ void parse_rules(const ryml::ConstNodeRef &root, const LoaderCtx &ctx, Config &c
   }
 }
 
+std::size_t parse_positive_int(const ryml::ConstNodeRef &node, const std::string &key, const LoaderCtx &ctx)
+{
+  const ryml::csubstr s = node.val();
+  unsigned long long value = 0;
+  const auto res = std::from_chars(s.data(), s.data() + s.size(), value);
+  if (res.ec != std::errc{} || res.ptr != s.data() + s.size() || value == 0)
+  {
+    throw_at(ctx, node, "threshold '" + key + "' must be a positive integer");
+  }
+  return static_cast<std::size_t>(value);
+}
+
+// Optional phase-2 block; absent keys keep the embedded defaults in config.thresholds.
+void parse_thresholds(const ryml::ConstNodeRef &root, const LoaderCtx &ctx, Config &config)
+{
+  if (!root.has_child("thresholds"))
+  {
+    return;
+  }
+  const auto node = root["thresholds"];
+  if (!node.is_map())
+  {
+    throw_at(ctx, node, "'thresholds' must be a map");
+  }
+  for (const auto &child : node.children())
+  {
+    const std::string key = to_string(child.key());
+    if (key == "chain_length")
+    {
+      config.thresholds.chainLength = parse_positive_int(child, key, ctx);
+    }
+    else if (key == "god_header_fan_in")
+    {
+      config.thresholds.godHeaderFanIn = parse_positive_int(child, key, ctx);
+    }
+    else
+    {
+      throw_at(ctx, child, "unknown threshold key '" + key + "' (expected: chain_length, god_header_fan_in)");
+    }
+  }
+}
+
 void validate_top_keys(const ryml::ConstNodeRef &root, const LoaderCtx &ctx)
 {
   for (const auto &child : root.children())
   {
     const ryml::csubstr key = child.key();
     const std::string k(key.data(), key.size());
-    if (k != "version" && k != "modules" && k != "rules")
+    if (k != "version" && k != "modules" && k != "rules" && k != "thresholds")
     {
-      throw_at(ctx, child, "unknown top-level key '" + k + "' (expected: version, modules, rules)");
+      throw_at(ctx, child, "unknown top-level key '" + k + "' (expected: version, modules, rules, thresholds)");
     }
   }
   if (!root.has_child("modules"))
@@ -309,6 +352,7 @@ Config load(const std::filesystem::path &path)
   validate_top_keys(root, ctx);
   parse_modules(root, ctx, config);
   parse_rules(root, ctx, config);
+  parse_thresholds(root, ctx, config);
   cross_validate(config, ctx);
   return config;
 }
