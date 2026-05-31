@@ -23,6 +23,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -51,6 +52,13 @@ struct Options
   std::string metric = "weighted";  // "weighted" | "plain" — which score gates+sorts
   bool precise = false;  // --partial-precise: token-LCS re-rank + diff view (P3)
   std::vector<std::string> excludes;  // --exclude substr: skip files whose path contains it
+  double minDiversity = 0.0;  // --min-diversity: drop pairs where either fragment is skeletal (low trigram diversity)
+  bool keepCalls = true;  // selective normalization (DEFAULT): keep callee names (id before "(") and case labels; --no-keep-calls to disable. Kills coincidental call-skeleton + switch-idiom FPs.
+  // --- diff mode (#054): "did commit C add code that is a Type-3 near-dup of
+  //     code that already existed at parent P?" ---
+  std::string diffSpec;      // --diff <sha> | <A>..<B>  (empty => snapshot mode)
+  fs::path repo;             // --repo <path> for diff mode
+  std::string subpath;       // --subpath <rel>: restrict diff+baseline to this subtree
 };
 
 // ---------------------------------------------------------------------------
@@ -105,7 +113,7 @@ const std::vector<std::string>& multiOps()
   return ops;
 }
 
-std::vector<Token> lex(const std::string& src)
+std::vector<Token> lex(const std::string& src, bool keepCalls = false)
 {
   std::vector<Token> out;
   const std::size_t n = src.size();
@@ -225,7 +233,32 @@ std::vector<Token> lex(const std::string& src)
         ++i;
       }
       std::string word = src.substr(start, i - start);
-      out.push_back({keywords().count(word) != 0 ? word : std::string("id"), line});
+      if (keywords().count(word) != 0)
+      {
+        out.push_back({word, line});
+      }
+      else if (keepCalls)
+      {
+        // Keep semantically distinctive identifiers, collapse only local
+        // var/param names. Two cases:
+        //  - callee names: identifier immediately followed by `(` (API/helper
+        //    calls) — kills coincidental "id = id(id);" skeleton matches;
+        //  - case labels: identifier right after `case` — kills the
+        //    "switch{case id: return lit}" idiom-FP (enum tables of different
+        //    domains stop matching: ddsA8 vs IDC_ALT_MAT vs TRMT_SHIP).
+        std::size_t j = i;
+        while (j < n && (src[j] == ' ' || src[j] == '\t' || src[j] == '\n' || src[j] == '\r'))
+        {
+          ++j;
+        }
+        const bool callee = (j < n && src[j] == '(');
+        const bool caseLabel = (!out.empty() && out.back().sym == "case");
+        out.push_back({(callee || caseLabel) ? word : std::string("id"), line});
+      }
+      else
+      {
+        out.push_back({std::string("id"), line});
+      }
       continue;
     }
     // operator / punctuation (longest match)
@@ -263,7 +296,25 @@ struct Fragment
   std::unordered_map<std::string, int> bag;  // normalized token -> count
   std::vector<std::string> seq;  // ordered normalized tokens (for token-LCS)
   std::unordered_set<std::string> normLines;  // illustrative line-based view
+  double diversity = 1.0;  // distinct-trigram ratio; low = skeletal (dispatch switch, data table)
 };
+
+// Distinct normalized-trigram ratio. A dispatch switch / enum table repeats
+// `case id : return lit ;` — few distinct trigrams over many tokens => low ratio.
+// Real code is more varied. Used to flag "skeletal" fragments (idiom-FP floor).
+double trigramDiversity(const std::vector<std::string>& seq)
+{
+  if (seq.size() < 3)
+  {
+    return 1.0;
+  }
+  std::unordered_set<std::string> grams;
+  for (std::size_t i = 0; i + 2 < seq.size(); ++i)
+  {
+    grams.insert(seq[i] + "\x01" + seq[i + 1] + "\x01" + seq[i + 2]);
+  }
+  return static_cast<double>(grams.size()) / static_cast<double>(seq.size() - 2);
+}
 
 // match[i] = index of the brace matching the one at i, or -1.
 std::vector<int> braceMatch(const std::vector<Token>& t)
@@ -339,6 +390,7 @@ Fragment makeFragment(const std::vector<Token>& t, std::size_t lo, std::size_t h
       }
     }
   }
+  f.diversity = trigramDiversity(f.seq);
   return f;
 }
 
@@ -603,6 +655,47 @@ bool isSourceFile(const fs::path& p)
   return exts.count(p.extension().string()) != 0;
 }
 
+bool hasSourceExt(const std::string& path)
+{
+  return isSourceFile(fs::path(path));
+}
+
+std::string toLowerCopy(std::string s)
+{
+  for (char& c : s)
+  {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+  return s;
+}
+
+// Case-insensitive substring match: one `--exclude thirdparty` catches
+// ThirdParty / THIRDPARTY / thirdParty (vendored dirs are spelled every way).
+bool isExcluded(const std::string& path, const std::vector<std::string>& excludes)
+{
+  const std::string lpath = toLowerCopy(path);
+  for (const std::string& ex : excludes)
+  {
+    if (lpath.find(toLowerCopy(ex)) != std::string::npos)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Tokenize + fragment a single source blob, tagging fragments with `label` as
+// their file. Shared by snapshot mode (read from disk) and diff mode (read from
+// `git show`). Appends to `out`.
+void collectFromSource(const std::string& src, const std::string& label,
+                       const Options& opt, std::vector<Fragment>& out)
+{
+  const std::vector<Token> toks = lex(src, opt.keepCalls);
+  const std::vector<int> match = braceMatch(toks);
+  const std::vector<std::string> lines = splitLines(src);
+  collect(toks, match, 0, toks.size(), opt, label, lines, out);
+}
+
 struct Pair
 {
   std::size_t a = 0;
@@ -614,13 +707,429 @@ struct Pair
   std::size_t sharedRare = 0;
 };
 
+// The score the active mode gates and ranks on: token-LCS in precise mode, else
+// the chosen bag metric.
+double gateScore(const std::string& metric, bool precise, const Pair& p)
+{
+  return precise ? p.lcs : (metric == "plain" ? p.plain : p.weighted);
+}
+
 void printUsage()
 {
   std::cout << "usage: partial_duplication <root> [--min-tokens N] [--max-tokens N]\n"
                "                           [--threshold F] [--rare-df N] [--rare-df-pct P]\n"
                "                           [--min-shared N] [--metric weighted|plain]\n"
                "                           [--partial-precise] [--exclude substr]...\n"
-               "                           [--top N]\n";
+               "                           [--no-keep-calls] [--min-diversity F] [--top N]\n"
+               "       partial_duplication --diff <sha>|<A>..<B> --repo <path>\n"
+               "                           [--subpath <rel>] [common flags above]\n"
+               "\n"
+               "  snapshot mode: report near-duplicate fragment pairs in a tree.\n"
+               "  diff mode (#054): for the commit(s) in --diff, report fragments\n"
+               "  ADDED/MODIFIED in the commit that are Type-3 near-dups of code that\n"
+               "  already existed at the parent. A hit = a missing-reuse edge born here.\n";
+}
+
+// ---------------------------------------------------------------------------
+// Diff mode (#054) — git-backed, parser-free
+// ---------------------------------------------------------------------------
+
+// Run a git command in `repo` and capture stdout. stderr is sent to the shell's
+// stderr (visible in logs). Returns false on popen failure.
+bool runGit(const fs::path& repo, const std::string& gitArgs, std::string& out)
+{
+  out.clear();
+  std::string cmd = "git -C '" + repo.string() + "' " + gitArgs;
+  FILE* pipe = popen(cmd.c_str(), "r");
+  if (pipe == nullptr)
+  {
+    return false;
+  }
+  char buf[65536];
+  std::size_t got = 0;
+  while ((got = std::fread(buf, 1, sizeof(buf), pipe)) > 0)
+  {
+    out.append(buf, got);
+  }
+  pclose(pipe);
+  return true;
+}
+
+// Resolve `spec` (a single rev, or "A..B") to parent and child revs.
+// For a single rev C, parent = C^. Returns false if no parent (root commit).
+bool resolveRange(const fs::path& repo, const std::string& spec,
+                  std::string& parent, std::string& child)
+{
+  const std::size_t dots = spec.find("..");
+  std::string parentSpec;
+  std::string childSpec;
+  if (dots != std::string::npos)
+  {
+    parentSpec = spec.substr(0, dots);
+    childSpec = spec.substr(dots + 2);
+  }
+  else
+  {
+    childSpec = spec;
+    parentSpec = spec + "^";
+  }
+  std::string out;
+  if (!runGit(repo, "rev-parse --verify " + childSpec + " 2>/dev/null", out) || out.empty())
+  {
+    return false;
+  }
+  child = out.substr(0, out.find('\n'));
+  if (!runGit(repo, "rev-parse --verify " + parentSpec + " 2>/dev/null", out) || out.empty())
+  {
+    return false;  // root commit: no parent, no baseline.
+  }
+  parent = out.substr(0, out.find('\n'));
+  return true;
+}
+
+// Parse `git diff -U0` hunk headers ("@@ -a,b +c,d @@") -> set of line numbers
+// ADDED in the NEW file. -U0 means each hunk's "+c,d" is exactly the added span.
+std::unordered_set<int> addedLines(const std::string& diff)
+{
+  std::unordered_set<int> added;
+  std::istringstream ss(diff);
+  std::string line;
+  while (std::getline(ss, line))
+  {
+    if (line.rfind("@@", 0) != 0)
+    {
+      continue;
+    }
+    const std::size_t plus = line.find('+');
+    if (plus == std::string::npos)
+    {
+      continue;
+    }
+    std::size_t i = plus + 1;
+    int start = 0;
+    while (i < line.size() && std::isdigit(static_cast<unsigned char>(line[i])) != 0)
+    {
+      start = start * 10 + (line[i] - '0');
+      ++i;
+    }
+    int count = 1;
+    if (i < line.size() && line[i] == ',')
+    {
+      ++i;
+      count = 0;
+      while (i < line.size() && std::isdigit(static_cast<unsigned char>(line[i])) != 0)
+      {
+        count = count * 10 + (line[i] - '0');
+        ++i;
+      }
+    }
+    for (int ln = start; ln < start + count; ++ln)
+    {
+      added.insert(ln);
+    }
+  }
+  return added;
+}
+
+// `git diff --numstat P..C` -> paths of changed source files (subpath-filtered).
+std::vector<std::string> changedSourceFiles(const fs::path& repo, const std::string& parent,
+                                            const std::string& child, const Options& opt)
+{
+  std::string out;
+  runGit(repo, "diff --numstat " + parent + " " + child, out);
+  std::vector<std::string> files;
+  std::istringstream ss(out);
+  std::string line;
+  while (std::getline(ss, line))
+  {
+    // numstat: "<added>\t<deleted>\t<path>"  (binary files use "-")
+    const std::size_t t1 = line.find('\t');
+    if (t1 == std::string::npos)
+    {
+      continue;
+    }
+    const std::size_t t2 = line.find('\t', t1 + 1);
+    if (t2 == std::string::npos)
+    {
+      continue;
+    }
+    std::string path = line.substr(t2 + 1);
+    // renames show as "old => new" or "{a => b}/c"; --numstat keeps a path, but
+    // be defensive and skip rename arrows we can't `git show`.
+    if (path.find(" => ") != std::string::npos)
+    {
+      continue;
+    }
+    if (!hasSourceExt(path) || isExcluded(path, opt.excludes))
+    {
+      continue;
+    }
+    if (!opt.subpath.empty() && path.rfind(opt.subpath, 0) != 0)
+    {
+      continue;
+    }
+    files.push_back(path);
+  }
+  return files;
+}
+
+// Compute the effective rare-df cutoff and min-shared from the corpus size N,
+// mirroring snapshot mode's logic (precise widens recall).
+void effectiveRecall(const Options& opt, std::size_t N, std::size_t& effRareDf,
+                     std::size_t& effMinShared)
+{
+  effRareDf = opt.precise ? std::max<std::size_t>(opt.rareDfCap, 8) : opt.rareDfCap;
+  if (opt.rareDfPct > 0.0)
+  {
+    const std::size_t pctCut = static_cast<std::size_t>(static_cast<double>(N) * opt.rareDfPct / 100.0);
+    effRareDf = std::max(effRareDf, pctCut);
+  }
+  effMinShared = opt.precise ? std::size_t{1} : opt.minSharedRare;
+}
+
+// Baseline = the whole parent tree (code that already existed). `git archive P
+// | tar -x` into `tmp`, then scan it as a directory. Appends to `frags`.
+void collectBaseline(const Options& opt, const std::string& parent, const fs::path& tmp,
+                     std::vector<Fragment>& frags)
+{
+  std::error_code ec;
+  fs::remove_all(tmp, ec);
+  fs::create_directories(tmp, ec);
+  std::string sink;
+  runGit(opt.repo, "archive " + parent + " | tar -x -C '" + tmp.string() + "'", sink);
+
+  std::vector<fs::path> files;
+  const fs::path scanRoot = opt.subpath.empty() ? tmp : (tmp / opt.subpath);
+  if (fs::is_directory(scanRoot))
+  {
+    for (const auto& e : fs::recursive_directory_iterator(scanRoot, ec))
+    {
+      if (e.is_regular_file() && isSourceFile(e.path())
+          && !isExcluded(fs::relative(e.path(), tmp).string(), opt.excludes))
+      {
+        files.push_back(e.path());
+      }
+    }
+  }
+  std::sort(files.begin(), files.end());
+  for (const fs::path& p : files)
+  {
+    std::ifstream in(p, std::ios::binary);
+    if (!in)
+    {
+      continue;
+    }
+    std::ostringstream ss;
+    ss << in.rdbuf();
+    collectFromSource(ss.str(), fs::relative(p, tmp).string(), opt, frags);
+  }
+}
+
+// Added fragments = function-scale fragments in each changed file's NEW content
+// that overlap a line ADDED in this commit. Appends to `frags`, returns their
+// indices.
+std::vector<std::size_t> collectAdded(const Options& opt, const std::string& parent,
+                                      const std::string& child, std::vector<Fragment>& frags)
+{
+  std::vector<std::size_t> addedIdx;
+  for (const std::string& path : changedSourceFiles(opt.repo, parent, child, opt))
+  {
+    std::string newSrc;
+    runGit(opt.repo, "show " + child + ":'" + path + "'", newSrc);
+    if (newSrc.empty())
+    {
+      continue;
+    }
+    std::string diff;
+    runGit(opt.repo, "diff -U0 " + parent + " " + child + " -- '" + path + "'", diff);
+    const std::unordered_set<int> added = addedLines(diff);
+    std::vector<Fragment> fileFrags;
+    collectFromSource(newSrc, path, opt, fileFrags);
+    for (Fragment& f : fileFrags)
+    {
+      bool touchesAdded = false;
+      for (int ln = f.startLine; ln <= f.endLine && !touchesAdded; ++ln)
+      {
+        touchesAdded = added.count(ln) != 0;
+      }
+      if (touchesAdded)
+      {
+        addedIdx.push_back(frags.size());
+        frags.push_back(std::move(f));
+      }
+    }
+  }
+  return addedIdx;
+}
+
+// Candidate cross pairs (added <-> baseline) sharing rare tokens. Only cross
+// pairs matter: we want "did this commit re-create existing code", not
+// added<->added self-similarity. Indexes baseline frags [0,baseCount) by rare
+// token, then probes with each added fragment.
+std::map<std::pair<std::size_t, std::size_t>, std::size_t>
+crossCandidates(const std::vector<Fragment>& frags, std::size_t baseCount,
+                const std::vector<std::size_t>& addedIdx,
+                const std::unordered_map<std::string, int>& df, std::size_t effRareDf)
+{
+  std::unordered_map<std::string, std::vector<std::size_t>> postings;  // rare sym -> baseline frags
+  for (std::size_t fi = 0; fi < baseCount; ++fi)
+  {
+    for (const auto& [sym, cnt] : frags[fi].bag)
+    {
+      if (static_cast<std::size_t>(df.at(sym)) <= effRareDf)
+      {
+        postings[sym].push_back(fi);
+      }
+    }
+  }
+  std::map<std::pair<std::size_t, std::size_t>, std::size_t> sharedRare;
+  for (std::size_t ai : addedIdx)
+  {
+    std::unordered_map<std::size_t, std::size_t> hits;
+    for (const auto& [sym, cnt] : frags[ai].bag)
+    {
+      const auto it = postings.find(sym);
+      if (static_cast<std::size_t>(df.at(sym)) > effRareDf || it == postings.end())
+      {
+        continue;
+      }
+      for (std::size_t bi : it->second)
+      {
+        ++hits[bi];
+      }
+    }
+    for (const auto& [bi, cnt] : hits)
+    {
+      sharedRare[{ai, bi}] = cnt;
+    }
+  }
+  return sharedRare;
+}
+
+// Score the cross candidates, gate, then keep one best baseline match per added
+// fragment (so a copied block matching a whole boilerplate family is one row).
+std::vector<Pair> scoreCrossPairs(const Options& opt, const std::vector<Fragment>& frags,
+                                  const std::map<std::pair<std::size_t, std::size_t>, std::size_t>& sharedRare,
+                                  const std::unordered_map<std::string, double>& idf,
+                                  std::size_t effMinShared)
+{
+  std::vector<Pair> reported;
+  for (const auto& [pr, shared] : sharedRare)
+  {
+    // Self-match guard: when file F is edited, the edited block is "added" and
+    // the parent baseline still holds F's *pre-edit* version of that same block
+    // — a ~1.0 match that is "a function was edited", not copy-paste. Drop
+    // same-file matches whose line range overlaps the added block. A
+    // non-overlapping same-file block is a legit within-file duplicate, kept.
+    const Fragment& fa = frags[pr.first];
+    const Fragment& fb = frags[pr.second];
+    if (shared < effMinShared
+        || (fa.file == fb.file && fa.startLine <= fb.endLine && fb.startLine <= fa.endLine))
+    {
+      continue;
+    }
+    Pair p;
+    p.a = pr.first;   // added
+    p.b = pr.second;  // baseline
+    p.sharedRare = shared;
+    p.weighted = weightedJaccard(fa, fb, idf);
+    p.plain = plainJaccard(fa, fb);
+    p.line = lineOverlap(fa, fb);
+    if (opt.precise)
+    {
+      p.lcs = lcsRatio(fa, fb);
+    }
+    if (gateScore(opt.metric, opt.precise, p) >= opt.simThreshold)
+    {
+      reported.push_back(p);
+    }
+  }
+  std::sort(reported.begin(), reported.end(), [&opt](const Pair& l, const Pair& r)
+            { return gateScore(opt.metric, opt.precise, l) > gateScore(opt.metric, opt.precise, r); });
+  std::vector<Pair> best;
+  std::unordered_set<std::size_t> seen;
+  for (const Pair& p : reported)
+  {
+    if (seen.insert(p.a).second)
+    {
+      best.push_back(p);
+    }
+  }
+  return best;
+}
+
+// Run diff mode for one commit range. Emits a machine-parseable summary line
+// plus the hit list. Returns the number of partial hits reported.
+std::size_t runDiffCommit(const Options& opt, const std::string& parent,
+                          const std::string& child, const std::string& label)
+{
+  const fs::path tmp = fs::temp_directory_path()
+                       / ("pdup_base_" + child.substr(0, std::min<std::size_t>(child.size(), 12)));
+  std::vector<Fragment> frags;  // baseline fragments first, then added fragments.
+  collectBaseline(opt, parent, tmp, frags);
+  const std::size_t baseCount = frags.size();
+
+  const std::vector<std::size_t> addedIdx = collectAdded(opt, parent, child, frags);
+
+  std::error_code ec;
+  fs::remove_all(tmp, ec);
+
+  const std::size_t N = frags.size();
+  if (addedIdx.empty() || N < 2)
+  {
+    std::cout << "commit=" << label << " added_frags=" << addedIdx.size()
+              << " partial_hits=0 max_sim=0\n";
+    return 0;
+  }
+
+  // 3. corpus stats over baseline + added (idf weights the whole comparison set).
+  std::unordered_map<std::string, int> df;
+  for (const Fragment& f : frags)
+  {
+    for (const auto& [sym, cnt] : f.bag)
+    {
+      ++df[sym];
+    }
+  }
+  std::unordered_map<std::string, double> idf;
+  for (const auto& [sym, d] : df)
+  {
+    idf[sym] = std::log(static_cast<double>(N) / static_cast<double>(d));
+  }
+
+  // 4-5. cross candidates (added <-> baseline) -> score -> best match per added.
+  std::size_t effRareDf = 0;
+  std::size_t effMinShared = 0;
+  effectiveRecall(opt, N, effRareDf, effMinShared);
+  const auto sharedRare = crossCandidates(frags, baseCount, addedIdx, df, effRareDf);
+  const std::vector<Pair> best = scoreCrossPairs(opt, frags, sharedRare, idf, effMinShared);
+
+  double maxSim = 0.0;
+  for (const Pair& p : best)
+  {
+    maxSim = std::max(maxSim, gateScore(opt.metric, opt.precise, p));
+  }
+  const std::string gateName = opt.precise ? "token-LCS" : (opt.metric == "plain" ? "plain" : "weighted");
+  std::cout << "commit=" << label << " added_frags=" << addedIdx.size()
+            << " partial_hits=" << best.size() << " max_sim=" << maxSim << "\n";
+  const std::size_t shown = std::min(best.size(), opt.top);
+  for (std::size_t i = 0; i < shown; ++i)
+  {
+    const Pair& p = best[i];
+    const Fragment& fa = frags[p.a];
+    const Fragment& fb = frags[p.b];
+    std::cout << "  [" << gateName << "=" << gateScore(opt.metric, opt.precise, p) << "] ADDED "
+              << fa.file << ":" << fa.startLine << "-" << fa.endLine << "  <->  BASE " << fb.file
+              << ":" << fb.startLine << "-" << fb.endLine << "  tokens " << fa.tokenCount << "/"
+              << fb.tokenCount << "  weighted=" << p.weighted << " plain=" << p.plain
+              << " line=" << p.line;
+    if (opt.precise)
+    {
+      std::cout << " lcs=" << p.lcs;
+    }
+    std::cout << " shared-rare=" << p.sharedRare << "\n";
+  }
+  return best.size();
 }
 
 }  // namespace
@@ -675,6 +1184,30 @@ int main(int argc, char** argv)
     {
       opt.excludes.push_back(next());
     }
+    else if (arg == "--min-diversity")
+    {
+      opt.minDiversity = std::stod(next());
+    }
+    else if (arg == "--keep-calls")
+    {
+      opt.keepCalls = true;
+    }
+    else if (arg == "--no-keep-calls")
+    {
+      opt.keepCalls = false;
+    }
+    else if (arg == "--diff")
+    {
+      opt.diffSpec = next();
+    }
+    else if (arg == "--repo")
+    {
+      opt.repo = next();
+    }
+    else if (arg == "--subpath")
+    {
+      opt.subpath = next();
+    }
     else if (arg == "-h" || arg == "--help")
     {
       printUsage();
@@ -685,6 +1218,40 @@ int main(int argc, char** argv)
       positional.push_back(arg);
     }
   }
+  // token-LCS lives on a higher scale than bag-overlap: the normalized alphabet
+  // (id/lit/keywords/operators) is tiny, so any two C++ bodies share a long
+  // subsequence (~0.7 floor). Give precise mode its own default gate unless the
+  // user pinned --threshold explicitly.
+  if (opt.precise && !thresholdSet)
+  {
+    opt.simThreshold = 0.80;
+  }
+
+  // --- diff mode (#054): --diff <sha>|<A>..<B> --repo <path> ---
+  if (!opt.diffSpec.empty())
+  {
+    if (opt.repo.empty())
+    {
+      std::cerr << "error: --diff requires --repo <path>\n";
+      return 2;
+    }
+    if (!fs::exists(opt.repo))
+    {
+      std::cerr << "error: repo not found: " << opt.repo << "\n";
+      return 2;
+    }
+    std::string parent;
+    std::string child;
+    if (!resolveRange(opt.repo, opt.diffSpec, parent, child))
+    {
+      std::cerr << "error: cannot resolve --diff '" << opt.diffSpec
+                << "' (root commit / bad rev?)\n";
+      return 2;
+    }
+    runDiffCommit(opt, parent, child, child.substr(0, 12));
+    return 0;
+  }
+
   if (positional.empty())
   {
     printUsage();
@@ -695,14 +1262,6 @@ int main(int argc, char** argv)
   {
     std::cerr << "error: path not found: " << opt.root << "\n";
     return 2;
-  }
-  // token-LCS lives on a higher scale than bag-overlap: the normalized alphabet
-  // (id/lit/keywords/operators) is tiny, so any two C++ bodies share a long
-  // subsequence (~0.7 floor). Give precise mode its own default gate unless the
-  // user pinned --threshold explicitly.
-  if (opt.precise && !thresholdSet)
-  {
-    opt.simThreshold = 0.80;
   }
 
   // 1-2. collect fragments from every source file under root.
@@ -717,17 +1276,7 @@ int main(int argc, char** argv)
       {
         continue;
       }
-      const std::string full = e.path().string();
-      bool skip = false;
-      for (const std::string& ex : opt.excludes)
-      {
-        if (full.find(ex) != std::string::npos)
-        {
-          skip = true;
-          break;
-        }
-      }
-      if (!skip)
+      if (!isExcluded(e.path().string(), opt.excludes))
       {
         files.push_back(e.path());
       }
@@ -749,7 +1298,7 @@ int main(int argc, char** argv)
     ss << in.rdbuf();
     const std::string src = ss.str();
     ++fileCount;
-    const std::vector<Token> toks = lex(src);
+    const std::vector<Token> toks = lex(src, opt.keepCalls);
     const std::vector<int> match = braceMatch(toks);
     const std::vector<std::string> lines = splitLines(src);
     const std::string rel = fs::relative(p, fs::is_directory(opt.root) ? opt.root : opt.root.parent_path()).string();
@@ -830,6 +1379,11 @@ int main(int argc, char** argv)
     if (shared < effMinShared)
     {
       continue;
+    }
+    if (opt.minDiversity > 0.0
+        && std::min(frags[pr.first].diversity, frags[pr.second].diversity) < opt.minDiversity)
+    {
+      continue;  // skeletal fragment (dispatch switch / data table) — idiom-FP floor
     }
     ++candidateCount;
     Pair p;
