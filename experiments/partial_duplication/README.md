@@ -42,7 +42,34 @@ cmake --build /tmp/partial_dup_build
 
 # P3 precise: token-LCS re-rank + diff-view (own default gate 0.80, widened recall)
 /tmp/partial_dup_build/partial_duplication experiments/partial_duplication/cases --partial-precise
+
+# diff mode (#054): per-commit "did this commit ADD a Type-3 near-dup of code
+# that already existed at the parent?"  --diff <sha>|<A>..<B> --repo <path>
+/tmp/partial_dup_build/partial_duplication --diff <sha> --repo /path/to/repo \
+  --subpath src --partial-precise --min-tokens 45 --rare-df-pct 8 --threshold 0.85
 ```
+
+## Diff mode (#054)
+
+Snapshot mode scans a tree and reports near-dup pairs — a *static* whole-tree
+view. Diff mode attributes copy-paste to the **commit that introduced it**: for
+commit `C` (parent `P`) it asks *did `C` add code that is a Type-3 near-duplicate
+of code that already existed at `P`?* — a missing-reuse edge born in that commit.
+
+- `--diff <sha>` (parent = `sha^`) or `--diff <A>..<B>`; requires `--repo <path>`.
+- `--subpath <rel>` restricts both the diff and the baseline to a subtree.
+- baseline = the whole parent tree (`git archive P | tar -x`);
+  added fragments = function-scale fragments overlapping a line added in `C`
+  (parsed from `git diff -U0 P..C` hunk headers, content from `git show C:<f>`).
+- each added fragment is scored against the baseline with the same bag-recall +
+  LCS-confirm; only the best baseline match per added fragment is reported.
+- a self-edit guard drops same-file matches whose line range overlaps the added
+  block (an in-place edit of a function is not copy-paste).
+- output is machine-parseable: `commit=<sha> added_frags=N partial_hits=M
+  max_sim=X` plus the hit list. Shells out to `git` (no libtooling).
+
+Self-contained C++20, no libclang. All common flags above apply. Snapshot mode
+is unchanged when `--diff` is absent.
 
 ## Options
 
