@@ -11,14 +11,24 @@
 т.к. selective normalization схлопывает `id`/`lit` → разный код даёт похожий
 токен-поток, token-LCS добивает до weighted=1.0 при низком `line` (0.3–0.6).
 
-## Гипотезы фикса (мерить по iter)
-1. **Min raw-line floor**: гейт `line >= X` (≈0.5) — отсекает над-нормализованные
-   совпадения (разный сырой код). Риск: теряем сильно-renamed TP → подобрать X
-   по распределению TP/FP из verified-данных iter1.
-2. **Structural discriminator**: учитывать callee-сигнатуры / форму control-flow,
-   а не только нормализованный поток (см. essence-clones, #059).
-3. Возможно: ограничить `--diff` cross-component (как snapshot), убрать same-file
-   пары (большинство coincidental — same-file разные функции).
+## Гипотезы — ВСЕ ОПРОВЕРГНУТЫ на размеченных данных (iter3, VALIDATION_ITER3.md)
+1. ~~content-overlap (callee/type Jaccard)~~ — у same-file (66%) высок у обоих
+   (общий словарь класса). Не разделяет.
+2. ~~cross-file-only~~ — отвергнуто: within-file копии (скопировал функцию, правил
+   часть) В СКОУПЕ, их надо ловить.
+3. ~~raw-line floor~~ — метрика `line` нормализованная (обманута); на данных
+   распределения инвертированы: FP line 0.88 > TP 0.67. Порог роняет TP, держит FP.
 
-## Проверка
-- [ ] iter-N: precision до/после, TP-retention.
+**Корень:** все surface-метрики (token-LCS, norm-line, content) обмануты ОДНОЙ
+нормализацией — coincidental по ним «копийнее» настоящей renamed-копии. Сигнал
+семантический. Это «idiom-FP floor» из duplication_architecture.md §5/§9.
+
+## Правильная постановка (architecture-first)
+#056 surface = RECALL-стадия (16.5% precision). Precision даёт **семантический
+confirm-слой** (#059 final): агент читает оба фрагмента → REAL/coincidental, гейтит.
+Порогами #056 не точить — доказано. Следующий шаг: встроить confirm-слой в конвейер
+как гейт на кандидатах, прошедших дешёвые фильтры.
+
+## Статус
+Поверхностный #063 закрыт как тупик (с доказательством). Переходит в реализацию
+confirm-слоя (#059).
