@@ -836,7 +836,10 @@ std::vector<std::string> changedSourceFiles(const fs::path& repo, const std::str
                                             const std::string& child, const Options& opt)
 {
   std::string out;
-  runGit(repo, "diff --numstat " + parent + " " + child, out);
+  // -M: detect renames. A renamed file is the SAME file moved, not new duplicated
+  // code; without -M git reports it as add(new)+delete(old) and the "added" path
+  // spuriously matches its own pre-rename copy in the baseline (FP-other, #061).
+  runGit(repo, "diff -M --numstat " + parent + " " + child, out);
   std::vector<std::string> files;
   std::istringstream ss(out);
   std::string line;
@@ -1225,6 +1228,16 @@ int main(int argc, char** argv)
   if (opt.precise && !thresholdSet)
   {
     opt.simThreshold = 0.80;
+  }
+
+  // Default vendor excludes (#064): vendored libraries are real copy-paste but not
+  // the project's own code, so they pollute the missing-reuse signal (e.g. two
+  // copies of miniz/stb). Seed common spellings; isExcluded matches case-insensitive
+  // substrings. User --exclude adds to (does not replace) these.
+  for (const char* v : {"third_party", "thirdparty", "3rdparty", "/extern/",
+                        "/external/", "/vendor/", "/deps/", "node_modules", "/submodules/"})
+  {
+    opt.excludes.emplace_back(v);
   }
 
   // --- diff mode (#054): --diff <sha>|<A>..<B> --repo <path> ---
