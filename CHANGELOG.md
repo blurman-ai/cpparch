@@ -15,7 +15,7 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 - **Lakos.ChainLength rule** — include chain length (default 10).
 - **DRIFT.1 / DRIFT.2 rules** — shortcut edges and cycle growth against a saved graph baseline. (#009, #040)
 - **Baseline modes** — `--baseline`, `--save-baseline`, `--save-graph-baseline`, `--drift-baseline`.
-- **PR diff mode** — `--diff <revspec>` reports only violations on changed files.
+- **PR diff mode** — `--diff <revspec>` reports structural graph regressions (added/removed edges, grown cycles, new god-headers, chain-length growth) between two git refs.
 - **JSON reporter** and stabilised exit-code contract (`0` ok / `1` violations / `2` config error / `3` internal error).
 - **Fast preprocessor backend** — runs without `compile_commands.json` and without libclang; default for v0.1.
 - **PR sticky-comment CI integration** — single auto-updating PR comment with violations. (#025)
