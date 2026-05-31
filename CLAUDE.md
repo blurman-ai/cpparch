@@ -78,6 +78,7 @@ From [docs/MVP.md](docs/MVP.md): *"If feature cannot be tested with fixtures —
 - [README.md](README.md) — public-facing pitch; example config and CLI shape live here.
 - [docs/research/constraint_decay.md](docs/research/constraint_decay.md) — первопричина проекта: пересказ статьи Dente et al. (EURECOM, 2026) о constraint decay и разбор HN-дискуссии. Читать, когда нужно вспомнить *зачем*.
 - [docs/dev/coverage_constraints.md](docs/dev/coverage_constraints.md) — почему branch coverage застрял на ~63% и что с этим делать: ограничение lcov 1.13 на Astra Linux 1.7 (GCC 8.x не размечает throw-arcs так, чтобы lcov их убирал). Branches-порог намеренно оставлен на 40%.
+- [docs/duplication_architecture.md](docs/duplication_architecture.md) — единый источник истины по подсистеме поиска дубликатов: комплементарные слои (#053 line / #056 token / #052 AST / #059 precision / #054 usage), конвейер токенового прохода, selective normalization, метрики и их семантика, классы FP, режимы, границы. Читать перед работой над любым duplication-слоем.
 
 ## Working principles from the spec
 
