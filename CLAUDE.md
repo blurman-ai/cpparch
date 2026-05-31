@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-**Pre-implementation.** The repo currently contains only design documents, LICENSE, README, and .gitignore — there is no source code, build system, or tests yet. Future sessions will be bootstrapping the project from scratch following the spec.
+**v0.1 in active development.** The core pipeline (fast preprocessor scan → include graph → default rules → reporters) is implemented and builds; the binary ships SF.7/8/9 + Lakos rules, baseline, drift, and diff modes. For what has actually shipped, [CHANGELOG.md](CHANGELOG.md) is authoritative — don't restate version-specific scope here, it drifts.
 
-Working name in the README is `archcheck` (binary `archcheck`); the spec uses `archcheck` as the primary name. Name availability on GitHub/PyPI/crates.io/Homebrew is still an open question (see [docs/architecture-spec.md](docs/architecture-spec.md) §"Ключевые риски", item 4).
+Product name is locked to `archcheck` (binary `archcheck`); availability on GitHub/PyPI/crates.io/Homebrew/npm was verified clear (#003). The local working directory stays `cpparch` for tool-path stability.
 
 ## What this tool is
 
@@ -62,7 +62,7 @@ Pipeline modules (planned layout under `src/`):
 v0.1 ships only a conservative subset to avoid the "5000 violations on first run" failure mode:
 
 - Core Guidelines: **SF.7, SF.8, SF.9, SF.21**
-- Lakos: cycles, include chain length (default threshold 10), god-headers (default fan-in 30), CCD/ACD/NCCD in report
+- Lakos: cycles, include chain length (default threshold 10), god-headers (default fan-in 50), CCD/ACD/NCCD in report
 - `--baseline` mode from day one, so legacy projects can adopt without rewriting
 
 Remaining SF.* rules (SF.2, SF.4, SF.5, SF.10, SF.11) and Martin metrics (Ce/Ca/I/A/D) are v0.2/v0.3.

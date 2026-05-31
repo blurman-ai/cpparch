@@ -28,11 +28,11 @@ Linters don’t check architecture.
   - **SF.7** — no `using namespace` in headers
   - **SF.8** — every header has `#pragma once` or include guard
   - **SF.9** — no cycles in the include graph
-  - **Lakos.GodHeader** — fan-in fewer than 50 incoming includes
+  - **Lakos.GodHeader** — fan-in ≤ 50 incoming includes
   - **Lakos.ChainLength** — include-chain depth ≤ 10
 - Reports violations as `file:line: [rule] message`, exit non-zero on failure
 - Tracks architectural drift between revisions: `--save-graph-baseline` once, then `--drift-baseline` in CI catches new cycles (DRIFT.2) and short-circuit edges (DRIFT.1)
-- Diff mode (`--diff <revspec>`) reports only the new violations introduced by a commit range — useful for PR checks on legacy projects
+- Diff mode (`--diff <revspec>`) compares the include graph between two git refs and reports structural regressions — added/removed edges, grown cycles, new god-headers, chain-length growth — useful for PR checks on legacy projects
 
 ---
 
