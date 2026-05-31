@@ -51,6 +51,7 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 - **SF.9 silent on `#ifndef`-guarded cycles** — scanner now recognises `#ifndef`/`#define`/`#endif` include guards as unconditional includes. (#049)
 - **UTF-8 BOM not stripped** at file start, causing scanner to miss the first directive. (#047)
 - **Ambiguous includes resolved against mirror dirs** — skip well-known mirror trees (`copies/`, `upgrade/`, etc.) when picking a target. (#036)
+- **Self-edge from system include suffix-collision** — a system/library `#include <name.h>` that suffix-matches a same-named project file (e.g. `src/compat/cpuid.h` → `<cpuid.h>`) no longer resolves to itself; tagged External/Unresolved instead. Removes phantom 1-node cycles in SF.9 (corpus: 26 false self-edges, 8 repos with a fake cycle). Single-candidate variant of #036. (#058)
 - **GCC 8 / GCC 13 build warnings** — `starts_with` cppcheck noise silenced; unused-result warning in git object reader suppressed.
 
 [Unreleased]: https://github.com/blurman-ai/archcheck/commits/master

@@ -161,6 +161,37 @@ TEST_CASE("resolve_include angle: both mirror candidates -> still Ambiguous", "[
   REQUIRE(r.candidates.size() == 2);
 }
 
+TEST_CASE("resolve_include angle: system header suffix-matching own path -> External, no self-edge",
+          "[scan][resolver][self]")
+{
+  // bitcoin src/compat/cpuid.h does `#include <cpuid.h>` (the system header).
+  // Suffix index maps "cpuid.h" -> the file itself; without the self guard this
+  // produced a phantom X->X edge and a fake 1-node cycle.
+  const auto files = files_of({"src/compat/cpuid.h"});
+  const ProjectIndex index = buildProjectIndex(files);
+  const ResolvedInclude r = resolveInclude(angle("cpuid.h"), "src/compat/cpuid.h", files, index);
+  REQUIRE(r.resolution == Resolution::External);
+}
+
+TEST_CASE("resolve_include quote: token suffix-matching own path -> Unresolved, no self-edge", "[scan][resolver][self]")
+{
+  const auto files = files_of({"a/widget.h"});
+  const ProjectIndex index = buildProjectIndex(files);
+  const ResolvedInclude r = resolveInclude(quote("widget.h"), "a/widget.h", files, index);
+  REQUIRE(r.resolution == Resolution::Unresolved);
+}
+
+TEST_CASE("resolve_include angle: same basename in a DIFFERENT file still resolves", "[scan][resolver][self]")
+{
+  // The guard must only suppress a true self-edge, not a legitimate edge to a
+  // same-named header elsewhere.
+  const auto files = files_of({"src/compat/cpuid.h", "src/util/cpuid.h"});
+  const ProjectIndex index = buildProjectIndex(files);
+  const ResolvedInclude r = resolveInclude(angle("util/cpuid.h"), "src/compat/cpuid.h", files, index);
+  REQUIRE(r.resolution == Resolution::Project);
+  REQUIRE(r.target == NodeId{1});
+}
+
 TEST_CASE("resolve_includes batch preserves order and per-directive verdicts", "[scan][resolver][batch]")
 {
   const auto files = files_of({"src/a.cpp", "src/a.h", "include/lib/b.h"});

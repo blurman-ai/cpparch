@@ -118,11 +118,20 @@ ResolvedInclude resolve_angle(const IncludeDirective &d, std::string_view source
 ResolvedInclude resolveInclude(const IncludeDirective &directive, std::string_view sourceFile,
                                const std::vector<ProjectFile> &files, const ProjectIndex &index)
 {
-  if (directive.kind == IncludeKind::Quote)
+  const ResolvedInclude resolved = (directive.kind == IncludeKind::Quote)
+                                       ? resolve_quote(directive, sourceFile, files, index)
+                                       : resolve_angle(directive, sourceFile, files, index);
+  // A component never depends on itself. A same-basename header elsewhere on
+  // the include path (e.g. system <cpuid.h> suffix-matching project .../cpuid.h)
+  // must not create a self-edge / phantom 1-node cycle. Downgrade to the
+  // not-found tag for the directive kind. Same class as #036, single-candidate
+  // variant where the mirror-dir filter cannot fire.
+  if (resolved.resolution == Resolution::Project && files[resolved.target].path == sourceFile)
   {
-    return resolve_quote(directive, sourceFile, files, index);
+    const Resolution miss = (directive.kind == IncludeKind::Quote) ? Resolution::Unresolved : Resolution::External;
+    return make_tagged(directive, sourceFile, miss);
   }
-  return resolve_angle(directive, sourceFile, files, index);
+  return resolved;
 }
 
 std::vector<ResolvedInclude> resolveIncludes(const std::vector<IncludeDirective> &directives,
