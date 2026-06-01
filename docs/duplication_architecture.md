@@ -1,9 +1,17 @@
 # Архитектура поиска дубликатов
 
-_Актуально на 2026-05-31. Сводит воедино слои дедупликации archcheck: что есть,
-как устроено, какие решения приняты и почему. Источник истины по дизайну
-duplication-подсистемы — этот документ; детальные замеры — в отчётах спайков
-(см. «Артефакты»)._
+_Актуально на 2026-06-01. Источник истины по дизайну duplication-подсистемы —
+этот документ; детальные замеры — в отчётах спайков (см. «Артефакты»)._
+
+> **Решение 2026-06-01 — оставлен один детектор.** Подсистема сведена к
+> **нечёткому токеновому #056** (Type-3, «правленые копии»). Line-based #053 и
+> AST cross-TU #052 **убраны из дерева** (`experiments/line_duplication`,
+> `experiments/clone_detector` удалены — остаются только в git-истории). К ним
+> **не возвращаемся**: #053 верно ловил лишь Type-1/verbatim, что #056 покрывает
+> как частный случай; #052 (libclang, дорого) так и не вышел из proof-of-concept.
+> FP-логика, нажитая в #053 (отсев raw-string-блобов и мёртвых `#if 0`), не
+> потеряна — перенесена в лексер #056. Разделы ниже про #053/#052 — историческая
+> справка о том, что было и почему пробовали несколько слоёв.
 
 ## 1. Назначение и позиционирование
 
@@ -21,19 +29,21 @@ physical design: код, который должен был быть общим 
 любой дорогой слой (особенно семантическая проверка) оправдан только если его
 вывод **гейтит PR или порождает remediation** (вынос общего кода).
 
-## 2. Слои — комплементарны, не конкурируют
+## 2. Слои — что пробовали и что оставили
 
 | Слой | Задача | Гранулярность | Цена | Бэкенд | Статус |
 |------|--------|---------------|------|--------|--------|
-| **#053** line-based | Type-1 / verbatim + Type-2-lite | строка | дёшево | preprocessor | спайк закрыт, гейт перед `src/` |
-| **#056** token-based | **Type-3 / diverged** (правленые копии) | **токен** | дёшево | preprocessor | спайк (этот документ — про него) |
+| **#056** token-based | **Type-3 / diverged** (правленые копии) | **токен** | дёшево | preprocessor | **оставлен — единственный детектор** |
 | **#059** precision | отсев coincidental/idiom-FP над #056 | токен + смысл | средне | — | задача (поверх #056) |
-| **#052** AST cross-TU | точные cross-TU клоны | AST | дорого | libclang | future |
+| ~~#053 line-based~~ | Type-1 / verbatim + Type-2-lite | строка | дёшево | preprocessor | **убран** (git history) — Type-1 покрыт #056 |
+| ~~#052 AST cross-TU~~ | точные cross-TU клоны | AST | дорого | libclang | **убран** (git history) — не вышел из PoC |
 
-Разные оси расхождения ловятся разными слоями. Каноничный пример: копия с
-**переименованием** локальных имён — #053 (line) видит её как ~12% совпадения
-(имена разные → строки разные), а #056 (token) — как 100% (нормализация имена
-прозрачит). Поэтому слои **дополняют** друг друга, их не схлопывают.
+Изначально слои задумывались комплементарными: разные оси расхождения ловятся
+по-разному. Каноничный пример — копия с **переименованием** локальных имён: #053
+(line) видел её как ~12% совпадения (имена разные → строки разные), а #056 (token)
+видит как 100% (нормализация имена прозрачит). Именно это и стало причиной
+схлопывания до одного слоя: #056 покрывает Type-1/verbatim как частный случай
+Type-3, а отдельная цена libclang (#052) не окупалась. Оставлен **только #056**.
 
 ## 3. Конвейер токенового прохода (#056) — основной слой
 
@@ -219,21 +229,24 @@ detect (#053/#056 recall) → confirm (#059 precision) → ДЕЙСТВИЕ
 
 - **В `experiments/`** (standalone C++20, не в основном билде): токеновый проход
   #056 целиком — нормализация, фрагментация, индекс, bag, token-LCS, diff,
-  selective normalization, excludes, diff-mode #054.
+  selective normalization, excludes, diff-mode #054. Плюс перенесённый из #053
+  отсев data-блобов: raw-string-литералы (`R"(...)"`) схлопываются в `lit`,
+  мёртвые `#if 0`/`#if false` блоки выкидываются в лексере.
 - **В `src/scan/`** — пока НЕТ. Перенос ждёт стабилизации общего duplication
-  plumbing #053 (corpus/excludes/baseline/CLI umbrella).
+  plumbing (corpus/excludes/baseline/CLI umbrella).
 - **Не реализовано:** классификатор RENAMED/EDITED-CONST (спец в #056 §P3b),
-  data-heavy guard, LLM-confirm-слой, fingerprint-fallback recall.
+  полноценный data-heavy guard для числовых таблиц (raw-string/dead-`#if` уже
+  есть), LLM-confirm-слой, fingerprint-fallback recall.
 
 ## 12. Карта задач и артефактов
 
-- **#052** — `cross_tu_duplication_detector` (AST-слой, future).
-- **#053** — `fast_backend_line_duplication_pass` (line Type-1).
-- **#056** — `fast_backend_partial_duplication_pass` (token Type-3) — ядро.
+- **#056** — `fast_backend_partial_duplication_pass` (token Type-3) — **ядро, единственный детектор**.
 - **#059** — `coincidental_clone_filtering` (precision: selective norm + confirm).
 - **#054** — `ai_repo_duplication_run` (потребитель сигнала: дрейф по истории).
 - **#033** — `ai_drift_dataset` (дублирование как AI-drift сигнал).
+- ~~**#053** `fast_backend_line_duplication_pass` (line Type-1)~~ — убран, git history.
+- ~~**#052** `cross_tu_duplication_detector` (AST-слой)~~ — убран, git history.
 - Отчёты: `experiments/partial_duplication/{SPIKE_REPORT,OSS_SWEEP_REPORT}.md`,
-  `experiments/line_duplication/*`, `experiments/ai_repo_run/SUMMARY.md`.
+  `experiments/ai_repo_run/SUMMARY.md`.
 - Литература (precision): essence-clones (info-theoretic, arXiv 2502.19219),
   Kapser & Godfrey (benign clones), SourcererCC (low-freq index).

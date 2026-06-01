@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# drift_all.sh — НОЧНОЙ прогон дрейфа-по-истории по ВСЕМ full-history репам корпуса.
+# drift_all.sh — НОЧНОЙ прогон дрейфа-по-истории (graph-drift) по ВСЕМ
+# full-history репам корпуса.
 #
 # Для каждой репы _aidev_run/* с полной историей (не shallow):
 #   - автоопределяем subpath: src/ если есть, иначе корень репы;
 #   - сэмплим N снапшотов по first-parent магистрали (адаптивно к длине истории);
-#   - на каждом снапшоте: line-dup (ratio, cross-file) + archcheck --graph
-#     (nodes/edges/sccs_cyclic/largest_scc);
+#   - на каждом снапшоте: archcheck --graph (nodes/edges/sccs_cyclic/largest_scc);
 #   - пишем серию в runs_history/all/<repo>.tsv.
 # Затем строим сводку drift_summary.tsv: дельта метрик начало->конец по каждой репе,
-# отсортировано по приросту копипаста и по рождению циклов.
+# отсортировано по рождению циклов.
+#
+# Дедупликация (Type-3 copy-paste drift) живёт отдельно — в #056
+# partial_history_drift.sh; здесь её НЕТ (line-dup #053 выведен из обращения).
 #
 # Устойчивость: одна репа упала/зависла — логируем и идём дальше (timeout на снапшот).
 # Можно прерывать и перезапускать: уже готовые <repo>.tsv пропускаются.
@@ -20,18 +23,14 @@ ROOT="${DRIFT_ROOT:-~/oss/_aidev_run}"
 GLOB="${DRIFT_GLOB:-*/}"
 TAGDIR="${DRIFT_TAGDIR:-all}"
 ARCHCHECK=~/projects/cpparch/build/debug/src/archcheck
-DUP=/tmp/line_dup_build/line_duplication
 OUTDIR=~/projects/cpparch/experiments/ai_repo_run/runs_history/$TAGDIR
 SUMMARY=~/projects/cpparch/experiments/ai_repo_run/runs_history/drift_summary_${TAGDIR}.tsv
 LOG=~/projects/cpparch/experiments/ai_repo_run/drift_all_${TAGDIR}.log
 N="${1:-25}"                 # снапшотов на репу (адаптивно ужмётся, если коммитов меньше)
-SNAP_TIMEOUT=120             # сек на один снапшот (dup+graph) — анти-зависание
+SNAP_TIMEOUT=120             # сек на один снапшот (graph) — анти-зависание
 mkdir -p "$OUTDIR"
 : > "$LOG"
 log(){ echo "$(date +%H:%M:%S) $*" | tee -a "$LOG"; }
-
-# excludes для dup поверх дефолтных (вендоринг, который дефолты не ловят по имени)
-DUP_EXCLUDES=(--exclude imgui --exclude precompile --exclude examples --exclude tests --exclude test)
 
 pick_subpath(){  # echo подпуть для скана относительно репы
   # Берём src-подобную папку ТОЛЬКО если в ней реально есть C/C++ исходники
@@ -76,30 +75,27 @@ run_repo(){
     log "FAIL $name (worktree add)"; return
   fi
 
-  printf "idx\tsha\tdate\tdup_ratio\tcross_file\tnodes\tedges\tsccs_cyclic\tlargest_scc\n" > "$out_tsv"
+  printf "idx\tsha\tdate\tnodes\tedges\tsccs_cyclic\tlargest_scc\n" > "$out_tsv"
   log "RUN  $name total=$total N=$n subpath=$sub"
   local i
   for ((i=0;i<${#SAMP[@]};i++)); do
-    local sha short date ratio cross nodes edges cyc lscc scandir
+    local sha short date nodes edges cyc lscc scandir
     sha="${SAMP[$i]}"
     short=$(git -C "$d" rev-parse --short "$sha")
     date=$(git -C "$d" log -1 --format=%as "$sha" 2>/dev/null)
     git -C "$WT" checkout --detach --force "$sha" >/dev/null 2>&1
-    ratio=NA; cross=NA; nodes=NA; edges=NA; cyc=NA; lscc=NA
+    nodes=NA; edges=NA; cyc=NA; lscc=NA
     scandir="$WT/$sub"; [ "$sub" = "." ] && scandir="$WT"
     if [ -d "$scandir" ]; then
-      local dupout g
-      dupout=$(timeout "$SNAP_TIMEOUT" "$DUP" "$scandir" "${DUP_EXCLUDES[@]}" 2>/dev/null)
-      ratio=$(echo "$dupout" | awk '/duplication ratio:/{gsub(/%/,"",$3);print $3}')
-      cross=$(echo "$dupout" | awk '/cross-file blocks:/{print $3}')
+      local g
       g=$(timeout "$SNAP_TIMEOUT" "$ARCHCHECK" --graph "$scandir" 2>/dev/null)
       nodes=$(echo "$g" | awk -F: '/^nodes:/{gsub(/ /,"",$2);print $2}')
       edges=$(echo "$g" | awk -F: '/^edges:/{gsub(/ /,"",$2);print $2}')
       cyc=$(echo "$g"   | awk -F: '/^sccs_cyclic:/{gsub(/ /,"",$2);print $2}')
       lscc=$(echo "$g"  | awk -F: '/^largest_scc:/{gsub(/ /,"",$2);print $2}')
     fi
-    printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-      "$i" "$short" "$date" "${ratio:-NA}" "${cross:-NA}" "${nodes:-NA}" "${edges:-NA}" "${cyc:-NA}" "${lscc:-NA}" >> "$out_tsv"
+    printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+      "$i" "$short" "$date" "${nodes:-NA}" "${edges:-NA}" "${cyc:-NA}" "${lscc:-NA}" >> "$out_tsv"
   done
   git -C "$d" worktree remove --force "$WT" 2>/dev/null || true
   log "DONE $name -> $out_tsv"
@@ -113,37 +109,34 @@ done
 log "ALL REPOS DONE. строю сводку..."
 
 # --- сводка: первая и последняя валидная строка каждой серии ---
-printf "repo\tspan_first\tspan_last\tdup_first\tdup_last\tdup_delta\tcyc_first\tcyc_last\tlscc_max\tnodes_last\tvalid_snaps\n" > "$SUMMARY"
+printf "repo\tspan_first\tspan_last\tcyc_first\tcyc_last\tlscc_max\tnodes_last\tvalid_snaps\n" > "$SUMMARY"
 for tsv in "$OUTDIR"/*.tsv; do
   [ -s "$tsv" ] || continue
   name=$(basename "$tsv" .tsv)
-  # baseline берём с первого снапшота, где РЕАЛЬНО есть код (nodes>0 или dup>0).
-  # idx 0 часто = первый коммит репы (только README/build, 0 исходников -> dup=0,
+  # baseline берём с первого снапшота, где РЕАЛЬНО есть код (nodes>0).
+  # idx 0 часто = первый коммит репы (только README/build, 0 исходников ->
   # nodes=0); считать от него = ложный рост 0->X. (находка корпусного прогона)
   awk -F'\t' -v R="$name" '
     function num(x){ return (x=="NA"?0:x+0) }
     NR>1 && $4!="NA" {
-      has = (num($6)>0 || num($4)>0)        # есть код на этом снапшоте
+      has = (num($4)>0)                     # nodes>0 = есть код на этом снапшоте
       if (has) {
-        if (df=="") {df=$4; d1=$3; cf=num($8)}
-        dl=$4; d2=$3; cl=num($8); nl=$6
+        if (d1=="") {d1=$3; cf=num($6)}
+        d2=$3; cl=num($6); nl=$4
         nv++
-        if (num($9)>lmax) lmax=num($9)
+        if (num($7)>lmax) lmax=num($7)
       }
     }
     END{
-      if (df=="") {
-        print R"\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t0"
+      if (d1=="") {
+        print R"\tNA\tNA\tNA\tNA\tNA\tNA\t0"
       } else {
-        printf "%s\t%s\t%s\t%s\t%s\t%.2f\t%s\t%s\t%s\t%s\t%d\n", R,d1,d2,df,dl,(dl-df),cf,cl,(lmax==""?0:lmax),nl,nv
+        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\n", R,d1,d2,cf,cl,(lmax==""?0:lmax),nl,nv
       }
     }' "$tsv" >> "$SUMMARY"
 done
 log "СВОДКА -> $SUMMARY"
 
 echo "" | tee -a "$LOG"
-echo "=== ТОП-15 по приросту копипаста (dup_delta) ===" | tee -a "$LOG"
-{ head -1 "$SUMMARY"; tail -n +2 "$SUMMARY" | awk -F'\t' '$6!="NA"' | sort -t$'\t' -k6 -rn | head -15; } | column -t -s$'\t' | tee -a "$LOG"
-echo "" | tee -a "$LOG"
 echo "=== РЕПЫ, где РОДИЛИСЬ циклы (cyc_first=0 -> cyc_last>0) ===" | tee -a "$LOG"
-{ head -1 "$SUMMARY"; tail -n +2 "$SUMMARY" | awk -F'\t' '$7==0 && $8!="NA" && $8+0>0'; } | column -t -s$'\t' | tee -a "$LOG"
+{ head -1 "$SUMMARY"; tail -n +2 "$SUMMARY" | awk -F'\t' '$4==0 && $5!="NA" && $5+0>0'; } | column -t -s$'\t' | tee -a "$LOG"

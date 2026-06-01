@@ -113,12 +113,122 @@ const std::vector<std::string>& multiOps()
   return ops;
 }
 
+// Raw string opener length: if `src` at `i` begins a raw string literal
+// (R"( ... )", also prefixed LR/uR/UR/u8R), returns the introducer length up to
+// and including the opening `"(`; else 0. Embedded shaders/SQL/scripts inside
+// raw strings are DATA, not code — the body must collapse to one "lit" rather
+// than be tokenized. #056's plain string scanner mishandles blobs containing
+// `"` or `\`. Ported from #053 (#056 data-table FP class). Scope: default
+// delimiter R"(...)" only — no custom R"xx(...)xx" (documented limitation).
+[[nodiscard]] std::size_t rawStringPrefixLen(const std::string& src, std::size_t i)
+{
+  const std::size_t n = src.size();
+  std::size_t j = i;
+  if (src.compare(j, 2, "u8") == 0)
+  {
+    j += 2;
+  }
+  else if (j < n && (src[j] == 'L' || src[j] == 'u' || src[j] == 'U'))
+  {
+    j += 1;
+  }
+  if (j >= n || src[j] != 'R')
+  {
+    return 0;
+  }
+  ++j;
+  if (j + 1 < n && src[j] == '"' && src[j + 1] == '(')
+  {
+    return (j + 2) - i;
+  }
+  return 0;
+}
+
+// Is the `#` at `i` (line start) a literal-false conditional opener — `#if 0`
+// or `#if false`? Pragmatic: only the bare-false form (not `#if defined(X)&&0`),
+// enough for embedded dead code (fxc disassembly listings in shader headers).
+[[nodiscard]] bool isDeadIfOpener(const std::string& src, std::size_t i)
+{
+  const std::size_t n = src.size();
+  std::size_t j = i + 1;  // past '#'
+  while (j < n && (src[j] == ' ' || src[j] == '\t'))
+  {
+    ++j;
+  }
+  if (src.compare(j, 2, "if") != 0)
+  {
+    return false;
+  }
+  j += 2;
+  if (j < n && isIdentChar(src[j]))  // reject #ifdef / #ifndef
+  {
+    return false;
+  }
+  while (j < n && (src[j] == ' ' || src[j] == '\t'))
+  {
+    ++j;
+  }
+  if (src.compare(j, 5, "false") == 0)
+  {
+    return true;
+  }
+  if (j < n && src[j] == '0')
+  {
+    const char d = (j + 1 < n) ? src[j + 1] : '\n';
+    return d == '\n' || d == '\r' || d == ' ' || d == '\t' || d == '/';
+  }
+  return false;
+}
+
+// Skip a `#if 0`/`#if false` ... `#endif` region (inclusive), honoring nested
+// `#if*`. Advances `i`/`line` past the dead block. #056 doesn't preprocess, so
+// without this the dead body tokenizes as live code and inflates matches.
+// Ported from #053.
+void skipDeadIfBlock(const std::string& src, std::size_t& i, int& line)
+{
+  const std::size_t n = src.size();
+  int depth = 0;  // opener brings depth to 1; matching #endif back to 0
+  while (i < n)
+  {
+    if (src[i] == '#')
+    {
+      std::size_t j = i + 1;
+      while (j < n && (src[j] == ' ' || src[j] == '\t'))
+      {
+        ++j;
+      }
+      if (src.compare(j, 2, "if") == 0)  // #if / #ifdef / #ifndef
+      {
+        ++depth;
+      }
+      else if (src.compare(j, 5, "endif") == 0)
+      {
+        --depth;
+      }
+    }
+    while (i < n && src[i] != '\n')  // consume to end of line
+    {
+      ++i;
+    }
+    if (i < n)
+    {
+      ++i;
+      ++line;
+    }
+    if (depth == 0)
+    {
+      break;
+    }
+  }
+}
+
 std::vector<Token> lex(const std::string& src, bool keepCalls = false)
 {
   std::vector<Token> out;
   const std::size_t n = src.size();
   std::size_t i = 0;
   int line = 1;
+  bool atLineStart = true;  // only whitespace seen since last newline
 
   while (i < n)
   {
@@ -128,6 +238,7 @@ std::vector<Token> lex(const std::string& src, bool keepCalls = false)
     {
       ++line;
       ++i;
+      atLineStart = true;
       continue;
     }
     if (std::isspace(static_cast<unsigned char>(c)) != 0)
@@ -157,6 +268,32 @@ std::vector<Token> lex(const std::string& src, bool keepCalls = false)
         ++i;
       }
       i += 2;
+      continue;
+    }
+    // dead preprocessor block: #if 0 / #if false ... #endif (line-start only).
+    // Without this the dead body tokenizes as live code and inflates matches.
+    if (atLineStart && c == '#' && isDeadIfOpener(src, i))
+    {
+      skipDeadIfBlock(src, i, line);
+      atLineStart = true;
+      continue;
+    }
+    atLineStart = false;  // any char reaching here produces a token
+    // raw string literal R"( ... )" — collapse body (data, not code) to "lit"
+    if (const std::size_t pre = rawStringPrefixLen(src, i); pre != 0)
+    {
+      const int startLine = line;
+      i += pre;  // positioned just past the opening "("
+      while (i + 1 < n && !(src[i] == ')' && src[i + 1] == '"'))
+      {
+        if (src[i] == '\n')
+        {
+          ++line;
+        }
+        ++i;
+      }
+      i += 2;  // past the closing )"
+      out.push_back({"lit", startLine});
       continue;
     }
     // string literal
