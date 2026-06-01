@@ -18,6 +18,7 @@ add_executable(archcheck_tests
    unit/scan/include_scanner_test.cpp
    unit/scan/project_files_test.cpp
    unit/scan/include_resolver_test.cpp
+   unit/scan/file_classification_test.cpp
    unit/graph/dependency_graph_test.cpp
    unit/graph/algorithms_test.cpp
    unit/graph/diff_test.cpp
@@ -29,6 +30,7 @@ add_executable(archcheck_tests
    unit/report/violation_baseline_test.cpp
    integration/scan/scanner_fixtures_test.cpp
    integration/graph/end_to_end_test.cpp
+   integration/graph/vendor_exclude_test.cpp
    unit/rules/drift_no_shortcut_edge_test.cpp
    unit/rules/drift_no_cycle_growth_test.cpp
    unit/rules/lakos_chain_length_test.cpp
