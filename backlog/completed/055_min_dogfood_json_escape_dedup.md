@@ -189,6 +189,18 @@ boilerplate заголовков правил и include-блоки, не обя
 - `tests/unit/report/json_escape_test.cpp` — новый тест на helper (b3c9594)
 - `tests/CMakeLists.txt` — регистрация теста (b3c9594)
 
+## Чем управляется
+
+<!-- TODO -->
+
+## С чем связана
+
+<!-- TODO -->
+
+## Диагностика
+
+<!-- TODO -->
+
 ## Итог
 
 **Статус:** completed

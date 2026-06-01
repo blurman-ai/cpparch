@@ -1,12 +1,14 @@
 # archcheck — ROADMAP
 
-_2026-05-29 · phase: **v0.1 (ready to tag)**_
+_2026-06-01 · phase: **v0.1 (in progress — duplication pass)**_
 
 ## Current focus
 
-**v0.1 release** — функционально готов; критичных blocker'ов нет.
+**v0.1** — граф-правила готовы; **duplication pass внесён в MVP-scope** и пока не готов.
 
-Открытых критичных багов нет (#049 закрыт 2026-05-29). Решение по SF.21 зафиксировано: перенесён в v0.3 (preview в v0.2 через `--with-clang`), см. [#050](../backlog/future/050_min_sf21_anonymous_namespace.md).
+Открытый блокер — **рост дубликатов**: по предв. оценке на dense-корпусе (#054) класс не менее серьёзный, чем циклы графа. Дедуп пока живёт спайками (`experiments/line_duplication`, `experiments/partial_duplication`), в бинарь не интегрирован; precision `--diff` дедуп-детектора 16.5% (iter1-4, surface- и essence-LCS подходы исчерпаны — #060/#063). Hardening-loop #060 (≤5 итераций) активен.
+
+Граф-часть открытых блокеров не имеет (#049 закрыт 2026-05-29). SF.21 → v0.3 (preview в v0.2 через `--with-clang`), см. [#050](../backlog/future/050_min_sf21_anonymous_namespace.md).
 
 «Что в работе прямо сейчас» — `backlog/wip/`. Очередь — `backlog/new/`.
 «Что уже зашипилось» — [CHANGELOG.md](../CHANGELOG.md).
@@ -24,6 +26,7 @@ _2026-05-29 · phase: **v0.1 (ready to tag)**_
 - PR diff mode: `--diff <revspec>`
 - Output: text + JSON; exit codes 0 / 1 / 2 / 3
 - Fast preprocessor backend (без `compile_commands.json`, без libclang)
+- Duplication pass (fast backend): line-level (#053) + token/partial (#056) с precision-фильтрами (#059); интеграция в бинарь + hardening (#060) — в работе
 
 ## v0.2 — config + libclang semantic backend
 
