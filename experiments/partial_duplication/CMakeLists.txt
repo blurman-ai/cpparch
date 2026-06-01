@@ -9,6 +9,12 @@ message(STATUS "[spike] partial_duplication — standalone Type-3 token-overlap 
 
 add_executable(partial_duplication main.cpp)
 
+# Reuse archcheck's canonical vendor classifier (header-only, no link dep) so the
+# curated single-file-lib list stays single-source-of-truth (#069). Spike stays
+# parser-free / standalone — it just reads one header.
+target_include_directories(partial_duplication PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include)
+
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
   target_link_libraries(partial_duplication PRIVATE stdc++fs)
 endif()
