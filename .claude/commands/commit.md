@@ -18,11 +18,13 @@ Argument (optional): подсказка типа (например `/commit fix`
 4. **Lint-gate** — запустить на изменённых `.h`/`.cpp` файлах:
 
    ```bash
-   # clang-format: изменённые + новые (untracked) C++ файлы
-   { git diff --name-only HEAD; git ls-files --others --exclude-standard; } \
-     | grep -E '\.(h|cpp)$' | xargs -r clang-format --dry-run --Werror
+   # clang-format: ВСЁ дерево src include tests — как format-check джоба CI.
+   # Не только изменённые файлы: ловим дрейф форматирования в нетронутых
+   # файлах, иначе CI упадёт на том, что локально пропустили.
+   find src include tests \( -name '*.h' -o -name '*.cpp' \) -print \
+     | xargs -r clang-format --dry-run --Werror --style=file
 
-   # cppcheck: всегда на src/ include/ (дёшево, ~1 сек)
+   # cppcheck: всегда на src/ include/ (дёшево, ~1 сек) — как static-analysis CI
    cppcheck --enable=warning,performance,portability \
             --inline-suppr --error-exitcode=1 \
             --suppress=missingIncludeSystem --quiet \
@@ -34,7 +36,36 @@ Argument (optional): подсказка типа (например `/commit fix`
 
    Если хотя бы одна проверка упала — **остановиться**, вывести ошибки и не продолжать до исправления.
 
-5. **Coverage gate** — запустить скрипт покрытия:
+5. **Build + test + smoke gate** — реальная сборка и прогон, как `build`-джоба CI.
+   Это главный «не падать на CI» гейт: coverage-гейт собирает только
+   инструментированный gcc-билд, а тут проверяем, что код честно компилируется,
+   тесты зелёные и бинарь запускается.
+
+   ```bash
+   # Configure + build Debug (build/debug переиспользуется между запусками).
+   cmake -B build/debug -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug
+   cmake --build build/debug
+
+   # Тесты (создаёт build/debug/Testing/Temporary/LastTest.log для блока ниже):
+   ( cd build/debug && ctest --output-on-failure )
+
+   # Smoke-тест бинаря — ровно как на CI (форму не ужесточать: CI принимает
+   # как exit 2, так и exit 0 — `unknown` трактуется как путь сканирования):
+   ./build/debug/src/archcheck --version
+   ./build/debug/src/archcheck --help
+   ./build/debug/src/archcheck unknown || test $? -eq 2
+   ```
+
+   Любой шаг упал (не собралось / тест красный / smoke не прошёл) —
+   **остановиться**, вывести вывод и не продолжать до исправления.
+
+   > CI дополнительно собирает на `clang-18` и `clang-18-libc++`. Это тяжело
+   > гонять перед каждым коммитом, поэтому в гейт не входит. Если правка
+   > рискует по переносимости (новые `#include`, шаблоны, `std::`-фичи) —
+   > прогнать вручную:
+   > `CXX=clang++-18 cmake -B build/clang -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build/clang`.
+
+6. **Coverage gate** — запустить скрипт покрытия:
 
    ```bash
    bash scripts/check_coverage.sh
@@ -50,8 +81,8 @@ Argument (optional): подсказка типа (например `/commit fix`
 
    Пороги можно переопределить: `MIN_LINES=50 bash scripts/check_coverage.sh`.
 
-6. Если есть тест-лог (`build/test_log.txt`, `build/Testing/Temporary/LastTest.log`) — прочитать, извлечь имя сьюта, список тестов, PASSED/FAILED. Нет лога — секция тестов пропускается.
-7. Проанализировать изменения и собрать сообщение по схеме Conventional Commits:
+7. Тест-лог уже создан шагом 5 (`build/debug/Testing/Temporary/LastTest.log`) — прочитать, извлечь имя сьюта, список тестов, PASSED/FAILED.
+8. Проанализировать изменения и собрать сообщение по схеме Conventional Commits:
 
    ```
    <type>(<scope>): <subject>
@@ -61,14 +92,14 @@ Argument (optional): подсказка типа (например `/commit fix`
    [optional trailers]
    ```
 
-8. **Показать сообщение пользователю и ЖДАТЬ подтверждения.** Запрошены правки — переписать и показать снова.
-9. Аккуратно застейджить только релевантные файлы:
+9. **Показать сообщение пользователю и ЖДАТЬ подтверждения.** Запрошены правки — переписать и показать снова.
+10. Аккуратно застейджить только релевантные файлы:
    - Никаких `.env`, ключей, секретов.
    - Бинарники — только если пользователь явно попросил.
    - Связанные `.h` и `.cpp` — вместе.
-10. Создать коммит через heredoc.
-11. `git push origin master` (direct push разрешён admin-у; если работа на feature-ветке — `git push -u origin <branch>`).
-12. `git status` после — убедиться, что прошло.
+11. Создать коммит через heredoc.
+12. `git push origin master` (direct push разрешён admin-у; если работа на feature-ветке — `git push -u origin <branch>`).
+13. `git status` после — убедиться, что прошло.
 
 ## Type — что выбирать
 
