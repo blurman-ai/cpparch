@@ -32,6 +32,7 @@ struct ScannerOptions
   bool enableJointFloor = true;           // P0.6: require BOTH token AND line metrics to pass
   double jointWeightedThreshold = 0.75;   // P0.6: minimum weighted similarity when joint floor enabled
   double jointLineThreshold = 0.50;       // P0.6: minimum line overlap when joint floor enabled
+  bool enableP1Guards = true;             // P1: enable classifier filters (data-table, boilerplate, header-impl, IDF)
 };
 
 struct ScanResult
