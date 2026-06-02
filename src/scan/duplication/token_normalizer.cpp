@@ -91,13 +91,39 @@ bool isDeadIfOpener(const std::string &src, std::size_t i)
   {
     return true;
   }
-  if (j < n && src[j] == '0')
+  if (j >= n || src[j] != '0')
   {
-    const char d = (j + 1 < n) ? src[j + 1] : '\n';
-    return d == '\n' || d == '\r' || d == ' ' || d == '\t' || d == '/';
+    return false;
   }
-  return false;
+  const char d = (j + 1 < n) ? src[j + 1] : '\n';
+  return d == '\n' || d == '\r' || d == ' ' || d == '\t' || d == '/';
 }
+
+namespace
+{
+int updatePreprocessorDepth(const std::string &src, std::size_t i)
+{
+  const std::size_t n = src.size();
+  if (src[i] != '#')
+  {
+    return 0;
+  }
+  std::size_t j = i + 1;
+  while (j < n && (src[j] == ' ' || src[j] == '\t'))
+  {
+    ++j;
+  }
+  if (src.compare(j, 2, "if") == 0)
+  {
+    return 1;
+  }
+  if (src.compare(j, 5, "endif") == 0)
+  {
+    return -1;
+  }
+  return 0;
+}
+} // namespace
 
 void skipDeadIfBlock(const std::string &src, std::size_t &i, int &line)
 {
@@ -105,22 +131,7 @@ void skipDeadIfBlock(const std::string &src, std::size_t &i, int &line)
   int depth = 0;
   while (i < n)
   {
-    if (src[i] == '#')
-    {
-      std::size_t j = i + 1;
-      while (j < n && (src[j] == ' ' || src[j] == '\t'))
-      {
-        ++j;
-      }
-      if (src.compare(j, 2, "if") == 0)
-      {
-        ++depth;
-      }
-      else if (src.compare(j, 5, "endif") == 0)
-      {
-        --depth;
-      }
-    }
+    depth += updatePreprocessorDepth(src, i);
     while (i < n && src[i] != '\n')
     {
       ++i;
@@ -139,6 +150,228 @@ void skipDeadIfBlock(const std::string &src, std::size_t &i, int &line)
 
 } // namespace
 
+namespace
+{
+bool tryConsumeLine(const std::string &source, std::size_t &i, int &line)
+{
+  if (i < source.size() && source[i] == '\n')
+  {
+    ++line;
+    ++i;
+    return true;
+  }
+  return false;
+}
+
+bool tryConsumeWhitespace(const std::string &source, std::size_t &i)
+{
+  if (i < source.size() && std::isspace(static_cast<unsigned char>(source[i])) != 0)
+  {
+    ++i;
+    return true;
+  }
+  return false;
+}
+
+bool tryConsumeLineComment(const std::string &source, std::size_t &i)
+{
+  if (i + 1 < source.size() && source[i] == '/' && source[i + 1] == '/')
+  {
+    while (i < source.size() && source[i] != '\n')
+    {
+      ++i;
+    }
+    return true;
+  }
+  return false;
+}
+
+bool tryConsumeBlockComment(const std::string &source, std::size_t &i, int &line)
+{
+  if (i + 1 < source.size() && source[i] == '/' && source[i + 1] == '*')
+  {
+    i += 2;
+    while (i + 1 < source.size() && !(source[i] == '*' && source[i + 1] == '/'))
+    {
+      if (source[i] == '\n')
+      {
+        ++line;
+      }
+      ++i;
+    }
+    if (i + 1 < source.size())
+    {
+      i += 2;
+    }
+    return true;
+  }
+  return false;
+}
+
+bool tryConsumeRawString(const std::string &source, std::size_t &i, int &line, std::vector<Token> &out)
+{
+  const std::size_t pre = rawStringPrefixLen(source, i);
+  if (pre == 0)
+  {
+    return false;
+  }
+  const std::size_t litStart = i;
+  const int startLine = line;
+  i += pre;
+  while (i + 1 < source.size() && !(source[i] == ')' && source[i + 1] == '"'))
+  {
+    if (source[i] == '\n')
+    {
+      ++line;
+    }
+    ++i;
+  }
+  if (i + 1 < source.size())
+  {
+    i += 2;
+  }
+  out.push_back({"lit", startLine, source.substr(litStart, i - litStart)});
+  return true;
+}
+
+bool tryConsumeString(const std::string &source, std::size_t &i, int &line, std::vector<Token> &out)
+{
+  if (i >= source.size() || source[i] != '"')
+  {
+    return false;
+  }
+  const std::size_t litStart = i;
+  const int startLine = line;
+  ++i;
+  while (i < source.size() && source[i] != '"')
+  {
+    if (source[i] == '\\' && i + 1 < source.size())
+    {
+      i += 2;
+      continue;
+    }
+    if (source[i] == '\n')
+    {
+      ++line;
+    }
+    ++i;
+  }
+  if (i < source.size())
+  {
+    ++i;
+  }
+  out.push_back({"lit", startLine, source.substr(litStart, i - litStart)});
+  return true;
+}
+
+bool tryConsumeChar(const std::string &source, std::size_t &i, int &line, std::vector<Token> &out)
+{
+  if (i >= source.size() || source[i] != '\'')
+  {
+    return false;
+  }
+  const std::size_t litStart = i;
+  ++i;
+  while (i < source.size() && source[i] != '\'')
+  {
+    if (source[i] == '\\' && i + 1 < source.size())
+    {
+      i += 2;
+      continue;
+    }
+    ++i;
+  }
+  if (i < source.size())
+  {
+    ++i;
+  }
+  out.push_back({"lit", line, source.substr(litStart, i - litStart)});
+  return true;
+}
+
+bool tryConsumeNumber(const std::string &source, std::size_t &i, int &line, std::vector<Token> &out)
+{
+  const char c = source[i];
+  const bool isDigit = std::isdigit(static_cast<unsigned char>(c)) != 0;
+  const bool isDotNumber =
+      (c == '.' && i + 1 < source.size() && std::isdigit(static_cast<unsigned char>(source[i + 1])) != 0);
+  if (!isDigit && !isDotNumber)
+  {
+    return false;
+  }
+  const std::size_t litStart = i;
+  ++i;
+  while (i < source.size())
+  {
+    const char d = source[i];
+    if (isIdentChar(d) || d == '.' || d == '\'')
+    {
+      ++i;
+    }
+    else if ((d == '+' || d == '-') && i > 0 &&
+             (source[i - 1] == 'e' || source[i - 1] == 'E' || source[i - 1] == 'p' || source[i - 1] == 'P'))
+    {
+      ++i;
+    }
+    else
+    {
+      break;
+    }
+  }
+  out.push_back({"lit", line, source.substr(litStart, i - litStart)});
+  return true;
+}
+
+bool tryConsumeIdentifier(const std::string &source, std::size_t &i, int line, std::vector<Token> &out, bool keepCalls)
+{
+  if (!isIdentStart(source[i]))
+  {
+    return false;
+  }
+  const std::size_t start = i;
+  while (i < source.size() && isIdentChar(source[i]))
+  {
+    ++i;
+  }
+  std::string word = source.substr(start, i - start);
+  if (keywords().count(word) != 0)
+  {
+    out.push_back({word, line, std::string()});
+  }
+  else if (keepCalls)
+  {
+    std::size_t j = i;
+    while (j < source.size() && (source[j] == ' ' || source[j] == '\t' || source[j] == '\n' || source[j] == '\r'))
+    {
+      ++j;
+    }
+    const bool callee = (j < source.size() && source[j] == '(');
+    const bool caseLabel = (!out.empty() && out.back().sym == "case");
+    const bool keep = callee || caseLabel;
+    out.push_back({keep ? word : "id", line, keep ? "" : word});
+  }
+  else
+  {
+    out.push_back({"id", line, word});
+  }
+  return true;
+}
+
+bool tryConsumeOperator(const std::string &source, std::size_t &i, int line, std::vector<Token> &out)
+{
+  for (const std::string &op : multiOps())
+  {
+    if (source.compare(i, op.size(), op) == 0)
+    {
+      out.push_back({op, line, std::string()});
+      i += op.size();
+      return true;
+    }
+  }
+  return false;
+}
+} // namespace
+
 std::vector<Token> lex(const std::string &source, bool keepCalls)
 {
   std::vector<Token> out;
@@ -149,185 +382,57 @@ std::vector<Token> lex(const std::string &source, bool keepCalls)
 
   while (i < n)
   {
-    const char c = source[i];
-
-    if (c == '\n')
+    if (tryConsumeLine(source, i, line))
     {
-      ++line;
-      ++i;
       atLineStart = true;
       continue;
     }
-    if (std::isspace(static_cast<unsigned char>(c)) != 0)
+    if (tryConsumeWhitespace(source, i))
     {
-      ++i;
       continue;
     }
-    // line comment
-    if (c == '/' && i + 1 < n && source[i + 1] == '/')
+    if (tryConsumeLineComment(source, i))
     {
-      while (i < n && source[i] != '\n')
-      {
-        ++i;
-      }
       continue;
     }
-    // block comment
-    if (c == '/' && i + 1 < n && source[i + 1] == '*')
+    if (tryConsumeBlockComment(source, i, line))
     {
-      i += 2;
-      while (i + 1 < n && !(source[i] == '*' && source[i + 1] == '/'))
-      {
-        if (source[i] == '\n')
-        {
-          ++line;
-        }
-        ++i;
-      }
-      i += 2;
       continue;
     }
-    // dead preprocessor block: #if 0 / #if false ... #endif
-    if (atLineStart && c == '#' && isDeadIfOpener(source, i))
+    if (atLineStart && source[i] == '#' && isDeadIfOpener(source, i))
     {
       skipDeadIfBlock(source, i, line);
       atLineStart = true;
       continue;
     }
     atLineStart = false;
-    // raw string literal R"( ... )" — collapse body to "lit"
-    if (const std::size_t pre = rawStringPrefixLen(source, i); pre != 0)
+    if (tryConsumeRawString(source, i, line, out))
     {
-      const std::size_t litStart = i;
-      const int startLine = line;
-      i += pre;
-      while (i + 1 < n && !(source[i] == ')' && source[i + 1] == '"'))
-      {
-        if (source[i] == '\n')
-        {
-          ++line;
-        }
-        ++i;
-      }
-      i += 2;
-      out.push_back({"lit", startLine, source.substr(litStart, i - litStart)});
       continue;
     }
-    // string literal
-    if (c == '"')
+    if (tryConsumeString(source, i, line, out))
     {
-      const std::size_t litStart = i;
-      const int startLine = line;
-      ++i;
-      while (i < n && source[i] != '"')
-      {
-        if (source[i] == '\\' && i + 1 < n)
-        {
-          i += 2;
-          continue;
-        }
-        if (source[i] == '\n')
-        {
-          ++line;
-        }
-        ++i;
-      }
-      ++i;
-      out.push_back({"lit", startLine, source.substr(litStart, i - litStart)});
       continue;
     }
-    // char literal
-    if (c == '\'')
+    if (tryConsumeChar(source, i, line, out))
     {
-      const std::size_t litStart = i;
-      ++i;
-      while (i < n && source[i] != '\'')
-      {
-        if (source[i] == '\\' && i + 1 < n)
-        {
-          i += 2;
-          continue;
-        }
-        ++i;
-      }
-      ++i;
-      out.push_back({"lit", line, source.substr(litStart, i - litStart)});
       continue;
     }
-    // number
-    if (std::isdigit(static_cast<unsigned char>(c)) != 0 ||
-        (c == '.' && i + 1 < n && std::isdigit(static_cast<unsigned char>(source[i + 1])) != 0))
+    if (tryConsumeNumber(source, i, line, out))
     {
-      const std::size_t litStart = i;
-      ++i;
-      while (i < n)
-      {
-        const char d = source[i];
-        if (isIdentChar(d) || d == '.' || d == '\'')
-        {
-          ++i;
-        }
-        else if ((d == '+' || d == '-') && i > 0 &&
-                 (source[i - 1] == 'e' || source[i - 1] == 'E' || source[i - 1] == 'p' || source[i - 1] == 'P'))
-        {
-          ++i;
-        }
-        else
-        {
-          break;
-        }
-      }
-      out.push_back({"lit", line, source.substr(litStart, i - litStart)});
       continue;
     }
-    // identifier / keyword
-    if (isIdentStart(c))
+    if (tryConsumeIdentifier(source, i, line, out, keepCalls))
     {
-      const std::size_t start = i;
-      while (i < n && isIdentChar(source[i]))
-      {
-        ++i;
-      }
-      std::string word = source.substr(start, i - start);
-      if (keywords().count(word) != 0)
-      {
-        out.push_back({word, line, std::string()});
-      }
-      else if (keepCalls)
-      {
-        std::size_t j = i;
-        while (j < n && (source[j] == ' ' || source[j] == '\t' || source[j] == '\n' || source[j] == '\r'))
-        {
-          ++j;
-        }
-        const bool callee = (j < n && source[j] == '(');
-        const bool caseLabel = (!out.empty() && out.back().sym == "case");
-        const bool keep = callee || caseLabel;
-        out.push_back({keep ? word : std::string("id"), line, keep ? std::string() : word});
-      }
-      else
-      {
-        out.push_back({std::string("id"), line, word});
-      }
       continue;
     }
-    // operator / punctuation (longest match)
-    bool matched = false;
-    for (const std::string &op : multiOps())
+    if (tryConsumeOperator(source, i, line, out))
     {
-      if (source.compare(i, op.size(), op) == 0)
-      {
-        out.push_back({op, line, std::string()});
-        i += op.size();
-        matched = true;
-        break;
-      }
+      continue;
     }
-    if (!matched)
-    {
-      out.push_back({std::string(1, c), line, std::string()});
-      ++i;
-    }
+    // fallback: single char token
+    out.push_back({std::string(1, source[i]), line, std::string()});
+    ++i;
   }
 
   return out;
