@@ -19,12 +19,12 @@ while true; do
   build_clonelist | cut -f1 > /tmp/keepdl_list.txt
   remain_mb=$(( (CEIL_GB - used) * 1024 ))
   echo "$(date +%T) клон: used=${used}G, clonelist=$(wc -l </tmp/keepdl_list.txt), budget=${remain_mb}M" >>"$log"
-  bash "$HERE/clone_expand.sh" /tmp/keepdl_list.txt "$remain_mb" 1500 keepdl >/dev/null 2>&1
+  bash "$HERE/clone_expand.sh" /tmp/keepdl_list.txt "$remain_mb" 500 keepdl >/dev/null 2>&1
   tail -1 "$HERE/clone_keepdl.log" >>"$log"
   awk 'NR==FNR{m[$1]=1;next} !($1 in m)' "$MEAS" "$CAND" > /tmp/keepdl_rem.txt
   if [ ! -s /tmp/keepdl_rem.txt ]; then echo "$(date +%T) кандидаты исчерпаны — стоп" >>"$log"; break; fi
   head -3000 /tmp/keepdl_rem.txt > /tmp/keepdl_chunk.txt
   echo "$(date +%T) домер +$(wc -l </tmp/keepdl_chunk.txt) кандидатов" >>"$log"
-  bash "$HERE/measure_candidates.sh" /tmp/keepdl_chunk.txt 300 16 >> "$MEAS"
+  bash "$HERE/measure_candidates.sh" /tmp/keepdl_chunk.txt 300 3 3 >> "$MEAS"  # P=3: P=16 → rate-limit (#066)
 done
 echo "keep_downloading стоп $(date '+%F %T')" >>"$log"

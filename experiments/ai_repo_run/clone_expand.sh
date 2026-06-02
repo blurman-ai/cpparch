@@ -3,13 +3,13 @@
 # Последовательно (P=1) для точного учёта бюджета. Best-first порядок задаётся LIST.
 #   $1 LIST          — файл, по одной "owner/repo" в строке (уже отсортировано)
 #   $2 BUDGET_MB     — потолок суммарного НОВОГО объёма (по умолчанию 3000)
-#   $3 MAX_REPO_MB   — крупнее этого репа удаляется (бережём бюджет на широту, по умолч. 600)
+#   $3 MAX_REPO_MB   — крупнее этого репа не качаем (бережём бюджет на широту, по умолч. 500, #066)
 #   $4 LOGTAG        — суффикс лог-файла
 set -u
 DST=/home/localadm/oss/_aidev_dense
 LIST="$1"
 BUDGET_MB="${2:-3000}"
-MAX_REPO_MB="${3:-600}"
+MAX_REPO_MB="${3:-500}"
 TAG="${4:-expand}"
 log="/home/localadm/projects/cpparch/experiments/ai_repo_run/clone_${TAG}.log"
 budget_kb=$(( BUDGET_MB * 1024 ))
@@ -24,7 +24,18 @@ while IFS= read -r repo; do
   if [ "$new_kb" -ge "$budget_kb" ]; then
     echo "BUDGET достигнут на cum=$(( new_kb/1024 ))M — стоп" >> "$log"; break
   fi
-  if timeout 300 git clone --quiet "https://github.com/$repo.git" "$dst" 2>/dev/null; then
+  # pre-check размера через API: не качать заведомо крупные репы (а потом удалять) — #066
+  apisz=$(gh api "repos/$repo" --jq '.size' 2>/dev/null); apisz=${apisz:-0}
+  if [ "$apisz" -gt "$maxrepo_kb" ]; then
+    toobig=$((toobig+1)); echo "TOOBIG-API $repo ${apisz}k пропущен" >> "$log"; continue
+  fi
+  # Ретрай с нарастающим таймаутом/паузой: разовый клон фейлит на rate-limit/контеншене (#066)
+  cloned=0
+  for try in 1 2 3; do
+    if timeout $(( 300 + (try-1)*180 )) git clone --quiet "https://github.com/$repo.git" "$dst" 2>/dev/null; then cloned=1; break; fi
+    rm -rf "$dst"; sleep $(( try*15 ))
+  done
+  if [ "$cloned" -eq 1 ]; then
     sz=$(du -sk "$dst" 2>/dev/null | cut -f1); sz=${sz:-0}
     if [ "$sz" -gt "$maxrepo_kb" ]; then
       rm -rf "$dst"; toobig=$((toobig+1))
@@ -34,7 +45,7 @@ while IFS= read -r repo; do
     echo "OK   $repo ${sz}k cum=$(( new_kb/1024 ))M" >> "$log"
   else
     rm -rf "$dst"; fail=$((fail+1))
-    echo "FAIL $repo" >> "$log"
+    echo "FAIL $repo (3 попытки)" >> "$log"
   fi
 done < "$LIST"
 echo "ГОТОВО $(date '+%F %T') ok=$ok fail=$fail toobig=$toobig skip=$skip new=$(( new_kb/1024 ))M total_dirs=$(ls "$DST" | wc -l)" >> "$log"

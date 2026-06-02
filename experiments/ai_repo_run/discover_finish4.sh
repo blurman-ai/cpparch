@@ -13,13 +13,13 @@ log="$HERE/discover_finish4.log"
 
 # остаток = кандидаты минус уже измеренные
 awk -F'\t' 'NR==FNR{m[$1]=1;next} !($1 in m)' "$MEAS" "$CAND" > /tmp/remaining2.txt
-echo "task2 старт $(date '+%F %T'): остаток $(wc -l </tmp/remaining2.txt), домер P=16 timeout 2ч" > "$log"
-timeout 7200 bash "$HERE/measure_candidates.sh" /tmp/remaining2.txt 300 16 >> "$MEAS"
+echo "task2 старт $(date '+%F %T'): остаток $(wc -l </tmp/remaining2.txt), домер P=3 timeout 2ч" > "$log"
+timeout 7200 bash "$HERE/measure_candidates.sh" /tmp/remaining2.txt 300 3 3 >> "$MEAS"
 echo "домер стоп $(date '+%F %T'): всего строк $(wc -l <"$MEAS")" >> "$log"
 
-# ретрай CLONEFAIL
+# ретрай CLONEFAIL (P=2 — максимально бережно к rate-limit, #066)
 grep -P '\tCLONEFAIL\t' "$MEAS" | cut -f1 | sort -u > /tmp/clonefail2.txt
-[ -s /tmp/clonefail2.txt ] && timeout 1800 bash "$HERE/measure_candidates.sh" /tmp/clonefail2.txt 300 6 >> "$MEAS" 2>>"$log"
+[ -s /tmp/clonefail2.txt ] && timeout 1800 bash "$HERE/measure_candidates.sh" /tmp/clonefail2.txt 300 2 3 >> "$MEAS" 2>>"$log"
 
 # re-tier по всему MEAS
 sel(){ awk -F'\t' -v lo="$1" -v hi="$2" '$2~/^[0-9]+$/&&$2>=300&&$3~/^[0-9]+$/&&$4~/^[0-9]+$/&&$4>=lo&&$4<hi' "$MEAS" | sort -t$'\t' -k4,4 -nr -k2,2 -nr; }
@@ -30,6 +30,6 @@ echo "tier1=$(wc -l <"$WINNERS")  clonelist(conc>=5)=$(wc -l <"$CLONELIST")" >> 
 
 # клон под свежий 5 ГБ (TAG=discovery2, пропускает уже склонированные)
 cut -f1 "$CLONELIST" > /tmp/winners_list2.txt
-bash "$HERE/clone_expand.sh" /tmp/winners_list2.txt "$BUDGET_MB" 1500 discovery2
+bash "$HERE/clone_expand.sh" /tmp/winners_list2.txt "$BUDGET_MB" 500 discovery2
 echo "ALL DONE $(date '+%F %T')" >> "$log"
 tail -1 "$HERE/clone_discovery2.log" >> "$log"
