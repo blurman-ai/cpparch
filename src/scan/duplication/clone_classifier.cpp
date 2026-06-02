@@ -23,6 +23,24 @@ std::vector<std::vector<std::size_t>> buildLcsTable(const std::vector<std::strin
   return dp;
 }
 
+void appendRemainingA(const std::vector<std::string> &a, std::size_t &i, std::vector<DiffOp> &raw)
+{
+  while (i > 0)
+  {
+    --i;
+    raw.push_back({'-', a[i], "", static_cast<int>(i), -1});
+  }
+}
+
+void appendRemainingB(const std::vector<std::string> &b, std::size_t &j, std::vector<DiffOp> &raw)
+{
+  while (j > 0)
+  {
+    --j;
+    raw.push_back({'+', "", b[j], -1, static_cast<int>(j)});
+  }
+}
+
 std::vector<DiffOp> backtrackLcs(const std::vector<std::string> &a, const std::vector<std::string> &b,
                                  const std::vector<std::vector<std::size_t>> &dp)
 {
@@ -48,16 +66,8 @@ std::vector<DiffOp> backtrackLcs(const std::vector<std::string> &a, const std::v
       --j;
     }
   }
-  while (i > 0)
-  {
-    --i;
-    raw.push_back({'-', a[i], "", static_cast<int>(i), -1});
-  }
-  while (j > 0)
-  {
-    --j;
-    raw.push_back({'+', "", b[j], -1, static_cast<int>(j)});
-  }
+  appendRemainingA(a, i, raw);
+  appendRemainingB(b, j, raw);
   std::reverse(raw.begin(), raw.end());
   return raw;
 }

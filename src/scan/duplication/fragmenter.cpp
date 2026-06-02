@@ -85,6 +85,16 @@ std::vector<std::string> getSourceLines(const std::string &source)
   return lines;
 }
 
+struct CollectContext
+{
+  const std::vector<Token> &tokens;
+  const std::vector<int> &match;
+  const FragmentOptions &opts;
+  const std::string &file;
+  const std::vector<std::string> &lines;
+  std::vector<Fragment> &out;
+};
+
 Fragment makeFragment(const std::vector<Token> &t, std::size_t lo, std::size_t hi, const std::string &file,
                       const std::vector<std::string> &lines)
 {
@@ -116,25 +126,23 @@ Fragment makeFragment(const std::vector<Token> &t, std::size_t lo, std::size_t h
   return f;
 }
 
-void collect(const std::vector<Token> &t, const std::vector<int> &match, std::size_t lo, std::size_t hi,
-             const FragmentOptions &opt, const std::string &file, const std::vector<std::string> &lines,
-             std::vector<Fragment> &out)
+void collect(const CollectContext &ctx, std::size_t lo, std::size_t hi)
 {
   std::size_t i = lo;
   while (i < hi)
   {
-    if (t[i].sym == "{" && match[i] >= 0 && static_cast<std::size_t>(match[i]) < hi)
+    if (ctx.tokens[i].sym == "{" && ctx.match[i] >= 0 && static_cast<std::size_t>(ctx.match[i]) < hi)
     {
-      const std::size_t j = static_cast<std::size_t>(match[i]);
+      const std::size_t j = static_cast<std::size_t>(ctx.match[i]);
       const std::size_t body = j - i - 1;
-      const bool fnBody = (i > 0 && t[i - 1].sym == ")");
-      if (fnBody && body >= opt.minTokens && body <= opt.maxTokens)
+      const bool fnBody = (i > 0 && ctx.tokens[i - 1].sym == ")");
+      if (fnBody && body >= ctx.opts.minTokens && body <= ctx.opts.maxTokens)
       {
-        out.push_back(makeFragment(t, i + 1, j, file, lines));
+        ctx.out.push_back(makeFragment(ctx.tokens, i + 1, j, ctx.file, ctx.lines));
       }
       else
       {
-        collect(t, match, i + 1, j, opt, file, lines, out);
+        collect(ctx, i + 1, j);
       }
       i = j + 1;
     }
@@ -159,7 +167,8 @@ std::vector<Fragment> extractFragments(const std::vector<Token> &tokens, const s
   std::vector<Fragment> fragments;
   const std::vector<int> match = braceMatch(tokens);
 
-  collect(tokens, match, 0, tokens.size(), opts, file, lines, fragments);
+  CollectContext ctx = {tokens, match, opts, file, lines, fragments};
+  collect(ctx, 0, tokens.size());
   return fragments;
 }
 
