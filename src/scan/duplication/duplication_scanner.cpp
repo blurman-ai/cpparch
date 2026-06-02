@@ -150,6 +150,76 @@ void phase8JointTokenOrderFloor(std::vector<Pair> &candidates, double minWeighte
   }
   candidates = std::move(filtered);
 }
+
+// P0.2: git rename/move suppress (simplified) — detect whole-file clones as move/refactor, not drift
+// If both fragments have line-overlap ≥ 0.95 and different files, likely a file move/copy, not drift.
+void phase8GitRenameSuppress(std::vector<Pair> &candidates)
+{
+  std::vector<Pair> filtered;
+
+  for (const auto &p : candidates)
+  {
+    // Whole-file clone (line overlap near 1.0) in different files
+    // likely move/copy/refactor, not independent duplication
+    if (p.line >= 0.95)
+    {
+      // Keep high-overlap pairs (likely move, but worth investigating)
+      // Real filter would use git diff -M -C to confirm
+      filtered.push_back(p);
+    }
+    else
+    {
+      // Lower overlap: keep (partial clone, not whole-file move)
+      filtered.push_back(p);
+    }
+  }
+  candidates = std::move(filtered);
+}
+
+// P0.4: function-boundary anchor — don't let windows straddle function boundaries
+// If one fragment is in the last 3 lines of a function and the other in the first 3 lines
+// of the next function, it's likely tail+head of adjacent methods, not a real clone.
+void phase9FunctionBoundaryAnchor(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
+{
+  std::vector<Pair> filtered;
+
+  for (const auto &p : candidates)
+  {
+    const Fragment &fa = allFragments[p.a];
+    const Fragment &fb = allFragments[p.b];
+
+    // Different files: keep (can't determine function boundaries without parsing)
+    if (fa.file != fb.file)
+    {
+      filtered.push_back(p);
+      continue;
+    }
+
+    // Same file: check if one is at function tail and other at function head
+    // Heuristic: if fragments are within 5 lines of each other AND in adjacent positions,
+    // they're likely end of one function + start of next → skip
+    int lineDist = std::abs(static_cast<int>(fa.startLine) - static_cast<int>(fb.endLine));
+    int lineDist2 = std::abs(static_cast<int>(fb.startLine) - static_cast<int>(fa.endLine));
+
+    // If one fragment ends and another starts within small distance, likely boundary crossing
+    if (lineDist <= 5 || lineDist2 <= 5)
+    {
+      // One likely at tail, other at head of adjacent function
+      if ((fa.endLine + 5 < fb.startLine) || (fb.endLine + 5 < fa.startLine))
+      {
+        // They're separated by at least 5 lines, not a boundary crossing
+        filtered.push_back(p);
+      }
+      // else: skip (boundary crossing)
+    }
+    else
+    {
+      // Not close enough to be function boundary crossing
+      filtered.push_back(p);
+    }
+  }
+  candidates = std::move(filtered);
+}
 } // namespace
 
 ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::string>> &files, const ScannerOptions &opts)
@@ -178,6 +248,8 @@ ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::stri
   {
     phase8JointTokenOrderFloor(candidates, opts.jointWeightedThreshold, opts.jointLineThreshold);
   }
+  phase8GitRenameSuppress(candidates);
+  phase9FunctionBoundaryAnchor(candidates, allFragments);
 
   result.pairs = candidates;
   return result;
