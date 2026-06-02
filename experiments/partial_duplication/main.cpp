@@ -94,6 +94,7 @@ struct Token
 {
   std::string sym;  // normalized symbol
   int line = 0;     // 1-based source line
+  std::string raw;  // original spelling when sym is a placeholder ("id"/"lit"); empty => == sym
 };
 
 bool isIdentStart(char c)
@@ -286,6 +287,7 @@ std::vector<Token> lex(const std::string& src, bool keepCalls = false)
     // raw string literal R"( ... )" — collapse body (data, not code) to "lit"
     if (const std::size_t pre = rawStringPrefixLen(src, i); pre != 0)
     {
+      const std::size_t litStart = i;
       const int startLine = line;
       i += pre;  // positioned just past the opening "("
       while (i + 1 < n && !(src[i] == ')' && src[i + 1] == '"'))
@@ -297,12 +299,13 @@ std::vector<Token> lex(const std::string& src, bool keepCalls = false)
         ++i;
       }
       i += 2;  // past the closing )"
-      out.push_back({"lit", startLine});
+      out.push_back({"lit", startLine, src.substr(litStart, i - litStart)});
       continue;
     }
     // string literal
     if (c == '"')
     {
+      const std::size_t litStart = i;
       const int startLine = line;
       ++i;
       while (i < n && src[i] != '"')
@@ -319,12 +322,13 @@ std::vector<Token> lex(const std::string& src, bool keepCalls = false)
         ++i;
       }
       ++i;  // closing quote
-      out.push_back({"lit", startLine});
+      out.push_back({"lit", startLine, src.substr(litStart, i - litStart)});
       continue;
     }
     // char literal
     if (c == '\'')
     {
+      const std::size_t litStart = i;
       ++i;
       while (i < n && src[i] != '\'')
       {
@@ -336,13 +340,14 @@ std::vector<Token> lex(const std::string& src, bool keepCalls = false)
         ++i;
       }
       ++i;
-      out.push_back({"lit", line});
+      out.push_back({"lit", line, src.substr(litStart, i - litStart)});
       continue;
     }
     // number
     if (std::isdigit(static_cast<unsigned char>(c)) != 0
         || (c == '.' && i + 1 < n && std::isdigit(static_cast<unsigned char>(src[i + 1])) != 0))
     {
+      const std::size_t litStart = i;
       ++i;
       while (i < n)
       {
@@ -362,7 +367,7 @@ std::vector<Token> lex(const std::string& src, bool keepCalls = false)
           break;
         }
       }
-      out.push_back({"lit", line});
+      out.push_back({"lit", line, src.substr(litStart, i - litStart)});
       continue;
     }
     // identifier / keyword
@@ -394,11 +399,12 @@ std::vector<Token> lex(const std::string& src, bool keepCalls = false)
         }
         const bool callee = (j < n && src[j] == '(');
         const bool caseLabel = (!out.empty() && out.back().sym == "case");
-        out.push_back({(callee || caseLabel) ? word : std::string("id"), line});
+        const bool keep = callee || caseLabel;
+        out.push_back({keep ? word : std::string("id"), line, keep ? std::string() : word});
       }
       else
       {
-        out.push_back({std::string("id"), line});
+        out.push_back({std::string("id"), line, word});
       }
       continue;
     }
@@ -436,6 +442,7 @@ struct Fragment
   std::size_t tokenCount = 0;
   std::unordered_map<std::string, int> bag;  // normalized token -> count
   std::vector<std::string> seq;  // ordered normalized tokens (for token-LCS)
+  std::vector<std::string> rawSeq;  // raw spelling per token, aligned with seq (== sym for non-placeholders) — LD.10 clone-type
   std::unordered_set<std::string> normLines;  // illustrative line-based view
   double diversity = 1.0;  // distinct-trigram ratio; low = skeletal (dispatch switch, data table)
 };
@@ -515,10 +522,12 @@ Fragment makeFragment(const std::vector<Token>& t, std::size_t lo, std::size_t h
   f.endLine = t[hi].line;
   f.tokenCount = hi - lo;
   f.seq.reserve(hi - lo);
+  f.rawSeq.reserve(hi - lo);
   for (std::size_t i = lo; i < hi; ++i)
   {
     ++f.bag[t[i].sym];
     f.seq.push_back(t[i].sym);
+    f.rawSeq.push_back(t[i].raw.empty() ? t[i].sym : t[i].raw);
   }
   for (int ln = f.startLine; ln <= f.endLine; ++ln)
   {
@@ -712,6 +721,8 @@ struct DiffOp
   char tag = '=';  // '=' equal, '~' changed, '-' delete, '+' insert
   std::string a;
   std::string b;
+  int ai = -1;  // source index in a (LD.11: recover raw spelling at aligned position); -1 if absent
+  int bj = -1;  // source index in b; -1 if absent
 };
 
 // Full-table LCS backtrack -> edit script, with adjacent del+ins collapsed into
@@ -736,28 +747,30 @@ std::vector<DiffOp> diffTokens(const std::vector<std::string>& a, const std::vec
   {
     if (a[i - 1] == b[j - 1])
     {
-      raw.push_back({'=', a[i - 1], b[j - 1]});
+      raw.push_back({'=', a[i - 1], b[j - 1], static_cast<int>(i - 1), static_cast<int>(j - 1)});
       --i;
       --j;
     }
     else if (dp[i - 1][j] >= dp[i][j - 1])
     {
-      raw.push_back({'-', a[i - 1], ""});
+      raw.push_back({'-', a[i - 1], "", static_cast<int>(i - 1), -1});
       --i;
     }
     else
     {
-      raw.push_back({'+', "", b[j - 1]});
+      raw.push_back({'+', "", b[j - 1], -1, static_cast<int>(j - 1)});
       --j;
     }
   }
   while (i > 0)
   {
-    raw.push_back({'-', a[--i], ""});
+    --i;
+    raw.push_back({'-', a[i], "", static_cast<int>(i), -1});
   }
   while (j > 0)
   {
-    raw.push_back({'+', "", b[--j]});
+    --j;
+    raw.push_back({'+', "", b[j], -1, static_cast<int>(j)});
   }
   std::reverse(raw.begin(), raw.end());
 
@@ -768,12 +781,12 @@ std::vector<DiffOp> diffTokens(const std::vector<std::string>& a, const std::vec
     const bool insThenDel = raw[k].tag == '+' && k + 1 < raw.size() && raw[k + 1].tag == '-';
     if (delThenIns)
     {
-      out.push_back({'~', raw[k].a, raw[k + 1].b});
+      out.push_back({'~', raw[k].a, raw[k + 1].b, raw[k].ai, raw[k + 1].bj});
       ++k;
     }
     else if (insThenDel)
     {
-      out.push_back({'~', raw[k + 1].a, raw[k].b});
+      out.push_back({'~', raw[k + 1].a, raw[k].b, raw[k + 1].ai, raw[k].bj});
       ++k;
     }
     else
@@ -891,6 +904,94 @@ struct Pair
 double gateScore(const std::string& metric, bool precise, const Pair& p)
 {
   return precise ? p.lcs : (metric == "plain" ? p.plain : p.weighted);
+}
+
+// LD.10 — clone character. Labels a confirmed pair by WHAT diverges, reading the
+// raw spellings the normalizer collapsed (identifiers -> "id", literals -> "lit"):
+//   EXACT       identical token-for-token, identifiers and literals included
+//   RENAMED     only local identifiers differ; structure intact
+//   LITERAL     only literals differ; structure intact
+//   MIXED       both identifiers and literals differ; structure intact
+//   STRUCTURAL  the normalized streams themselves diverge (Type-3 proper)
+// Renamed/literal copies keep an identical normalized stream (id->id, lit->lit),
+// so seq-equality cleanly separates them from structural edits; raw is compared
+// only at the placeholder positions, where the normalizer threw the spelling away.
+const char* cloneType(const Fragment& a, const Fragment& b)
+{
+  if (a.seq != b.seq)  // normalized streams differ => structural edits
+  {
+    return "STRUCTURAL";
+  }
+  bool idDiff = false;
+  bool litDiff = false;
+  for (std::size_t i = 0; i < a.seq.size(); ++i)
+  {
+    if (a.rawSeq[i] == b.rawSeq[i])
+    {
+      continue;
+    }
+    idDiff = idDiff || a.seq[i] == "id";
+    litDiff = litDiff || a.seq[i] == "lit";
+  }
+  if (!idDiff && !litDiff)
+  {
+    return "EXACT";
+  }
+  if (idDiff && litDiff)
+  {
+    return "MIXED";
+  }
+  return idDiff ? "RENAMED" : "LITERAL";
+}
+
+// Print one "ignored <kind>: a -> b; ..." line, or nothing when empty (LD.11).
+void printIgnored(const char* kind, const std::vector<std::string>& entries)
+{
+  if (entries.empty())
+  {
+    return;
+  }
+  std::cout << "           ignored " << kind << ":";
+  for (const std::string& e : entries)
+  {
+    std::cout << " " << e << ";";
+  }
+  std::cout << "\n";
+}
+
+// LD.11 — clone explanation. Tells the user WHY a pair matched by surfacing what
+// normalization HID: at aligned (=) positions the normalized symbols are equal,
+// but the raw spellings the normalizer collapsed (id->"id", lit->"lit") may
+// differ — those are exactly the identifier renames and literal edits the plain
+// diff cannot show. diffTokens aligns on the normalized seq; we read fa/fb.rawSeq
+// at the matched indices to recover the spellings. Deduplicated, in order seen.
+void explainPair(const Fragment& fa, const Fragment& fb, double similarity)
+{
+  std::vector<std::string> ids;
+  std::vector<std::string> lits;
+  std::size_t matched = 0;
+  for (const DiffOp& o : diffTokens(fa.seq, fb.seq))
+  {
+    if (o.tag != '=')
+    {
+      continue;
+    }
+    ++matched;
+    if (o.ai < 0 || o.bj < 0 || fa.rawSeq[o.ai] == fb.rawSeq[o.bj])
+    {
+      continue;
+    }
+    std::vector<std::string>& bucket = o.a == "lit" ? lits : ids;
+    const std::string entry = fa.rawSeq[o.ai] + " -> " + fb.rawSeq[o.bj];
+    if (std::find(bucket.begin(), bucket.end(), entry) == bucket.end())
+    {
+      bucket.push_back(entry);
+    }
+  }
+  std::cout << "         explain: matched " << matched << " tokens, similarity "
+            << static_cast<int>(similarity * 100.0 + 0.5) << "%\n";
+  printIgnored("identifiers", ids);
+  printIgnored("literals", lits);
 }
 
 void printUsage()
@@ -1300,7 +1401,7 @@ std::size_t runDiffCommit(const Options& opt, const std::string& parent,
     const Pair& p = best[i];
     const Fragment& fa = frags[p.a];
     const Fragment& fb = frags[p.b];
-    std::cout << "  [" << gateName << "=" << gateScore(opt.metric, opt.precise, p) << "] ADDED "
+    std::cout << "  [" << gateName << "=" << gateScore(opt.metric, opt.precise, p) << " " << cloneType(fa, fb) << "] ADDED "
               << fa.file << ":" << fa.startLine << "-" << fa.endLine << "  <->  BASE " << fb.file
               << ":" << fb.startLine << "-" << fb.endLine << "  tokens " << fa.tokenCount << "/"
               << fb.tokenCount << "  weighted=" << p.weighted << " plain=" << p.plain
@@ -1310,6 +1411,10 @@ std::size_t runDiffCommit(const Options& opt, const std::string& parent,
       std::cout << " lcs=" << p.lcs;
     }
     std::cout << " shared-rare=" << p.sharedRare << "\n";
+    if (opt.precise)
+    {
+      explainPair(fa, fb, gateScore(opt.metric, opt.precise, p));  // LD.11
+    }
   }
   return best.size();
 }
@@ -1619,7 +1724,7 @@ int main(int argc, char** argv)
     const Pair& p = reported[i];
     const Fragment& fa = frags[p.a];
     const Fragment& fb = frags[p.b];
-    std::cout << "[" << gateName << "=" << scoreOf(p) << "]  " << fa.file << ":"
+    std::cout << "[" << gateName << "=" << scoreOf(p) << " " << cloneType(fa, fb) << "]  " << fa.file << ":"
               << fa.startLine << "-" << fa.endLine << "  <->  " << fb.file << ":"
               << fb.startLine << "-" << fb.endLine << "\n";
     std::cout << "         tokens " << fa.tokenCount << "/" << fb.tokenCount
@@ -1632,6 +1737,7 @@ int main(int argc, char** argv)
     std::cout << "  shared-rare=" << p.sharedRare << "\n";
     if (opt.precise)
     {
+      explainPair(fa, fb, scoreOf(p));  // LD.11: matched tokens, similarity, ignored renames/literals
       const std::vector<DiffOp> ops = diffTokens(fa.seq, fb.seq);
       std::size_t changed = 0;
       std::size_t dels = 0;
