@@ -8,24 +8,66 @@
 namespace archcheck::scan::duplication
 {
 
+namespace
+{
+void phase1TokenizeAndExtract(const std::vector<std::pair<std::string, std::string>> &files, const ScannerOptions &opts,
+                              std::vector<Fragment> &allFragments, std::size_t &totalLoc)
+{
+  for (const auto &[path, source] : files)
+  {
+    const auto tokens = lex(source, opts.fragmentOpts.minTokens > 0);
+    const auto fragments = extractFragments(tokens, source, path, opts.fragmentOpts);
+    for (const auto &frag : fragments)
+    {
+      totalLoc += frag.endLine - frag.startLine + 1;
+      allFragments.push_back(frag);
+    }
+  }
+}
+
+std::vector<Pair> phase3ScoreCandidates(const std::vector<Fragment> &allFragments, const CloneIndex &index,
+                                        const ScannerOptions &opts)
+{
+  auto scoreOf = [&opts](const Pair &p) -> double
+  { return opts.precise ? p.lcs : (opts.metric == "plain" ? p.plain : p.weighted); };
+
+  std::vector<Pair> candidates;
+  for (const auto &[pr, shared] : index.sharedRare)
+  {
+    Pair p;
+    p.a = pr.first;
+    p.b = pr.second;
+    p.sharedRare = shared;
+    p.weighted = weightedJaccard(allFragments[p.a], allFragments[p.b], index.idf);
+    p.plain = plainJaccard(allFragments[p.a], allFragments[p.b]);
+    p.line = lineOverlap(allFragments[p.a], allFragments[p.b]);
+    if (opts.precise)
+    {
+      p.lcs = lcsRatio(allFragments[p.a], allFragments[p.b]);
+    }
+    if (scoreOf(p) >= opts.simThreshold)
+    {
+      candidates.push_back(p);
+    }
+  }
+  return candidates;
+}
+
+void phase4Sort(std::vector<Pair> &candidates, const ScannerOptions &opts)
+{
+  auto scoreOf = [&opts](const Pair &p) -> double
+  { return opts.precise ? p.lcs : (opts.metric == "plain" ? p.plain : p.weighted); };
+  std::sort(candidates.begin(), candidates.end(),
+            [&](const Pair &l, const Pair &r) { return scoreOf(l) > scoreOf(r); });
+}
+} // namespace
+
 ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::string>> &files, const ScannerOptions &opts)
 {
   ScanResult result;
   std::vector<Fragment> allFragments;
 
-  // Phase 1: Tokenize and extract fragments from each file
-  for (const auto &[path, source] : files)
-  {
-    const auto tokens = lex(source, opts.fragmentOpts.minTokens > 0);
-    const auto fragments = extractFragments(tokens, source, path, opts.fragmentOpts);
-
-    for (const auto &frag : fragments)
-    {
-      result.totalLoc += frag.endLine - frag.startLine + 1;
-      allFragments.push_back(frag);
-    }
-  }
-
+  phase1TokenizeAndExtract(files, opts, allFragments, result.totalLoc);
   result.fileCount = files.size();
   result.fragments = allFragments;
 
@@ -34,39 +76,11 @@ ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::stri
     return result;
   }
 
-  // Phase 2: Build inverted index and find candidate pairs
   result.index = buildIndex(allFragments, opts.indexOpts);
   result.candidateCount = result.index.sharedRare.size();
 
-  // Phase 3: Score candidates and filter by threshold
-  auto scoreOf = [&opts](const Pair &p) -> double
-  { return opts.precise ? p.lcs : (opts.metric == "plain" ? p.plain : p.weighted); };
-
-  std::vector<Pair> candidates;
-  for (const auto &[pr, shared] : result.index.sharedRare)
-  {
-    Pair p;
-    p.a = pr.first;
-    p.b = pr.second;
-    p.sharedRare = shared;
-    p.weighted = weightedJaccard(allFragments[p.a], allFragments[p.b], result.index.idf);
-    p.plain = plainJaccard(allFragments[p.a], allFragments[p.b]);
-    p.line = lineOverlap(allFragments[p.a], allFragments[p.b]);
-
-    if (opts.precise)
-    {
-      p.lcs = lcsRatio(allFragments[p.a], allFragments[p.b]);
-    }
-
-    if (scoreOf(p) >= opts.simThreshold)
-    {
-      candidates.push_back(p);
-    }
-  }
-
-  // Phase 4: Sort by score
-  std::sort(candidates.begin(), candidates.end(),
-            [&](const Pair &l, const Pair &r) { return scoreOf(l) > scoreOf(r); });
+  std::vector<Pair> candidates = phase3ScoreCandidates(allFragments, result.index, opts);
+  phase4Sort(candidates, opts);
 
   result.pairs = candidates;
   return result;

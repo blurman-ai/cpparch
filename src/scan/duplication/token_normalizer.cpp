@@ -66,37 +66,26 @@ std::size_t rawStringPrefixLen(const std::string &src, std::size_t i)
   return 0;
 }
 
+bool isValidZeroTerminator(char d) { return d == '\n' || d == '\r' || d == ' ' || d == '\t' || d == '/'; }
+
 bool isDeadIfOpener(const std::string &src, std::size_t i)
 {
   const std::size_t n = src.size();
-  std::size_t j = i + 1; // past '#'
+  std::size_t j = i + 1;
   while (j < n && (src[j] == ' ' || src[j] == '\t'))
-  {
     ++j;
-  }
   if (src.compare(j, 2, "if") != 0)
-  {
     return false;
-  }
   j += 2;
   if (j < n && isIdentChar(src[j]))
-  {
-    return false; // reject #ifdef / #ifndef
-  }
-  while (j < n && (src[j] == ' ' || src[j] == '\t'))
-  {
-    ++j;
-  }
-  if (src.compare(j, 5, "false") == 0)
-  {
-    return true;
-  }
-  if (j >= n || src[j] != '0')
-  {
     return false;
-  }
-  const char d = (j + 1 < n) ? src[j + 1] : '\n';
-  return d == '\n' || d == '\r' || d == ' ' || d == '\t' || d == '/';
+  while (j < n && (src[j] == ' ' || src[j] == '\t'))
+    ++j;
+  if (src.compare(j, 5, "false") == 0)
+    return true;
+  if (j >= n || src[j] != '0')
+    return false;
+  return isValidZeroTerminator(j + 1 < n ? src[j + 1] : '\n');
 }
 
 namespace
