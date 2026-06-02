@@ -1,17 +1,47 @@
 # [SCAN] Фиксы FP дубликат-чекера по итогам глазной верификации (#067)
 
 **Дата создания:** 2026-06-02
+**Дата ревизии:** 2026-06-02 — слиты внешнее ревью FP-reduction + прайор-арт (web) + reality-check против реальной архитектуры #056.
 **Дата старта:** —
 **Статус:** new
-**Модуль:** SCAN / rules (duplication #053/#056/#059)
-**Приоритет:** major
-**Related:** #060 (валидация/харденинг чекера), #067 (глазная верификация), #056 (token-проход)
+**Модуль:** SCAN / rules (duplication #056/#059, diff-mode #054)
+**Related:** #060 (валидация/харденинг чекера), #067 (глазная верификация), #056 (token-проход), #054 (diff-атрибуция), #059 (precision), #068/#069 (vendor/single-file excludes)
+**Источник истины по дизайну:** [docs/duplication_architecture.md](../../docs/duplication_architecture.md) — читать ПЕРЕД любым фиксом отсюда.
 
 ## Цель
 
 Разобрать и реализовать предложения по снижению false positives дубликат-чекера,
 собранные агентами при глазной верификации 135 drift-реп (#067). Это рабочий
 backlog фиксов — **разбираем потом**, приоритизируем по числу случаев на класс.
+
+## Прогресс / лог
+
+**2026-06-02 — триаж завершён (сессия анализа, не реализация).**
+
+Сделано:
+- Сырой дамп ~130 предложений схлопнут в merged-план (§0–§6); сырьё сохранено как
+  labeled observations (Приложение A) — не выкидывать, это регресс-корпус.
+- Слиты три источника: внешнее ревью FP-reduction + прайор-арт из web (§2, Источники) +
+  reality-check против реальной архитектуры #056.
+
+Ключевые решения этой сессии:
+- **Reality-check (§0):** ревью предполагает AST/git/multi-bucket конвейер — у нас один
+  токеновый #056 без libclang. Половина «P0» ревью **уже реализована** (comment-strip,
+  token-LCS order-gate, selective-norm). idf — **не silver bullet**, у нас контр-данные
+  (вредит на recall-гейте) → только precision-re-rank.
+- **Честный потолок (§5):** механика (P0) ⇒ precision 32%→~45% почти бесплатно; 60%+ —
+  только вгрызаясь в idiom/coincidental (доказанный floor) или через LLM-confirm на gate.
+- **Приоритет сместился** с «борьбы с идиомами» на дешёвую механику: diff-hunk/blame
+  атрибуция + git-rename/move + ревалидация координат спана (бьют по other/whole-file/
+  мисатрибуции, без семантики).
+
+В работе / следующий шаг:
+- Реализация **P0** (§3): начать с diff-hunk + blame атрибуции в #054 diff-mode.
+- Перед кодом — собрать регресс-фикстуру #067 (§4) из `VERIFICATION_REPORT.md` +
+  `verify_results*/*.json`, иначе тюнинг порогов = гадание.
+
+Изменённые файлы (эта сессия):
+- `backlog/new/070_maj_checker_fp_fix_proposals.md` — merged-план + Приложение A (не закоммичено).
 
 ## Контекст (метрики верификации #067, 2026-06-02)
 
@@ -25,15 +55,232 @@ backlog фиксов — **разбираем потом**, приоритизи
 Полный разбор (каждый FP: что обмануло детектор + где) — в
 `experiments/ai_repo_run/VERIFICATION_REPORT.md`.
 
-## Как разбирать
+## TL;DR — что реально сделаем, чего не сделаем
 
-Фиксы ниже сгруппированы по классу FP и отсортированы по объёму проблемы.
-Первый приоритет — **idiom (189)** и **coincidental (99)**: вместе ~71% всех FP.
-Многие фиксы повторяют одну идею (стоп-листы фреймворк-бойлерплейта, down-weight
-логирующих макросов, AND-gating по contiguous-run, file-local IDF) — при разборе
-схлопнуть в несколько общих механизмов, а не реализовывать 405 правил.
+**Делаем (P0, дёшево, детерминированно, без libclang):** атрибуция к git-hunk + blame,
+git-rename/move/whole-file подавление, координатная ревалидация спана, привязка окна
+к границам функции (по brace-балансу), совместный gate token∧order. Это бьёт по
+**механическим** FP-классам (`other`, `whole-file`, `generated`, часть `coincidental`)
+и почти не требует семантики.
 
-## Предложения по фиксам (из #067, как есть — дедуп при разборе)
+**Делаем осторожно (P1, надо мерить против 195 TP):** file-local частотный down-weight
+как **precision-re-rank** (НЕ recall-гейт — у нас уже доказано, что idf инвертирует
+ранжирование на recall, см. §0), data-table/boilerplate-классификаторы, min-substantive-core.
+
+**Не сделаем (вне fast-backend / противоречит решению 2026-06-01):** tree-sitter/AST
+function-spans, control-flow/statement-shape скелеты как несущий гейт (нужен парсер/AST;
+#052 убран, не возвращаемся), сотни фреймворк-стоп-листов (Qt/JUCE/CUDA/…), доведение
+idiom/coincidental до нуля (доказано перекрытие распределений TP/FP — это floor, не баг).
+
+**Честный потолок:** механические гейты (P0) дают precision ~32%→~45%. До 60%+ нужно
+бить по `idiom`/`coincidental` — а это и есть доказанный floor; туда достаёт только
+LLM-confirm (#059 L3) и только на gate-режиме. Подробный FP-бюджет — §5.
+
+## 0. Reality-check — архитектура vs. ревью (ЧИТАТЬ ПЕРВЫМ)
+
+Ревью и сырой backlog (Приложение A) написаны так, будто у archcheck — многослойный
+AST-aware / git-aware / multi-bucket конвейер с парсером. **Это не так.** По решению
+2026-06-01 ([docs/duplication_architecture.md](../../docs/duplication_architecture.md)):
+
+- **Один детектор — токеновый #056**, parser-free, fast-backend, **без libclang и
+  `compile_commands.json`**. Слои #053 (line) и #052 (AST cross-TU) **убраны из дерева,
+  не возвращаемся.** Любой пункт ревью, опирающийся на «у сканера уже есть function-spans
+  из clang» / «возьмём AST-скелет» — **неприменим как есть**: у нас нет AST.
+- **idf-вес уже измерен как ВРЕДНЫЙ на recall-гейте** (§3.4 arch-дока): на headline-кейсе
+  «оператор флипнут в каждой строке» самые редкие токены расходятся, idf даёт им макс. вес
+  и **инвертирует** ранжирование (ложный switch 0.45 выше истинной копии 0.36). idf уместен
+  ТОЛЬКО на precision-re-rank, не на recall. **Это прямо противоречит** самому частому
+  предложению backlog'а («file-local IDF» повторено десятки раз) — оно НЕ silver bullet.
+- **entropy/diversity-гард уже измерен с перекрытием распределений** TP/FP (FP 0.25–0.28,
+  настоящий TP 0.32) — чистого формального порога не существует. Idiom-FP floor — **не баг,
+  а граница метода** (§9 arch-дока).
+
+**Что из «P0» ревью у нас УЖЕ есть** (значит — не делать заново, максимум до-настроить):
+
+| Предложение ревью | Статус в #056 |
+|---|---|
+| Strip comments перед токенизацией (Task 6) | лексер уже чистит; raw-string→`lit`, мёртвые `#if 0` выкинуты. Проверить покрытие `//` / `/* */` / doxygen. |
+| Joint token + ordered gate (Task 5) | **есть и несущий** — token-LCS confirm обязателен, калибр-гейт ~0.80 (§3.5). Это ровно «не доверять token-bag без порядка». |
+| Keep call-targets, не нормализовать всё в `id` | **есть — ключевое решение** (selective normalization, §6). Совпадает с философией SourcererCC (см. §2). Дешёвая замена «call-target Jaccard» (P2.1 ревью). |
+| Vendor/generated exclude (Task 9) | **в работе** — #068 (vendor), #069 (single-file lib), §8 (баннер/сигналы). |
+| Data-table suppression (Task 7) | **частично** — raw-string-блобы схлопнуты; числовой data-heavy guard ещё НЕ реализован. |
+
+Вывод: **не «реализовать 130 правил с нуля», а (а) до-настроить уже несущие фазы и
+(б) добавить 4–5 механических гейтов, которых правда нет.**
+
+## 1. Слияние: 130 предложений → механизмы (как ревью, проверено нашей архитектурой)
+
+Все ~130 пунктов Приложения A схлопываются в таблицу ниже. «Вердикт» — что реально
+делаем под наш бэкенд (а не что звучит хорошо).
+
+| Механизм | Бьёт по классам | Есть у нас? | Вердикт |
+|---|---|---|---|
+| **Diff-hunk + blame атрибуция** (хит крепить к коммиту, реально добавившему ADDED-строки) | other, часть coincidental | частично в #054 diff-mode | **P0 — главный.** git, без libclang. Только в commit/diff/baseline-режимах. |
+| **git rename/move/whole-file подавление** (`git diff -M -C`) | whole-file | нет | **P0.** git делает это сам (`-C -C -C` ловит копии в commit, создавшем файл). Не изобретать скорингом. |
+| **Координатная ревалидация спана** (перечитать blob по SHA, ретокенизировать, сверить hash) | other (phantom-range, EOF, stale lines) | нет | **P0.** Дёшево, детерминированно. |
+| **Function-boundary привязка окна** (окно не пересекает `}`-верхнего-уровня + новую функцию) | coincidental, idiom («хвост одной + голова соседней») | **частично** — фрагментатор по brace-балансу (§3.2) | **P0/P1.** Усилить эвристику brace-баланса. **AST-spans — НЕТ** (нет libclang). |
+| **Joint token∧order gate** (не репортить по token-bag без LCS/порядка) | coincidental (w-high/line-low) | **есть** (token-LCS) | до-настроить: выставить совместный floor LCS+line, перестать пускать `w high & line low`. |
+| **Selective normalization** (хранить callee-имена + case-метки) | call-skeleton, switch-idiom | **есть, дефолт** | держать. Это и есть общая замена сотням фреймворк-стоп-листов. |
+| **data-table / literal-run классификатор** (`{lit,lit}` ряды, `case X: return Y;` лестницы) | data-table, часть idiom | частично (raw-string) | **P1.** Расширить на числовые/case-таблицы на уровне лексера. |
+| **boilerplate-density / min substantive core** (≥N редких не-идиомных токенов) | idiom, boilerplate | нет | **P1.** Помогает, но упирается в floor (перекрытие распределений). |
+| **file-local частотный down-weight** (TF-IDF-style, гасить hot-идентификаторы файла/репы) | idiom, coincidental | **нет (намеренно)** | **P1, осторожно.** ТОЛЬКО precision-re-rank после LCS, НЕ recall-гейт. Валидировать против 195 TP — у нас есть контр-данные. |
+| **min block size / drop trivial forwarders** | idiom (короткие обёртки) | частичный floor | **P1.** Дешёво. |
+| **header-impl / declaration-density гейт** (`.h`↔`.cpp`, override-сигнатуры) | header-impl | нет | **P1.** Дёшево (доля decl-строк). |
+| **symmetric-pair канонизация** (A,B)=(B,A) | other (двойной репорт) | нет | **P0, тривиально.** |
+| **control-flow / statement-shape skeleton LCS** | idiom (диспетч vs логика) | нет | **НЕ P0/P1.** Нужен парсер/AST. Дешёвый суррогат — LCS по последовательности keyword'ов (лексер их хранит) — research, ROI неясен. |
+| **per-framework стоп-листы** (Qt/JUCE/CUDA/WinAPI/…) | idiom | нет | **НЕ делаем как ядро** (ревью §7 согласно). Максимум маленький конфигурируемый low-signal хинт. |
+| **LLM/семантик confirm** | idiom-floor остаток | спроектирован (#059 L3) | держать как **финал, только на gate-режиме**, где вердикт чинит/гейтит. Не MVP. |
+
+## 2. Внешний консенсус (прайор-арт, web) — что думают «взрослые»
+
+Сильная новость: наши FP-классы и наши решения — **каноничны**, не самодеятельность.
+
+- **SourcererCC** (Sajnani et al., arXiv 1512.06448) сознательно **НЕ нормализует имена
+  идентификаторов**, чтобы сохранить precision, и использует **token-ordering фильтры** для
+  отсева. → Прямо подтверждает наше **selective normalization** (keep callee-имена) и
+  **token-LCS order gate** как state-of-the-art, а не костыль.
+- **Каноничные причины Type-3 FP** в литературе (бенчмарк-обзоры): «очень короткие
+  последовательности assignment'ов; разные API-вызовы, повторённые в case-ветках switch;
+  чрезвычайно длинные одиночные statement'ы со склейкой строк». → **Точное совпадение** с
+  нашими top-классами (`idiom` = guard/switch-лестницы, `data-table` = string-concat/init).
+  Это известный hard floor у ВСЕХ, не дефект archcheck.
+- **NiCad** (Cordy & Roy, ICPC 2011): precision 89–96% — но **на искусственных
+  мутационных клонах** (BigCloneBench / Mutation Framework). Наши 32% — на **реальном**
+  AI-drift-корпусе с общим словарём. Сравнивать наши числа с «90%+» из статей **нельзя**:
+  это разные (более лёгкие) измерения. Реалистичный потолок на реальном коде ниже.
+- **Kapser & Godfrey** («не все клоны вредны», таксономия benign-клонов): правильный ответ —
+  **классификация/бакеты + фильтр FP по таксономии**, а «полезность клона субъективна, зависит
+  от цели пользователя». → Подтверждает наш **классификатор характера** (VERBATIM/RENAMED/
+  EDITED) и режимный сплит (snapshot=explorer vs gate). FP-категории из их работы —
+  «список assignment'ов / список деклараций» — это наши `data-table` и `header-impl`.
+- **PMD CPD** уже выставляет ручки `ignore-literals` / `ignore-literal-sequences` /
+  `ignore-identifiers` / skip-blocks. → Наши data-table/literal-классификаторы — не экзотика.
+- **git rename/copy** (`git-blame -C`, `git diff -M -C`) — git **сам** детектит move/copy,
+  в т.ч. копии в коммите, создавшем файл. → whole-file/move-подавление = **git-native**,
+  не скоринг.
+- **Sonar (community, 2025):** жалобы на десятки–сотни FP на один реальный дубль; если FP
+  не подавляемы/не объяснимы — правило **отключают**. → Подтверждает: при precision ~32%
+  CI-гейт держать нельзя; нужны (а) атрибуция, (б) объяснимость («почему сработало»),
+  (в) бакеты доверия.
+- **TF-IDF в clone-detection**: помогает в связке с cosine-ранжированием, но современный
+  прирост precision даёт не сырой токен-вес, а embeddings/ML. → Согласуется с нашим
+  «idf — на ранжирование, не на гейт; не silver bullet».
+
+Итог §2: ревью верен в прайор-арте; **главное расхождение с нашей реальностью — масштаб
+конвейера** (у нас один токеновый слой без AST) и **idf** (у нас есть контр-данные).
+
+## 3. Реалистичный план под наш бэкенд
+
+### P0 — корректность/атрибуция (дёшево, детерминированно, без libclang)
+
+Работает в **commit/diff/baseline**-режимах (там, где «происходит изменение кода» и стоит
+гейт; §7 arch-дока). В snapshot-explorer git-пары нет — но snapshot и не гейтит.
+
+1. **Diff-hunk + blame атрибуция.** Хит валиден, только если ADDED-спан пересекает
+   added/modified hunks **этого** коммита; merge — диффать против first-parent или
+   атрибутировать через blame. Снимает `other` целиком и кусок `coincidental`
+   (docs/chore/merge-мисатрибуция).
+2. **git rename/move/whole-file подавление** перед chunk-matching (`git diff -M -C`).
+   BASE удалён + ADDED похож на удалённый BASE → move/refactor, не дубль. Снимает `whole-file`.
+3. **Координатная ревалидация.** Хранить `blob_sha,path,start,end,norm_span_hash`; перед
+   выводом перечитать blob, ретокенизировать, сверить. Дроп при mismatch. Снимает phantom-range.
+4. **Function-boundary привязка** — усилить brace-баланс-фрагментатор так, чтобы окно не
+   захватывало хвост одной функции + голову соседней. **Без парсера** (по `)`→`{` сигнатуре).
+5. **Symmetric-pair канонизация** — (A,B) и (B,A) в одну.
+6. **Joint token∧order floor** — перестать эмитить `w high & line/LCS low`; выставить
+   совместный порог (точные числа — фитить на корпусе #067, не угадывать).
+
+### P1 — low-signal классификаторы (мерить против 195 TP, иначе recall просядет)
+
+1. **data-table/literal-run** классификатор (числовые таблицы, `case X:return Y;` лестницы,
+   `push_back({…})` ряды) — на уровне лексера, как уже сделано для raw-string.
+2. **boilerplate-density** + **min substantive core** (≥N редких не-идиомных токенов; пол
+   ~10–15 значимых не-brace строк; дроп тривиальных forwarder'ов).
+3. **header-impl** гейт (доля decl-строк ≥0.7 и <2 executable → suppress; `.h`↔`.cpp`
+   одного basename требует высокого overlap тела).
+4. **file-local частотный down-weight** — **только precision-re-rank после LCS.** Перед
+   включением: прогон против 195 TP, метрика TP-retention. Если recall падает > порога — откат.
+   (У нас уже есть данные, что idf может вредить — поэтому это P1, а не P0.)
+
+### P2 — структурные (дорого/неясный ROI) — только после замеров P0/P1
+
+- keyword-sequence skeleton-LCS как **суррогат** control-flow (лексер хранит keyword'ы) —
+  research, может не окупиться.
+- LLM/семантик confirm (#059 L3) — финал, только на gate-режиме, где вердикт чинит/гейтит.
+
+### Вне scope (честно — НЕ сможем / не будем)
+
+- **AST/tree-sitter function-spans, statement/CFG-скелет как несущий гейт** — нет libclang
+  в fast-backend; #052 убран, решение 2026-06-01 «не возвращаемся».
+- **Сотни фреймворк-стоп-листов** — заменяются selective-norm + file-local down-weight +
+  min-core. Hard-code Qt/JUCE/CUDA — «эвристический болот» (ревью §12 согласно).
+- **idiom/coincidental → 0** — доказанный floor (перекрытие распределений). Снижаем, не обнуляем.
+
+## 4. Регрессионный корпус #067 (обязателен — иначе тюнинг порогов = гадание)
+
+Превратить верифицированные #067-вердикты в фикстуру. Поля на находку:
+`repo, commit, added_file, added_span, base_file, base_span, label(TP|FP), fp_class, note`.
+Каждый новый фильтр мерить: `precision_before/after`, `TP_kept/195`, `FP_removed/406`,
+`FP_removed_by_class`, `new_FN`, `runtime_delta`. Источник: `VERIFICATION_REPORT.md` +
+`verify_results*/*.json`. (Прайор-арт: ручная валидация клонов дорога и не масштабируется —
+поэтому этот корпус ценен, не выбрасывать.)
+
+**Критерий приёмки фильтра:** убирает ≥X FP, теряет ≤Y TP, не растит runtime сверх бюджета,
+имеет детерминированное объяснение в выводе. Плохой фильтр («звучит правдоподобно») не берём.
+
+## 5. FP-бюджет — куда реально денутся 406 FP (рациональная оценка)
+
+| Класс | Кол-во | Чем бьём | Механически killable? |
+|---|---:|---|---|
+| other | 31 | P0.1 атрибуция + P0.3 ревалидация + P0.5 канонизация | ~все 31 |
+| whole-file | 51 | P0.2 git rename/move + vendor | ~45 |
+| data-table | 21 | P1.1 классификатор | ~18 |
+| generated | 9 | #068/#069 + P1 banner | ~8 |
+| header-impl | 4 | P1.3 | ~4 |
+| boilerplate | 2 | P1.2 | 2 |
+| coincidental | 99 | часть = мисатрибуция/phantom/move (P0); остаток = floor | ~25–40 |
+| idiom | 189 | selective-norm есть; P1 min-core/down-weight; **остаток = floor** | ~40–70 |
+
+**Арифметика:** P0 (механика) реально снимает ~110–140 FP → precision ~32% → **~44–48%**.
+До **60%+** нужно снять ещё ~150, т.е. вгрызаться в `idiom`/`coincidental` — а это floor;
+формальные средства его не обнуляют. **Вывод для пользователя: 60% достижимо НЕ механикой
+одной, а только если (а) file-local down-weight реально сработает на нашем корпусе (есть
+контр-данные) И/ИЛИ (б) на gate-режиме включить LLM-confirm на остаточной полосе.**
+Поэтому цель формулируем честно:
+
+- **После P0:** precision ≥ ~45%, TP-retention ≥ 95%, ноль stale-координат, ноль хитов на
+  коммитах без релевантного diff. — *реально и почти бесплатно.*
+- **После P1:** precision ~55–60%, TP-retention ≥ 90%, whole-file/data-table/generated −80%. —
+  *достижимо, но требует замеров; idf-часть под вопросом.*
+- **60%+ как CI-гейт:** только с LLM-confirm на остатке. Иначе держать в advisory-бакете.
+
+## 6. Output-модель (объяснимость — иначе отключат, см. Sonar)
+
+Не плоский список «дубликатов» — **бакеты доверия** (частично уже есть: классификатор
+характера + snapshot/gate-режимы): `confirmed-copy-paste` / `weak-diverged` /
+`data-table-dup` / `whole-file-move-import` / `suppressed(reason)`. Каждая находка несёт
+«почему»: `token_score, order/lcs, line, eff_lines, rare_id_count, call_overlap,
+attribution_commit, hunk_overlap`; suppressed — с причиной (`table_like`, `boilerplate`,
+`generated`, `moved`, `BASE_absent`, `span_not_in_diff`, `same_function_overlap`, `too_short`).
+
+## Источники (прайор-арт)
+
+- SourcererCC — Sajnani et al., arXiv: https://arxiv.org/abs/1512.06448
+- NiCad — Cordy & Roy, ICPC 2011: https://www.cs.usask.ca/~croy/papers/2011/CR-NiCad-Tool-ICPC11.pdf
+- Type-3 FP-причины / бенчмарк — Multilingual Clone Detector, arXiv: https://arxiv.org/pdf/2409.06176
+- BigCloneBench (реализм precision) — Svajlenko, ICSME 2015: https://clones.usask.ca/pubfiles/articles/SvajlenkoEvaluatingToolsICSME2015.pdf
+- Kapser & Godfrey (benign clones, таксономия): https://plg.uwaterloo.ca/~migod/papers/2008/emse08-ClonePatterns.pdf
+- PMD CPD (ручки literals/identifiers/sequences): https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html
+- git rename/copy (`-M -C`), blame `-C`: https://git-scm.com/docs/git-diff , https://git-scm.com/docs/git-blame
+- Sonar duplicate-FP (community, 2025): https://community.sonarsource.com/t/sonarqube-duplicate-code-detection/142587
+
+---
+
+## Приложение A — сырьё #067: предложения как labeled observations
+
+> **Не реализовывать буквально.** Это размеченный набор наблюдений (≈130 пунктов от агентов
+> при верификации), а НЕ список правил. Ценность — как обучающие примеры и регресс-корпус
+> (§4). Все они схлопываются в механизмы §1. Сохранено для трассируемости фиксов к находкам.
 
 ### Сгруппированные предложения по фиксам (по классам FP)
 
@@ -458,3 +705,218 @@ backlog фиксов — **разбираем потом**, приоритизи
 - фикс: Понижать вес токенов логирования/диагностики (log, sprintf(buf,..), perror, fmt::format с __FILE__/__func__) — это сквозной boilerplate, искажающий tf и завышающий similarity. Завести stop-list 'diagnostic API' для token-прохода #056.
 - фикс: Down-weight contiguous runs dominated by the host-launch envelope: detect the (grid-dim compute -> dtype switch -> kernel<<<>>> -> cudaGetLastError) skeleton and treat it like a function-signature/header match (the existing #056 header<->impl suppressor), excluding it from chunk scoring unless the in-kernel body also matches.
 
+
+---
+
+## Новые предложения по фиксам FP (из round2)
+
+**idiom** (108):
+- фикс: #056: raise the minimum significant-token window so that a clone candidate must share a body of meaningful tokens beyond the alloc/guard/free scaffold; specifically discount tokens that are pure resource-management idiom (matched new/free pairs of the same library symbol, nullptr-guards, `return <bool>`). For functions <= ~12 statements where >50% of shared tokens are alloc/free/guard scaffolding, suppress. Cheaper alternative: require >=N (e.g. 6) consecutive identical NON-call-to-distinct-symbol lines, which these don't have because the central OQS_* call differs per function.
+- фикс: #056: add an idiom-suppression filter for runs of Qt connect()/qmlRegister*/setContextProperty/setProperty statements -- treat consecutive single-statement member-call lines that differ only in argument identifiers as a 'wiring table' and down-weight (same family as data-table suppression). Also skip merge commits when attributing copy-paste hits to a commit (attribute to the introducing non-merge commit via blame).
+- фикс: #056: treat the LL VBO-strider preamble (allocateBuffer + the getXStrider()&&getYStrider() conjunction + unmapBuffer) as a domain idiom and discount it before scoring, OR weight token-similarity by the *divergent* core (drop the matched preamble/epilogue from the span and re-score only the loop body). General archcheck fix: raise the within-file min-distinct-token threshold so that two functions whose similarity is concentrated in a shared call-sequence boilerplate (>60% of matched tokens are identical API-call chains) are demoted; require the divergent middle to also exceed the line threshold, not just the whole span.
+- фикс: #056: enforce a minimum significant-body size (e.g. >=5 non-trivial statements after stripping the shared guard/return scaffolding) before a within-file pair is reported. A function whose only non-guard content is a single method call should never be a CP hit. Also skip spans whose only divergence is the callee identifier of one call expression.
+- фикс: #056: add a 'forwarding-wrapper' suppressor — if a candidate block's non-boilerplate body is a single `return member.method(args);` / `member.method(args);` delegation (optionally preceded by one early-return guard), and the only token diff between siblings is the callee method name, drop the match. Equivalently raise the min distinct-statement count so blocks whose unique content is <=2 statements after stripping a shared guard don't qualify.
+- фикс: #056: same forwarding-wrapper heuristic as above. Also useful: treat a sequence of sibling methods that all delegate to the *same* member object as a generated-facade cluster and report it once (or not at all) rather than as N pairwise clones, to avoid quadratic FP inflation on facade classes.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: при подсчёте сходства давать пониженный вес строкам-вызовам логирования (info/vinfo/BB_BENCH_NAME) и чистым string-литералам; либо требовать совпадение структуры control-flow, а не только токенов.
+- фикс: #056: strip C/C++ comment tokens before clone scoring (or weight comment lines ~0), so a shared doc-comment template can't inflate similarity; and require the matched span to contain a minimum count of NON-boilerplate statement tokens (assignments/calls with distinct identifiers) — a block that is mostly an identical comment + a fixed emit/apply tail falls below threshold.
+- фикс: #056: exempt spans below a hard min-token floor even at high similarity (a 3-5 line type-conversion helper should never be a clone hit), and add a same-anon-namespace-helper allowlist so per-TU adapter functions with identical bodies are treated as accepted idiom rather than copy-paste.
+- фикс: #056: raise the min-distinct-token / min-significant-line floor so that blocks dominated by a recurring per-method prologue (same N leading lines shared by 3+ siblings in one file) are demoted; or compute an in-file 'idiom frequency' — a chunk whose head k lines match >=3 other chunk heads in the same file is boilerplate, not a clone. This avoids flagging emitter-method prologues.
+- фикс: #056: add a 'test-harness boilerplate' filter — when a near-dup block lives in files under a tests/ or *test*/ path AND the block is file-static (static linkage, only used within its TU) AND the only divergence is string literals, downweight/suppress. Practically: exclude file-local static helpers in test dirs from cross-file clone scoring, or raise the cross-file threshold for paths matching test globs.
+- фикс: #056: short-thunk exemption — suppress clone hits where the matched block is <=3 statements AND the body is a single call/return forwarding the function's own params (pure delegation), since collapsing such thunks adds indirection without removing real logic. Min meaningful-token threshold for adapter functions.
+- фикс: Maintain a small allowlist of well-known numeric idioms (softmax/argmax sampler, RoPE table fill, layernorm) OR better: archcheck should report such recurring small utilities once as a 'candidate for extraction to a shared header' (advisory) rather than as N copy-paste violations. Heuristic: if the same block recurs in >=3 files identically, reclassify from 'copy-paste pair' to single 'extract-to-common' suggestion, lowering noise.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: Apply a lower copypaste weight (or a higher min-token threshold) to files under test/ directories and to blocks dominated by TEST/TEST_F/EXPECT_/ASSERT_ macro tokens; a run of GTest assertions should not count toward chunk-clone density.
+- фикс: #056: add an argv-parse idiom suppressor — when a candidate block is dominated by repeated `arg == "--<literal>"` / `argv[++i]` / `if (i+1 >= argc)` tokens (string-literal-keyed dispatch chain), down-weight the match. Concretely: if >60% of matched lines are comparisons against distinct string literals, treat as idiom and require line>=0.85 AND length>=20 to report; otherwise drop.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: when two candidate blocks are both override-method clusters of the same base class, discount lines whose RHS is a single forwarding call (delegate pattern: `return member_->sameName(args);`). Add a 'delegation ratio' heuristic — if >70% of override bodies are one-line forwards to a shared member, treat as adapter and suppress. Also: weight method-signature tokens lower than body tokens so shared ABC override surfaces don't dominate the similarity score.
+- фикс: #056: add an idiom/micro-pattern filter — if a flagged block is dominated (>70% of lines) by a single repeated 3-line stanza matching the archive BeginTag/Process|Serialize/EndTag template (or any user-declarable 'idiom signature'), suppress. More generally: require >=N distinct non-stanza tokens (control flow, distinct calls) before a Serialize-shaped block counts as a clone.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: exclude preprocessor-directive runs from the token stream before windowing — a window whose non-comment tokens are >=70% #include/#ifdef/#endif/#pragma should not seed a clone. Equivalently, require each clone window to contain at least one statement/expression token (assignment, call, control-flow keyword), not only directives + braces.
+- фикс: #056: same directive-run exclusion; additionally drop decorative comment-banner lines ('// ===...') and lone 'namespace X {' lines from window content so the boilerplate scaffold of a generated header does not anchor a match. Set a minimum of N>=8 substantive statement tokens per clone.
+- фикс: #056: raise the minimum clone length for GUI/draw-immediate-mode call chains, or weight call-only windows (consecutive lines that are all member-call statements with literal args) lower so a 3-line ImGui idiom does not score as a clone; only flag when the duplicated run includes branching/loops or local-variable computation, as the real 4-function copy does.
+- фикс: #056: эвристика 'dispatch-arm' — если N>=4 почти-идентичных блоков сидят как смежные case-ветки одного switch (общий enclosing switch, разделены только case-метками, тело <=6 строк, расхождение в 1 токене-операторе/литерале), сворачивать в один кластер-факт 'switch с однотипными ветками' и НЕ репортить попарно; порог min-distinct-tokens на блок поднять, считать имена case-меток как разделители
+- фикс: #056: словарь библиотечных RAII/cleanup-идиом (OpenSSL EVP_*_free/return-on-error, WinAPI CloseHandle) — блоки, состоящие в основном из вызовов одной known-API-семьи + return одной error-константы, считать boilerplate и снижать вес/исключать; плюс общий фильтр 'error-handling ladder' (последовательность одинаковых guard+cleanup+return)
+- фикс: #056: (1) min-block-size в строках с учётом 'значимых' строк (исключать чистые field-assign/now()-вызовы из счёта) — короткие populate-блоки <4 значимых строк не репортить; (2) занести chrono now()->duration_cast<ms> в список общих утилит-идиом, как кандидат на extract-helper, но не как copy-paste дефект
+- фикс: #056: add a test-scaffold filter — when a matched span's high-similarity lines are dominated by thread/loop-control + framework macros (threads.emplace_back, thread.join(), TEST_CASE/SECTION/REQUIRE) and the interior lambda/loop body diverges, down-weight or drop. Concretely: require the matched chunk to contain >=N consecutive non-control, non-macro statement lines before counting, and exclude lines matching emplace_back/\.join\(\)/REQUIRE/SECTION from the similarity numerator
+- фикс: #056: strip the shared license/comment banner before hashing (already partially done), and add a per-project 'command-template prologue' suppressor — detect that the matched cross-file span is bounded to the leading include cluster + a function signature + a fHelp early-return string literal, and exclude it. Generally: exclude included-header lines and string-literal-only lines (help text) from cross-file similarity scoring so only executable statements count
+- фикс: #056: down-weight/ignore duplicate blocks that are dominated by a single fixture/factory construction call and contain no branching or arithmetic. Concretely: require a flagged block to contain >=1 control-flow token (if/for/while/switch) or a minimum count of distinct call targets; suppress blocks that are just sequential variable-init + one shared helper call inside test functions
+- фикс: #056: set a minimum chunk size in statements/lines (e.g. >=4 non-trivial statements) AND exclude runs that are a single call expression spanning multiple lines due to argument wrapping; normalize multi-line call-arg formatting to a single logical statement before length thresholding
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: under tests/** raise the cross-file token threshold and add a min-distinct-identifier-density gate; treat a chunk whose body is only stdlib container construction + assert/cout calls (no project-domain symbol other than the type-under-test) as boilerplate and drop it. A 1-line helper is below the token floor already; the real noise is the assert-block scaffolding.
+- фикс: #056: add an idiom-suppression filter for the std::optional/map-lookup accessor pattern (find -> end-compare -> nullopt/second). Either ignore chunks <=6 lines whose only control flow is a single end()-guard, or normalize this accessor shape into a recognized idiom token so identical accessors across sibling container classes do not register as clones.
+- фикс: #056: detect the connect(...)/QMetaObject::invokeMethod lambda-forwarding idiom and collapse a run of consecutive such statements into a single 'signal-wiring' token before clone matching, so N near-identical one-liner connects don't inflate a window match. More generally, suppress windows whose only varying tokens are a signal name + setter name drawn from the same identifier family.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: keep the minimum chunk span high enough (>= ~8 non-trivial statements / ~25 tokens of distinct body) so 3-6 line setter/eraser pairs never qualify; additionally add a 'CRUD-family suppressor' heuristic — when matched chunks differ ONLY by (a) a single member-identifier swap and (b) presence/absence of one extra statement, downweight, because register/unregister + byId/byName families are an expected, non-actionable idiom.
+- фикс: #056/archcheck: exclude preprocessor-directive lines (#if/#else/#endif/#define) and trivial early-return guard clauses ('if (!x) return false;') from the token stream used for chunk hashing, OR require that a matched chunk contain at least one non-guard, non-preprocessor statement of real work before counting it. The compile-time platform-guard shell is structural boilerplate, not duplicated logic.
+- фикс: #056: require a minimum non-boilerplate token span for cross-file hits below ~8 lines.
+- фикс: Add an idiom/boilerplate suppressor in #056: when a duplicated block is dominated by control-flow + literal tokens (catch/return/set_error with string-literal args) and contains zero call into project-internal symbols other than a single error-sink, demote its weight. Concretely: exclude blocks whose normalized token stream is >70% from {catch, return, throw, ENUM_LITERAL, string-literal} from the clone index, same family as the existing data-table filter.
+- фикс: In #056, treat a switch/if-chain whose only variation across candidates is the set of case constants (codepoint literals) as a 'lookup-table' clone class, not edited-logic: if two blocks have identical structure but >50% of their leaf literals are disjoint numeric constants, classify as data-table (low severity) instead of partial-edited. Reuses the data-table FP class already in the precision layer.
+- фикс: #056: add an idiom-suppression filter for short GUI-builder runs — when a candidate clone is <=8 statements AND >=70% of its tokens are method-call chains on a freshly new'd local/member of a single widget type (new X(); x->setA(); x->setB(); container->addView(x);), down-weight or drop it. Equivalently raise the min-token / min-statement threshold for blocks dominated by setter-chain calls so framework boilerplate doesn't cross the report bar.
+- фикс: #056: same GUI-builder idiom suppression as above — treat repeated new+setter-chain+registerClickAction+addView sequences on framework widget types as boilerplate, not clones. Could be data-driven via an allowlist of builder method names (setText/setWidth/registerClickAction/addView/registerAction) that, when they dominate a block, exclude it from clone reporting.
+- фикс: archcheck/#056: add an idiom/closed-enum-dispatch filter — when a candidate clone block is dominated (>70% of tokens) by a fixed dispatch over a known type/enum set (repeated holds_alternative<T>/get_if<T>/case Enum::X), down-weight or suppress. Practically: raise min-token threshold to >= ~40-50 tokens AND require >=2 distinct identifiers that are NOT type names or enum constants to vary between the two blocks; pure type-list dispatch ladders should not count as duplication.
+- фикс: #056: enforce a minimum meaningful-line floor (e.g. >=5 non-signature, non-brace statement lines) before a block is eligible to be a clone end; thin single-expression factory/wrapper functions (body is one return/make_unique) should be excluded by a 'trivial-body' guard.
+- фикс: #056: same trivial-wrapper guard — a function whose body is a single delegated call + uniform error-propagation boilerplate should be below the clone-eligibility floor. Combine with the >=5 meaningful-statement minimum so single-enum-arg variants of one delegating call are not reported.
+- фикс: #056: raise the minimum *distinct-token* floor per clone block (e.g. require >=8 non-keyword/non-call-target identifiers AND >=6 statement lines), so trivial guard-and-delegate accessors fall below threshold. Alternatively add an accessor-idiom suppressor: a block whose only varying tokens are a single member-call name + a literal default is treated as boilerplate, not a clone.
+- фикс: #056: exclude clone candidates whose duplicated span is dominated (>60%) by a single string-literal token (CSS/SQL/format strings). A repeated literal is a shared-constant smell, not copied logic; at most it warrants a 'extract constant' hint, not a copy-paste finding. Lower its weight or route to a separate 'duplicated-literal' bucket.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: при селективной нормализации НЕ нормализовать тела лямбд/выражения внутри df.Define()-обвязки; считать get/Define/set-триплет фреймворковым scaffolding-токеном и исключать из веса совпадения. Альтернатива — порог min-distinct-statements>=2 на не-обвязочных строках (исключив объявления RNode/auto newDf и парный set).
+- фикс: #056: минимальный порог по числу значимых строк блока (>=5) ДО учёта в копипаст-репорте, и/или распознавать TEST_F/TEST_CASE-обёртку с единственным EXPECT_* как параметризуемый кейс → не репортить такие как дубликаты (отдельная категория 'parametrizable-test', не FP-шум).
+- фикс: For within-file hits where both fragments are method bodies of DIFFERENT classes sharing a common base (detect via 'class X : public Base'), and the matched lines are dominated by a recognized container-spawn/decay idiom (remove_if + while-size<N + push_back), require the DIVERGENT (non-idiom) line ratio to exceed a threshold before reporting. I.e. subtract a per-family idiom skeleton: if >60% of matched tokens are the shared loop scaffolding, suppress.
+- фикс: Add a min-distinctive-body filter for cross-file hits: ignore matches whose body is a std::thread start/stop lifecycle skeleton (thread_=std::thread(&...,this); running_=...; joinable()/join()). More generally, gate cross-file reports on a minimum count of non-boilerplate statements (>=N unique non-RAII/non-lifecycle stmts), so 6-8 line ctor/start/stop/dtor skeletons that recur across a class family don't fire.
+- фикс: #056: понижать вес для цепочек однотипных if(!x.empty())-присваиваний и try/catch-настроечных блоков (settings-boilerplate); требовать уникальные идентификаторы, а не только структуру.
+- фикс: #056: add an overload-set suppressor — when two clone blocks belong to functions with the SAME qualified name but DIFFERENT parameter type lists (C++ overloads), drop the pair; or require >=2 distinct non-signature tokens between candidates before flagging short (<=4 line) bodies.
+- фикс: #056: enforce a minimum-distinct-line threshold (>=3 non-idiom lines) for a clone block, and maintain an idiom denylist of single-statement library wrappers (snprintf/sizeof, sqlite3 prepare/step/finalize, smart-ptr make_shared guards) that are excluded from clone seeding.
+- фикс: #056: treat blocks dominated by a single repeated statement template (>=70% of lines normalize to one assignment/return shape with only array-index/literal differences) as a low-information idiom and suppress; for switch-on-enum returning literals, require token-identity not just structural-shape before reporting. Combine with the existing line-similarity floor (line=0.32 is far below any sane threshold and should never surface).
+- фикс: #056: add a 'serialization/registration run' guard - if a candidate block is a contiguous run of calls to the SAME function name (>=N identical callee, varying only argument literals), down-weight or suppress as a builder/registration idiom rather than copied logic.
+- фикс: #056: strip a per-language 'file preamble' window before hashing — drop the leading contiguous run of #include / using-declaration / preprocessor (#if/#else/#endif) lines from the token stream, and ignore matches whose token span is dominated by declarator/signature tokens with empty bodies. Add a min-distinct-identifier threshold so a block whose only varying tokens are the class name is not counted.
+- фикс: #056: add an allowlist / down-weight for known CLI-bootstrap idioms (cxxopts/CLI11/argparse parse blocks) and for code under examples/ + */benchmarks/ dirs; or require that a cross-file match contain at least one project-domain identifier (constraint/propagator/proof symbol) before reporting.
+- фикс: #056: ignore cross-file matches whose matched span is entirely constructor-delegation / base-initializer-list with empty bodies (no statements in braces); a sibling-class-family of pure forwarding ctors is structural symmetry, not duplication worth reporting.
+- фикс: #056: low line-similarity floor; raise within-file threshold for adjacent overload pairs.
+- фикс: #056: add a fixture-preamble suppressor — for matches whose span lies entirely inside a class/struct body that overrides a known framework hook (SetUp/TearDown/AddRequiredClasses) AND whose token length < ~25, drop. More general: down-weight blocks where >70% of tokens are framework-API call names drawn from a per-repo 'idiom dictionary' (auto-built from method names appearing in >=N test files), so SetUp-style boilerplate cannot reach the report threshold.
+- фикс: #056: collapse repeated single-call-statement ladders before hashing — when a block is N consecutive statements that are all the same call shape `recv().Method<T>()` differing only in the template/arg, normalize it to one canonical line for matching (RLE on statement-shape). Registration/builder ladders then stop dominating the similarity score.
+- фикс: #056: down-weight matches whose differing tokens are concentrated in literal/enum positions while the control-flow + call skeleton is identical AND the block lives in a *_test/test_*.cpp TU — add a test-fixture suppressor: if >70% of shared tokens are calls to a known assertion macro family (REQUIRE/CHECK/EXPECT/ASSERT/SECTION) require a higher line-similarity floor (e.g. line>=0.95) before reporting. Already-present test-file weighting should be tightened, not just flagged.
+- фикс: #056: enforce a minimum non-boilerplate-statement count (>=3 meaningful statements, excluding the single return) per candidate block, and a min-distinct-token threshold; single-return forwarder bodies should never reach the matcher. archcheck duplication layer should treat a function whose body is exactly one return-of-call as exempt.
+- фикс: #056: treat a repeated short prologue that is immediately followed by divergent bodies as idiom, not clone. Concretely: require the matched window to contain >=2 distinct 'effectful' statements after stripping the fixed signature + the early-return guard chain; or add a per-file 'handler family' suppressor when N>=5 functions share an identical signature and only the leading guard block matches (line-similarity of the *tail* below threshold).
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: для within/cross-file совпадения, где общими являются ТОЛЬКО строки-сигнатуры методов одного class-hierarchy (Derived::method override) + блок include, понижать вес — детектить 'class-scaffold overlap': если совпавшие строки на >70% состоят из заголовков методов и директив #include, а тела (между { и }) расходятся line-ratio<0.4, не репортить. Эвристика: исключать строки, матчащиеся ^\w[\w:<>&* ]+::\w+\(.*\)\s*(const)?\s*$ из сигнала similarity.
+- фикс: #056: treat test files specially -- when both spans live inside a recognized test-case macro (BOOST_AUTO_TEST_CASE / TEST / TEST_F) and the divergent (post-prologue) tail is below the clone threshold, downweight or suppress. Concretely: clone must include >= N non-setup statements OR the shared region must be the WHOLE case body, otherwise classify as 'shared test fixture' and drop. Cheaper variant: exclude lines matching the per-case fixture-construction idiom (TempDb*/*Fixture .Build / WriteBlock+WriteBlockIndex) from the clone token stream.
+- фикс: #056: detect inverse-direction serializer pairs — if two candidate clones share the same string-literal key set but one is read-dominated (toString/toArray/value()) and the other write-dominated (insert/append/operator[]=), classify as serializer-pair and suppress. Cheaper heuristic: require matching statement-order direction (assignment LHS vs RHS source) before confirming a clone.
+- фикс: #056: add a Qt-property-setter idiom filter — if a flagged block matches the shape <clamp?; if (member != v) { member = v; emit *Changed(); persist(...) }> treat as boilerplate; more generally raise min-window for blocks whose only inter-block differences are (a) a member/method identifier sharing a common prefix and (b) a string literal, and require >=2 differing *statements* (not just literals) before counting as a clone.
+- фикс: #056: treat verbatim string-literal-heavy lines (HTTP header constants, response += "...\r\n") as low-entropy and weight them down in the clone score; combined with the existing literal-divergence check, a run whose differing lines are only a route literal + a content-type literal should fall below threshold. Alternatively expose a per-file 'dispatch table' idiom suppression when N>=3 sibling if-arms share the same skeleton.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056/archcheck: add an idiom filter for one-line override bodies that consist solely of 'return <Enum>::<member>;' and for trivial single-base-init ctors. Require a minimum count of *non-boilerplate* tokens (strip the enum-member / class-name tokens) before scoring similarity, so single-token-differing polymorphic stubs fall below threshold.
+- фикс: #056/archcheck: raise the minimum distinct-statement count (ignore leading boilerplate prologue lines like painter->save()/restore(), guard checks) before counting a block as a clone; or weight interface-override methods lower when they share a known base-class signature set
+- фикс: #056: treat single-token macro-call lines (JSON_FIELD/JSON_KV style: IDENT '(' args ')' ';') as low-entropy and down-weight them in the similarity score, the same way getters/setters are; require a minimum count of non-macro distinct tokens before a block qualifies as a clone.
+- фикс: #056: add an argument-dispatch-boilerplate filter — when matched lines are >X% calls to a small fixed allowlist of framework helpers (makeErrorResult/makeSuccessResult/args.contains/args[].toString/.toDouble/.toInt) interleaved with distinct identifier payloads, classify as handler-boilerplate and require a higher essence/non-boilerplate token threshold before reporting. Pairs with the 'idiom' FP class already noted for setter walls.
+- фикс: #056: when a cross-file clone consists predominantly of (a) a fixed control-flow skeleton (early-return guard + a sequence of draw*/handle* calls) and (b) the divergent token mass is in string literals + identifiers, down-weight it. Concretely: raise the cross-file min-block size to ~25 significant lines AND require token-divergence(line-score) below ~0.35; the menu files sit at line-score ~0.6-0.7 (high divergence) so they should fall below the cross-file confirm threshold. Also add a 'UI-lifecycle' idiom suppressor: blocks whose body is mostly chained method calls to a single receiver (tft./sprite.) with no branches are framework-shaped boilerplate.
+- фикс: #056: detect overload-shim families - a new function whose name matches an existing function in the same TU and whose body is <=5 significant lines delegating to the sibling (a single call to the same base name with a subset/superset of args). Suppress clone hits where >=70% of the block is a guard + delegating call. This is the same class as header-impl forwarding and should share that suppressor.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: skip blocks whose normalized body is a single return/delegation statement (<=2 effective tokens after stripping the call target), or set a minimum non-boilerplate body size (>= N effective statements) before a chunk is eligible as a copy-paste candidate.
+- фикс: #056: down-weight/exclude blocks dominated by registration macros and single-return literal accessors; recognize per-subclass interface-implementation scaffolding (overrides returning constant literals) as idiom. Same min-effective-statement filter applies.
+- фикс: #056: for short functions (< ~15 tokens of body) weight STRING/CHAR literal divergence much higher in the similarity score — when the set of string/char literals between two candidate blocks is disjoint, cap similarity (these are 'same skeleton, different data' which is the escaper/dispatch idiom). Equivalent to a literal-aware penalty already used for data-tables, extended to the small-function regime.
+- фикс: #056: add a 'mandatory-overload-set' suppressor -- when matched blocks are non-member operator definitions whose bodies are a single return/forwarding statement to a common compare()/<=> primitive and they differ only in (a) the comparison token and (b) operand order/template params, collapse them into one cluster and drop below report threshold. Concretely: if >=6 candidate dups in one file are all `operator<cmp>` one-liners delegating to the same method, treat as idiom and suppress.
+- фикс: #056: apply the existing test-file class -- for paths matching tests/ (or files including a test harness header like tests.h / a TEST_CASE/assert harness), raise the min line-similarity AND min unique-token thresholds (e.g. require >=12 non-scaffold tokens of divergence), and exclude blocks whose only varying tokens are string literals + a single function name. Assert/try-catch/cout scaffolds with literal-only variation should be filtered as test boilerplate.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: treat make_unique/make_shared registration sequences (assign-member + log line) as an init idiom: require that a candidate dup block contain >=K non-call, non-log statements before flagging, so pure 'construct-and-log' wiring does not match
+- фикс: down-weight or skip duplication inside benchmark/test fixture scaffolding: detect classes deriving from benchmark::Fixture / ::testing::Test and treat their SetUp/TearDown as fixture boilerplate (exclude or apply a much higher threshold), since identical setup is expected, not a defect
+- фикс: no cheap structural fix beyond the existing min-distinct-token gate; document tiled-kernel load/store stanzas as a known idiom class. Raising the contiguous-block min length (e.g. require >=10 normalized lines with >=6 distinct identifiers) removes these 6-line tile stanzas without hiding the real model_serving case (which spans ~15 lines)
+- фикс: #056: (a) suppress cross-file chunk matches where the canonical/base side lives in a header-only helper that is #included by >=N translation units (it is shared-by-design, not drift); (b) maintain a small idiom-fingerprint denylist for file-slurp helpers (fopen+fseek SEEK_END+ftell+malloc+fread+fclose) and require >25-30 non-idiom tokens before a cross-file pair is reported.
+- фикс: #056: down-weight short matched regions whose tokens are dominated by AST field-access chains shared across the project's node vocabulary (e.g. as.unary_op.op, NODE_*, ->as.identifier.name appear in the project-wide common dictionary). Require the matched span to contain >=K tokens OUTSIDE the top-frequency project identifier set before flagging.
+- фикс: #056/archcheck: lower weight for lines that are pure framework override signatures + trivial member-access prologues (this->m_X = ...; const auto snap = model->snapshot();). Require a minimum count of NON-boilerplate, logic-bearing tokens in the matched window before emitting; raise the line-similarity floor for cross-file matches that consist mostly of override stubs.
+- фикс: #056: enforce a minimum chunk size (e.g. >= 6 logical lines / >= ~40 tokens) for cross-file clone reporting; 3-line ofstream write helpers fall under the noise floor and should never surface.
+- фикс: #056: raise the min line-similarity floor for within-file pairs in the same function neighborhood, or require a minimum normalized-token span before counting a within-file hit.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: raise within-file min line-similarity above ~0.3 for hits inside very large single files (mainwindow-style), where repeated UI wiring is expected.
+- фикс: #056: add an examples/ + tutorial path filter (like the existing tests/ exclusion) OR strip leading comment/doxygen blocks and isolated I/O-banner statement runs (cout/printf-only lines) before fingerprinting, and require >=K non-comment, non-IO statements to overlap before reporting a chunk match.
+- фикс: #056: exclude test sources (tests/**, *Tests.cpp, *_test.cpp) from chunk dedup by default, and when not excluded, treat TEST/TEST_F/SECTION macro-delimited bodies as a recognized fixture idiom (raise the similarity threshold / require a longer non-macro statement run inside the body to count).
+- фикс: Anchor #056 cross-file matching to function-body spans, not file-prefix windows: exclude includes + top-of-main fixture setup (calls into a shared headless/setup helper) from the hashed token stream. Maintain a small per-corpus 'fixture preamble' allowlist (initCoinHeadless + standard camera setup) so the recurring test boilerplate is normalized away before similarity scoring.
+- фикс: #056: lower weight of project-wide ubiquitous idiom tokens. Build a per-repo frequency model of n-grams; if a matched block is dominated by tokens whose document-frequency exceeds a threshold (e.g. .withNativeFunction / complete / juce::JSON::toString appearing in >X% of handlers), discount the match. Only flag when the DIVERGENT (non-scaffold) core also exceeds min unique-token length.
+- фикс: #056: add a trivial-accessor filter — drop candidate blocks whose body is <=2 statements AND consists only of a single assignment/return touching one member (regex `m_\w+\s*=` or `return m_\w+`). Equivalently raise min-distinct-token / min-statement floor so 1-3 line setter/getter bodies never become chunk candidates.
+- фикс: archcheck/#056: maintain a small framework-idiom denylist (Qt: empty-body QObject ctor `: QObject(parent) {}`, the `database();/isOpen() guard`, moc-generated bodies) and strip those leading idiom lines before computing block similarity, so only the differing schema/body drives the match. Combined with the trivial-accessor floor this removes the bulk of the cross-file manager-boilerplate FPs.
+- фикс: graph: do not treat *.inl / *.ipp / *.tcc as cycle-participating nodes — fold them into their single includer (an .inl with exactly one includer is an impl-fragment, collapse the edge). Equivalently, exclude back-edges where one endpoint is an .inl included by the very header it re-includes. Prevents the .inl<->header self-loop from inflating sccs_cyclic.
+- фикс: #056: add a 'thin-wrapper' suppressor -- if a flagged cross-file clone is a single function whose body is <=3 statements and >=1 of them is a call to a shared symbol that ALSO appears in the other clone (same callee), drop it. More generally raise the cross-file minimum-token floor (>= ~25 non-comment tokens of UNIQUE, non-call body) so single-line-delegation files stop matching; tie-break with 'distinct identifiers / total identifiers' ratio -- when the only difference between two files is one string/enum literal AND the rest is a call to a common helper, classify as boilerplate-dispatch, not clone.
+- фикс: #056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom.
+- фикс: #056: strip the per-function boilerplate frame before hashing — ignore leading 'int <id>=0;' decl, trailing 'return <id>;', and bare printf/cout-only lines; require min N>=8 lines of NON-printf, NON-declaration body to count a within-file clone. Add a 'scaffold mask' that subtracts a function's common-prefix/suffix with its sibling functions in the same translation unit.
+
+**whole-file** (25):
+- фикс: #056: add a 'sibling whole-file clone' suppressor — when an ADDED file is >=98% identical (line-multiset) to an existing file with the SAME basename in a sibling directory, classify as whole-file copy and drop, not chunk-clone. Also a path heuristic: skip dirs matching /(backup|bak|_old|_final_backup|copy|orig)(/|$)/i the way vendor/generated dirs are skipped (#068 graph-vendor-exclude already does this for the graph; mirror it in dedup #065).
+- фикс: #056: strip comment/license-header lines before scoring (a shared verbatim license block must never contribute to similarity). archcheck: add a header-provenance filter — if matched region is >50% comment lines or sits within the file's leading license banner, drop it. Additionally exclude file pairs whose only matched chunk is the framework lifecycle quadruple (ctor/postBuild/dtor) when method bodies diverge.
+- фикс: #056: vendoring filter for vendor/** paths.
+- фикс: #056 --diff: when a hunk is pure-addition in file B AND a near-identical pure-deletion exists in file A within the SAME commit, classify as a move (rename/relocation) and suppress, exactly like the rename-detection already added in 0beb2f7 but extended to many->one and one->many splits (match on moved-block content, not whole-file path).
+- фикс: #056/archcheck: add a whitespace-insensitive pre-normalization for the --diff path (strip leading/trailing ws, collapse runs) before hashing windows; a commit whose every changed file normalizes to ~identical content (format-only) should be flagged format-only and excluded from copy scoring.
+- фикс: #056: fork-of-upstream / opencog namespace vendoring; raise within-file threshold for tiny (<8 line) overload pairs.
+- фикс: #056: path-based vendoring filter for src/amazon/** (forked-upstream namespace), and tighten within-file matching so reported line ranges must actually share normalized tokens (the 4143/3593 pair should not have scored verbatim).
+- фикс: #056: directory/name vendoring filter for tinyXML2 (and known amalgamated single-file libs); plus the deleted-source-side suppression already proposed for moves.
+- фикс: archcheck/#056: extend the vendor-exclude (#068) to also skip paths under */piper_phonemize/* and single-header library markers (uni_algo.h, *_amalgam*.h). Heuristic: a single C/C++ file >20k lines, or a file whose header carries an upstream license/version banner, is auto-excluded from the dedup corpus the same way generated (protobuf/moc/ggml) files are.
+- фикс: #056: in diff/commit mode treat a (deletion-in-A, addition-in-B) pair within the SAME commit as a MOVE, not a clone, when removed-block hash-set and added-block hash-set overlap above a threshold (>=60% of lines). Suppress clone reports whose 'source' side is text deleted in the very same commit. Net-line-delta-aware: a commit that nets near-zero new C++ lines but shows a clone is almost always a move.
+- фикс: #056: same move-detection as above — diff the commit, pair deletions in source file with additions in sink file by content hash; if matched, classify as relocation and exclude from clone count. Additionally, only run cross-file clone comparison against the POST-commit tree, never against the pre-commit version of a file edited in the same commit.
+- фикс: #056/diff-mode: extend rename detection (already added in 0beb2f7) to handle add+delete pairs within one commit where similarity is very high AND the basename differs by a stable substring (Inspector->Inspection). Score the pair as a rename, exclude both sides from copy-paste accounting.
+- фикс: #056: honour git rename/copy detection (already added for #061/#064) and also suppress matches between a moved file and its rename source within the same commit; treat extract-into-sibling (R/C similarity >50% on the source) as a move, not a clone.
+- фикс: #056: rename/move-aware diffing. When a new file's added block matches a block DELETED from another file in the same commit (or the BASE block no longer exists at HEAD), classify as MOVE and suppress. Concretely: before emitting a cross-file pair, verify both source ranges still exist at HEAD; if the BASE range was removed/relocated, drop the finding (same git-rename heuristic already used for whole-file moves, extended to intra-commit block relocation).
+- фикс: #056 --diff: when an ADDED span is byte-identical to a span DELETED in the same commit (rename/move detection across files, not just whole-file rename), classify as MOVE and suppress; this is the move-vs-copy distinction missing from diff mode (extends the rename detection of #061)
+- фикс: #056: treat a near-100%-similar block as a MOVE (not copy) when the source region's lines were deleted in the same commit/diff (added-here == removed-there). Detect rename/move: if cross-file pair has w>=0.97 AND the BASE-side lines are removed in the commit that introduced the ADDED side, suppress. At static-tree scan time, require both copies to coexist in the working tree before reporting.
+- фикс: #056: same move-detection heuristic as above. Additionally, recognize the <base>_<suffix>.cpp naming convention (foo.cpp + foo_x.cpp implementing methods of the same class) as one logical TU group and exclude intra-group cross-file matches from copy-paste counts.
+- фикс: #056: treat pairs that share the verbatim ASF/Apache license header AND have a sibling original under a vendored/example path (here the parallel src/library/flight_sql_* tree) as forked-file, not chunk copy — exclude from per-chunk reporting (whole-file vendor/fork class), same handling as protobuf/moc headers.
+- фикс: #056: in cross-file mode, when scanning a commit diff treat a block as moved (not cloned) if the matching source lines are DELETED in the same commit (rename/move detection over hunks, like git -M). Net: if src-range total deletions ~= dst-range additions and source file shrinks correspondingly, suppress. Already partly addressed by 0beb2f7 rename detection; extend it to N-way splits (one source file -> many).
+- фикс: #056: same move-detection over commit hunks (delete-in-source => suppress) plus exclude umbrella/re-export headers (file whose body is only #include directives) from being a clone endpoint.
+- фикс: #056: detect fork-of-upstream by the jomjol_* component namespace / fork relationship and treat as vendored; for test files (path contains /test/), apply a higher within-file threshold since parametrized fixtures are expected to repeat.
+- фикс: #056: treat reconstructed/forked upstream engines as vendored where detectable; raise within-file threshold for large state-machine handler files.
+- фикс: #056: vendoring filter for deps/** and recognized bundled libs (miniz); also low line-similarity (0.30-0.50) here reflects partial vendored overlap.
+- фикс: #056: in diff/commit mode, detect MOVES — if a candidate ADDED block matches a BLOCK DELETED in the same commit (even in a different file), classify as 'moved' and suppress the cross-file copy finding. Requires diffing added-vs-deleted within one commit, not just added-vs-base-tree.
+- фикс: #056/archcheck: extend the vendor/generated exclude (see #068 graph_vendor_exclude) to honor file-header authorship/license markers — files whose top comment carries a third-party @author/Copyright distinct from the repo owner (e.g. 'David H Hoyt LLC', DemoIccMAX/SampleICC banners) are treated as vendored and skipped for clone detection, like the protobuf/moc/ggml header-marker rule.
+
+**data-table** (24):
+- фикс: Add a 'tensor-table / accessor-table' density filter to #056: if a candidate block's lines are dominated (>~70%) by a single repeated call shape whose only varying token is a string literal (assignment target = get(<string-literal>) idiom), down-weight or suppress. Concretely: when normalized tokens-per-line are near-constant AND >60% of distinct tokens are string literals, treat as data-table and require a higher w-threshold (e.g. >=0.97 verbatim) before reporting.
+- фикс: #056: детектировать макро-таблицы — если >=70% строк окна это вызовы ОДНОГО макроса/функции с литеральными аргументами (одинаковый callee, разные string-литералы), классифицировать окно как data-table и не репортить within-file дубликаты для арок одного switch/enum-диспетчера; добавить эвристику 'switch-arm suppression': окна, лежащие внутри разных case-меток одного switch, исключать из попарного сравнения.
+- фикс: #056: add a macro-declaration-table filter — when a candidate window is dominated (>70% of non-trivial tokens) by ALL-CAPS macro invocations whose bodies carry no control flow (no if/for/while/return, no operators beyond ',' and '('), drop it. Generalizes the existing protobuf/moc generated-header marker to hand-written but table-shaped macro blocks like ZEND_*, X_MACRO, gperf tables.
+- фикс: #056: when a window is mostly brace-enclosed aggregate initializers (high ratio of string/char/number literals + braces, near-zero identifiers-as-callees and no statements ending in ';' other than the initializer), treat it as a data table and exclude. Same heuristic also kills the round1 ace_exports literal-table hits, raising precision without hiding the genuine wrapper-logic copies.
+- фикс: #056: treat a run that is dominated by a switch/case-with-single-statement-and-break pattern as a 'dispatch table' and down-weight (same family as the existing data-table filter). Concretely: if >=70% of the matched lines match /^\s*case .+:.*;\s*break;/ or are bare 'case X:' fallthroughs, drop the candidate. This is a spec-mandated lookup, not logic copy.
+- фикс: #056: path-scoped policy for test files (*/Test/*, Tests/*, *Test.cpp) — raise the within-file clone threshold and/or downgrade to info severity, since test arrange/act/assert repetition is expected and not actionable as architectural copy-paste.
+- фикс: #056: распознавать 'struct-init table' — серия блоков вида (локальная переменная одного типа; цепочка member-assign из литералов/braced-init-list; push_back/emplace) — это таблица данных, исключать из copy-paste (как уже делается для статических массивов), детектировать по доле строк = member-assignment с rvalue-литералом
+- фикс: #056: add an 'algebraic data-formula' suppressor — when a candidate clone is >=70% lines of the shape 'ident = <arithmetic expr of known math idents (alpha,cosW,sqrtA,A,...)>;' with no calls/branches/side-effects beyond a switch-case skeleton, downweight (treat like a data-table). Equivalently extend the existing data-table heuristic to recognize dense numeric/arithmetic assignment runs, not just brace-init literal arrays.
+- фикс: #056: classify regions that are aggregate/brace-initializer bodies (a sequence of `{ literal, literal, ... },` rows inside a `static const ... = { ... }`) as data tables and exclude them from the clone corpus — same exclusion class already used for enum/string-lookup tables. Detect via: region is inside a variable initializer, dominated by brace-init rows, and contains no control flow / function calls beyond construction.
+- фикс: #056: when comparing short threshold-ladder functions, weight numeric-literal and string-literal divergence higher — if the constant set and format-string set differ substantially between two blocks (e.g. 1024 vs 60, "KB" vs "分"), treat them as a units-family idiom rather than a clone. This keeps the real formatSpeed<->formatSize pair (same 1024 constants) while dropping the formatETA false pairing.
+- фикс: #056: treat sequences of UI-builder calls (new QWidget-subtype + a short run of setter calls terminated by an add*/addWidget/addRow helper) as a builder idiom — collapse them before clone matching, or exclude blocks where >70% of statements are constructor/setter chains on freshly-`new`ed locals never read back. The varying parts are pure literals (numbers/strings), which should drop the diverged-weight below the report cutoff.
+- фикс: #056: трактовать содержимое raw string literals (R"...(...)...") как непрозрачный токен (хешировать целиком, не по строкам) — тогда docstring не раздувает совпадение, а .def-каркас распознаётся как одиночная декларативная запись; плюс эвристика 'method-chain of .def(...) на одном receiver' = registration table → понизить вес.
+- фикс: #056: down-weight blocks that are pure case/if-ladders mapping one enum constant to another (high ratio of 'case X: lhs |= CONST; break;' lines, low operator/identifier diversity). Add an enum-dispatch-table detector that excludes such mapping switches from the copy-paste corpus, same way header↔impl boilerplate is excluded.
+- фикс: #056: exclude pure declarative struct/enum bodies (only member declarations with initializers, no statements/control flow) from clone scoring, or down-weight windows whose tokens are exclusively type+identifier+default-literal with no operators/calls. These parallel config-struct families are a deliberate data model, not copy-paste logic.
+- фикс: #056: распознавать record-table — последовательность из N>=4 смежных блоков с одинаковым AST-скелетом вызова (один и тот же callee make_shared<T>/aggregate-init, отличаются только literal-токены) сворачивать как 'initializer table' и не репортить как копипаст. Дешёвый суррогат на токенах: если в окне доля string/numeric/enum-литералов > X% и структурные токены ({ } , :: ( )) полностью совпадают между блоками — это таблица, глушить.
+- фикс: #056: add a 'string-literal-dominated body' guard — when a candidate clone's shared tokens are >X% inside string/raw-string literals (CSS/SQL/format-template content), down-weight or drop it; complementary: treat a run of N consecutive .arg()/builder calls as a single normalized token so method-to-method .arg chains don't dominate similarity. Tune existing selective-normalization to collapse Qt-stylesheet QString literals to a placeholder before scoring.
+- фикс: Add a 'config-only block' suppressor: if a flagged region's differing lines are ALL pure assignments to fields of one struct from string/numeric literals (no control flow, no calls except trailing factory/register), down-weight the match. Concretely in #056: require >=2 distinct *control-flow or call* tokens (if/for/while/switch/non-ctor call) among the lines that DIFFER between the two regions; pure literal-assignment divergence -> classify as data-table, exclude from chunk hits.
+- фикс: Same struct-config suppressor as above, plus a 'sibling parallel-implementation' heuristic: when N>=3 files in the same directory share the same skeleton and differ only in numeric/string literals, treat the family as an intentional parameterized template (likely registry-driven) and emit ONE low-severity 'consider data-driving' note instead of N(N-1)/2 chunk-copy hits. Keying on shared base class / identical method signature avoids the float-table FP.
+- фикс: #056: treat long runs of homogeneous aggregate-initializer rows (>=N consecutive lines matching a {literal,...} brace-initializer shape inside an array/initializer-list) as a data-table region and exclude from clone candidates; archcheck already has a generated-skip heuristic (#065) — extend the data-table classifier to braced-init arrays, not just file-header markers
+- фикс: #056: same data-table exclusion as above — detect a single array/initializer-list literal and collapse its element rows into one logical token region so internal row repetition is not reported; gate clone reporting on whether the matched span crosses statement boundaries vs being inside one initializer expression
+- фикс: #056: treat runs of brace-init / map-literal entries (>=N consecutive 'key , value' pairs with no control flow / no calls other than the literal wrapper) as a data-table region and exclude from chunk matching, OR down-weight blocks whose AST is entirely initializer-list elements. Same lever as the generated-table skip in #065.
+- фикс: raise the per-block distinct-identifier / distinct-token threshold so blocks that are N copies of the same statement template with only a string-literal/field-name varying are not counted; or detect serialization idiom (>=3 consecutive lines matching `j["..."] = ...` or `if (j.contains(...))`) and collapse to a single weighted token
+- фикс: Treat string-literal-only divergence as a config/data table: if two candidate chunks are identical except for one or more string/enum literal tokens (no control-flow or identifier-binding differences), down-weight them as data-table rows rather than copied logic. Combine with a copyright-header heuristic: files whose top comment matches a known vendor license boilerplate (Kongsberg/Coin3D) get vendor-suppressed even when renamed (COIN_->OBOL_).
+- фикс: #056: treat blocks that differ only in a string literal + one member/lvalue as a 'data-table row' and collapse them: when N>=3 sibling blocks in one function are token-identical except for a quoted literal, emit at most one low-severity 'repeated literal-parameterised block' signal instead of N pairwise copy hits. Add string-literal masking before block hashing so literal-only variation does not register as a near-miss copy.
+
+**other** (23):
+- фикс: In --diff mode, when an ADDED block in file B matches a block that is REMOVED (net-deleted) from file A in the SAME commit, classify as code-move and suppress the copy-paste finding (it is a refactor, not duplication). Concretely: before emitting a cross-file pair, diff both endpoints against the commit's own removed-line set; if the BASE side overlaps deletions >= ~80% of its lines, downgrade to 'moved' and do not count as copypaste.
+- фикс: #056: move-aware атрибуция. Если кандидатный блок в ADDED-файле текстуально совпадает с блоком, УДАЛЁННЫМ в том же коммите (большой -N в одном файле + сопоставимый +N в новых), трактовать как refactor move, не copy. Атрибуцию дупликации вести по git-blame первого появления блока, а не по дате текущего диффа. Доп.: stop-list коротких libbpf-идиом (setrlimit RLIMIT_MEMLOCK / bump_memlock_rlimit), line-floor cross-file >=0.5 при длине < 12 строк.
+- фикс: #056 --diff: rename/move-aware вычитание — перед сравнением ADDED⟵BASE исключать блоки, чьи (почти)идентичные двойники находятся в УДАЛЁННЫХ в этом же коммите файлах/строках (net-move detection: added∩deleted по нормализованному телу → suppress). Уже частично есть rename detection (#061/0beb2f7), расширить на file-deletion+content-move.
+- фикс: #056: add a 'host/device mirror' suppression. Detect when one file/header carries CUDA markers (`__device__`, `__host__`, `#ifdef __CUDACC__`, `*_device.h`/`*.cu` naming) and its near-duplicate is a plain host header — downgrade severity to 'intentional mirror' rather than 'copy-paste'. Recognize an opt-in marker comment (e.g. `// archcheck:mirror-of <path>`) to whitelist required-identical CPU/GPU pairs.
+- фикс: #056/#066 tooling: pin detector line ranges to the SHA they were measured at (emit blob-relative ranges), so verification reads the correct revision rather than HEAD.
+- фикс: #056: deleted-BASE-path suppression; low line-similarity floor.
+- фикс: #056: when a near-100%% similar BASE block lives in a file that is DELETED by the same commit (status D in the diff), classify the pair as a code-move/rename rather than copypaste and suppress it. Cross-check the BASE path against the commit's deleted-paths set before emitting a hit.
+- фикс: #056: tests/ threshold + vendoring filter for the ozz-animation subtree.
+- фикс: #056: deleted-BASE-path suppression (move/rename); drop very-low line-similarity (<0.3) cross-file hits.
+- фикс: #056: suppress pairs whose BASE path is deleted by the same commit (treat as move/rename). Optionally detect rename via git --find-renames and exclude the renamed pair.
+- фикс: #056: add a move-aware pass — when a clone pair's two sides were respectively (mostly) deleted-from-A and added-to-B within the SAME commit (git rename/move detection at hunk granularity, or net-delta heuristic add~=del with one file shrinking by ~the size the other grew), suppress the pair. archcheck --diff already does rename detection at file level; extend it to intra-commit block relocation so refactor-splits don't surface as copy-paste.
+- фикс: #056: deleted-BASE-path suppression (move/rename); drop hits with line-similarity below a floor (e.g. <0.1).
+- фикс: #056: when a cross-file match's BASE block is *deleted* in the same commit that ADDs the matching block (net code-move, not duplication), suppress it. Detect by diffing both sides within the same commit: if removed-region == added-region and the source region no longer exists at the commit's tree, classify as 'moved' not 'copied'. Equivalently use git's -M/-C rename/copy detection over hunks before reporting.
+- фикс: Same move-detection heuristic as above (#056): treat add-here + delete-there in one commit as a move. Additionally keep a per-repo memo of moved blocks so the reverse move is also recognised.
+- фикс: #056: при verbatim w=1.00+line=1.00 между .cpp и .h с совпадающими basename-префиксами (foo.cpp <-> foo_*.h) понижать как move-refactor; либо сверять, остался ли исходный блок в .cpp (если вырезан — это move, не clone).
+- фикс: #056: если X.cpp совпадает с X.c (тот же basename, разное расширение) и .c отсутствует в текущем дереве — классифицировать как rename/port, не clone.
+- фикс: #056: deleted-BASE-path suppression for moves/splits.
+- фикс: #056: тот же фикс что move/rename — если базовый файл отсутствует в текущем дереве, не считать clone.
+- фикс: #056: suppress pairs whose BASE path is deleted in the same commit (move/rename), or use git rename detection.
+- фикс: #056: deleted-BASE-path suppression; treat one-source->many-target with source deleted as an extract refactor, not copypaste.
+- фикс: #056 diff-mode: when a flagged ADDED block has a near-identical counterpart among DELETED lines of the SAME commit, classify as 'moved' and suppress (treat like rename detection but for content blocks). Net duplication of the repo did not increase, so it must not be reported as a newly-introduced clone.
+- фикс: #056: apply a higher copypaste threshold (or exclude) for files under tests/ -- repeated fixtures and AAA scaffolding are expected.
+- фикс: #056: when an ADDED block's near-identical BASE block lives in a file that is DELETED (or heavily shrunk, net lines<<0) in the SAME commit, classify as 'extracted/moved' and suppress. Heuristic: pair each ADDED region with same-commit deletions before cross-file dup scoring; if base-of-match is a deletion, drop the hit.
+
+**generated** (10):
+- фикс: Apply #065 generated-skip BEFORE the dedup pass: (a) match a generated-code marker in the first ~3 lines — extend the default marker set (protobuf/moc/ggml) with a configurable regex and ship '// Generated by ' as a default prefix; (b) add a path-glob exclude default for **/snapshots/** and **/__snapshots__/**. Either filter drops all 10 hits.
+- фикс: Add a vendored-source heuristic to #056: treat a file as vendored (exclude from copypaste) when (a) its public symbols use a single foreign snake_case prefix unlike the repo's dominant CamelCase style AND (b) a commit touching it carries 'vendor'/'sync'/'update ... version of'/'upstream' in the subject. Cheaper alternative: an opt-in .archcheckignore glob for known-vendored paths (otel_process_ctx.*) so the whole-file replace pattern is never scored.
+- фикс: #056: detect amalgamated single-header (size + 'auto-generated/single-header' banner, or path == include base concatenation) and exclude it from cross-file comparison against its own sources.
+- фикс: #056: treat ISA-variant headers as one FP class — (a) extend vendor/3rd-party skip to files whose top comment matches a known-library attribution regex (email + year banner like 'skywind3000@163.com, 2015'); (b) suppress cross-file pairs when the only diffs are a consistent intrinsic-width substitution (_mm256_*↔_mm512_*, AVX↔AVX512 token classes) — an intentional-SIMD-variant heuristic, not real copy-paste.
+- фикс: archcheck vendor-exclude (#068 graph_vendor_exclude): treat src/platform/tinycc/** and **/prebuilt/** as vendored; exclude from dedup. Heuristic: a dir whose files carry upstream copyright headers (TinyCC / Fabrice Bellard) and is not referenced by the project's own namespace.
+- фикс: archcheck #065 dedup-skip-generated: detect bison/flex skeleton markers ('A Bison parser, made by GNU Bison', '#line' table-driven blocks, 'yy' symbol prefixes, flex 'generated by flex') and exclude such files, in addition to the existing protobuf/moc/ggml header-marker skip.
+- фикс: strip leading comment banner before hashing: detect a contiguous comment block in the first N lines whose normalized text recurs in >K files and exclude it from the shingle set (treat as a generated header marker, like the protobuf/moc/ggml markers); alternatively skip commits authored by a *-bot/[bot] identity from dup scanning
+- фикс: #056: vendoring filter by path (include/nlohmann/**, include/inja.hpp, include/quickjspp.hpp) and/or detect amalgamated single-header libs via SPDX/copyright banner in the first ~30 lines; exclude their within-file self-matches from the copypaste count.
+- фикс: Add a 'trivial-body' filter to #056: skip chunks whose statements are exclusively (void)<id>; casts / empty returns / single return-of-member. Also treat a file whose function bodies are >80% (void)-discard or single-statement as a dispatch/stub surface and suppress within-file chunk reports for it (analogous to the generated-header marker, but body-shape based since stubs lack a generator banner).
+- фикс: #056: honor a generated-file header marker — skip files whose first N lines match /generated by|@generated|DO NOT EDIT/i (the fshasher banner here), same skip already specced in backlog/completed/065_min_dedup_skip_generated.md. Secondary guard: classify a block as data-table when >70% of lines are pure aggregate-initializer rows (matching /^\s*\{.*\},?$/ or repeated '{{0}}') and demote/suppress it.
+
+**header-impl** (6):
+- фикс: Suppress cross-file copy-paste between files that are platform variants of the same base name (foo_linux.cpp / foo_macos.cpp / foo_<arch>.cpp) implementing identically-named functions declared in a shared header. Detect via filename-suffix tokenset {linux,macos,windows,bsd,x64,aarch64,arm,i386,...}; if two files differ only by such a suffix, exempt the pair from cross-file scoring.
+- фикс: #056: treat the QtTest fixture boilerplate (Q_OBJECT macro block, initTestCase/cleanupTestCase empty bodies, standard private slots layout) as a recognized framework template and exclude it from token windows, same way moc/protobuf headers are excluded.
+- фикс: #056: down-weight blocks that are dominated by framework-lifecycle calls / member-attach boilerplate; or require a minimum density of NON-boilerplate tokens (literals, arithmetic, domain calls) before counting a hit.
+- фикс: #056: down-weight or skip clone candidates that are pure class-declaration boilerplate — blocks consisting only of #pragma once + includes + namespace open + a run of `virtual/override` method signatures with no statement bodies. Heuristic: if a candidate region has zero function bodies (no `{ ... statements ... }` with executable content) and >50% of lines are member-function declarations ending in `override;`/`;`, treat as interface boilerplate, not copy-paste.
+- фикс: #056: when a cross-file pair is a .h vs its same-stem .cpp, treat as header-impl and require similarity beyond shared signatures (exclude declaration text).
+- фикс: #056: add a path-class exclusion — when one side of a candidate pair lives under tests/ (or matches *stub*/*mock*/*fake* filename) and the other under src/, drop the pair. Stub-vs-impl mirroring is intentional, not drift.
+
+**coincidental** (1):
+- фикс: #056/archcheck: never seed or boost a cross-file candidate pair on basename equality alone; require an actual shared token-shingle anchor (>=k matching shingles) before the pair is even scored. Basename should at most break ties, never create a candidate.

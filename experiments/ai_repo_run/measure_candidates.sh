@@ -15,14 +15,19 @@ measure_one(){
   # .$$ — устранение коллизии имён: owner/a_b и owner_a/b оба дают owner_a_b при P>1
   repo="$1"; d="$SCRATCH/$(echo "$repo"|tr / _).$$"
   rm -rf "$d"
-  # 300с (было 180): крупные established-репы с длинной историей = самый дрейф, их нельзя терять по таймауту.
-  # Ретрай с нарастающим пейсингом: разовый клон ненадёжен под нагрузкой/rate-limit (#066).
+  # --shallow-since: тянем ТОЛЬКО пост-май историю (её и меряем) — не качаем годы истории,
+  # которые игнорируем. Режет трафик в разы для старых/крупных реп (#066 «не качать лишнего»).
+  # Ретрай с нарастающим пейсингом: разовый клон ненадёжен под нагрузкой/rate-limit.
   ok=0
   for try in $(seq 1 "$RETRIES"); do
-    if timeout 300 git clone --filter=blob:none --quiet "https://github.com/$repo.git" "$d" 2>/dev/null; then ok=1; break; fi
+    if timeout 300 git clone --filter=blob:none --shallow-since=2025-05-01 --quiet "https://github.com/$repo.git" "$d" 2>/dev/null; then ok=1; break; fi
     rm -rf "$d"; sleep $((try*5))
   done
   if [ "$ok" -eq 0 ]; then
+    # Падение shallow может значить «нет коммитов после мая» (не кандидат), а не сетевой сбой.
+    # 1 дешёвый API-вызов различает их: пусто → skip(0), иначе → реальный CLONEFAIL.
+    recent=$(gh api "repos/$repo/commits?since=2025-05-01T00:00:00Z&per_page=1" --jq 'length' 2>/dev/null)
+    if [ "$recent" = "0" ]; then printf '%s\t0\tskip\t\n' "$repo"; return; fi
     printf '%s\tCLONEFAIL\t\t\n' "$repo"; return
   fi
   total=$(git -C "$d" log --since=2025-05-01 --pretty=%H 2>/dev/null | wc -l)

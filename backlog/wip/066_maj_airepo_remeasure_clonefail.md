@@ -66,13 +66,43 @@ kiln (4444), PlasmaZones (3757), komai (3419), NereusSDR (2788).
 Сэмпл влит в MEAS → CLONEFAIL 16399 → **16028**. Найденные dense в перемере: Banana (conc 81),
 QCView-Player (13), esphome/esphome (6639 комм/год, conc 9).
 
-## В работе (durable, detached)
+## Reboot-safety (2026-06-02): возобновление после перезагрузки в Windows
 
-- **Полный перемер 16028 CLONEFAIL** (`remeasure_clonefail.sh 2`, P=2 retry=3 timeout300, ~20ч).
-  Мёржит в MEAS с дедупом (успех вытесняет CLONEFAIL). Лог `remeasure_clonefail.log`.
-  Backup: `new300_measured.tsv.pre066full`.
-- **Клон dense500** (2 прохода: `clone_dense500.log` + ретрай `clone_dense500b.log`): 70 dense ≤500МБ,
-  сорт по коммитам/год. В `_aidev_dense` уже 352 дир, из 70 новых было ~17. Ретрай-проход добирает FAIL.
+Всё состояние вынесено из `/tmp` (очищается при reboot) в постоянный
+`~/oss/_aidev_state/` (на ext4, переживает reboot в Windows).
+Скрипты сделаны resumable (пропускают сделанное), автозапуск через `@reboot`.
+
+| Процесс | Resumable-механизм | Файл |
+|---|---|---|
+| Перемер CLONEFAIL | OUT `_aidev_state/clonefail_remeasured.tsv`, skip по repo, merge+флаг `remeasure.done` | `remeasure_resumable.sh` |
+| Докачка dense | ждёт `remeasure.done`, `clone_expand` идемпотентен, флаг `finish.done` | `finish_resumable.sh` |
+| round2 верификация | пропуск реп с готовым `verify_results2/<repo>.json`, exclude из стейта | `verify_findings_round2.js` (resume-фильтр) |
+| Автозапуск @reboot | `/etc/cron.d/airepo_resume` → master, идемпотентен (флаги+pgrep) | `resume_all.sh`, `round2_headless.sh` |
+
+При следующей загрузке Linux cron сам поднимет `resume_all.sh` → перемер+финишер
+(shell) + round2 (headless claude) продолжатся с точки останова. Ручной запуск:
+`bash experiments/ai_repo_run/resume_all.sh`.
+
+## Стратегия «не качать лишнего» (2026-06-02)
+
+Корень неэффективности: клон тянул весь граф истории, а меряем только пост-май.
++ непойманные гиганты (chromium, o3de) застревали на таймаут-ретраях.
+
+| Лекало | Реализация |
+|---|---|
+| **shallow-since=2025-05-01** (главный) | `measure_candidates.sh`: тянем только пост-май историю → cut в разы; общий предохранитель против любых гигантов |
+| name-фильтр зеркал | `remeasure_resumable.sh` GIANT-regex: chromium/llvm/aosp/webkit/gecko/o3de/unreal/tensorflow/src-leak → TOOBIG-skip без клона |
+| API-фолбэк на падении shallow | 1 вызов `commits?since` различает «нет свежих» (skip) vs CLONEFAIL |
+
+Граница: conc нельзя узнать без измерения → 16k всё равно проходим, но дёшево.
+
+## В работе (durable, resumable — снапшот 2026-06-02 ~14:4x)
+
+- **Перемер 16028** (resumable, пишет в стейт): OUT **7616**, новых dense **62**, TOOBIG-skip 10.
+  Процессы вычищены вручную (зомби-`xargs` залипали на o3de; kill из sandbox не доходит —
+  пользователь бил из терминала). На resume поднимется один чистый инстанс с shallow-since.
+- **round2 верификация**: **66/135** реп.
+- **Финишер dense** ждёт `remeasure.done`. Корпус **29 ГБ / 367 дир**. Scratch-мусор ~3.7ГБ (чистится).
 
 ## Ключевые решения
 
@@ -89,14 +119,22 @@ QCView-Player (13), esphome/esphome (6639 комм/год, conc 9).
 
 | Файл | Изменение |
 |------|-----------|
-| `measure_candidates.sh` | дефолт P 6→3, ретрай-обёртка (RETRIES=3) + пейсинг |
+| `measure_candidates.sh` | дефолт P 6→3, ретрай (RETRIES=3) + пейсинг, **shallow-since=2025-05-01**, API-фолбэк |
+| `remeasure_resumable.sh` | + GIANT name-фильтр зеркал (chromium/o3de/llvm/…) → TOOBIG-skip |
 | `clone_expand.sh` | cap 600→500, API-precheck размера перед клоном |
 | `keep_downloading.sh` | measure P=16→3, clone cap 1500→500 |
 | `discover_finish4.sh` | measure P=16→3 (ретрай P=2), clone cap 1500→500 |
 | `remeasure_clonefail.sh` (new) | перемер CLONEFAIL P=2 + merge/дедуп в MEAS |
 | `sample_estimate.sh` (new) | оценка undercount на сэмпле 2000 |
-| `new300_measured.tsv` | дозапись перемеренных (план) |
+| `remeasure_resumable.sh` (new) | resumable-перемер (стейт, skip-done, флаг) |
+| `finish_resumable.sh` (new) | resumable-докачка dense по флагу `remeasure.done` |
+| `resume_all.sh` + `round2_headless.sh` (new) | мастер @reboot-возобновления + headless round2 |
+| `verify_findings_round2.js` (new) | round2: копипаст 3× (exclude round1) + cycle-intro археология, resume-фильтр |
+| `round2_resume_prompt.txt` (new) | промпт headless-возобновления round2 |
+| `new300_measured.tsv` | дозапись перемеренных (через merge resumable) |
 | `harvest2.sh` | новая ось (cpp-only) — план |
+
+Стейт (не в git, persistent): `~/oss/_aidev_state/`. Cron: `/etc/cron.d/airepo_resume`.
 
 ## Примечание
 Разнесено из сессии 2026-06-01: текущий фокус — АНАЛИЗ имеющегося корпуса
