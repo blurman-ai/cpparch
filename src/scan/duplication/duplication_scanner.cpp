@@ -151,6 +151,109 @@ void phase8JointTokenOrderFloor(std::vector<Pair> &candidates, double minWeighte
   candidates = std::move(filtered);
 }
 
+// P1.1: data-table / literal-run classifier — down-weight pairs that look like data tables
+// Rows of case/init patterns with mostly literals (case X: return Y; or vec.push_back({a,b,c}))
+// are structural boilerplate, not real logic duplication.
+void phase10DataTableClassifier(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
+{
+  // Heuristic: if high overlap BUT low diversity (too many identical trigrams),
+  // likely a data table (switch cases, init lists) rather than logic clone
+  for (auto &p : candidates)
+  {
+    const Fragment &fa = allFragments[p.a];
+    const Fragment &fb = allFragments[p.b];
+
+    // Low diversity = many repeated token patterns (case tables, init loops)
+    // Reduce score slightly for such pairs
+    if (fa.diversity < 0.30 && fb.diversity < 0.30)
+    {
+      // Down-weight by reducing similarity slightly
+      p.weighted *= 0.85; // 15% penalty for table-like structure
+    }
+  }
+}
+
+// P1.2: boilerplate-density filter — drop pairs with mostly non-substantive lines
+// Fragments dominated by guard clauses, setter chains, or empty structure are boilerplate
+void phase11BoilerplateDensity(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
+{
+  std::vector<Pair> filtered;
+
+  for (const auto &p : candidates)
+  {
+    const Fragment &fa = allFragments[p.a];
+    const Fragment &fb = allFragments[p.b];
+
+    // Very short fragments (<5 lines) are often boilerplate (constructors, getters)
+    // Require higher similarity for them
+    if (fa.tokenCount < 20 && fb.tokenCount < 20)
+    {
+      if (p.weighted >= 0.90)
+      {
+        filtered.push_back(p); // Only keep very high-confidence short matches
+      }
+      // else: drop short, low-confidence matches (boilerplate)
+    }
+    else
+    {
+      filtered.push_back(p); // Keep longer fragments
+    }
+  }
+  candidates = std::move(filtered);
+}
+
+// P1.3: header-impl gate — suppress pairs where one is mostly declarations
+// Headers with >70% declaration lines (virtual, override, access specifiers) are interface defs
+void phase12HeaderImplGate(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
+{
+  // For now, keep all pairs (full implementation would count declaration tokens)
+  // Heuristic: files ending in .h are headers; pairs between .h and .cpp are expected
+  (void)allFragments;  // Placeholder implementation
+  (void)candidates;
+}
+
+// P1.4: file-local IDF down-weight — reduce weight of tokens that are very common in the file
+// High-frequency tokens (getters, setters, common names) shouldn't dominate the score
+void phase13FileLoclalIDFDownweight(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
+{
+  // Count token frequencies per file to build per-file stop-list
+  std::unordered_map<std::string, std::unordered_map<std::string, int>> fileTokenFreq;
+
+  for (const auto &frag : allFragments)
+  {
+    for (const auto &[token, count] : frag.bag)
+    {
+      fileTokenFreq[frag.file][token] += count;
+    }
+  }
+
+  // For each pair, apply IDF penalty if shared tokens are very file-local
+  for (auto &p : candidates)
+  {
+    const Fragment &fa = allFragments[p.a];
+    const Fragment &fb = allFragments[p.b];
+
+    // If both fragments in same file AND tokens are very frequent in that file,
+    // down-weight the pair (likely idiom, not real clone)
+    if (fa.file == fb.file)
+    {
+      auto &freq = fileTokenFreq[fa.file];
+      std::size_t totalTokens = 0;
+      for (const auto &[token, count] : fa.bag)
+      {
+        if (freq[token] > 10)
+          totalTokens += count; // Count high-frequency tokens
+      }
+
+      if (totalTokens > fa.tokenCount / 2)
+      {
+        // More than half tokens are file-local frequent
+        p.weighted *= 0.80; // 20% penalty for file-local idiom
+      }
+    }
+  }
+}
+
 // P0.2: git rename/move suppress (simplified) — detect whole-file clones as move/refactor, not drift
 // If both fragments have line-overlap ≥ 0.95 and different files, likely a file move/copy, not drift.
 void phase8GitRenameSuppress(std::vector<Pair> &candidates)
@@ -250,6 +353,15 @@ ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::stri
   }
   phase8GitRenameSuppress(candidates);
   phase9FunctionBoundaryAnchor(candidates, allFragments);
+
+  // P1 classifiers (optional, can reduce recall if miscalibrated)
+  if (opts.enableP1Guards)
+  {
+    phase10DataTableClassifier(candidates, allFragments);
+    phase11BoilerplateDensity(candidates, allFragments);
+    phase12HeaderImplGate(candidates, allFragments);
+    phase13FileLoclalIDFDownweight(candidates, allFragments);
+  }
 
   result.pairs = candidates;
   return result;
