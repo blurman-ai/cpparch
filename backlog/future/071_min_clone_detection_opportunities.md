@@ -9,7 +9,7 @@
 **Целевой релиз:** v0.3+
 **Блокирует:** —
 **Заблокирован:** —
-**Related:** #052 (cross_tu_duplication_detector), #053 (line_duplication_pass), #056 (token_duplication_pass), #059 (coincidental_clone_filtering), #054 (ai_repo_duplication_run), #065 (dedup_skip_generated), #070 (FP-фиксы чекера), #033 (ai_drift_dataset)
+**Related:** #052 (cross_tu_duplication_detector), #053 (line_duplication_pass), #056 (token_duplication_pass), #054 (ai_repo_duplication_run), #065 (dedup_skip_generated), #070 (precision/FP-фиксы), #033 (ai_drift_dataset)
 **Spin-off:** #072 (clone_type_classifier — LD.10 + LD.11 реализованы в спайке #056)
 
 ## Цель
@@ -20,7 +20,7 @@
 
 Источники-инспирация: обсуждения SonarSource Community, вопросы StackOverflow, исследования по clone detection, общие жалобы на CPD-tools.
 
-Статус — **future ideas, не MVP**. Это надстройка над уже существующей подсистемой дубликатов: комплементарные слои (#053 line / #056 token / #052 AST / #059 precision / #054 usage). Единый источник истины — [docs/duplication_architecture.md](../../docs/duplication_architecture.md); читать перед работой над любым LD.* пунктом. Часть пунктов прямо продолжает уже идущую работу по precision/FP (#059, #065, #070) — их стоит снимать как «бесплатные» побочные эффекты той ветки.
+Статус — **future ideas, не MVP**. Это надстройка над уже существующей подсистемой дубликатов: комплементарные слои (#053 line / #056 token / #052 AST / #070 precision / #054 usage). Единый источник истины — [docs/duplication_architecture.md](../../docs/duplication_architecture.md); читать перед работой над любым LD.* пунктом. Часть пунктов прямо продолжает уже идущую работу по precision/FP (#070, #065) — их стоит снимать как «бесплатные» побочные эффекты той ветки.
 
 Перед тем как тащить любой пункт в реализацию — проверить против списка «What it explicitly is NOT» в [CLAUDE.md](../../CLAUDE.md): не превращаем archcheck в GUI/дашборд, остаёмся CLI+CI.
 
@@ -32,7 +32,7 @@
 
 **LD.12 — Clone Categories.** Не все клоны одинаково вредны: generated code, DTO, protobuf-структуры, ORM-сущности, lookup-таблицы триггерят отчёты, но редко = архдолг. Категории: Generated / Data Mapping / Test Code / Business Logic / Unknown. Ценность: signal-to-noise, фокус на реальной стоимости сопровождения. (Пересекается с #065 dedup_skip_generated — там generated уже отсекается; здесь — расширение до классификации, а не только skip.) **Research required.**
 
-**LD.13 — Micro-Clones.** Большие пороги прячут мелкие дубли: validation, retry, logging, exception handling. Выход: `Micro Clone / Lines: 5 / Occurrences: 7`. Ценность: ранняя детекция, refactoring opportunities, полезно для AI-сгенерированного кода. **Research required** (риск взрыва FP при низком пороге — требует осторожной валидации на корпусе, ср. #059/#066).
+**LD.13 — Micro-Clones.** Большие пороги прячут мелкие дубли: validation, retry, logging, exception handling. Выход: `Micro Clone / Lines: 5 / Occurrences: 7`. Ценность: ранняя детекция, refactoring opportunities, полезно для AI-сгенерированного кода. **Research required** (риск взрыва FP при низком пороге — требует осторожной валидации на корпусе, ср. #070/#066).
 
 **LD.14 — Clone Growth.** ✅ **Сделано в спайке #056** (commits `906b92c` density-summary, `dea0e7c` growth-gate). Тулы отвечают «сколько дублирования есть», но не «сколько добавлено». Метрики: Clone LOC Delta, Clone Density Delta, Clone Block Delta. Пример: `Before 3.1% → After 3.8% → Delta +0.7%`. Реализовано: snapshot печатает `clone density: cloneLOC / totalLOC (P%)`; `--clone-baseline <path>` персистит плотность, на следующем прогоне даёт delta и `exit 1` при росте сверх `--clone-growth-max` (CI-гейт). Ценность: CI-гейтинг, отслеживание тренда, сигнал архитектурного дрейфа. **High interest.**
 

@@ -9,7 +9,7 @@
 **Целевой релиз:** v0.3 (research-спайк)
 **Блокирует:** —
 **Заблокирован:** —
-**Related:** #071 (clone_detection_opportunities — родительский umbrella, отсюда вынуты LD.10+LD.11), #056 (token-проход — единственный детектор), #059 (precision-фильтры), #070 (FP-фиксы чекера)
+**Related:** #071 (clone_detection_opportunities — родительский umbrella, отсюда вынуты LD.10+LD.11), #056 (token-проход — единственный детектор), #070 (precision/FP-фиксы)
 
 ## Цель
 
