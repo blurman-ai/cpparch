@@ -34,7 +34,7 @@
 
 **LD.13 — Micro-Clones.** Большие пороги прячут мелкие дубли: validation, retry, logging, exception handling. Выход: `Micro Clone / Lines: 5 / Occurrences: 7`. Ценность: ранняя детекция, refactoring opportunities, полезно для AI-сгенерированного кода. **Research required** (риск взрыва FP при низком пороге — требует осторожной валидации на корпусе, ср. #059/#066).
 
-**LD.14 — Clone Growth.** Тулы отвечают «сколько дублирования есть», но не «сколько добавлено». Метрики: Clone LOC Delta, Clone Density Delta, Clone Block Delta. Пример: `Before 3.1% → After 3.8% → Delta +0.7%`. Ценность: CI-гейтинг, отслеживание тренда, сигнал архитектурного дрейфа. (Ложится на существующие baseline/drift/diff-режимы бинаря.) **High interest.**
+**LD.14 — Clone Growth.** ✅ **Сделано в спайке #056** (commits `906b92c` density-summary, `dea0e7c` growth-gate). Тулы отвечают «сколько дублирования есть», но не «сколько добавлено». Метрики: Clone LOC Delta, Clone Density Delta, Clone Block Delta. Пример: `Before 3.1% → After 3.8% → Delta +0.7%`. Реализовано: snapshot печатает `clone density: cloneLOC / totalLOC (P%)`; `--clone-baseline <path>` персистит плотность, на следующем прогоне даёт delta и `exit 1` при росте сверх `--clone-growth-max` (CI-гейт). Ценность: CI-гейтинг, отслеживание тренда, сигнал архитектурного дрейфа. **High interest.**
 
 **LD.15 — Diff-Induced Clones.** «Откуда пришёл этот клон?» — тулы редко связывают клоны с историей изменений. Выход: `Clone introduced in: commit abc123`, source/target файлы. Ценность: accountability, проще ревью, root-cause. (Требует git-blame интеграции — проверить против «not a GUI»; это CLI-обогащение отчёта, допустимо.) **High interest.**
 
@@ -68,8 +68,8 @@
 ## Следующие шаги
 
 1. ~~LD.10 (classification) + LD.11 (explanation)~~ — **сделано в спайке #056** (см. #072): данные были в матчере, классификатор + explain поверх `rawSeq`/`diffTokens`.
-2. LD.14 (growth) — приземлить на существующие baseline/drift-режимы.
-3. LD.16 (cross-module matrix) — самый «Lakos-родной» пункт, кандидат на флагманскую фичу v0.3.
+2. ~~LD.14 (growth)~~ — **сделано в спайке #056** (`906b92c`/`dea0e7c`): density-summary + `--clone-baseline` growth-gate с epsilon-устойчивым сравнением.
+3. LD.16 (cross-module matrix) — самый «Lakos-родной» пункт, кандидат на флагманскую фичу v0.3. **← следующий по плану.**
 
 ## Ключевые решения
 
