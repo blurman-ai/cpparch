@@ -10,6 +10,7 @@ add_library(archcheck_core STATIC
    scan/duplication/clone_classifier.cpp
    scan/duplication/clone_index.cpp
    scan/duplication/duplication_scanner.cpp
+   scan/duplication/fp_corpus_eval.cpp
    graph/dependency_graph.cpp
    graph/algorithms.cpp
    graph/diff.cpp
