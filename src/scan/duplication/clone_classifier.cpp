@@ -5,7 +5,10 @@
 namespace archcheck::scan::duplication
 {
 
-std::vector<DiffOp> diffTokens(const std::vector<std::string> &a, const std::vector<std::string> &b)
+namespace
+{
+std::vector<std::vector<std::size_t>> buildLcsTable(const std::vector<std::string> &a,
+                                                    const std::vector<std::string> &b)
 {
   const std::size_t n = a.size();
   const std::size_t m = b.size();
@@ -14,12 +17,18 @@ std::vector<DiffOp> diffTokens(const std::vector<std::string> &a, const std::vec
   {
     for (std::size_t j = 1; j <= m; ++j)
     {
-      dp[i][j] = a[i - 1] == b[j - 1] ? dp[i - 1][j - 1] + 1 : std::max(dp[i - 1][j], dp[i][j - 1]);
+      dp[i][j] = (a[i - 1] == b[j - 1]) ? (dp[i - 1][j - 1] + 1) : std::max(dp[i - 1][j], dp[i][j - 1]);
     }
   }
+  return dp;
+}
+
+std::vector<DiffOp> backtrackLcs(const std::vector<std::string> &a, const std::vector<std::string> &b,
+                                 const std::vector<std::vector<std::size_t>> &dp)
+{
   std::vector<DiffOp> raw;
-  std::size_t i = n;
-  std::size_t j = m;
+  std::size_t i = a.size();
+  std::size_t j = b.size();
   while (i > 0 && j > 0)
   {
     if (a[i - 1] == b[j - 1])
@@ -50,7 +59,11 @@ std::vector<DiffOp> diffTokens(const std::vector<std::string> &a, const std::vec
     raw.push_back({'+', "", b[j], -1, static_cast<int>(j)});
   }
   std::reverse(raw.begin(), raw.end());
+  return raw;
+}
 
+std::vector<DiffOp> collapseDelInsPairs(const std::vector<DiffOp> &raw)
+{
   std::vector<DiffOp> out;
   for (std::size_t k = 0; k < raw.size(); ++k)
   {
@@ -72,6 +85,14 @@ std::vector<DiffOp> diffTokens(const std::vector<std::string> &a, const std::vec
     }
   }
   return out;
+}
+} // namespace
+
+std::vector<DiffOp> diffTokens(const std::vector<std::string> &a, const std::vector<std::string> &b)
+{
+  auto dp = buildLcsTable(a, b);
+  auto raw = backtrackLcs(a, b, dp);
+  return collapseDelInsPairs(raw);
 }
 
 const char *cloneType(const Fragment &a, const Fragment &b)

@@ -18,7 +18,14 @@ Argument (optional): подсказка типа (например `/autocommit 
 
 1. `git status` — изменённые/неотслеживаемые файлы.
 2. `git diff` — содержимое изменений.
-3. **Lint-gate** — на изменённых `.h`/`.cpp`:
+3. **Auto-format** — переформатировать все изменённые/новые `.h`/`.cpp` файлы:
+
+   ```bash
+   { git diff --name-only HEAD; git ls-files --others --exclude-standard; } \
+     | grep -E '\.(h|cpp)$' | xargs -r clang-format -i
+   ```
+
+4. **Lint-gate** — на изменённых `.h`/`.cpp`:
 
    ```bash
    { git diff --name-only HEAD; git ls-files --others --exclude-standard; } \
@@ -34,7 +41,7 @@ Argument (optional): подсказка типа (например `/autocommit 
 
    Любая упала — **СТОП**, вывести ошибки, не продолжать.
 
-4. **Coverage gate**:
+5. **Coverage gate**:
 
    ```bash
    bash scripts/check_coverage.sh
@@ -45,15 +52,15 @@ Argument (optional): подсказка типа (например `/autocommit 
    (В автономном режиме не продолжаем «сознательно принимая низкое покрытие» — некому принять.)
    При успехе — `Verified: build+coverage`.
 
-5. Если есть тест-лог (`build/test_log.txt`, `build/Testing/Temporary/LastTest.log`) — прочитать, извлечь сьют, тесты, PASSED/FAILED. Нет лога — секция тестов пропускается.
-6. Собрать сообщение по Conventional Commits (схема, типы, scope, subject, body, trailers — **идентично `/commit`**, см. [`commit.md`](commit.md)).
-7. **БЕЗ показа и подтверждения.** Сразу аккуратно застейджить только релевантные файлы:
+6. Если есть тест-лог (`build/test_log.txt`, `build/Testing/Temporary/LastTest.log`) — прочитать, извлечь сьют, тесты, PASSED/FAILED. Нет лога — секция тестов пропускается.
+7. Собрать сообщение по Conventional Commits (схема, типы, scope, subject, body, trailers — **идентично `/commit`**, см. [`commit.md`](commit.md)).
+8. **БЕЗ показа и подтверждения.** Сразу аккуратно застейджить только релевантные файлы:
    - Никаких `.env`, ключей, секретов. Заметил секрет в диффе — **СТОП**.
    - Бинарники — не стейджить (в автономном режиме не у кого спросить).
    - Связанные `.h` и `.cpp` — вместе.
-8. Создать коммит через heredoc.
-9. Push: `git push origin master` (admin direct push); на feature-ветке — `git push -u origin <branch>`.
-10. `git status` после — убедиться, что прошло. Кратко отчитаться: хэш, ветка, push-результат.
+9. Создать коммит через heredoc.
+10. Push: `git push origin master` (admin direct push); на feature-ветке — `git push -u origin <branch>`.
+11. `git status` после — убедиться, что прошло. Кратко отчитаться: хэш, ветка, push-результат.
 
 ## Сообщение коммита
 
