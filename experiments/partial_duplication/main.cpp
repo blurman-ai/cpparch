@@ -997,6 +997,13 @@ void explainPair(const Fragment& fa, const Fragment& fb, double similarity)
   printIgnored("literals", lits);
 }
 
+// LOC spanned by a fragment (inclusive line range). Shared by LD.14 density and
+// LD.16 boundary sums so the line-count formula lives in one place.
+std::size_t fragLoc(const Fragment& f)
+{
+  return static_cast<std::size_t>(f.endLine - f.startLine + 1);
+}
+
 // LD.14 — duplicated LOC over the reported pairs. A fragment is counted once even
 // if it appears in several pairs (set-dedup); blocks = distinct clone fragments.
 // Returns {clone LOC, block count}; density is clone LOC over scanned total LOC.
@@ -1012,7 +1019,7 @@ std::pair<std::size_t, std::size_t> cloneLocAndBlocks(const std::vector<Pair>& r
   std::size_t loc = 0;
   for (std::size_t idx : seen)
   {
-    loc += static_cast<std::size_t>(frags[idx].endLine - frags[idx].startLine + 1);
+    loc += fragLoc(frags[idx]);
   }
   return {loc, seen.size()};
 }
@@ -1041,6 +1048,41 @@ std::string moduleOf(const std::string& file)
 {
   const std::size_t slash = file.find('/');
   return slash == std::string::npos ? std::string("(root)") : file.substr(0, slash);
+}
+
+// LD.16 — aggregate cross-module clone pairs into a boundary matrix: per unordered
+// module pair, the clone-pair count and duplicated LOC (summed over both fragments).
+// std::map keeps the output ordered/deterministic. Prints nothing if no boundary
+// is crossed. Same-module pairs are skipped — only cross-boundary duplication.
+void printCrossModuleMatrix(const std::vector<Pair>& reported, const std::vector<Fragment>& frags)
+{
+  std::map<std::string, std::pair<std::size_t, std::size_t>> matrix;  // "A <-> B" -> {pairs, LOC}
+  for (const Pair& p : reported)
+  {
+    std::string ma = moduleOf(frags[p.a].file);
+    std::string mb = moduleOf(frags[p.b].file);
+    if (ma == mb)
+    {
+      continue;
+    }
+    if (mb < ma)
+    {
+      std::swap(ma, mb);
+    }
+    auto& e = matrix[ma + " <-> " + mb];
+    e.first += 1;
+    e.second += fragLoc(frags[p.a]) + fragLoc(frags[p.b]);
+  }
+  if (matrix.empty())
+  {
+    return;
+  }
+  std::cout << "cross-module clone matrix:\n";
+  for (const auto& [boundary, stat] : matrix)
+  {
+    std::cout << "  " << boundary << ": " << stat.first << " pairs, " << stat.second << " LOC\n";
+  }
+  std::cout << "\n";
 }
 
 void printUsage()
@@ -1793,6 +1835,7 @@ int main(int argc, char** argv)
   }
   std::cout << "cross-module: " << crossPairs << " of " << reported.size()
             << " pairs cross a module boundary\n\n";
+  printCrossModuleMatrix(reported, frags);
 
   int rc = 0;
   if (!opt.cloneBaseline.empty())
