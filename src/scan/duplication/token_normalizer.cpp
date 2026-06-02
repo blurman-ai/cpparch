@@ -278,71 +278,66 @@ bool tryConsumeChar(const std::string &source, std::size_t &i, int &line, std::v
   return true;
 }
 
+bool isExponentSign(const std::string &src, std::size_t i)
+{
+  if (i == 0)
+    return false;
+  const char d = src[i];
+  const char prev = src[i - 1];
+  return (d == '+' || d == '-') && (prev == 'e' || prev == 'E' || prev == 'p' || prev == 'P');
+}
+
 bool tryConsumeNumber(const std::string &source, std::size_t &i, int &line, std::vector<Token> &out)
 {
   const char c = source[i];
   const bool isDigit = std::isdigit(static_cast<unsigned char>(c)) != 0;
   const bool isDotNumber =
-      (c == '.' && i + 1 < source.size() && std::isdigit(static_cast<unsigned char>(source[i + 1])) != 0);
+      c == '.' && i + 1 < source.size() && std::isdigit(static_cast<unsigned char>(source[i + 1])) != 0;
   if (!isDigit && !isDotNumber)
-  {
     return false;
-  }
-  const std::size_t litStart = i;
-  ++i;
+  const std::size_t litStart = i++;
   while (i < source.size())
   {
     const char d = source[i];
     if (isIdentChar(d) || d == '.' || d == '\'')
-    {
       ++i;
-    }
-    else if ((d == '+' || d == '-') && i > 0 &&
-             (source[i - 1] == 'e' || source[i - 1] == 'E' || source[i - 1] == 'p' || source[i - 1] == 'P'))
-    {
+    else if (isExponentSign(source, i))
       ++i;
-    }
     else
-    {
       break;
-    }
   }
   out.push_back({"lit", line, source.substr(litStart, i - litStart)});
   return true;
 }
 
+void pushIdentifierToken(const std::string &word, int line, std::size_t pos, const std::string &source,
+                         const std::vector<Token> &out_ref, bool keepCalls, std::vector<Token> &out)
+{
+  if (keywords().count(word) != 0)
+  {
+    out.push_back({word, line, ""});
+    return;
+  }
+  if (!keepCalls)
+  {
+    out.push_back({"id", line, word});
+    return;
+  }
+  std::size_t j = pos;
+  while (j < source.size() && (source[j] == ' ' || source[j] == '\t' || source[j] == '\n' || source[j] == '\r'))
+    ++j;
+  const bool keep = (j < source.size() && source[j] == '(') || (!out_ref.empty() && out_ref.back().sym == "case");
+  out.push_back({keep ? word : "id", line, keep ? "" : word});
+}
+
 bool tryConsumeIdentifier(const std::string &source, std::size_t &i, int line, std::vector<Token> &out, bool keepCalls)
 {
   if (!isIdentStart(source[i]))
-  {
     return false;
-  }
   const std::size_t start = i;
   while (i < source.size() && isIdentChar(source[i]))
-  {
     ++i;
-  }
-  std::string word = source.substr(start, i - start);
-  if (keywords().count(word) != 0)
-  {
-    out.push_back({word, line, std::string()});
-  }
-  else if (keepCalls)
-  {
-    std::size_t j = i;
-    while (j < source.size() && (source[j] == ' ' || source[j] == '\t' || source[j] == '\n' || source[j] == '\r'))
-    {
-      ++j;
-    }
-    const bool callee = (j < source.size() && source[j] == '(');
-    const bool caseLabel = (!out.empty() && out.back().sym == "case");
-    const bool keep = callee || caseLabel;
-    out.push_back({keep ? word : "id", line, keep ? "" : word});
-  }
-  else
-  {
-    out.push_back({"id", line, word});
-  }
+  pushIdentifierToken(source.substr(start, i - start), line, i, source, out, keepCalls, out);
   return true;
 }
 
