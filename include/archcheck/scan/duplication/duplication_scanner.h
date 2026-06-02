@@ -41,7 +41,8 @@ struct ScanResult
   std::vector<Pair> pairs;
   CloneIndex index;
   std::size_t fileCount = 0;
-  std::size_t candidateCount = 0;
+  std::size_t candidateCount = 0;      // Raw candidates before scoring
+  std::size_t scoredCandidateCount = 0; // After similarity gate
   std::size_t totalLoc = 0;
 };
 

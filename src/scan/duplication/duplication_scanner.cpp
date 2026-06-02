@@ -46,7 +46,8 @@ std::vector<Pair> phase3ScoreCandidates(const std::vector<Fragment> &allFragment
     {
       p.lcs = lcsRatio(allFragments[p.a], allFragments[p.b]);
     }
-    if (scoreOf(p) >= opts.simThreshold)
+    double score = scoreOf(p);
+    if (score >= opts.simThreshold)
     {
       candidates.push_back(p);
     }
@@ -343,6 +344,7 @@ ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::stri
   result.candidateCount = result.index.sharedRare.size();
 
   std::vector<Pair> candidates = phase3ScoreCandidates(allFragments, result.index, opts);
+  result.scoredCandidateCount = candidates.size();  // Count after similarity gate
   phase4Sort(candidates, opts);
   phase5SymmetricPairCanon(candidates);
   phase6CoordinateRevalidation(candidates, allFragments);
