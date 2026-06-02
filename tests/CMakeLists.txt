@@ -21,6 +21,7 @@ add_executable(archcheck_tests
    duplication_fragmenter_test.cpp
    duplication_clone_index_test.cpp
    duplication_fp_guards_test.cpp
+   duplication_fp_corpus_eval_test.cpp
    unit/scan/include_scanner_test.cpp
    unit/scan/project_files_test.cpp
    unit/scan/include_resolver_test.cpp
