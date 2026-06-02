@@ -131,6 +131,25 @@ void phase7SameFunctionFilter(std::vector<Pair> &candidates, const std::vector<F
   }
   candidates = std::move(filtered);
 }
+
+// P0.6: joint token∧order floor — require high similarity in BOTH metrics
+// Don't emit pairs where token-weight is high but line-overlap is low (bag-of-words collision)
+// or vice versa. Tuning: thresholds calibrated on fp_corpus_r2.tsv.
+void phase8JointTokenOrderFloor(std::vector<Pair> &candidates, double minWeighted = 0.75, double minLine = 0.50)
+{
+  std::vector<Pair> filtered;
+
+  for (const auto &p : candidates)
+  {
+    // Both metrics must be satisfied: w >= minWeighted AND line >= minLine
+    // This rejects high-token-weight + low-line-sim pairs (idiom collisions)
+    if (p.weighted >= minWeighted && p.line >= minLine)
+    {
+      filtered.push_back(p);
+    }
+  }
+  candidates = std::move(filtered);
+}
 } // namespace
 
 ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::string>> &files, const ScannerOptions &opts)
@@ -155,6 +174,10 @@ ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::stri
   phase5SymmetricPairCanon(candidates);
   phase6CoordinateRevalidation(candidates, allFragments);
   phase7SameFunctionFilter(candidates, allFragments);
+  if (opts.enableJointFloor)
+  {
+    phase8JointTokenOrderFloor(candidates, opts.jointWeightedThreshold, opts.jointLineThreshold);
+  }
 
   result.pairs = candidates;
   return result;

@@ -26,9 +26,12 @@ struct ScannerOptions
 {
   FragmentOptions fragmentOpts;
   IndexOptions indexOpts;
-  std::string metric = "weighted"; // "weighted" or "plain" — which metric gates similarity
-  bool precise = false;            // if true, use token-LCS as gate; else use metric
-  double simThreshold = 0.60;      // similarity gate threshold
+  std::string metric = "weighted";        // "weighted" or "plain" — which metric gates similarity
+  bool precise = false;                   // if true, use token-LCS as gate; else use metric
+  double simThreshold = 0.60;             // similarity gate threshold
+  bool enableJointFloor = true;           // P0.6: require BOTH token AND line metrics to pass
+  double jointWeightedThreshold = 0.75;   // P0.6: minimum weighted similarity when joint floor enabled
+  double jointLineThreshold = 0.50;       // P0.6: minimum line overlap when joint floor enabled
 };
 
 struct ScanResult

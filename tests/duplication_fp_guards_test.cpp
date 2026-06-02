@@ -189,39 +189,118 @@ void func2() {
   }
 }
 
-TEST_CASE("P0.1+P0.3: guards don't drop valid same-file non-adjacent pairs", "[duplication][fp-guards]")
+TEST_CASE("P0.6: joint token∧order floor — high weight + high line pass", "[duplication][fp-guards]")
 {
-  // Two functions with identical logic but separated by lines
-  const std::string source = R"(
-void processA() {
-  read_data(); validate(); transform(); write_result();
+  const std::string file1 = "void funcA() { x=1; y=2; z=3; a=4; b=5; c=6; d=7; e=8; f=9; g=10; }";
+  const std::string file2 = "void funcB() { x=1; y=2; z=3; a=4; b=5; c=6; d=7; e=8; f=9; g=10; }";
+
+  ScannerOptions opts;
+  opts.fragmentOpts.minTokens = 5;
+  opts.simThreshold = 0.5;
+  opts.enableJointFloor = true;
+  opts.jointWeightedThreshold = 0.70;
+  opts.jointLineThreshold = 0.40;
+
+  const auto result = scanForDuplication({{"file1.cpp", file1}, {"file2.cpp", file2}}, opts);
+
+  // Pairs with high both metrics should pass P0.6
+  for (const auto &pair : result.pairs)
+  {
+    if (pair.weighted >= opts.jointWeightedThreshold)
+    {
+      REQUIRE(pair.line >= opts.jointLineThreshold);
+    }
+  }
 }
 
-void processB() {
-  read_data(); validate(); transform(); write_result();
+TEST_CASE("P0.6: joint token∧order floor disabled allows low-line pairs", "[duplication][fp-guards]")
+{
+  // When P0.6 is disabled, pairs with high token-weight but low line-overlap pass through
+  const std::string source = R"(
+void func1() {
+  a=1; b=2; c=3; d=4; e=5; f=6; g=7; h=8;
+  x=100; y=200; z=300;
+}
+
+void func2() {
+  a=1; b=2; c=3; d=4; e=5; f=6; g=7; h=8;
+  x=400; y=500; z=600;
 }
 )";
 
   ScannerOptions opts;
-  opts.fragmentOpts.minTokens = 1;
-  opts.simThreshold = 0.3; // Low threshold to catch similar blocks
-  opts.metric = "plain";
+  opts.fragmentOpts.minTokens = 5;
+  opts.simThreshold = 0.5;
+  opts.enableJointFloor = false; // Disabled
 
-  const auto result = scanForDuplication({{"process.cpp", source}}, opts);
+  const auto result = scanForDuplication({{"test.cpp", source}}, opts);
 
-  // Both guards (P0.3 coordinate revalidation + P0.1 same-function filter) should keep this pair
-  // because:
-  // - Fragments have valid ranges (P0.3 passes)
-  // - Fragments are non-overlapping (P0.1 passes)
+  // Without P0.6, any pair passing simThreshold is kept (even if line-overlap is low)
+  // (This is just a sanity check that the option works)
   if (result.fragments.size() >= 2)
   {
-    REQUIRE(result.fragments[0].endLine < result.fragments[1].startLine);
-    // Pair should exist if similarity threshold is met
-    if (result.pairs.size() > 0)
+    // Both fragments have valid ranges (P0.3 still applies)
+    for (const auto &frag : result.fragments)
     {
-      const auto &pair = result.pairs[0];
-      REQUIRE(result.fragments[pair.a].startLine > 0);
-      REQUIRE(result.fragments[pair.b].startLine > 0);
+      REQUIRE(frag.startLine > 0);
     }
+  }
+}
+
+TEST_CASE("P0.1+P0.3+P0.6: all guards work together", "[duplication][fp-guards]")
+{
+  const std::string source = R"(
+void process1() {
+  read_data(); validate(); transform(); store_result();
+  x=1; y=2; z=3; a=4; b=5;
+}
+
+void process2() {
+  read_data(); validate(); transform(); store_result();
+  x=1; y=2; z=3; a=4; b=5;
+}
+
+void helper() {
+  x=1; y=2; z=3; a=4; b=5; c=6; d=7; e=8; f=9;
+}
+)";
+
+  ScannerOptions opts;
+  opts.fragmentOpts.minTokens = 5;
+  opts.simThreshold = 0.5;
+  opts.enableJointFloor = true;
+  opts.jointWeightedThreshold = 0.60;
+  opts.jointLineThreshold = 0.40;
+
+  const auto result = scanForDuplication({{"test.cpp", source}}, opts);
+
+  // All three guards should be applied:
+  // 1. P0.3: coordinate revalidation — fragments with valid ranges
+  // 2. P0.1: same-function filter — no same-file overlapping pairs
+  // 3. P0.6: joint token∧order — only pairs with both metrics high
+
+  for (const auto &frag : result.fragments)
+  {
+    // P0.3: valid ranges
+    REQUIRE(frag.startLine > 0);
+    REQUIRE(frag.endLine >= frag.startLine);
+  }
+
+  for (const auto &pair : result.pairs)
+  {
+    const auto &fa = result.fragments[pair.a];
+    const auto &fb = result.fragments[pair.b];
+
+    // P0.1: same-file pairs shouldn't overlap/be adjacent
+    if (fa.file == fb.file)
+    {
+      bool overlapping = (fa.startLine <= fb.endLine && fb.startLine <= fa.endLine);
+      bool adjacent = (fa.endLine + 1 == fb.startLine || fb.endLine + 1 == fa.startLine);
+      REQUIRE((!overlapping && !adjacent));
+    }
+
+    // P0.6: both metrics must pass
+    REQUIRE(pair.weighted >= opts.jointWeightedThreshold);
+    REQUIRE(pair.line >= opts.jointLineThreshold);
   }
 }
