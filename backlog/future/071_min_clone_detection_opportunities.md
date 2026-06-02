@@ -38,7 +38,7 @@
 
 **LD.15 — Diff-Induced Clones.** «Откуда пришёл этот клон?» — тулы редко связывают клоны с историей изменений. Выход: `Clone introduced in: commit abc123`, source/target файлы. Ценность: accountability, проще ревью, root-cause. (Требует git-blame интеграции — проверить против «not a GUI»; это CLI-обогащение отчёта, допустимо.) **High interest.**
 
-**LD.16 — Cross-Module Clone Matrix.** Дублирование через границы подсистем опаснее внутримодульного. Выход: матрица `Navigation -> Weather: 320 LOC`, `Navigation -> Licensing: 140 LOC`. Ценность: сигнал архдрейфа, видимость связности подсистем, полезно для больших реп. (Прямо в духе Lakos physical design — самая «архитектурная» из идей, естественный фит позиционированию.) **High interest.**
+**LD.16 — Cross-Module Clone Matrix.** ✅ **Сделано в спайке #056** (commits `fc70ec0` cross-flag, `6e74a9b` matrix). Дублирование через границы подсистем опаснее внутримодульного. Выход: матрица `Navigation -> Weather: 320 LOC`. Реализовано: `moduleOf` (ведущий сегмент пути) → snapshot печатает `cross-module: K of M pairs cross a boundary` + матрицу `mod <-> mod: N pairs, L LOC`. Ценность: сигнал архдрейфа, видимость связности подсистем. (Прямо в духе Lakos physical design — самая «архитектурная» из идей.) **High interest.**
 
 **LD.17 — Clone Hotspots.** Некоторые файлы постоянно становятся источниками клонов. Выход: `Top Clone Sources: config.cpp exported 14 clones`. Ценность: цели для рефакторинга, отслеживание эрозии. **Medium interest.**
 
@@ -69,7 +69,9 @@
 
 1. ~~LD.10 (classification) + LD.11 (explanation)~~ — **сделано в спайке #056** (см. #072): данные были в матчере, классификатор + explain поверх `rawSeq`/`diffTokens`.
 2. ~~LD.14 (growth)~~ — **сделано в спайке #056** (`906b92c`/`dea0e7c`): density-summary + `--clone-baseline` growth-gate с epsilon-устойчивым сравнением.
-3. LD.16 (cross-module matrix) — самый «Lakos-родной» пункт, кандидат на флагманскую фичу v0.3. **← следующий по плану.**
+3. ~~LD.16 (cross-module matrix)~~ — **сделано в спайке #056** (`fc70ec0`/`6e74a9b`): `moduleOf` + cross-флаг + матрица границ. Самый «Lakos-родной» пункт, кандидат на флагманскую фичу v0.3.
+
+**Готово (спайк #056):** LD.10, LD.11, LD.14, LD.16. **Осталось High/Medium:** LD.15 (diff-induced, git-blame), LD.17 (hotspots). **Research:** LD.12, LD.13, LD.18.
 
 ## Ключевые решения
 
