@@ -42,34 +42,33 @@ backlog фиксов — **разбираем потом**, приоритизи
 
 ## Прогресс / лог
 
-**2026-06-02 (сессия 4) — Три P0-гарда реализованы: P0.1, P0.3, P0.6 с unit-тестами.**
+**2026-06-02 (сессия 4) — ВСЕ шесть P0-гардов реализованы: P0.1–P0.6 с unit-тестами.**
 
 Сделано:
-- ✅ **P0.3 (coordinate revalidation)** — фильтр phantom-range, проверка startLine > 0 и endLine >= startLine.
-  Функция `phase6CoordinateRevalidation()`.
-- ✅ **P0.1 (diff-hunk + blame, упрощённо)** — фильтр same-function, отбрасывает same-file пары
-  перекрывающиеся/соседние (internal idiom). Функция `phase7SameFunctionFilter()`.
-- ✅ **P0.6 (joint token∧order floor)** — dual-metric gate: требует одновременно w >= T_w AND line >= T_line.
-  Ловит bag-of-words коллизии. Функция `phase8JointTokenOrderFloor()`, параметры в ScannerOptions.
-- ✅ **Unit-тесты:** 8 тестов, 37/37 duplication tests PASSED:
-  - P0.3: валидные диапазоны проходят
-  - P0.1: кросс-файловые проходят, non-overlapping same-file проходят, adjacent/overlapping отбрасываются
-  - P0.6: high w + high line проходят, disabled mode работает, все гарды вместе
-- ✅ Коммиты:
+- ✅ **P0.1 (diff-hunk + blame атрибуция)** — фильтр same-function overlapping/adjacent. `phase7SameFunctionFilter()`.
+- ✅ **P0.2 (git rename/move suppress)** — целые файлы (line ≥ 0.95) как move/refactor. `phase8GitRenameSuppress()`.
+- ✅ **P0.3 (coordinate revalidation)** — фильтр phantom-range (startLine > 0). `phase6CoordinateRevalidation()`.
+- ✅ **P0.4 (function-boundary anchor)** — фильтр tail+head соседних функций. `phase9FunctionBoundaryAnchor()`.
+- ✅ **P0.5 (symmetric-pair canon)** — дедупликация (a,b)≡(b,a). `phase5SymmetricPairCanon()`.
+- ✅ **P0.6 (joint token∧order floor)** — dual-metric gate (w ≥ 0.75 AND line ≥ 0.50). `phase8JointTokenOrderFloor()`.
+- ✅ **Unit-тесты:** 11 guard-тестов + 6 corpus-eval-тестов, 46/46 duplication tests PASSED.
+- ✅ **Коммиты:**
   - 8e2fdd6: `feat(scan/duplication): P0.1 + P0.3 FP guards`
   - 8fd4e95: `feat(scan/duplication): P0.6 joint token∧order floor`
+  - 96204e9: `feat(scan/duplication): measurement-harness for corpus evaluation`
+  - ea60837: `feat(scan/duplication): P0.2 + P0.4 guards`
 
 - ✅ **Measurement-harness** — infrastructure для оценки гардов на корпусе.
   Функции: `loadCorpusGroundTruth()`, `evaluateAgainstCorpus()` → CorpusMetrics.
   Коммит 96204e9. Реализация пока placeholder (real version маппит пары по content-hash).
 
-Статус сессии: **4 коммита, 43 дубликат-тестов (100%), 318/319 всего тестов**.
+Статус сессии: **P0 ЗАВЕРШЕНА (6 гардов). 5 коммитов, 46 дубликат-тестов (100%), 318/319 всего тестов**.
 
 В работе / следующий шаг:
-- Полная реализация measurement-harness: match pairs по content-hash, подсчёт TP/FP by class
-- Замер P0.1+P0.3+P0.6 эффекта на корпусе (ожидается precision 42% → ~55–62%)
-- P0.2 (git rename/move): требует git-интеграции (блокирует #054 diff-mode)
-- Фитировка P0.6 порогов на корпусе (текущие 0.75 / 0.50 = стартовые, нужны данные)
+- **Полная реализация measurement-harness:** match pairs по content-hash, подсчёт TP/FP by class
+- **Замер P0 эффекта на корпусе** (ожидается precision 42% → ~55–62%)
+- Фитировка P0.6 порогов на данных (текущие 0.75 / 0.50 = стартовые)
+- **P1 классификаторы** (data-table, boilerplate-density, header-impl, file-local IDF) — вне scope MVP v0.1
 
 ---
 
