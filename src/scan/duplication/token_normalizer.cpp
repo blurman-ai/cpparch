@@ -310,8 +310,7 @@ bool tryConsumeNumber(const std::string &source, std::size_t &i, int &line, std:
   return true;
 }
 
-void pushIdentifierToken(const std::string &word, int line, std::size_t pos, const std::string &source,
-                         const std::vector<Token> &out_ref, bool keepCalls, std::vector<Token> &out)
+void pushIdentifierToken(const std::string &word, int line, bool nextIsParen, bool keepCalls, std::vector<Token> &out)
 {
   if (keywords().count(word) != 0)
   {
@@ -323,10 +322,7 @@ void pushIdentifierToken(const std::string &word, int line, std::size_t pos, con
     out.push_back({"id", line, word});
     return;
   }
-  std::size_t j = pos;
-  while (j < source.size() && (source[j] == ' ' || source[j] == '\t' || source[j] == '\n' || source[j] == '\r'))
-    ++j;
-  const bool keep = (j < source.size() && source[j] == '(') || (!out_ref.empty() && out_ref.back().sym == "case");
+  const bool keep = nextIsParen || (!out.empty() && out.back().sym == "case");
   out.push_back({keep ? word : "id", line, keep ? "" : word});
 }
 
@@ -337,7 +333,11 @@ bool tryConsumeIdentifier(const std::string &source, std::size_t &i, int line, s
   const std::size_t start = i;
   while (i < source.size() && isIdentChar(source[i]))
     ++i;
-  pushIdentifierToken(source.substr(start, i - start), line, i, source, out, keepCalls, out);
+  std::size_t j = i;
+  while (j < source.size() && (source[j] == ' ' || source[j] == '\t' || source[j] == '\n' || source[j] == '\r'))
+    ++j;
+  const bool nextIsParen = j < source.size() && source[j] == '(';
+  pushIdentifierToken(source.substr(start, i - start), line, nextIsParen, keepCalls, out);
   return true;
 }
 
@@ -354,6 +354,64 @@ bool tryConsumeOperator(const std::string &source, std::size_t &i, int line, std
   }
   return false;
 }
+
+void consumeToken(const std::string &source, std::size_t &i, int line, std::vector<Token> &out, bool keepCalls)
+{
+  if (tryConsumeRawString(source, i, line, out))
+  {
+    return;
+  }
+  if (tryConsumeString(source, i, line, out))
+  {
+    return;
+  }
+  if (tryConsumeChar(source, i, line, out))
+  {
+    return;
+  }
+  if (tryConsumeNumber(source, i, line, out))
+  {
+    return;
+  }
+  if (tryConsumeIdentifier(source, i, line, out, keepCalls))
+  {
+    return;
+  }
+  if (tryConsumeOperator(source, i, line, out))
+  {
+    return;
+  }
+  out.push_back({std::string(1, source[i]), line, std::string()}); // fallback: single char
+  ++i;
+}
+
+bool consumeTrivia(const std::string &source, std::size_t &i, int &line, bool &atLineStart)
+{
+  if (tryConsumeLine(source, i, line))
+  {
+    atLineStart = true;
+    return true;
+  }
+  if (tryConsumeWhitespace(source, i))
+  {
+    return true;
+  }
+  if (tryConsumeLineComment(source, i))
+  {
+    return true;
+  }
+  if (tryConsumeBlockComment(source, i, line))
+  {
+    return true;
+  }
+  if (atLineStart && source[i] == '#' && isDeadIfOpener(source, i))
+  {
+    skipDeadIfBlock(source, i, line);
+    atLineStart = true;
+    return true;
+  }
+  return false;
+}
 } // namespace
 
 std::vector<Token> lex(const std::string &source, bool keepCalls)
@@ -366,57 +424,12 @@ std::vector<Token> lex(const std::string &source, bool keepCalls)
 
   while (i < n)
   {
-    if (tryConsumeLine(source, i, line))
+    if (consumeTrivia(source, i, line, atLineStart))
     {
-      atLineStart = true;
-      continue;
-    }
-    if (tryConsumeWhitespace(source, i))
-    {
-      continue;
-    }
-    if (tryConsumeLineComment(source, i))
-    {
-      continue;
-    }
-    if (tryConsumeBlockComment(source, i, line))
-    {
-      continue;
-    }
-    if (atLineStart && source[i] == '#' && isDeadIfOpener(source, i))
-    {
-      skipDeadIfBlock(source, i, line);
-      atLineStart = true;
       continue;
     }
     atLineStart = false;
-    if (tryConsumeRawString(source, i, line, out))
-    {
-      continue;
-    }
-    if (tryConsumeString(source, i, line, out))
-    {
-      continue;
-    }
-    if (tryConsumeChar(source, i, line, out))
-    {
-      continue;
-    }
-    if (tryConsumeNumber(source, i, line, out))
-    {
-      continue;
-    }
-    if (tryConsumeIdentifier(source, i, line, out, keepCalls))
-    {
-      continue;
-    }
-    if (tryConsumeOperator(source, i, line, out))
-    {
-      continue;
-    }
-    // fallback: single char token
-    out.push_back({std::string(1, source[i]), line, std::string()});
-    ++i;
+    consumeToken(source, i, line, out, keepCalls);
   }
 
   return out;
