@@ -4,6 +4,10 @@ add_library(archcheck_core STATIC
    scan/project_files.cpp
    scan/include_resolver.cpp
    scan/disk_file_source.cpp
+   scan/duplication/token_normalizer.cpp
+   scan/duplication/fragmenter.cpp
+   scan/duplication/similarity.cpp
+   scan/duplication/clone_classifier.cpp
    graph/dependency_graph.cpp
    graph/algorithms.cpp
    graph/diff.cpp
