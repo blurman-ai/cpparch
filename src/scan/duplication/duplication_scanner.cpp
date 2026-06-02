@@ -1,26 +1,25 @@
 #include "archcheck/scan/duplication/duplication_scanner.h"
 
+#include <algorithm>
+
 #include "archcheck/scan/duplication/clone_classifier.h"
 #include "archcheck/scan/duplication/token_normalizer.h"
-
-#include <algorithm>
 
 namespace archcheck::scan::duplication
 {
 
-ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::string>>& files,
-                              const ScannerOptions& opts)
+ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::string>> &files, const ScannerOptions &opts)
 {
   ScanResult result;
   std::vector<Fragment> allFragments;
 
   // Phase 1: Tokenize and extract fragments from each file
-  for (const auto& [path, source] : files)
+  for (const auto &[path, source] : files)
   {
     const auto tokens = lex(source, opts.fragmentOpts.minTokens > 0);
     const auto fragments = extractFragments(tokens, source, path, opts.fragmentOpts);
 
-    for (const auto& frag : fragments)
+    for (const auto &frag : fragments)
     {
       result.totalLoc += frag.endLine - frag.startLine + 1;
       allFragments.push_back(frag);
@@ -40,13 +39,11 @@ ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::stri
   result.candidateCount = result.index.sharedRare.size();
 
   // Phase 3: Score candidates and filter by threshold
-  auto scoreOf = [&opts](const Pair& p) -> double
-  {
-    return opts.precise ? p.lcs : (opts.metric == "plain" ? p.plain : p.weighted);
-  };
+  auto scoreOf = [&opts](const Pair &p) -> double
+  { return opts.precise ? p.lcs : (opts.metric == "plain" ? p.plain : p.weighted); };
 
   std::vector<Pair> candidates;
-  for (const auto& [pr, shared] : result.index.sharedRare)
+  for (const auto &[pr, shared] : result.index.sharedRare)
   {
     Pair p;
     p.a = pr.first;
@@ -68,9 +65,8 @@ ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::stri
   }
 
   // Phase 4: Sort by score
-  std::sort(candidates.begin(), candidates.end(), [&](const Pair& l, const Pair& r) {
-    return scoreOf(l) > scoreOf(r);
-  });
+  std::sort(candidates.begin(), candidates.end(),
+            [&](const Pair &l, const Pair &r) { return scoreOf(l) > scoreOf(r); });
 
   result.pairs = candidates;
   return result;

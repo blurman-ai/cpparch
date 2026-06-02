@@ -1,7 +1,7 @@
+#include <catch2/catch_test_macros.hpp>
+
 #include "archcheck/scan/duplication/fragmenter.h"
 #include "archcheck/scan/duplication/token_normalizer.h"
-
-#include <catch2/catch_test_macros.hpp>
 
 using namespace archcheck::scan::duplication;
 
@@ -44,11 +44,11 @@ TEST_CASE("Fragmenter: fragment size limits", "[duplication]")
   opts.minTokens = 5;
   opts.maxTokens = 100;
 
-  const std::string src = "void f() { a; }";  // < 5 tokens inside braces
+  const std::string src = "void f() { a; }"; // < 5 tokens inside braces
   const auto tokens = lex(src);
   const auto frags = extractFragments(tokens, src, "test.cpp", opts);
 
-  REQUIRE(frags.empty());  // too small
+  REQUIRE(frags.empty()); // too small
 }
 
 TEST_CASE("Fragmenter: trigram diversity calculated", "[duplication]")
