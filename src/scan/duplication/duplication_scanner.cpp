@@ -1,6 +1,7 @@
 #include "archcheck/scan/duplication/duplication_scanner.h"
 
 #include <algorithm>
+#include <unordered_set>
 
 #include "archcheck/scan/duplication/clone_classifier.h"
 #include "archcheck/scan/duplication/token_normalizer.h"
@@ -60,6 +61,24 @@ void phase4Sort(std::vector<Pair> &candidates, const ScannerOptions &opts)
   std::sort(candidates.begin(), candidates.end(),
             [&](const Pair &l, const Pair &r) { return scoreOf(l) > scoreOf(r); });
 }
+
+// P0.5: symmetric-pair canonicalization — deduplicate (a,b) and (b,a), keep a < b
+void phase5SymmetricPairCanon(std::vector<Pair> &candidates)
+{
+  std::unordered_set<std::string> seen;
+  std::vector<Pair> deduped;
+
+  for (const auto &p : candidates)
+  {
+    std::string canonical = std::to_string(std::min(p.a, p.b)) + "," + std::to_string(std::max(p.a, p.b));
+    if (seen.find(canonical) == seen.end())
+    {
+      seen.insert(canonical);
+      deduped.push_back(p);
+    }
+  }
+  candidates = std::move(deduped);
+}
 } // namespace
 
 ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::string>> &files, const ScannerOptions &opts)
@@ -81,6 +100,7 @@ ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::stri
 
   std::vector<Pair> candidates = phase3ScoreCandidates(allFragments, result.index, opts);
   phase4Sort(candidates, opts);
+  phase5SymmetricPairCanon(candidates);
 
   result.pairs = candidates;
   return result;

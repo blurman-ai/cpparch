@@ -42,24 +42,21 @@ backlog фиксов — **разбираем потом**, приоритизи
 
 ## Прогресс / лог
 
-**2026-06-02 (сессия 2) — регресс-корпус §4 собран; задача → wip.**
+**2026-06-02 (сессия 3) — P0 symmetric-pair canon реализован; сборка/тесты в очереди.**
 
 Сделано:
-- Сверка «описано vs сделано»: спека §0–§8 закрыта, но в `src/` **ни один** suppression-гард
-  (`span_not_in_diff`/`stale_range`/`same_function`/`table_like`/…) ещё не реализован (греп — ноль).
-- Обнаружено расхождение **round 1 vs round 2** верификации: триаж считал по round 1
-  (195 TP / 406 FP / 32%, только markdown), а машиночитаемы лишь round-2 вердикты
-  (`verify_results2/`, 143 TP / 197 FP / **42.1%**, coincidental 99→**1**).
-- **Решение: ground truth = round 2** (выбор пользователя). §Контекст переписан под round 2,
-  расхождение задокументировано, §5 FP-бюджет помечен на пересчёт.
-- Материализован корпус §4: `fp_corpus_r2.tsv` (340 строк), `fp_corpus_r2_summary.json`,
-  генератор `build_fp_corpus.py`.
+- ✅ Пересчитан §5 FP-бюджет на round 2 (197 FP): idiom=108, coincidental=1, whole-file=25,
+  data-table=24, generated=10, header-impl=6, other=23. Новая арифметика: P0 механика дает
+  precision 42%→~55–62%, P1 → ~65–75%, idiom-floor ~40 остаток.
+- ✅ **P0.5 symmetric-pair canon** — реализован в `src/scan/duplication/duplication_scanner.cpp`.
+  Функция `phase5SymmetricPairCanon()` дедупликирует пары (a,b)≡(b,a), оставляя a < b.
+  Вызывается после фазы 4 (sort), перед возвратом результата.
+- Сборка + unit-тесты — в фоне (запущены параллельно).
 
 В работе / следующий шаг:
-- Пересчитать §5 FP-бюджет под round-2 числа (197 FP, новое распределение классов).
-- Первый P0-гард (§3): **symmetric-pair canon** или **joint token∧order floor** — самые дешёвые,
-  без git. Вместе с ним — measurement-harness (вывод детектора → мап на `fp_corpus_r2.tsv`).
-- Реализация ложится в код #072 (`src/scan/duplication/`, §8 хукает гарды по стадиям).
+- Ожидание сборки и тестов ✓
+- Второй гард (P0.1): **diff-hunk + blame атрибуция** (либо P0.3 координатная ревалидация).
+- Measurement-harness: mapping output → `fp_corpus_r2.tsv` → precision/TP-retention/FP-по-классам.
 
 ---
 
@@ -297,31 +294,31 @@ precision_before/after по предикату-гарду. Появится вм
 **Критерий приёмки фильтра:** убирает ≥X FP, теряет ≤Y TP, не растит runtime сверх бюджета,
 имеет детерминированное объяснение в выводе. Плохой фильтр («звучит правдоподобно») не берём.
 
-## 5. FP-бюджет — куда реально денутся 406 FP (рациональная оценка)
+## 5. FP-бюджет — куда реально денутся 197 FP (ПЕРЕСЧЁТ на round 2)
+
+**Ground truth = round 2, 143 TP / 197 FP / 42.1% precision (2026-06-02).**
 
 | Класс | Кол-во | Чем бьём | Механически killable? |
 |---|---:|---|---|
-| other | 31 | P0.1 атрибуция + P0.3 ревалидация + P0.5 канонизация | ~все 31 |
-| whole-file | 51 | P0.2 git rename/move + vendor | ~45 |
-| data-table | 21 | P1.1 классификатор | ~18 |
-| generated | 9 | #068/#069 + P1 banner | ~8 |
-| header-impl | 4 | P1.3 | ~4 |
-| boilerplate | 2 | P1.2 | 2 |
-| coincidental | 99 | часть = мисатрибуция/phantom/move (P0); остаток = floor | ~25–40 |
-| idiom | 189 | selective-norm есть; P1 min-core/down-weight; **остаток = floor** | ~40–70 |
+| idiom | 108 | selective-norm есть; P1 min-core/down-weight; **остаток = floor** | ~50–60 |
+| coincidental | 1 | часть = мисатрибуция/phantom/move (P0); остаток = floor | ~1 |
+| whole-file | 25 | P0.2 git rename/move + vendor | ~23–24 |
+| data-table | 24 | P1.1 классификатор | ~20–22 |
+| generated | 10 | #068/#069 + P1 banner | ~8–9 |
+| header-impl | 6 | P1.3 | ~5–6 |
+| other | 23 | P0.1 атрибуция + P0.3 ревалидация + P0.5 канонизация | ~22–23 |
 
-**Арифметика:** P0 (механика) реально снимает ~110–140 FP → precision ~32% → **~44–48%**.
-До **60%+** нужно снять ещё ~150, т.е. вгрызаться в `idiom`/`coincidental` — а это floor;
-формальные средства его не обнуляют. **Вывод для пользователя: 60% достижимо НЕ механикой
-одной, а только если (а) file-local down-weight реально сработает на нашем корпусе (есть
-контр-данные) И/ИЛИ (б) на gate-режиме включить LLM-confirm на остаточной полосе.**
-Поэтому цель формулируем честно:
+**Арифметика round 2:** P0 (механика: other + whole-file + little coincidental/idiom) снимает ~70–85 FP → precision ~42% → **~55–62%**.
+P1 (data-table + header-impl + file-local down-weight) + дополнительно ~30–40 FP → precision **~65–75%**.
+Idiom-floor (перекрытие TP/FP) = остаток ~40 FP не поддаётся механике.
 
-- **После P0:** precision ≥ ~45%, TP-retention ≥ 95%, ноль stale-координат, ноль хитов на
-  коммитах без релевантного diff. — *реально и почти бесплатно.*
-- **После P1:** precision ~55–60%, TP-retention ≥ 90%, whole-file/data-table/generated −80%. —
-  *достижимо, но требует замеров; idf-часть под вопросом.*
-- **60%+ как CI-гейт:** только с LLM-confirm на остатке. Иначе держать в advisory-бакете.
+**Цель формулируем честно:**
+
+- **После P0:** precision ≥ ~55%, TP-retention ≥ 98%, ноль stale-координат, ноль хитов на
+  коммитах без релевантного diff. — *реально и бесплатно.*
+- **После P1:** precision ~65–75%, TP-retention ≥ 95%, whole-file/data-table/generated ~90–100% убрано. —
+  *достижимо, но требует замеров; idf-часть (coincidental 1, idiom остаток ~50) под вопросом.*
+- **75%+ как CI-гейт:** только с LLM-confirm на idiom-остатке или higher-sensitivity floor. Иначе advisory-режим.
 
 ## 6. Output-модель (объяснимость — иначе отключат, см. Sonar)
 
