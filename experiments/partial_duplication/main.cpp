@@ -1034,6 +1034,15 @@ void writeBaselineDensity(const std::string& path, double density, std::size_t c
   out << density << " " << cloneLoc << " " << totalLoc << " " << blocks << "\n";
 }
 
+// LD.16 — module = leading path segment of a fragment's relative file; a file at
+// the scan root (no subdir) falls under "(root)". A clone whose two fragments live
+// in different modules crosses an architectural boundary — the dangerous kind.
+std::string moduleOf(const std::string& file)
+{
+  const std::size_t slash = file.find('/');
+  return slash == std::string::npos ? std::string("(root)") : file.substr(0, slash);
+}
+
 void printUsage()
 {
   std::cout << "usage: partial_duplication <root> [--min-tokens N] [--max-tokens N]\n"
@@ -1773,7 +1782,17 @@ int main(int argc, char** argv)
   const auto [cloneLoc, blocks] = cloneLocAndBlocks(reported, frags);
   const double density = totalLoc != 0 ? 100.0 * static_cast<double>(cloneLoc) / static_cast<double>(totalLoc) : 0.0;
   std::cout << "clone density: " << cloneLoc << " / " << totalLoc << " LOC (" << density
-            << "%), " << blocks << " fragments in " << reported.size() << " pairs\n\n";
+            << "%), " << blocks << " fragments in " << reported.size() << " pairs\n";
+  std::size_t crossPairs = 0;
+  for (const Pair& p : reported)
+  {
+    if (moduleOf(frags[p.a].file) != moduleOf(frags[p.b].file))
+    {
+      ++crossPairs;
+    }
+  }
+  std::cout << "cross-module: " << crossPairs << " of " << reported.size()
+            << " pairs cross a module boundary\n\n";
 
   int rc = 0;
   if (!opt.cloneBaseline.empty())
