@@ -1,0 +1,125 @@
+# 📊 Full Duplication Report — All Projects
+
+**Date:** Вт июн  2 20:45:12 MSK 2026
+
+
+## 📦 BambuStudio
+
+scanned 3174 files, 28712 fragments, 2173 candidate pairs
+reported (>= 204 pairs above threshold)
+  src/eigen/Eigen/src/Core/products/GeneralMatrixVector.h:207-210  <->  src/eigen/Eigen/src/Core/products/GeneralMatrixVector.h:276-279  (weighted=0.8)
+  src/fast_float/fast_float.h:554-570  <->  src/fast_float/fast_float.h:1750-1766  (weighted=0.8)
+  src/libslic3r/MultiMaterialSegmentation.cpp:2328-2364  <->  src/libslic3r/MultiMaterialSegmentation.cpp:2583-2621  (weighted=0.8)
+  src/libslic3r/PresetBundle.cpp:141-149  <->  src/libslic3r/PresetBundle.cpp:3222-3230  (weighted=0.8)
+  src/libslic3r/PresetBundle.cpp:5204-5207  <->  src/libslic3r/PresetBundle.cpp:5248-5251  (weighted=0.8)
+  src/libslic3r/PresetBundle.cpp:5204-5207  <->  src/libslic3r/PresetBundle.cpp:5293-5296  (weighted=0.8)
+  src/libslic3r/PresetBundle.cpp:5248-5251  <->  src/libslic3r/PresetBundle.cpp:5293-5296  (weighted=0.8)
+  src/minilzo/minilzo.c:5606-5641  <->  src/minilzo/minilzo.c:6147-6182  (weighted=0.8)
+  src/minilzo/minilzo.c:5645-5692  <->  src/minilzo/minilzo.c:6186-6233  (weighted=0.8)
+  src/eigen/Eigen/src/Core/products/GeneralMatrixVector.h:484-486  <->  src/eigen/Eigen/src/Core/products/GeneralMatrixVector.h:559-561  (weighted=0.8)
+  src/fast_float/fast_float.h:684-711  <->  src/fast_float/fast_float.h:1880-1907  (weighted=0.8)
+  src/qhull/src/qhulltest/QhullFacetList_test.cpp:60-75  <->  src/qhull/src/qhulltest/QhullFacetList_test.cpp:81-96  (weighted=0.8)
+  src/slic3r/GUI/CalibrationWizardPresetPage.cpp:1331-1362  <->  src/slic3r/GUI/SendToPrinter.cpp:758-788  (weighted=1)
+  src/slic3r/GUI/ConfigWizard.cpp:2334-2349  <->  src/slic3r/GUI/WebGuideDialog.cpp:789-804  (weighted=1)
+  src/slic3r/GUI/DeviceManager.cpp:806-810  <->  src/slic3r/GUI/GuiColor.cpp:26-30  (weighted=0.85)
+  src/slic3r/GUI/GCodeRenderer/BaseRenderer.cpp:2820-2823  <->  src/slic3r/GUI/GCodeRenderer/BaseRenderer.cpp:2837-2840  (weighted=0.8)
+  src/libslic3r/GCode/GCodeProcessor.cpp:4006-4065  <->  src/libslic3r/GCode/GCodeProcessor.cpp:4408-4467  (weighted=0.8)
+  src/libigl/igl/is_readable.cpp:29-52  <->  src/libigl/igl/is_writable.cpp:33-56  (weighted=1)
+  src/libigl/igl/normal_derivative.cpp:71-74  <->  src/libigl/igl/normal_derivative.cpp:102-105  (weighted=0.8)
+  src/libslic3r/AABBMesh.cpp:57-65  <->  src/libslic3r/SLA/IndexedMesh.cpp:59-67  (weighted=1)
+  src/libigl/igl/copyleft/cgal/outer_facet.cpp:104-147  <->  src/libigl/igl/outer_element.cpp:227-270  (weighted=1)
+  src/libigl/igl/copyleft/cgal/outer_element.cpp:192-198  <->  src/libigl/igl/outer_element.cpp:192-198  (weighted=1)
+  src/libigl/igl/copyleft/cgal/order_facets_around_edges.cpp:122-137  <->  src/libigl/igl/copyleft/cgal/order_facets_around_edges.cpp:217-232  (weighted=0.8)
+  src/libslic3r/AABBMesh.cpp:201-208  <->  src/libslic3r/SLA/IndexedMesh.cpp:196-203  (weighted=1)
+  src/libslic3r/Emboss.cpp:1042-1068  <->  src/slic3r/Utils/FontUtils.cpp:94-120  (weighted=1)
+  src/libslic3r/Fill/FillRectilinear.cpp:1896-1901  <->  src/libslic3r/Fill/FillRectilinear.cpp:1912-1917  (weighted=0.8)
+  src/libslic3r/FuzzySkin.cpp:21-24  <->  src/libslic3r/PerimeterGenerator.cpp:29-33  (weighted=1)
+  src/slic3r/GUI/GCodeRenderer/LegacyRenderer.cpp:403-418  <->  src/slic3r/GUI/GCodeRenderer/LegacyRenderer.cpp:2214-2229  (weighted=0.8)
+  src/imgui/imgui_widgets.cpp:4256-4288  <->  src/imgui/imgui_widgets.cpp:4334-4370  (weighted=0.8)
+  src/imgui/imgui_widgets.cpp:2102-2109  <->  src/imgui/imgui_widgets.cpp:2215-2222  (weighted=0.8)
+  src/libslic3r/MinAreaBoundingBox.cpp:46-50  <->  src/libslic3r/MinAreaBoundingBox.cpp:64-68  (weighted=0.8)
+  src/libslic3r/MultiMaterialSegmentation.cpp:2116-2139  <->  src/libslic3r/MultiMaterialSegmentation.cpp:2432-2455  (weighted=0.8)
+  src/hidapi/mac/hid.c:521-551  <->  src/hidapi/win/hid.c:524-554  (weighted=1)
+  src/hidapi/linux/hid.c:714-744  <->  src/hidapi/win/hid.c:524-554  (weighted=1)
+  src/hidapi/linux/hid.c:714-744  <->  src/hidapi/mac/hid.c:521-551  (weighted=1)
+  src/slic3r/GUI/SelectMachine.cpp:5826-5840  <->  src/slic3r/GUI/SelectMachine.cpp:5906-5920  (weighted=0.8)
+  src/agg/agg_rasterizer_scanline_aa.h:205-257  <->  src/agg/agg_rasterizer_scanline_aa_nogamma.h:208-260  (weighted=1)
+  src/agg/agg_pixfmt_gray.h:259-269  <->  src/agg/agg_pixfmt_rgb.h:323-333  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:2406-2415  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:2824-2833  (weighted=1)
+  src/slic3r/GUI/MultiTaskManagerPage.cpp:562-576  <->  src/slic3r/GUI/SendMultiMachinePage.cpp:1225-1239  (weighted=1)
+  src/slic3r/GUI/Plater.cpp:18824-18828  <->  src/slic3r/GUI/Plater.cpp:18862-18866  (weighted=0.8)
+  src/slic3r/GUI/Preferences.cpp:528-536  <->  src/slic3r/GUI/Preferences.cpp:607-613  (weighted=0.8)
+  src/agg/agg_rasterizer_scanline_aa.h:384-397  <->  src/agg/agg_rasterizer_scanline_aa_nogamma.h:386-399  (weighted=1)
+  src/slic3r/Utils/FontUtils.cpp:64-70  <->  src/slic3r/Utils/WxFontUtils.cpp:155-164  (weighted=1)
+  deps/GMP/gmp/include/win64/gmp.h:1795-1802  <->  deps/GMP/gmp/include/win_arm64/gmp.h:1835-1842  (weighted=1)
+  src/slic3r/Utils/OctoPrint.cpp:310-315  <->  src/slic3r/Utils/OctoPrint.cpp:354-359  (weighted=0.8)
+  xs/src/perlglue.cpp:192-194  <->  xs/src/perlglue.cpp:206-208  (weighted=0.8)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:366-384  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:582-600  (weighted=1)
+  src/slic3r/GUI/GLCanvas3D.cpp:10543-10544  <->  src/slic3r/GUI/GLCanvas3D.cpp:10731-10732  (weighted=0.8)
+  src/slic3r/GUI/GLCanvas3D.cpp:10623-10627  <->  src/slic3r/GUI/GLCanvas3D.cpp:10794-10798  (weighted=0.8)
+  src/slic3r/GUI/GLModel.cpp:959-964  <->  src/slic3r/GUI/GLModel.cpp:1150-1155  (weighted=0.8)
+  src/slic3r/GUI/GLTexture.cpp:544-545  <->  src/slic3r/GUI/GLTexture.cpp:626-627  (weighted=0.8)
+  src/slic3r/GUI/GLTexture.cpp:1003-1005  <->  src/slic3r/GUI/GLTexture.cpp:1138-1140  (weighted=0.8)
+  src/slic3r/GUI/GUI_App.cpp:427-439  <->  src/slic3r/GUI/GUI_App.cpp:714-726  (weighted=0.8)
+  src/slic3r/GUI/GUI_ObjectList.cpp:5664-5671  <->  src/slic3r/GUI/GUI_ObjectList.cpp:5851-5858  (weighted=0.8)
+  src/slic3r/GUI/GUI_ObjectTable.cpp:281-313  <->  src/slic3r/GUI/GUI_ObjectTable.cpp:475-504  (weighted=0.8)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:123-194  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:325-396  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:199-210  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:401-412  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:254-257  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:456-459  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:278-284  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:480-486  (weighted=1)
+  src/agg/agg_renderer_scanline.h:514-547  <->  src/agg/agg_renderer_scanline.h:700-733  (weighted=0.8)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:490-493  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:706-709  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:546-552  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:762-768  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:986-1003  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:1082-1099  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:1066-1094  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:1162-1190  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:1334-1362  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:1781-1809  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:1439-1481  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:1886-1928  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:1996-2006  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:2413-2423  (weighted=1)
+  src/agg/agg_rasterizer_scanline_aa.h:452-461  <->  src/agg/agg_rasterizer_scanline_aa_nogamma.h:454-463  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:2025-2029  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:2442-2446  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:2300-2313  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:2718-2731  (weighted=1)
+  src/agg/agg_rasterizer_scanline_aa.h:437-444  <->  src/agg/agg_rasterizer_scanline_aa_nogamma.h:439-446  (weighted=1)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:2318-2323  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:2736-2741  (weighted=1)
+  xs/src/ppport.h:5190-5194  <->  xs/src/ppport.h:5217-5222  (weighted=0.799989)
+  xs/src/ppport.h:5261-5265  <->  xs/src/ppport.h:5288-5293  (weighted=0.799989)
+  src/slic3r/GUI/Gizmos/GLGizmoAdvancedCut.cpp:453-476  <->  src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp:669-692  (weighted=0.848843)
+  src/imgui/imgui_widgets.cpp:8207-8241  <->  src/slic3r/GUI/ImGuiWrapper.cpp:1616-1651  (weighted=0.997204)
+  src/libslic3r/Format/STEP.cpp:574-612  <->  src/libslic3r/Format/svg.cpp:343-380  (weighted=0.996618)
+
+
+## 📦 LibreSprite
+
+scanned 1283 files, 3407 fragments, 392 candidate pairs
+reported (>= 11 pairs above threshold)
+  src/clip/clip_win.cpp:521-529  <->  src/clip/clip_win.cpp:617-625  (weighted=0.8)
+  src/app/ui/skin/skin_theme.cpp:580-591  <->  src/app/ui/skin/skin_theme.cpp:820-831  (weighted=0.68)
+  src/app/commands/cmd_move_mask.cpp:204-227  <->  src/app/commands/cmd_scroll.cpp:140-163  (weighted=1)
+  src/app/commands/cmd_move_mask.cpp:233-236  <->  src/app/commands/cmd_scroll.cpp:169-172  (weighted=1)
+  src/app/ui/skin/skin_theme.cpp:570-577  <->  src/app/ui/skin/skin_theme.cpp:810-817  (weighted=0.8)
+  src/app/ui/skin/skin_theme.cpp:563-567  <->  src/app/ui/skin/skin_theme.cpp:803-807  (weighted=0.8)
+  src/app/ui/skin/skin_theme.cpp:1294-1325  <->  src/app/ui/skin/skin_theme.cpp:1771-1802  (weighted=0.781534)
+  third_party/observable/obs/safe_list.h:292-322  <->  third_party/observable/obs/safe_list.h:339-370  (weighted=0.763282)
+  src/base/shared_ptr.h:121-131  <->  src/base/shared_ptr.h:137-147  (weighted=0.746713)
+  src/filters/convolution_matrix_filter.cpp:159-206  <->  src/filters/convolution_matrix_filter.cpp:281-338  (weighted=0.656221)
+  src/app/ui/status_bar.cpp:199-213  <->  src/app/ui/status_bar.cpp:235-249  (weighted=0.624355)
+
+
+## 📦 vmecpp
+
+scanned 232 files, 1390 fragments, 134 candidate pairs
+reported (>= 8 pairs above threshold)
+  src/vmecpp/cpp/vmecpp/vmec/vmec/vmec_in_memory_mgrid_test.cc:39-82  <->  src/vmecpp/cpp/vmecpp/vmec/vmec/vmec_test.cc:105-148  (weighted=1)
+  src/vmecpp/cpp/vmecpp/common/fourier_basis_fast_poloidal/fourier_basis_fast_poloidal_test.cc:285-333  <->  src/vmecpp/cpp/vmecpp/common/fourier_basis_fast_toroidal/fourier_basis_fast_toroidal_test.cc:274-322  (weighted=1)
+  src/vmecpp/cpp/vmecpp/common/fourier_basis_fast_poloidal/fourier_basis_fast_poloidal_test.cc:239-281  <->  src/vmecpp/cpp/vmecpp/common/fourier_basis_fast_toroidal/fourier_basis_fast_toroidal_test.cc:227-270  (weighted=1)
+  src/vmecpp/cpp/third_party/fftx_codelets/lib_fftx_iprdftbat_cpu_srcs/fftx_iprdftbat_cpu_libentry.cpp:22-26  <->  src/vmecpp/cpp/third_party/fftx_codelets/lib_fftx_prdftbat_cpu_srcs/fftx_prdftbat_cpu_libentry.cpp:22-26  (weighted=1)
+  src/vmecpp/cpp/vmecpp/vmec/pybind11/vmec_indata_pywrapper_test.cc:175-180  <->  src/vmecpp/cpp/vmecpp/vmec/pybind11/vmec_indata_pywrapper_test.cc:201-206  (weighted=0.746313)
+  src/vmecpp/cpp/vmecpp/common/magnetic_field_provider/magnetic_field_provider_lib.cc:217-265  <->  src/vmecpp/cpp/vmecpp/common/magnetic_field_provider/magnetic_field_provider_lib.cc:410-458  (weighted=0.723191)
+  src/vmecpp/cpp/vmecpp/common/makegrid_lib/makegrid_lib_test.cc:523-586  <->  src/vmecpp/cpp/vmecpp/common/makegrid_lib/makegrid_lib_test.cc:683-746  (weighted=0.71351)
+  src/vmecpp/cpp/vmecpp/vmec/ideal_mhd_model/fft_toroidal_bench.cc:445-483  <->  src/vmecpp/cpp/vmecpp/vmec/ideal_mhd_model/fft_toroidal_bench.cc:489-525  (weighted=0.670457)
+
+
+## 📦 sys-device
+
+scanned 2 files, 16 fragments, 4 candidate pairs
+reported (>= 0 pairs above threshold)
+
