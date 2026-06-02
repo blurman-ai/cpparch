@@ -42,6 +42,30 @@ backlog фиксов — **разбираем потом**, приоритизи
 
 ## Прогресс / лог
 
+**2026-06-02 (сессия 4) — Три P0-гарда реализованы: P0.1, P0.3, P0.6 с unit-тестами.**
+
+Сделано:
+- ✅ **P0.3 (coordinate revalidation)** — фильтр phantom-range, проверка startLine > 0 и endLine >= startLine.
+  Функция `phase6CoordinateRevalidation()`.
+- ✅ **P0.1 (diff-hunk + blame, упрощённо)** — фильтр same-function, отбрасывает same-file пары
+  перекрывающиеся/соседние (internal idiom). Функция `phase7SameFunctionFilter()`.
+- ✅ **P0.6 (joint token∧order floor)** — dual-metric gate: требует одновременно w >= T_w AND line >= T_line.
+  Ловит bag-of-words коллизии. Функция `phase8JointTokenOrderFloor()`, параметры в ScannerOptions.
+- ✅ **Unit-тесты:** 8 тестов, 37/37 duplication tests PASSED:
+  - P0.3: валидные диапазоны проходят
+  - P0.1: кросс-файловые проходят, non-overlapping same-file проходят, adjacent/overlapping отбрасываются
+  - P0.6: high w + high line проходят, disabled mode работает, все гарды вместе
+- ✅ Коммиты:
+  - 8e2fdd6: `feat(scan/duplication): P0.1 + P0.3 FP guards`
+  - 8fd4e95: `feat(scan/duplication): P0.6 joint token∧order floor`
+
+В работе / следующий шаг:
+- Measurement-harness: mapping output → `fp_corpus_r2.tsv` → precision_before/after, TP-retention, FP-по-классам.
+- P0.2 (git rename/move): требует git-интеграции (дефер: требует #054 diff-mode integration)
+- Фитировка P0.6 порогов на корпусе (текущие 0.75 / 0.50 = стартовые)
+
+---
+
 **2026-06-02 (сессия 3) — P0 symmetric-pair canon реализован; сборка/тесты в очереди.**
 
 Сделано:
