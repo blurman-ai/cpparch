@@ -1,0 +1,53 @@
+{
+  "repo": "gizmodata/gizmosql",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "0171cc6f5677e5e0ea3a4cac1f1e66452355f157",
+      "klass": "within-file-chunk",
+      "where": "src/client/output_renderer.cpp:560-578 (CsvRenderer) ⟵ 581-601 (TabsRenderer)",
+      "note": "CsvRenderer::Render copy-pasted to TabsRenderer::Render — identical header-loop + row-loop, only ',' -> '\\t' and CsvEscape() -> raw value differ"
+    },
+    {
+      "sha": "0171cc6f5677e5e0ea3a4cac1f1e66452355f157",
+      "klass": "within-file-chunk",
+      "where": "src/client/output_renderer.cpp:603-636 (JsonRenderer) ⟵ 638-666 (JsonLinesRenderer)",
+      "note": "JsonRenderer per-row object-emitting body copied verbatim into JsonLinesRenderer; only the outer wrapper ([\\n ... ]) vs newline-per-row differs — whole null/numeric/bool/string branch duplicated"
+    },
+    {
+      "sha": "4305b69cb2777f6347c157c6cc3a31a21bc4cddf",
+      "klass": "within-file-chunk",
+      "where": "src/duckdb/duckdb_sql_info.cpp:31-90 (5x GetDynamic*Functions)",
+      "note": "GetDynamicNumericFunctions/StringFunctions/SystemFunctions/DateTimeFunctions are clone-stamped: call ExecuteSqlAndGetStringVector(<sql>) then identical 'if(result.ok()) return ValueOrDie(); return {};' tail; only the SQL string literal changes"
+    },
+    {
+      "sha": "45d073c21416cff8d2bac19dc1749be2e8aa3329",
+      "klass": "partial-edited",
+      "where": "src/client/syntax_highlighter.cpp:160-197 (single-quote handling) ⟵ 199-218 (double-quote handling)",
+      "note": "Single-quote string-state block copy-pasted to double-quote identifier block: same toggle-flag/set_color/++i/continue skeleton, flag renamed in_single_quote->in_double_quote and color YELLOW->DEFAULT"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "0171cc6f5677e5e0ea3a4cac1f1e66452355f157",
+      "where": "src/client/output_renderer.cpp:164-291 (CsvEscape/JsonEscape/SqlEscape/HtmlEscape/LatexEscape)",
+      "fp_class": "idiom",
+      "what_happened": "Five small escape() helpers share the canonical character-substitution idiom: take string, loop chars, append replacement-or-char, return. Token streams collide heavily (loop header, append calls, return) even though the escape MAPS are entirely different (CSV quote-doubling vs JSON \\u vs HTML &amp; vs LaTeX backslash). Detector sees structural twins; semantically they are distinct, deliberate, and irreducible — merging them would need a table-driven escaper that hurts readability.",
+      "fix_proposal": "#056: for short functions (< ~15 tokens of body) weight STRING/CHAR literal divergence much higher in the similarity score — when the set of string/char literals between two candidate blocks is disjoint, cap similarity (these are 'same skeleton, different data' which is the escaper/dispatch idiom). Equivalent to a literal-aware penalty already used for data-tables, extended to the small-function regime."
+    },
+    {
+      "sha": "367fcebde0bfcf5020f887c5185fcddd66d0b2bf",
+      "where": "src/common/gizmosql_security.cpp:1-200 ⟵ src/library/flight_sql_security.cpp",
+      "fp_class": "whole-file",
+      "what_happened": "gizmosql_security.cpp is a renamed fork of the upstream Arrow Flight SQL example flight_sql_security.cpp (SecurityUtilities::FlightServerTlsCertificates, FindKeyValPrefixInCallHeaders, CreateJWTToken, etc. all carry the ASF license header). This commit only reflows '&'/'*' spacing and adds logging; the cross-file similarity the detector reports is a pre-existing vendored/forked whole file, not authored copy-paste, and was already attributed in round1 (d7fdcf3).",
+      "fix_proposal": "#056: treat pairs that share the verbatim ASF/Apache license header AND have a sibling original under a vendored/example path (here the parallel src/library/flight_sql_* tree) as forked-file, not chunk copy — exclude from per-chunk reporting (whole-file vendor/fork class), same handling as protobuf/moc headers."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle — archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 125 nodes / 263 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "graph clean; src/ is layered (client/ -> common/ -> duckdb|sqlite backends) with no back-edges; 113 unresolved + 731 external are vendored Arrow/DuckDB headers, not authored nodes"
+  }
+}

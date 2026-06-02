@@ -1,0 +1,26 @@
+{
+  "repo": "MaximumTrainer/MaximumTrainer_Redux",
+  "commits_checked": 13,
+  "confirmed": [
+    {
+      "sha": "82405ecd64499130debe66eb12129aca0394ad1b",
+      "klass": "cross-file-chunk",
+      "where": "src/persistence/db/selfloops_service.cpp:20-57",
+      "note": "crc32buf + gzipCompress (RFC1952 gzip header/footer wrapping around qCompress, remove(0,6)/chop(4)) reimplemented with renamed ids; same algorithm already lives in Util::zipFileHelperConvertToGzip + Util::crc32buf (src/app/util.cpp:818-834). Own code comment admits 'same algorithm as Util::zipFileHelperConvertToGzip'. Should reuse Util, not copy."
+    },
+    {
+      "sha": "21a923f79c05961d7a1d814b6906bcbfe1530e91",
+      "klass": "within-file-chunk",
+      "where": "src/ui/dialoglogin.cpp:604-651",
+      "note": "slotFinishedIntervalsIcuAthlete (604-625) vs slotFinishedIntervalsIcuSettings (630-651): near-verbatim ~22-line reply handlers; only the member name (replyIntervalsIcuAthlete/Settings), one parseJson* call and a log string differ. Pending-counter + loginWithIntervalsIcuIdentity tail identical. Should be one parameterized handler."
+    }
+  ],
+  "false_positives": [],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph on repo: nodes=546 edges=997 sccs_cyclic=0 largest_scc=1. No author-code include cycle exists."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "repo": "mi0e/subconverter",
+  "commits_checked": 5,
+  "confirmed": [],
+  "false_positives": [
+    {
+      "sha": "808bd96d22d6",
+      "where": "include/nlohmann/json.hpp, include/inja.hpp, include/quickjspp.hpp (within-file)",
+      "fp_class": "generated",
+      "what_happened": "The majority of the 59 hits are within-file self-similarity inside vendored amalgamated single-header libraries: nlohmann/json v3.11.2, Pantor inja v3.4.0, quickjspp. These headers contain many near-identical template specializations (serializer/parser overloads) by design, so a within-file token detector finds dozens of high-similarity blocks that are not authored duplication.",
+      "fix_proposal": "#056: vendoring filter by path (include/nlohmann/**, include/inja.hpp, include/quickjspp.hpp) and/or detect amalgamated single-header libs via SPDX/copyright banner in the first ~30 lines; exclude their within-file self-matches from the copypaste count."
+    },
+    {
+      "sha": "808bd96d22d6",
+      "where": "src/handler/webget.cpp:210-231 <- 232-247 and similar author-code within-file pairs",
+      "fp_class": "idiom",
+      "what_happened": "The few author-code hits (subexport.cpp, templates.cpp, webget.cpp) are short adjacent blocks with low line-similarity (0.5-0.6) -- repeated curl/option-setup and template-render boilerplate, not copied-and-edited logic.",
+      "fix_proposal": "#056: raise the min line-similarity floor for within-file pairs in the same function neighborhood, or require a minimum normalized-token span before counting a within-file hit."
+    }
+  ],
+  "cycle": null,
+  "note": "59 hits = vendored single-header self-similarity (nlohmann/inja/quickjspp) + a little author boilerplate. No authored copypaste. sccs=0."
+}

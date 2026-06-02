@@ -1,0 +1,3 @@
+{"repo":"supaplextor/aqemu","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"docopt.cpp <-> docopt.h","scc_size":2,"intro_commits":[],
+"evidence":"src/docopt/** — вендоренный docopt.cpp (option parser). Не авторский код."}}

@@ -1,0 +1,29 @@
+{
+  "repo": "AB-lab113/hidering",
+  "commits_checked": 15,
+  "confirmed": [],
+  "false_positives": [
+    {
+      "sha": "6d820de5b4f527296b7f5b69d121ee1214fbf651",
+      "where": "src/cryptonote_basic_final_backup/* (whole directory) vs src/cryptonote_basic/*",
+      "fp_class": "whole-file",
+      "what_happened": "WIP commit ('Etat avant debug wallet crash') checked in a manual safety copy of the entire src/cryptonote_basic/ directory under a new name src/cryptonote_basic_final_backup/. account.cpp/.h, cryptonote_basic.h, cryptonote_format_utils.cpp, hardfork.cpp etc. are BYTE-IDENTICAL to their cryptonote_basic/ originals (diff = 0 lines on account.cpp 284/284). A cross-file token/line detector would light up massively (dozens of near-100% pairs) but this is a developer backup snapshot of a directory, not a copy-pasted-and-edited code chunk.",
+      "fix_proposal": "#056: add a 'sibling whole-file clone' suppressor — when an ADDED file is >=98% identical (line-multiset) to an existing file with the SAME basename in a sibling directory, classify as whole-file copy and drop, not chunk-clone. Also a path heuristic: skip dirs matching /(backup|bak|_old|_final_backup|copy|orig)(/|$)/i the way vendor/generated dirs are skipped (#068 graph-vendor-exclude already does this for the graph; mirror it in dedup #065)."
+    },
+    {
+      "sha": "3a7bc33fc420954cc92a94aa114e21fe67bc3073",
+      "where": "src/crypto/pqc.cpp:18-100 (pqc_keygen / pqc_sign / pqc_verify / pqc_kem_encaps / pqc_kem_decaps)",
+      "fp_class": "idiom",
+      "what_happened": "New post-quantum wrapper file: 5 short functions each follow the identical liboqs RAII idiom -- `OQS_SIG_new`/`OQS_KEM_new`, a size-assert chain, the single OQS_* op, then `if (handle != nullptr) OQS_*_free(handle); return ok;`. The skeleton (handle alloc / nullptr-guard / free / return ok) is repeated verbatim across all five, so a within-file near-dup detector pairs e.g. pqc_keygen<->pqc_kem_encaps and pqc_sign<->pqc_verify. It is API-imposed boilerplate over a third-party C handle, not copy-pasted business logic.",
+      "fix_proposal": "#056: raise the minimum significant-token window so that a clone candidate must share a body of meaningful tokens beyond the alloc/guard/free scaffold; specifically discount tokens that are pure resource-management idiom (matched new/free pairs of the same library symbol, nullptr-guards, `return <bool>`). For functions <= ~12 statements where >50% of shared tokens are alloc/free/guard scaffolding, suppress. Cheaper alternative: require >=N (e.g. 6) consecutive identical NON-call-to-distinct-symbol lines, which these don't have because the central OQS_* call differs per function."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph: nodes=178 edges=159 sccs_cyclic=0 largest_scc=1. Consistent with corpus hint (циклы=0). Repo is a Monero fork (cryptonote_core/wallet/...); no authored include cycle and no growing SCC. Part B yields nothing."
+  },
+  "notes": "Round2 broad scan. EXCLUDE stop-list (/tmp/round1_shas.txt) already covered the single corpus-flagged dense commit 095889686863 (a docs(claude-md) commit whose 21 within-file hits are pre-existing UPSTREAM Monero near-dups -- verified via blame: simplewallet 10758 region is rbrunner7/2018 MMS code, not AI-authored). Inspected 15 NEW commits spread across history (Feb-May 2026), ranking by C++-only churn: 6d820de, 8aef6cc(purge), 92e005f, 8d23596, 0eaaa54, 023e2a2, c47bae0, 3a7bc33, 884407c(rebrand), 0ab6b73, 834e744, 2842e36, a5538f9, c3d253b, 4c73af0(rpc-fuzz). Findings: many fat commits are cherry-picked UPSTREAM Monero PRs (recognizable author/message: Arthur Chan rpc-fuzz, rbrunner7, BlockchainLMDB override sweeps) -- not AI copy-paste. The genuinely AI-authored work (pqc layer 3a7bc33, Phase2 features c3d253b, padding a5538f9, rebrand 884407c, mainnet identity 834e744) adds DISTINCT logic; the rebrand is sed-style search/replace + deletions, not copy-paste. 92e005f truncated wallet2.cpp by 6849 lines (botched edit), later restored by f8880126e -- a destructive edit, not duplication. No NEW genuine chunk copy-paste (within- or cross-file) found beyond the two FP artifacts above."
+}

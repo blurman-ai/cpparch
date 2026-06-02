@@ -1,0 +1,54 @@
+{
+  "repo": "danielraffel/pulp",
+  "commits_checked": 30,
+  "confirmed": [
+    {
+      "sha": "2b9d6f5b219118314eb27ca47ab623fab8f59b27",
+      "klass": "within-file-chunk",
+      "where": "core/audio/platform/win/wasapi_device.cpp:313-326",
+      "note": "capture_thread_func() prologue (SetThreadPriority + wait_handles[] + while(is_running) + WaitForMultipleObjects + WAIT_OBJECT_0+1/WAIT_TIMEOUT/error dispatch) copied near-verbatim from render_thread_func():224-243, then body diverges to packet-drain; deinterleave loop also shared idiom"
+    },
+    {
+      "sha": "9a908af0db5a3d132b284c7afd744c57fa1aae22",
+      "klass": "within-file-chunk",
+      "where": "core/view/src/widget_bridge.cpp:136-181",
+      "note": "5 near-identical register_function(\"setX\", [this](ArgumentList args){ id=get<string>(0); value=get<string>(1); v = id.empty()?&root_:widget(id); if(v) v->set_x(value); return Value(); }) blocks differing only in fn name + setter (setMaskSize/setAppearance/setObjectFit/setObjectPosition); JS-binding registration boilerplate"
+    },
+    {
+      "sha": "1eaad08e0d288bd775d1b31f623c84c2687b4fbc",
+      "klass": "cross-file-chunk",
+      "where": "tools/cli/install_paths_mac.cpp:135-159",
+      "note": "which() PATH-scan helper (getenv(PATH) + path_str.find(':',start) split loop + fs::path(dir)/name candidate) re-implemented to avoid cli_common dependency; same loop as default_find_executable() in tools/cli/mac_runtime_validators.cpp:55-80 with renamed vars. Comment itself admits 'minimal lookup locally'"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "44c1c73b7f53d6dd05afc99ee6ee3828989c7095",
+      "where": "test/test_inspector.cpp:184-296",
+      "fp_class": "idiom",
+      "what_happened": "Catch2 test bodies share fixed setup-then-assert skeleton: 'View root; InspectorOverlay overlay(root); KeyEvent ke; ke.key=...; ke.is_down=true; REQUIRE(overlay.handle_key_event(ke)); REQUIRE(overlay.is_active());'. Only the KeyCode and the asserted predicate change across toggle/Escape/inactive/Z-loupe cases. The token-level n-gram overlap is high because the harness scaffolding repeats, but each case tests a distinct behavior.",
+      "fix_proposal": "#056: down-weight matches whose differing tokens are concentrated in literal/enum positions while the control-flow + call skeleton is identical AND the block lives in a *_test/test_*.cpp TU — add a test-fixture suppressor: if >70% of shared tokens are calls to a known assertion macro family (REQUIRE/CHECK/EXPECT/ASSERT/SECTION) require a higher line-similarity floor (e.g. line>=0.95) before reporting. Already-present test-file weighting should be tightened, not just flagged."
+    },
+    {
+      "sha": "b532a3949613edb6c6af3913e20f5111e94d6a5e",
+      "where": "core/view/src/design_binding_metadata.cpp:244-272",
+      "fp_class": "idiom",
+      "what_happened": "Cluster of one-line forwarding accessors 'std::optional<float> NativeBindingMetadata::thumb_width_value() const { return parse_float_opt(thumb_width); }' repeated per field (thumb_width/thumb_height/thumb_corner_radius/corner_radius/font_size...). Each is a trivial 1-statement getter forwarding to a shared helper — the textbook accessor idiom.",
+      "fix_proposal": "#056: enforce a minimum non-boilerplate-statement count (>=3 meaningful statements, excluding the single return) per candidate block, and a min-distinct-token threshold; single-return forwarder bodies should never reach the matcher. archcheck duplication layer should treat a function whose body is exactly one return-of-call as exempt."
+    },
+    {
+      "sha": "7b732f1624df251d4acf5d41b7a86e8a5a3c42c0",
+      "where": "core/view/src/design_ir_json.cpp:1357-1570",
+      "fp_class": "whole-file",
+      "what_happened": "Pure split refactor: 'refactor(view): split design_import.cpp JSON ser/de into design_ir_json.cpp (#3141)' MOVED serializer/parser blocks out of design_import.cpp into the new design_ir_json.cpp. The detector (at the later changelog-bot snapshot) reported verbatim cross-file dup between the two files, but the parse_* functions are now partitioned (each lives in only one TU) — it is a code MOVE, not residual duplication. The 'BASE' side reflects pre-split history / shared header-driven idioms, not a live second copy.",
+      "fix_proposal": "#056: rename/move-aware diffing. When a new file's added block matches a block DELETED from another file in the same commit (or the BASE block no longer exists at HEAD), classify as MOVE and suppress. Concretely: before emitting a cross-file pair, verify both source ranges still exist at HEAD; if the BASE range was removed/relocated, drop the finding (same git-rename heuristic already used for whole-file moves, extended to intra-commit block relocation)."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 1573 nodes / 3354 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph /home/localadm/oss/_aidev_dense/danielraffel_pulp -> sccs_total=1573, sccs_cyclic=0, largest_scc=1. Matches corpus-check hint 'циклы=0(SCC<=1)'. No cyclic SCC to attribute."
+  }
+}

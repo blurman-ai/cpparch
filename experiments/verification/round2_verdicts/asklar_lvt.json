@@ -1,0 +1,4 @@
+{"repo":"asklar/lvt","commits_checked":2,"confirmed":[],
+"false_positives":[{"sha":"top","where":"src/target.cpp vs src/providers/win32_provider.cpp","fp_class":"idiom",
+"what_happened":"Single small cross-file block (line=0.71) sharing a provider-interface call pattern (open/query/close). Interface-implementation boilerplate, not copied-and-edited logic.","fix_proposal":"#056: require a minimum non-boilerplate token span for cross-file hits below ~8 lines."}],
+"cycle":null,"note":"Small interface-impl boilerplate. No copypaste. sccs=0."}

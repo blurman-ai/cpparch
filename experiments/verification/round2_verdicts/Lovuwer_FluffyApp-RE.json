@@ -1,0 +1,49 @@
+{
+  "repo": "Lovuwer/FluffyApp-RE",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "07441422f15dfdc54d77eacf646a364941d73047",
+      "klass": "within-file-chunk",
+      "where": "src/Core/Network/RequestSigner.cpp:36-136",
+      "note": "verify() переиспользует целиком середину sign(): buildSigningString()+failure-check + конструктор Crypto::HMAC(m_key,SHA256) + hmac.compute(signingString) + failure-check — скопировано из sign(), id macResult->expectedMacResult, дальше дописана constant-time сверка"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "a773a4511676cc3e0494ece50bff7a3a17d39b09",
+      "where": "src/SDK/src/Detection/VM/VMInterpreter.cpp:345-444",
+      "fp_class": "idiom",
+      "what_happened": "Bytecode-интерпретатор: case ADD/SUB/MUL/XOR/AND/OR/SHL/SHR/CMP_* — каждый блок 5 строк (uint64_t b,a; if(!pop(b)||!pop(a)) return false; if(!push(a OP b)) return false; break;), различие — один символ оператора. Также READ_SAFE_8/4/2/1. Детектор видит десятки near within-file пар line~0.9 — но это намеренно минимальные диспетч-кейсы, не дефект",
+      "fix_proposal": "#056: эвристика 'dispatch-arm' — если N>=4 почти-идентичных блоков сидят как смежные case-ветки одного switch (общий enclosing switch, разделены только case-метками, тело <=6 строк, расхождение в 1 токене-операторе/литерале), сворачивать в один кластер-факт 'switch с однотипными ветками' и НЕ репортить попарно; порог min-distinct-tokens на блок поднять, считать имена case-меток как разделители"
+    },
+    {
+      "sha": "0cbeca15005d8845e13f611e672dbe18b8fc902f",
+      "where": "src/SDK/src/Network/PacketEncryption.cpp:107-264",
+      "fp_class": "idiom",
+      "what_happened": "OpenSSL EVP-идиома: Encrypt() и Decrypt() обе делают EVP_CIPHER_CTX_new -> Init_ex(EVP_aes_256_gcm) -> Update -> Final/ctrl(GCM_TAG) -> CIPHER_CTX_free, и внутри каждой 3-4 раза повторяется идентичный cleanup-блок 'if (ret != 1) { EVP_CIPHER_CTX_free(ctx); return ErrorCode::CryptoError; }'. Детектор ловит и within-file (повтор cleanup) и cross-pair (Encrypt~Decrypt) на высоком w",
+      "fix_proposal": "#056: словарь библиотечных RAII/cleanup-идиом (OpenSSL EVP_*_free/return-on-error, WinAPI CloseHandle) — блоки, состоящие в основном из вызовов одной known-API-семьи + return одной error-константы, считать boilerplate и снижать вес/исключать; плюс общий фильтр 'error-handling ladder' (последовательность одинаковых guard+cleanup+return)"
+    },
+    {
+      "sha": "73618e985be5e7696cebce211fa51cc36522f2a6",
+      "where": "src/SDK/src/Internal/OverlayVerifier.cpp:92-149",
+      "fp_class": "data-table",
+      "what_happened": "Initialize() трижды заполняет struct OverlayHookPattern (discord_/steam_/nvidia_pattern): .vendor=..., .expected_hook_modules={d3d9.dll,...}, .expected_hook_functions={Present,EndScene,...}, push_back. Это декларативная data-таблица с разными данными, а не копия логики; детектор видит within-file повтор формы заполнения",
+      "fix_proposal": "#056: распознавать 'struct-init table' — серия блоков вида (локальная переменная одного типа; цепочка member-assign из литералов/braced-init-list; push_back/emplace) — это таблица данных, исключать из copy-paste (как уже делается для статических массивов), детектировать по доле строк = member-assignment с rvalue-литералом"
+    },
+    {
+      "sha": "8e9502d5e0a120081c3b278b18a38601156230bb",
+      "where": "src/SDK/src/Internal/RedundantAntiDebug.cpp:84-127",
+      "fp_class": "idiom",
+      "what_happened": "QuickCheck()/FullCheck() в AntiDebugAlternativeImpl повторяют конструкцию ViolationEvent: event.type=ViolationType::DebuggerAttached; event.severity=Severity::High; event.timestamp=duration_cast<ms>(steady_clock::now().time_since_epoch()).count(); — 3-4 строки populate-объекта плюс одинаковый chrono-timestamp идиом, встречающийся и в RequestSigner/IntegrityValidator (getCurrentTimestamp/GetCurrentTimeMs)",
+      "fix_proposal": "#056: (1) min-block-size в строках с учётом 'значимых' строк (исключать чистые field-assign/now()-вызовы из счёта) — короткие populate-блоки <4 значимых строк не репортить; (2) занести chrono now()->duration_cast<ms> в список общих утилит-идиом, как кандидат на extract-helper, но не как copy-paste дефект"
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "нет include-цикла",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph: nodes=270 edges=391 sccs_cyclic=0 largest_scc=1. Циклических SCC нет ни в авторском (src/Core, src/SDK, src/Cortex), ни в вендорных путях"
+  }
+}

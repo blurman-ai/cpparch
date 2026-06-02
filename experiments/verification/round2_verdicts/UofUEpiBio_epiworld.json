@@ -1,0 +1,4 @@
+{"repo":"UofUEpiBio/epiworld","commits_checked":4,"confirmed":[],
+"false_positives":[{"sha":"top","where":"epiworld.hpp (within-file) and include/epiworld/*.hpp vs epiworld.hpp","fp_class":"generated",
+"what_happened":"epiworld.hpp is an AMALGAMATED single-header build concatenated from the include/epiworld/*.hpp sources. So (a) within-file hits are repeated template/model boilerplate inside the amalgamation and (b) cross-file hits are header sources vs their own concatenated copy in epiworld.hpp -- a generated artifact, not authored duplication.","fix_proposal":"#056: detect amalgamated single-header (size + 'auto-generated/single-header' banner, or path == include base concatenation) and exclude it from cross-file comparison against its own sources."}],
+"cycle":null,"note":"Amalgamated single-header (epiworld.hpp) vs its include/ sources. Generated. sccs=0."}

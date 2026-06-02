@@ -1,0 +1,4 @@
+{"repo":"shelbeely/fallout1-ce","commits_checked":3,"confirmed":[],
+"false_positives":[{"sha":"top","where":"src/game/inventry.cc, src/plib/db/db.cc, src/game/scripts.cc (within-file)","fp_class":"whole-file",
+"what_happened":"fallout1-ce is a re-implementation/reconstruction of the original Fallout engine; src/game/** and src/plib/** mirror the original game's code. The within-file hits are the original engine's repeated inventory/db/script handling blocks (state-driven opcode/inventory loops), reconstructed faithfully -- upstream-equivalent code, not the forker's authored duplication.","fix_proposal":"#056: treat reconstructed/forked upstream engines as vendored where detectable; raise within-file threshold for large state-machine handler files."}],
+"cycle":null,"note":"Reconstruction of original Fallout engine; reconstructed game-loop idioms. No authored copypaste. sccs=0."}

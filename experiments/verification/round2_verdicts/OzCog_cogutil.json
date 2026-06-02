@@ -1,0 +1,4 @@
+{"repo":"OzCog/cogutil","commits_checked":4,"confirmed":[],
+"false_positives":[{"sha":"top","where":"opencog/util/*.h, *.c (within-file)","fp_class":"whole-file",
+"what_happened":"Fork of opencog/cogutil; opencog/util/** is upstream code. The within-file hits are short adjacent template/utility blocks (algorithm.h 158-161 vs 165-168, numeric.h overloads) -- idiomatic overload families in upstream, not authored duplication by the forker.","fix_proposal":"#056: fork-of-upstream / opencog namespace vendoring; raise within-file threshold for tiny (<8 line) overload pairs."}],
+"cycle":null,"note":"Fork of opencog/cogutil; upstream code + tiny overload idioms. No findings. sccs=0."}

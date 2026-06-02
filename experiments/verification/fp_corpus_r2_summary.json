@@ -1,0 +1,18 @@
+{
+  "ground_truth": "round2 (round2_verdicts/)",
+  "repos": 135,
+  "tp": 143,
+  "fp": 197,
+  "total": 340,
+  "precision_pct": 42.1,
+  "cycles_present_repos": 15,
+  "fp_class": {
+    "idiom": 108,
+    "whole-file": 25,
+    "data-table": 24,
+    "other": 23,
+    "generated": 10,
+    "header-impl": 6,
+    "coincidental": 1
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "repo": "deltahdl/deltahdl",
+  "commits_checked": 30,
+  "confirmed": [
+    {
+      "sha": "84d87891f7d6f0e462b57121f6d82fb39beeb549",
+      "klass": "within-file-chunk",
+      "where": "src/simulation/eval_math.cpp:33-160",
+      "note": "15+ unary math wrappers (EvalLn/Log10/Exp/Sqrt/Floor/Ceil/Sin/Cos/Tan/Asin/Acos/Atan/Sinh/Cosh...) mechanically copy-pasted: identical body, only the std:: call name changed per function"
+    },
+    {
+      "sha": "30f611661246a6be805565507db8b9a3fe1edd07",
+      "klass": "within-file-chunk",
+      "where": "src/elaborator/elaborator_items.cpp:281-420 vs 631-760",
+      "note": "two recursive AST walkers WalkExprIdents/WalkStmtIdents and CollectMemberAccess/CollectMemberAccessInStmt share identical 'if(!e)return; if(e->kind==X){out.push_back(e);} <recurse all child fields>' skeleton, only the matched ExprKind differs"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "84d87891f7d6f0e462b57121f6d82fb39beeb549",
+      "where": "src/simulation/eval_fileio.cpp:82-205, src/simulation/eval_systask.cpp (e040829: 70-423)",
+      "fp_class": "idiom",
+      "what_happened": "every system-call handler shares the same fixed signature 'static Logic4Vec EvalX(const Expr* expr, SimContext& ctx, Arena& arena)' plus a uniform guard prologue ('if (expr->args.empty()/size()<N) return MakeLogic4VecVal(arena, W, V); int fd=FdFromArg(...); FILE* fp=ctx.GetFileHandle(fd); if(!fp) return ...'). The bodies genuinely diverge (fgetc vs fseek vs ferror), but a token-window detector flags the shared 4-6 line dispatch-handler prologue as near-dup across many handlers.",
+      "fix_proposal": "#056: treat a repeated short prologue that is immediately followed by divergent bodies as idiom, not clone. Concretely: require the matched window to contain >=2 distinct 'effectful' statements after stripping the fixed signature + the early-return guard chain; or add a per-file 'handler family' suppressor when N>=5 functions share an identical signature and only the leading guard block matches (line-similarity of the *tail* below threshold)."
+    },
+    {
+      "sha": "6882f5d13ab6dceda12872d5371ac9d824ceb773",
+      "where": "src/simulator/coverage.h:58-123",
+      "fp_class": "data-table",
+      "what_happened": "the option/type_option structs (CrossTypeOption, CrossOption, CoverPointOption, CoverPointTypeOption, CoverGroupTypeOption) repeat the same field set with identical default initializers (weight=1; goal=100; at_least=1; comment=...; per the LRM §19.10 parallel option model). A near-dup detector flags the repeated field/initializer runs as cloned blocks.",
+      "fix_proposal": "#056: exclude pure declarative struct/enum bodies (only member declarations with initializers, no statements/control flow) from clone scoring, or down-weight windows whose tokens are exclusively type+identifier+default-literal with no operators/calls. These parallel config-struct families are a deliberate data model, not copy-paste logic."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 2766 nodes / 6410 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "src/ tree is layered (lexer -> parser -> elaborator -> simulator); no back-edge include closing a cycle was found. Matches CORPUS_CHECK_DETAIL hint (циклы=0)."
+  }
+}

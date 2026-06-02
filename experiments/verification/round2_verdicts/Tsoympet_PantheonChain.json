@@ -1,0 +1,47 @@
+{
+  "repo": "Tsoympet/PantheonChain",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "de2f54413e583130a66544b60ab6dd3eea91a850",
+      "klass": "cross-file-chunk",
+      "where": "bridge/l1_l2/l1_l2_bridge.cpp:31-40",
+      "note": "static helper decode_amount_from_payload() added verbatim to both l1_l2_bridge.cpp:31-40 and l2_l3_bridge.cpp:29-38 in the same commit; make_nonce_key/sha256d_stub already duplicated across the two bridge files"
+    },
+    {
+      "sha": "6e91579a2427def952af303df77981c3c7ade89c",
+      "klass": "within-file-chunk",
+      "where": "clients/desktop/src/rpc_client.cpp:300-314",
+      "note": "stakeTokens (300-306) and unstakeTokens (308-314) verbatim copy except RPC method literal staking/stake vs staking/unstake; the handler branches 215-218 / 219-222 are the same edited-copy pair"
+    },
+    {
+      "sha": "8c50c82f2b159e11633ba8343a26bcc61ca92824",
+      "klass": "cross-file-chunk",
+      "where": "layer2/plasma/plasma_chain.cpp:51-67",
+      "note": "AddTransaction (basic-validation then pending_transactions_.push_back) copied between plasma_chain.cpp:51-67 and optimistic_rollup.cpp:53-69 with only the struct field names renamed (sender/recipient vs from/to)"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "4b2911ec79ad4782d216770f73a4373a41b6aa04",
+      "where": "tests/unit/governance/test_staking.cpp:10",
+      "fp_class": "idiom",
+      "what_happened": "the 1-line test helper `static std::vector<uint8_t> Addr(uint8_t b){return std::vector<uint8_t>(32,b);}` plus the per-test scaffolding (std::cout<<\"Test: ...\"; assert(...); std::cout<<\"  \\u2713 Passed\") are duplicated identically across test_staking/test_treasury/test_emergency/test_eventlog/test_fee_router. Detector flags it as cross-file dup, but it is shared trivial test boilerplate, not transplanted logic.",
+      "fix_proposal": "#056: under tests/** raise the cross-file token threshold and add a min-distinct-identifier-density gate; treat a chunk whose body is only stdlib container construction + assert/cout calls (no project-domain symbol other than the type-under-test) as boilerplate and drop it. A 1-line helper is below the token floor already; the real noise is the assert-block scaffolding."
+    },
+    {
+      "sha": "8c50c82f2b159e11633ba8343a26bcc61ca92824",
+      "where": "layer2/plasma/plasma_chain.cpp:42-49",
+      "fp_class": "idiom",
+      "what_happened": "GetBlock (42-49) vs GetBatch in optimistic_rollup are the canonical find-in-map accessor: `auto it=map.find(k); if(it==map.end()) return nullopt; return it->second;`. Five lines, structurally identical because it is the standard std::optional map-lookup idiom, not copied business logic.",
+      "fix_proposal": "#056: add an idiom-suppression filter for the std::optional/map-lookup accessor pattern (find -> end-compare -> nullopt/second). Either ignore chunks <=6 lines whose only control flow is a single end()-guard, or normalize this accessor shape into a recognized idiom token so identical accessors across sibling container classes do not register as clones."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 302 nodes / 482 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "whole-repo graph clean; no SCC>1 in authored or vendored code, so no cycle-introducing commit exists to attribute"
+  }
+}

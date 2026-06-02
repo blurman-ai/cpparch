@@ -1,0 +1,4 @@
+{"repo":"ismobaga/izilang","commits_checked":3,"confirmed":[],"false_positives":[],
+"cycle":{"present":true,"desc":"callable.hpp <-> value.hpp","scc_size":2,
+"intro_commits":[{"sha":"475edb6","edge":"callable.hpp #include value.hpp; value.hpp #include callable.hpp","reason":"Авторский интерпретатор (src/common). Value и Callable взаимно ссылаются (значение может быть вызываемым, вызываемое держит значения) — цикл родился вместе с репо (first commit). Весь репозиторий AI-написан."}],
+"evidence":"src/common/** — авторский язык/интерпретатор. Реальный цикл value<->callable, классическая взаимозависимость в дизайне рантайма."}}

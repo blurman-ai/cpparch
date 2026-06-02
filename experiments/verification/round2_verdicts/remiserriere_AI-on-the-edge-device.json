@@ -1,0 +1,22 @@
+{
+  "repo": "remiserriere/AI-on-the-edge-device",
+  "commits_checked": 6,
+  "confirmed": [],
+  "false_positives": [
+    {
+      "sha": "0bc308c9b6c4",
+      "where": "code/components/jomjol_*/**.cpp (within-file)",
+      "fp_class": "whole-file",
+      "what_happened": "Repo is a fork of jomjol/AI-on-the-edge-device; the code/components/jomjol_* tree is upstream code, not the forker's authorship. The within-file hits (Helper.cpp, MainFlowControl.cpp, ClassControllCamera.cpp, ClassFlowControll.cpp) are upstream's own structure. The two test_PointerEvalAnalogToDigitNew.cpp 'within-file' pairs are mirror-image test fixtures (parametrized test cases), an idiom not a defect.",
+      "fix_proposal": "#056: detect fork-of-upstream by the jomjol_* component namespace / fork relationship and treat as vendored; for test files (path contains /test/), apply a higher within-file threshold since parametrized fixtures are expected to repeat."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "summary recorded sccs=1 (SCC<=3) but archcheck --graph on default config now reports sccs_cyclic=0, largest_scc=1",
+    "scc_size": 0,
+    "intro_commits": [],
+    "evidence": "archcheck --graph /home/localadm/oss/_aidev_dense/remiserriere_AI-on-the-edge-device => sccs_cyclic:0. The earlier sccs=1 was config/measurement-dependent (ESP-IDF conditional includes); no live cycle in author code."
+  },
+  "note": "Fork of jomjol/AI-on-the-edge-device. Hits are upstream code + test fixtures. Recorded cycle does not reproduce on default graph. No findings."
+}

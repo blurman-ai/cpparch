@@ -1,0 +1,35 @@
+{
+  "repo": "djeada/Standard-of-Iron",
+  "commits_checked": 12,
+  "confirmed": [
+    {
+      "sha": "003a0dc5addc",
+      "klass": "cross-file-chunk",
+      "where": "render/entity/horse_archer_renderer_base.cpp:1-256 vs render/entity/horse_spearman_renderer_base.cpp:1-259",
+      "note": "Two 256/259-line base renderer files added in one commit; 185 identical sorted lines (~72%), only mechanical Archer->Spearman + bow/quiver->spear/shield rename plus a few tuned scalar constants. Whole class skeleton (ctor sanitize logic, get_proportion_scaling, get_mount_scale, adjust_variation, get_variant, get_scaled_horse_dimensions, customize_pose) copied wholesale."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "003a0dc5addc",
+      "where": "render/entity/nations/{carthage,kingdom,roman}/horse_archer_renderer.cpp:1-58",
+      "fp_class": "data-table",
+      "what_happened": "Three 58-line per-nation wrapper files are 50/58 identical; the only differences are string equipment IDs (\"bow_carthage\" vs \"bow_kingdom\"), the saddle include/type, and the namespace. The 'code' is just a config-struct fill + one register call — a parameterized data record, not duplicated logic. #056 sees ~86% line overlap and flags it.",
+      "fix_proposal": "Add a 'config-only block' suppressor: if a flagged region's differing lines are ALL pure assignments to fields of one struct from string/numeric literals (no control flow, no calls except trailing factory/register), down-weight the match. Concretely in #056: require >=2 distinct *control-flow or call* tokens (if/for/while/switch/non-ctor call) among the lines that DIFFER between the two regions; pure literal-assignment divergence -> classify as data-table, exclude from chunk hits."
+    },
+    {
+      "sha": "bab3c01c4d66",
+      "where": "render/equipment/armor/{roman,kingdom,carthage}_armor.cpp:1-55",
+      "fp_class": "data-table",
+      "what_happened": "Per-nation armor renderers (55 lines each, 35/55 identical) share the exact render() signature boilerplate and a config-struct fill; the only real divergence is tuned float constants (shoulder_width_scale, chest_depth_scale, waist_taper) and comments. AI emitted parallel parameterized renderers; structurally identical, semantically distinct armor profiles.",
+      "fix_proposal": "Same struct-config suppressor as above, plus a 'sibling parallel-implementation' heuristic: when N>=3 files in the same directory share the same skeleton and differ only in numeric/string literals, treat the family as an intentional parameterized template (likely registry-driven) and emit ONE low-severity 'consider data-driving' note instead of N(N-1)/2 chunk-copy hits. Keying on shared base class / identical method signature avoids the float-table FP."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph: nodes=1271 edges=3442 sccs_total=1271 sccs_cyclic=0 largest_scc=1. Include graph is a DAG; no closing edges exist to attribute to any commit."
+  }
+}

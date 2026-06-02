@@ -1,0 +1,4 @@
+{"repo":"cmcxn/downloader","commits_checked":2,"confirmed":[],
+"false_positives":[{"sha":"top","where":"cpp_xl_dl_demo/http.h (within); download_helper.cpp vs main.cpp","fp_class":"idiom",
+"what_happened":"Demo project: http.h has adjacent overloaded request helpers (0.68), and download_helper.cpp vs main.cpp share a short setup snippet at line=0.26 (very low). Boilerplate/idiom in a demo dir.","fix_proposal":"#056: low line-similarity floor; raise within-file threshold for adjacent overload pairs."}],
+"cycle":null,"note":"Demo-dir HTTP boilerplate, very low similarity. No copypaste. sccs=0."}

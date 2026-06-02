@@ -1,0 +1,3 @@
+{"repo":"awest813/Dewm-3","commits_checked":3,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"renderer Interaction.h<->tr_local.h; ui GuiScript.h<->Window.h; aas tools","scc_size":3,"intro_commits":[],
+"evidence":"neo/** — вендоренный id Tech 4 (Doom 3 GPL движок). Не авторский код."}}

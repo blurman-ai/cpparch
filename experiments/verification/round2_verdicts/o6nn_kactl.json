@@ -1,0 +1,4 @@
+{"repo":"o6nn/kactl","commits_checked":1,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"old-unit-tests/UnitTest.h <-> UnitTestWrapper.h","scc_size":2,
+"intro_commits":[],
+"evidence":"kactl = KTH ACM competitive-programming library. Цикл в old-unit-tests/ (архивный/legacy, mv unitTest->old-unit-tests). Не AI-дрейф."}}

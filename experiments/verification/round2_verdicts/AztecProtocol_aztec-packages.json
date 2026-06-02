@@ -1,0 +1,19 @@
+{
+  "repo": "AztecProtocol/aztec-packages",
+  "commits_checked": 5,
+  "confirmed": [],
+  "false_positives": [
+    {"sha":"8f347013715f","where":"barretenberg/cpp/src/barretenberg/chonk/chonk.cpp:607-721",
+     "fp_class":"idiom","what_happened":"Два РАЗНЫХ метода (Chonk::prove vs accumulate-step) помечены near within-file w=1.00 из-за плотной отладочной идиомы info(\"...\") + общего zk-proof словаря (transcript/verifier/accumulator/goblin). Кода не копировали — совпадает каркас логирования и доменная лексика.",
+     "fix_proposal":"#056: при подсчёте сходства давать пониженный вес строкам-вызовам логирования (info/vinfo/BB_BENCH_NAME) и чистым string-литералам; либо требовать совпадение структуры control-flow, а не только токенов."}
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "header.hpp <-> header_impl.hpp идиома: ecdsa.hpp<->ecdsa_impl.hpp, biggroup.hpp<->biggroup_edgecase_handling.hpp, biggroup_goblin.hpp<->biggroup_goblin_impl.hpp",
+    "scc_size": 6,
+    "intro_commits": [
+      {"sha":"404ec34d38","edge":"ecdsa.hpp #include ecdsa_impl.hpp (низ файла, template-defs)","reason":"Идиома разнесения template-определений: заголовок подключает свой *_impl.hpp в конце, а impl включает заголовок обратно. Это НЕ build/ODR-цикл, а guarded split. Коммит 2021 (move barretenberg to top), вне май-2025 окна — не AI-дрейф."}
+    ],
+    "evidence":"4 циклических SCC, все вида X.hpp<->X_impl/X_edgecase.hpp в barretenberg/cpp/src (template impl split). FP-класс include-only детектора циклов."
+  }
+}

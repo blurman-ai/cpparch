@@ -1,0 +1,41 @@
+{
+  "repo": "FiveTechSoft/HarbourBuilder",
+  "commits_checked": 11,
+  "confirmed": [
+    {
+      "sha": "1c577951aa3bc0589eb4370e51b72d2633f70add",
+      "klass": "within-file-chunk",
+      "where": "source/cpp/hb_db_real.cpp:172-462",
+      "note": "MySQL wrapper family HBMYSQL_QUERY/FIELDS/ERROR/LASTID/TABLES + my_rows_to_array copy-pasted into PostgreSQL family HBPGSQL_* + pg_rows_to_array; identical skeleton (PHB_ITEM aRet=hb_itemArrayNew(0); if(g_xx.h){...} hb_itemReturnRelease(aRet)) with only DB-specific calls swapped"
+    },
+    {
+      "sha": "28534ff41425e57d3359bad8ad1d3f06b5ba31cf",
+      "klass": "partial-edited",
+      "where": "cpp/src/hbbridge.cpp:4106-4225",
+      "note": "GIT_BRANCHLIST and GIT_REMOTELIST share copy-pasted line-iteration scaffold: GitExec(...) + hb_itemArrayNew(0) + while(*p){eol=strchr(p,'\\n'); if(!eol)eol=p+strlen(p); ...; p=(*eol)?eol+1:eol;} + hb_itemReturnRelease(pArray); only per-command parsing body edited (same pattern across GIT_STATUS/LOG too)"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "4c601754c1d5a005b826b8cbada8caf1f907cbbb",
+      "where": "cpp/src/hbbridge.cpp:828-1118 (HB_FUNC UI_GETALLEVENTS switch arms)",
+      "fp_class": "data-table",
+      "what_happened": "Один большой switch(controlType) где каждый case-arm состоит из повторяющихся строк ADD_E(\"OnClick\",...,\"Action\"); ADD_E(\"OnEnter\",...,\"Focus\"); и т.д. Это не копипаст логики, а декларативная таблица регистрации событий, записанная кодом — общий словарь идентичных макровызовов (ADD_E + одинаковые имена событий OnClick/OnEnter/OnExit/OnKeyDown) даёт высокую line-similarity между арками switch.",
+      "fix_proposal": "#056: детектировать макро-таблицы — если >=70% строк окна это вызовы ОДНОГО макроса/функции с литеральными аргументами (одинаковый callee, разные string-литералы), классифицировать окно как data-table и не репортить within-file дубликаты для арок одного switch/enum-диспетчера; добавить эвристику 'switch-arm suppression': окна, лежащие внутри разных case-меток одного switch, исключать из попарного сравнения."
+    },
+    {
+      "sha": "800df7787d75e005c384fe5b785d9e418faadb5f",
+      "where": "source/cpp/hbbridge.cpp:added vs source/cpp/stubs_win.cpp:deleted",
+      "fp_class": "other",
+      "what_happened": "Рефактор-move: stubs_win.cpp удалён целиком, те же HB_FUNC (UI_GETPRINTERS, HIX_SETROOT, RPT_PDFOPEN, ...) перенесены в hbbridge.cpp и заменены реальными реализациями. Commit-diff детектор (#056 --diff), сравнивая ADDED-блоки коммита с BASE, видит совпадающие сигнатуры/тела перенесённых функций и помечает как копипаст, хотя источник в этом же коммите удалён.",
+      "fix_proposal": "#056 --diff: rename/move-aware вычитание — перед сравнением ADDED⟵BASE исключать блоки, чьи (почти)идентичные двойники находятся в УДАЛЁННЫХ в этом же коммите файлах/строках (net-move detection: added∩deleted по нормализованному телу → suppress). Уже частично есть rename detection (#061/0beb2f7), расширить на file-deletion+content-move."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 344 nodes / 1497 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "Авторский код в source/cpp/ и cpp/src/ (hbbridge.cpp, tform.cpp, tcontrols.cpp, hb_db_real.cpp) + вендоренный Scintilla/Lexilla под resources/scintilla_src/ и .app-бандлом (импорты aa3f24561f, e4caf27d — whole-file vendor, исключены). Циклов нет ни в авторском, ни в вендорном коде."
+  }
+}

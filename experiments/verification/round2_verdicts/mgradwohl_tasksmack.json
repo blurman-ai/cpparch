@@ -1,0 +1,42 @@
+{
+  "repo": "mgradwohl/tasksmack",
+  "commits_checked": 30,
+  "confirmed": [
+    {
+      "sha": "3db63a65d84cca7cf120301a43a78c876fb5f269",
+      "klass": "within-file-chunk",
+      "where": "tests/Platform/test_LinuxPowerProbe.cpp:271-298",
+      "note": "Battery_Charging_ReturnsCorrectState (271-283) and Battery_Full_ReturnsCorrectState (286-298) are copy-paste-and-adapt clones of Battery_Discharging (255-269): identical makeBatteryDevice+writeFile(status)+writeFile(capacity)+read+EXPECT_EQ scaffold, only the status string, expected BatteryState enum and percent differ. Whole cluster (Discharging/Charging/Full/NotCharging/Unknown) is duplicated TEST_F bodies that should be a value-parameterized test (TEST_P)."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "05a40b4bd32c8a16ec5bde43c6f6bf96cc22fc1f",
+      "where": "src/App/Panels/GpuSection.cpp + NetworkSection.cpp vs src/App/Panels/SystemMetricsPanel.cpp",
+      "fp_class": "other",
+      "what_happened": "Refactor 'Extract GPU and Network sections from SystemMetricsPanel': 1629 lines deleted from the monolith SystemMetricsPanel.cpp and re-added as GpuSection.cpp/NetworkSection.cpp/etc. A line/token clone detector sees near-verbatim blocks present on BOTH sides of the same commit and reports cross-file duplication, but this is a code MOVE (extract-method/extract-file refactor), not new copy-paste — the source blocks were removed in the same commit.",
+      "fix_proposal": "#056 diff-mode: when a flagged ADDED block has a near-identical counterpart among DELETED lines of the SAME commit, classify as 'moved' and suppress (treat like rename detection but for content blocks). Net duplication of the repo did not increase, so it must not be reported as a newly-introduced clone."
+    },
+    {
+      "sha": "2d571bf866083dbd48099f0404ba1a275e2946ca",
+      "where": "src/App/Panels/NetworkPanel.cpp:98-216 vs other *Panel.cpp",
+      "fp_class": "idiom",
+      "what_happened": "New NetworkPanel reuses the project's Layer/Panel lifecycle boilerplate: onAttach()/onDetach()/onUpdate(float)/render(bool*)/renderContent() with the same SystemModel->snapshot() prologue every panel uses. A detector keys on this shared structural skeleton across panels and flags it as cross-file duplication, but it is the framework's mandated panel interface, not copied logic.",
+      "fix_proposal": "#056/archcheck: lower weight for lines that are pure framework override signatures + trivial member-access prologues (this->m_X = ...; const auto snap = model->snapshot();). Require a minimum count of NON-boilerplate, logic-bearing tokens in the matched window before emitting; raise the line-similarity floor for cross-file matches that consist mostly of override stubs."
+    },
+    {
+      "sha": "a3c7408439150274552b557716d232519b605873",
+      "where": "tests/Platform/test_LinuxPowerProbe.cpp:192-196",
+      "fp_class": "idiom",
+      "what_happened": "Multiple Linux probe test files each carry a private static writeFile(path, content){ ofstream f(path); f << content; } sysfs-fixture helper (and ScopedTempDir.h was later added to consolidate temp-dir setup). A cross-file detector flags these tiny identical helpers as duplication, but at ~3 statements they are below any reasonable clone size and represent an unavoidable test idiom.",
+      "fix_proposal": "#056: enforce a minimum chunk size (e.g. >= 6 logical lines / >= ~40 tokens) for cross-file clone reporting; 3-line ofstream write helpers fall under the noise floor and should never surface."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph: nodes=225 edges=544 sccs_total=225 sccs_cyclic=0 largest_scc=1. Source tree (src/App, src/Domain, src/Platform, src/UI) is acyclic; vendored imgui is excluded from authorship graph and irrelevant."
+  }
+}

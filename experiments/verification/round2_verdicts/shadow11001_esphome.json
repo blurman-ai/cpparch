@@ -1,0 +1,4 @@
+{"repo":"shadow11001/esphome","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"api_server.h<->list_entities.h; sx1509.h<->sx1509_gpio_pin.h","scc_size":2,
+"intro_commits":[],
+"evidence":"Форк апстрим ESPHome. Циклы в апстрим-компонентах api/sx1509, без post-may правок. Не авторский дрейф."}}

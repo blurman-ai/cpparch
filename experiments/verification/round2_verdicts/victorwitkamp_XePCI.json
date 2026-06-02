@@ -1,0 +1,3 @@
+{"repo":"victorwitkamp/XePCI","commits_checked":3,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"DriverKit/X.h <-> IOKit/X.h по 18 классам","scc_size":18,"intro_commits":[],
+"evidence":"Все циклы в MacKernelSDK/Headers/** — вендоренный Apple Kernel SDK (DriverKit/IOKit/libkern). Не авторский код."}}

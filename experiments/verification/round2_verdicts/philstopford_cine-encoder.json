@@ -1,0 +1,16 @@
+{
+  "repo": "philstopford/cine-encoder",
+  "commits_checked": 4,
+  "confirmed": [],
+  "false_positives": [
+    {
+      "sha": "74f803e700e7",
+      "where": "app/mainwindow.cpp:3696-3719 vs 4671-4699",
+      "fp_class": "idiom",
+      "what_happened": "Single low-confidence within-file pair (line-similarity 0.26) inside a large Qt mainwindow.cpp, flagged on a commit whose message is 'Update README.md'. The blocks are repeated Qt UI slot/setup patterns, not copied logic.",
+      "fix_proposal": "#056: raise within-file min line-similarity above ~0.3 for hits inside very large single files (mainwindow-style), where repeated UI wiring is expected."
+    }
+  ],
+  "cycle": null,
+  "note": "6 hits, top one on a README commit at 0.26 similarity. Qt UI boilerplate. No copypaste. sccs=0."
+}

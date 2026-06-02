@@ -1,0 +1,3 @@
+{"repo":"andrele/perse_rover-firmware-microros","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"summary 4 цикла (SCC<=5), текущий граф sccs_cyclic=0","scc_size":5,"intro_commits":[],
+"evidence":"micro-ROS firmware: циклы измерялись в вендоренных micro-ROS/ESP-IDF заголовках, на текущем клоне sccs_cyclic=0. Артефакт измерения."}}

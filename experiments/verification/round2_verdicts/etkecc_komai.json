@@ -1,0 +1,55 @@
+{
+  "repo": "etkecc/komai",
+  "commits_checked": 14,
+  "confirmed": [
+    {
+      "sha": "88cd998552d50e80c93cae27524be568eacbf930",
+      "klass": "within-file-chunk",
+      "where": "src/timeline/inputbar/InputBarCommands.cpp:46-58 (firstToken) vs 60-74 (remainingAfterFirstToken)",
+      "note": "two helper fns added in same commit share identical trim+scan-whitespace skeleton; only the final return (left(end) vs mid(split)+second skip loop) differs — copy-then-tweak"
+    },
+    {
+      "sha": "3bef712fc9409943b5b416769026b9ea36cb3187",
+      "klass": "within-file-chunk",
+      "where": "src/timeline/RoomlistModel.cpp:826-857 (dataForInviteRoom) vs 860-893 (dataForPreviewRoom)",
+      "note": "decompose-timeline split produced sibling role-switch fns with identical case-label skeleton; only LastMessage text and Is{Invite,Preview,Space} return values differ — copied switch body, should be table-driven"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "944a36c0ad90e003f74100cb370826090ea3fbb4",
+      "where": "src/emoji/Provider.cpp (16028 lines removed)",
+      "fp_class": "data-table",
+      "what_happened": "emoji 'rework' replaced a 16k-line hand/codegen-emitted emoji descriptor table (repeated struct initializers per emoji: name, unicode, shortcodes, group) with a generated/leaner provider; a token detector sees thousands of near-identical initializer rows as massive intra-file duplication",
+      "fix_proposal": "#056: treat long runs of homogeneous aggregate-initializer rows (>=N consecutive lines matching a {literal,...} brace-initializer shape inside an array/initializer-list) as a data-table region and exclude from clone candidates; archcheck already has a generated-skip heuristic (#065) — extend the data-table classifier to braced-init arrays, not just file-header markers"
+    },
+    {
+      "sha": "88cd998552d50e80c93cae27524be568eacbf930",
+      "where": "src/timeline/SlashCommands.cpp:279-... (kCommands std::array<CommandDefinition,38>)",
+      "fp_class": "data-table",
+      "what_happened": "38-entry static command registry; each entry is a near-identical {CommandId::X, \"name\", tr(...), flags} initializer. Token stream of consecutive entries is highly self-similar and will trip a windowed clone detector as repeated 5-10 line blocks",
+      "fix_proposal": "#056: same data-table exclusion as above — detect a single array/initializer-list literal and collapse its element rows into one logical token region so internal row repetition is not reported; gate clone reporting on whether the matched span crosses statement boundaries vs being inside one initializer expression"
+    },
+    {
+      "sha": "db42d210ba858a2e190d73347b9db0b7ffe5c078",
+      "where": "src/cli/ThemeCommands.cpp -> src/cli/theme/* ; src/ui/RoomSettings.cpp -> src/ui/roomsettings/* ; src/db/InMemoryBackend.cpp -> src/db/inmemory/*",
+      "fp_class": "whole-file",
+      "what_happened": "pure monolith-split refactor: code is MOVED (deleted from source .cpp, re-added verbatim in new focused .cpp files in same commit). A cross-file clone detector run on the post-commit tree would not fire (source gone), but a diff-mode/added-vs-base detector flags the added chunks as exact copies of the (now-deleted) base — false copypaste signal for what is a relocation",
+      "fix_proposal": "#056 --diff: when an ADDED span is byte-identical to a span DELETED in the same commit (rename/move detection across files, not just whole-file rename), classify as MOVE and suppress; this is the move-vs-copy distinction missing from diff mode (extends the rename detection of #061)"
+    },
+    {
+      "sha": "ee8aaa491c51c13976763a3a99c6d874e1ffcacf",
+      "where": "src/timeline/litehtml/LitehtmlContainer.cpp (document_container callbacks)",
+      "fp_class": "idiom",
+      "what_happened": "implementing litehtml::document_container forces a fixed family of small callbacks (draw_background, draw_borders, get_*_metrics, etc.) with the same QPainter setup/teardown preamble in each; the recurring boilerplate header of each override reads as a cloned block",
+      "fix_proposal": "#056/archcheck: raise the minimum distinct-statement count (ignore leading boilerplate prologue lines like painter->save()/restore(), guard checks) before counting a block as a clone; or weight interface-override methods lower when they share a known base-class signature set"
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC in authorial code",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph: nodes=117 edges=33 sccs_cyclic=0 largest_scc=1; independent mutual-header-include heuristic over src/ found 0 mutual pairs; corpus detail also reports циклы=0 (SCC<=1). third_party/ (cpp-httplib, blurhash) is vendored but contributes no authorial cycle."
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "repo": "djeada/Lightpad",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "1db57a2506a4f107526b8a69d9424e876fad4a6c",
+      "klass": "cross-file-chunk",
+      "where": "App/syntax/gosyntaxplugin.cpp:33-110 vs App/syntax/rustsyntaxplugin.cpp:33-120 (and 8 more sibling plugins)",
+      "note": "10 syntax plugins added at once: syntaxRules() keyword-loop scaffold + number/string/char/function/comment SyntaxRule blocks + multiLineBlocks() + keywords() are verbatim/near-verbatim copies across all plugins; only the keyword data-tables and a few language-specific rules diverge"
+    },
+    {
+      "sha": "668b65cf4903dc1888f3ffc9ca63217ef86f8598",
+      "klass": "within-file-chunk",
+      "where": "App/run_templates/runtemplatemanager.cpp:61-79 vs :103-118 vs :235-251",
+      "note": "QFile open + readAll + close + QJsonDocument::fromJson + parseError-check block (~14 lines) copy-pasted verbatim across loadBuiltInTemplates / loadUserTemplates / loadAssignmentsFromDir in the same file"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "0e316a95d5a46040f4e7b45e8cec19adadf62200",
+      "where": "App/ui/uistylehelper.cpp:809-865 (primaryButtonStyle) vs 867-925 (secondaryButtonStyle) and ~20 sibling xStyle() methods",
+      "fp_class": "data-table",
+      "what_happened": "Each UIStyleHelper::xStyle() returns QString(\"<QtWidget> { ... }\").arg(...).arg(...). Token stream is dominated by the identical Qt-stylesheet skeleton (selector + property keywords + %N placeholders + chained .arg()). A token/line detector sees ~70% shared tokens and flags them as clones, but the load-bearing payload (the CSS rules and which colors map to which placeholder) differs per method — it is a per-widget style data-table, not duplicated logic. Also each method exists as two overloads (Theme& legacy + ThemeDefinition& new) in this refactor, inflating apparent duplication.",
+      "fix_proposal": "#056: add a 'string-literal-dominated body' guard — when a candidate clone's shared tokens are >X% inside string/raw-string literals (CSS/SQL/format-template content), down-weight or drop it; complementary: treat a run of N consecutive .arg()/builder calls as a single normalized token so method-to-method .arg chains don't dominate similarity. Tune existing selective-normalization to collapse Qt-stylesheet QString literals to a placeholder before scoring."
+    },
+    {
+      "sha": "668b65cf4903dc1888f3ffc9ca63217ef86f8598",
+      "where": "App/run_templates/runtemplatemanager.cpp:222-283 (loadAssignmentsFromDir) vs :285-346 (saveAssignmentsToDir)",
+      "fp_class": "idiom",
+      "what_happened": "load/save mirror pair: same configDir/configFile derivation, same QJsonObject/QJsonArray field names (\"file\",\"template\",\"customArgs\",\"customEnv\"), same iterate-and-map idiom. Shared identifiers and Qt-JSON idiom create high token overlap, but control flow is inverse (read-into-struct vs struct-into-write) so it is a serializer/deserializer idiom, not copy-pasted logic.",
+      "fix_proposal": "#056: detect inverse-direction serializer pairs — if two candidate clones share the same string-literal key set but one is read-dominated (toString/toArray/value()) and the other write-dominated (insert/append/operator[]=), classify as serializer-pair and suppress. Cheaper heuristic: require matching statement-order direction (assignment LHS vs RHS source) before confirming a clone."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle; archcheck --graph reports sccs_cyclic:0 largest_scc:1 over 418 components",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph /home/localadm/oss/_aidev_dense/djeada_Lightpad => sccs_total:418 sccs_cyclic:0 largest_scc:1. Authored Qt code under App/; no vendored library renamed in-tree."
+  }
+}

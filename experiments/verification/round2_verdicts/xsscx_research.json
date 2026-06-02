@@ -1,0 +1,48 @@
+{
+  "repo": "xsscx/research",
+  "commits_checked": 12,
+  "confirmed": [
+    {
+      "sha": "34fb052b2ca77f3d46112ffa6d7e3a7d2b355886",
+      "klass": "within-file-chunk",
+      "where": "iccanalyzer-lite/IccHeuristicsCodeQLPatterns.cpp (6 inlined sig-shift blocks, e.g. H154 lines 65-69 and 137-141)",
+      "note": "4-byte signature-to-char unpack idiom (>>24/>>16/>>8/&0xFF) inlined 6x in one new file though SigToChars()/IccHeuristicsHelpers.h already exist; same idiom copied across all new IccHeuristics*.cpp"
+    },
+    {
+      "sha": "4f933a6ee16649da4c338ddb4bd6d58f2e3f39c2",
+      "klass": "cross-file-chunk",
+      "where": "iccanalyzer-lite/icctest/lib/src/checks/XmlSafetyChecks.cpp:30-90 (V2) re-implements iccanalyzer-lite/IccHeuristicsXmlSafety.cpp logic (V1)",
+      "note": "V2 'V2 Phase 2' parity layer re-expresses V1 heuristic detection (array-type table + typeSig loop + OOM check) as check_h* functions with renamed ids (ctx->pv, ReadU32BE->readU32BE, printf->cb.high) — genuine partial-edited duplication of detection logic across V1/V2 trees"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "26b3110d1b0d155312983ccd8c06b0dde905437b",
+      "where": "iccanalyzer-lite/IccHeuristicsLibrary.cpp (RunHeuristic_H9..H102)",
+      "fp_class": "idiom",
+      "what_happened": "Extract-function refactor split a 3780-line mega-function into 64 RunHeuristic_H##_Name() functions; bodies were MOVED (old code deleted same commit, byte-identical per commit msg). All 64 functions share a fixed scaffold 'int heuristicCount=0; printf(\"[Hxx]...\"); ...; return heuristicCount;' plus the ColorWarning/ColorReset risk-message printf idiom, so a detector counts the shared scaffold as within-file duplication even though each body is distinct logic.",
+      "fix_proposal": "#056: strip the per-function boilerplate frame before hashing — ignore leading 'int <id>=0;' decl, trailing 'return <id>;', and bare printf/cout-only lines; require min N>=8 lines of NON-printf, NON-declaration body to count a within-file clone. Add a 'scaffold mask' that subtracts a function's common-prefix/suffix with its sibling functions in the same translation unit."
+    },
+    {
+      "sha": "c70c229f3d8c56d16b393b56777b33492e2f1ba9",
+      "where": "IccHeuristicsLibrary.cpp (+2715) vs IccAnalyzerSecurity.cpp (-2933)",
+      "fp_class": "whole-file",
+      "what_happened": "Pure cross-file MOVE: -2933 lines from Security.cpp, +2715 to Library.cpp + 257 to RawPost.cpp in the SAME commit (extract-to-module refactor). A diff-mode detector matching ADDED lines in the new file against the BASE of the old file flags it as cross-file copy, but it is a net-zero relocation (source deleted simultaneously). Same pattern in 05002c85 and 7e1ec60b (split IccHeuristicsLibrary into 4 category files).",
+      "fix_proposal": "#056: in diff/commit mode, detect MOVES — if a candidate ADDED block matches a BLOCK DELETED in the same commit (even in a different file), classify as 'moved' and suppress the cross-file copy finding. Requires diffing added-vs-deleted within one commit, not just added-vs-base-tree."
+    },
+    {
+      "sha": "5352e8de36b8b0467d86c9753ea5b0a706129222",
+      "where": "colorbleed_tools/IccFromXml_unsafe.cpp, IccToXml_unsafe.cpp",
+      "fp_class": "whole-file",
+      "what_happened": "These *_unsafe.cpp tools are upstream/vendored derivatives of DemoIccMAX/SampleICC (header '@author David Hoyt', 'Copyright (c) 2021-2026 David H Hoyt LLC', IccFromXml/IccToXml main()). The From/To pair shares the same argv-parsing + PushFactory boilerplate from the upstream samples, so a cross-file detector flags the shared main() scaffold as copy-paste, but it is vendored code, not author duplication.",
+      "fix_proposal": "#056/archcheck: extend the vendor/generated exclude (see #068 graph_vendor_exclude) to honor file-header authorship/license markers — files whose top comment carries a third-party @author/Copyright distinct from the repo owner (e.g. 'David H Hoyt LLC', DemoIccMAX/SampleICC banners) are treated as vendored and skipped for clone detection, like the protobuf/moc/ggml header-marker rule."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle — archcheck --graph: sccs_cyclic=0, largest_scc=1 over 112 resolved nodes / 148 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph on /home/localadm/oss/_aidev_dense/xsscx_research reports sccs_cyclic:0, largest_scc:1; corpus check (CORPUS_CHECK_DETAIL.md) independently reports циклы=0(SCC<=1). The codebase is a flat module tree (IccAnalyzer*/IccHeuristics* compile as siblings, headers do not back-reference each other). No cyclic SCC to attribute to any commit."
+  }
+}

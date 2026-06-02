@@ -1,0 +1,81 @@
+{
+  "repo": "GregorGullwi/FlashCpp",
+  "commits_checked": 30,
+  "confirmed": [
+    {
+      "sha": "6b4b626aacec",
+      "klass": "within-file-chunk",
+      "where": "src/IrGenerator_Call_Indirect.cpp:88-108 ~ 1164-1184",
+      "note": "generic-lambda arg-type collection loop (visit args -> lookup symbol -> deduceLambdaClosureType) duplicated; second copy extended with recursive-lambda auto&& branch"
+    },
+    {
+      "sha": "0a3c117d6cda",
+      "klass": "partial-edited",
+      "where": "src/SemanticAnalysis.cpp:3200-3290 (tryAnnotateBinaryOperandConversions) ~ 3283-3370 (tryAnnotateCompoundAssignBackConversion)",
+      "note": "second fn is copy of first: identical operand-inference prologue + identical guard block; comment literally says 'Same guards as tryAnnotateBinaryOperandConversions'"
+    },
+    {
+      "sha": "428fbd859ffe",
+      "klass": "within-file-chunk",
+      "where": "src/Parser_Declarations.cpp:4886-4990 ~ 8071-8180",
+      "note": "anonymous union/struct member parse+flatten loop copied as 'original code path' alongside new token-API path; ~100 lines verbatim incl nested-union recursion"
+    },
+    {
+      "sha": "54b9eee054fd",
+      "klass": "partial-edited",
+      "where": "src/Parser_Templates_Substitution.cpp:560-640 ~ 651-731",
+      "note": "NonTypeValueIdentity::MemberPointer substitution branch duplicated; only diff is flag set (substituted_template_param_ref vs substituted_identifier)"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "45e11c23bed1",
+      "where": "src/NameMangling.h:302-318 ~ 610-626",
+      "fp_class": "data-table",
+      "what_happened": "Two Itanium C++ ABI type-code switch ladders (case TypeCategory::Int: output += 'i'; etc.). The mapping TypeCategory->mangling-char is fixed by the Itanium ABI spec, so the same switch legitimately recurs in different mangling functions. Token/line detector sees a long verbatim run of high-entropy lines and flags it.",
+      "fix_proposal": "#056: treat a run that is dominated by a switch/case-with-single-statement-and-break pattern as a 'dispatch table' and down-weight (same family as the existing data-table filter). Concretely: if >=70% of the matched lines match /^\\s*case .+:.*;\\s*break;/ or are bare 'case X:' fallthroughs, drop the candidate. This is a spec-mandated lookup, not logic copy."
+    },
+    {
+      "sha": "9b675b214c1a",
+      "where": "src/Parser_Templates_Inst_ClassTemplate.cpp (entire file, +5875/-0) and ~30 other new src files",
+      "fp_class": "whole-file",
+      "what_happened": "Commit #800 'Split files as per recommendations' carves a monolith (Parser.cpp / AstNodeTypes.h) into many new files. Bodies move verbatim, so cross-file detector reports the new files as near-duplicates of the (deleted) originals. Pure relocation, not authored duplication.",
+      "fix_proposal": "#056 --diff: when a hunk is pure-addition in file B AND a near-identical pure-deletion exists in file A within the SAME commit, classify as a move (rename/relocation) and suppress, exactly like the rename-detection already added in 0beb2f7 but extended to many->one and one->many splits (match on moved-block content, not whole-file path)."
+    },
+    {
+      "sha": "2ee810b24ec9",
+      "where": "src/IRConverter_ConvertMain.cpp +10502/-10495 and every tracked src file",
+      "fp_class": "whole-file",
+      "what_happened": "Commit #1029 'Apply clang-format across tracked sources' rewrites nearly every line (whitespace/brace reflow). Diff is ~100% churn but semantically a no-op; any block-diff vs base looks like massive edited-copy.",
+      "fix_proposal": "#056/archcheck: add a whitespace-insensitive pre-normalization for the --diff path (strip leading/trailing ws, collapse runs) before hashing windows; a commit whose every changed file normalizes to ~identical content (format-only) should be flagged format-only and excluded from copy scoring."
+    }
+  ],
+  "cycle": {
+    "present": true,
+    "desc": "AstNodeTypes.h -> AstNodeTypes_Template.h -> TemplateEnvironment.h -> TemplateRegistry_Types.h -> TemplateTypes.h -> AstNodeTypes.h (also TemplateTypes.h -> TemplateExpressionEquivalence.h -> AstNodeTypes.h)",
+    "scc_size": 8,
+    "intro_commits": [
+      {
+        "sha": "9b675b214c1a",
+        "edge": "TemplateRegistry_Types.h adds #include \"TemplateTypes.h\"",
+        "reason": "#800 monolith split (Feb 2026): splitting AstNodeTypes/TemplateRegistry into Types subheaders created mutual TypeIndex dependency between the new pieces"
+      },
+      {
+        "sha": "5c944c5a",
+        "edge": "AstNodeTypes_Template.h adds #include \"TemplateEnvironment.h\" (placed mid-file at line 374, after the StorageClass enum)",
+        "reason": "#1473 8-phase template-binding refactor (May 2026): back-edge include forced into the middle of the header to give VariableDeclarationNode access to TemplateEnvironment, closing the cycle"
+      },
+      {
+        "sha": "9380f39f",
+        "edge": "TemplateEnvironment.h adds #include \"TemplateRegistry_Types.h\"",
+        "reason": "#1480 (May 2026): unified InstantiationContext bindings needed registry key types, pulling registry into the environment header"
+      },
+      {
+        "sha": "9da4c8b4",
+        "edge": "TemplateTypes.h adds #include \"TemplateExpressionEquivalence.h\"",
+        "reason": "#1530 (May 2026): dependent-NTTP expression-identity fix needed the equivalence helper inside TemplateTypes, adding a second closing path through the SCC"
+      }
+    ],
+    "evidence": "All 8 members under src/ are author code (FlashCpp's own AST/template subsystem): AstNodeTypes.h, AstNodeTypes_Expr.h, AstNodeTypes_Stmt.h, AstNodeTypes_Template.h, TemplateEnvironment.h, TemplateTypes.h, TemplateRegistry_Types.h, TemplateExpressionEquivalence.h. No vendor dir. SCC grew gradually across 4 commits Feb->May 2026 (monolith split seeded it, three later refactors added back-edges). 3 other smaller author-code SCCs also present (4: AstNodeTypes_Core/TypeSystem/StringLiteralTokenUtils/Lexer; 3: TemplateRegistry trio; 2: AstToIr/IrGenerator)."
+  }
+}

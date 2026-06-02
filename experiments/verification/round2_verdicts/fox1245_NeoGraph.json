@@ -1,0 +1,1 @@
+{"repo":"fox1245/NeoGraph","commits_checked":2,"confirmed":[{"sha":"3e9c9036d94d","klass":"cross-file-chunk","where":"examples/40_react_async_streaming.cpp:95-101,133-139","note":"Скопированы блоки из examples/01_react_agent.cpp — типичный копипаст между примерами"}],"false_positives":[],"cycle":null}

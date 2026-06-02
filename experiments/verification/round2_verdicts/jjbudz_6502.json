@@ -1,0 +1,2 @@
+{"repo":"jjbudz/6502","commits_checked":2,"confirmed":[],"false_positives":[
+{"sha":"n/a","where":"l6502.cpp <- 6502.cpp","fp_class":"other","what_happened":"diverged cross-file l6502.cpp<-6502.cpp — 6502.cpp переименован в l6502.cpp (в текущем дереве только l6502.cpp). Сравнение старого удалённого файла с новым = rename, не клон.","fix_proposal":"#056: тот же фикс что move/rename — если базовый файл отсутствует в текущем дереве, не считать clone."}],"cycle":null}

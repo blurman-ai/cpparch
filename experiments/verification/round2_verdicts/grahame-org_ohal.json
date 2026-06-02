@@ -1,0 +1,4 @@
+{"repo":"grahame-org/ohal","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":true,"desc":"взаимный include в авторских HAL-заголовках include/ohal/core/**","scc_size":2,
+"intro_commits":[],
+"evidence":"include/ohal/** — авторский HAL (репо AI-assisted, есть claude/). 1 реальный цикл в core-заголовках. Мелкий."}}

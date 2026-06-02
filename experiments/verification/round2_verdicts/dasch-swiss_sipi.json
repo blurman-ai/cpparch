@@ -1,0 +1,4 @@
+{"repo":"dasch-swiss/sipi","commits_checked":3,"confirmed":[],
+"false_positives":[{"sha":"top","where":"src/cli/sipi.cpp vs (deleted) src/sipi.cpp","fp_class":"other",
+"what_happened":"src/sipi.cpp was relocated to src/cli/sipi.cpp. BASE-side src/sipi.cpp is gone; the verbatim cross-file hits are the moved entrypoint vs its deleted original. One hit at line=0.04 is pure noise.","fix_proposal":"#056: deleted-BASE-path suppression (move/rename); drop hits with line-similarity below a floor (e.g. <0.1)."}],
+"cycle":null,"note":"Entrypoint moved into src/cli/; source deleted. No duplication. sccs=0."}

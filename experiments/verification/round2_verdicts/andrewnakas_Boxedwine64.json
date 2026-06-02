@@ -1,0 +1,4 @@
+{"repo":"andrewnakas/Boxedwine64","commits_checked":3,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"source/x11/x11.h <-> xproperties.h","scc_size":2,
+"intro_commits":[],
+"evidence":"Форк апстрим Boxedwine (Wine-эмулятор). x11.h/xproperties.h — апстрим X11-слой, без post-may правок этого ребра. Не авторский дрейф."}}

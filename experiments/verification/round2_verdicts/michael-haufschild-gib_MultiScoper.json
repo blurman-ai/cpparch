@@ -1,0 +1,4 @@
+{"repo":"michael-haufschild-gib/MultiScoper","commits_checked":4,"confirmed":[],
+"false_positives":[{"sha":"top","where":"tests/test_source_state.cpp vs tests/test_source.cpp; test_harness/src/Main.cpp (within)","fp_class":"other",
+"what_happened":"All top hits are in tests/: parametrized test cases and shared setup/teardown across two test files repeat verbatim by design (same fixtures, same arrange-act-assert skeleton). Not production copypaste.","fix_proposal":"#056: apply a higher copypaste threshold (or exclude) for files under tests/ -- repeated fixtures and AAA scaffolding are expected."}],
+"cycle":null,"note":"Test-fixture repetition. No production copypaste. sccs=0."}

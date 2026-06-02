@@ -1,0 +1,54 @@
+{
+  "repo": "ImagingTools/Acf",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "84353dbe7f90",
+      "klass": "within-file-chunk",
+      "where": "Include/ifile/Test/CFileSecureArchiveTest.cpp:72-300",
+      "note": "AI test scaffold cloned per method: QTemporaryFile open + write-block + read-block + verify + QFile::remove skeleton copy-pasted across BasicSecureSerializationTest/PrimitiveTypesSecureTest/StringSecureSerializationTest, only literals/model type changed"
+    },
+    {
+      "sha": "109881dc9db0",
+      "klass": "within-file-chunk",
+      "where": "Include/imath/Test/TMatrixTest.cpp:166-214",
+      "note": "AdditionTest and SubtractionTest structurally identical: same 2x2 matrix arrange skeleton, differ only in literal values and one call (GetAdded vs GetSubstracted)"
+    },
+    {
+      "sha": "b24d5cc42112",
+      "klass": "cross-file-chunk",
+      "where": "Include/i3d/CBox3d.cpp:34-47",
+      "note": "i3d primitive Serialize() bodies copy-pasted across CBox3d/CPlane3d/CLine3d/CSphere/CQuaternion3d in one commit; identical BeginTag/member.Serialize/EndTag pairs, only tag and member names renamed (also an idiom, but here a literal new-file clone series)"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "b24d5cc42112",
+      "where": "Include/i3d/CSphere.cpp:25-37",
+      "fp_class": "idiom",
+      "what_happened": "The Acf IArchive serialization idiom (retVal = retVal && archive.BeginTag(t); retVal = retVal && member.Serialize(archive); retVal = retVal && archive.EndTag(t); repeated per field) makes every Serialize() body across unrelated classes near-identical after id-normalization. A token detector with selective normalization scores CSphere/CBox3d/CPlane3d Serialize as cross-file near-dupes though they are independent per-class serialization, not refactorable duplication.",
+      "fix_proposal": "#056: add an idiom/micro-pattern filter — if a flagged block is dominated (>70% of lines) by a single repeated 3-line stanza matching the archive BeginTag/Process|Serialize/EndTag template (or any user-declarable 'idiom signature'), suppress. More generally: require >=N distinct non-stanza tokens (control flow, distinct calls) before a Serialize-shaped block counts as a clone."
+    },
+    {
+      "sha": "84353dbe7f90",
+      "where": "Include/ifile/Test/CFileSecureArchiveTest.cpp:72-300",
+      "fp_class": "data-table",
+      "what_happened": "Parametric unit-test methods share an arrange-act-assert scaffold (temp file setup, scoped write/read, verify, cleanup) by design; each tests a different model/type. Detector flags them as within-file clones although merging them would only obscure intent. Same applies to TMatrixTest Addition/Subtraction.",
+      "fix_proposal": "#056: path-scoped policy for test files (*/Test/*, Tests/*, *Test.cpp) — raise the within-file clone threshold and/or downgrade to info severity, since test arrange/act/assert repetition is expected and not actionable as architectural copy-paste."
+    },
+    {
+      "sha": "f8440296da68",
+      "where": "Tests/ImodTest/CModelBaseTest.cpp",
+      "fp_class": "header-impl",
+      "what_happened": "AI-generated test pairs (CModelBaseTest.cpp/.h, CModelProxyTest.cpp/.h, etc.) carry parallel method declarations in .h mirrored by stubbed bodies in .cpp plus identical Q_OBJECT/QtTest boilerplate (initTestCase/cleanupTestCase) repeated across every test class header, inflating cross-file similarity.",
+      "fix_proposal": "#056: treat the QtTest fixture boilerplate (Q_OBJECT macro block, initTestCase/cleanupTestCase empty bodies, standard private slots layout) as a recognized framework template and exclude it from token windows, same way moc/protobuf headers are excluded."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC; archcheck --graph reports sccs_cyclic=0, largest_scc=1; corpus detail also records циклы=0(SCC<=1)",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph on /home/localadm/oss/_aidev_dense/ImagingTools_Acf: nodes/edges trivially small (no compile_commands.json), sccs_cyclic=0. Acf uses strict interface-header (I*.h) layering, so include graph is acyclic by construction."
+  }
+}

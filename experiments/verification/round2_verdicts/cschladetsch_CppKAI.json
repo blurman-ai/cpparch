@@ -1,0 +1,55 @@
+{
+  "repo": "cschladetsch/CppKAI",
+  "commits_checked": 9,
+  "round": 2,
+  "exclude_note": "round1 hit 61d4a087d5e0 (the single fattest C++ commit). Stop-list /tmp/round1_shas.txt has ~330 SHA prefixes; only 2 of the top-120 C++-fat commits prefix-matched it, so the round2 selection below is all-new commits spread across May 2025 - May 2026 and across rank (mid + large), skipping pure tidy/reformat noise.",
+  "confirmed": [
+    {
+      "sha": "aaced0afcdad",
+      "klass": "cross-file-chunk",
+      "where": "Source/Library/Language/Tau/Source/Generate/GenerateStruct.cpp:21-114",
+      "note": "New GenerateStruct sibling class copied wholesale from GenerateProxy/GenerateAgent: Namespace() (the identical `StartBlock(\"namespace \"+...); for(ch) switch(ch->GetType()){Namespace/Class/Struct...}` walk), ctor, Generate(), Property(), Method() arg-loop, ReturnType()/ArgType() are byte-near with only the class name and a few cases swapped. This commit is the ORIGIN; the later 61d4a08 (round1) only re-flagged the same Generate/* family."
+    },
+    {
+      "sha": "a22217f4016e",
+      "klass": "within-file-chunk",
+      "where": "Source/Library/Executor/Source/BinaryOperationHandler.cpp:139-280 (and ExecutorPerform.cpp:909-960)",
+      "note": "BinaryOperationHandler::PerformTypedOperation has Plus/Minus/Multiply/Divide cases that are full copy-paste ladders (Int op Int / Float op Float / Float op Int / Int op Float / String / Pathname / Array / ClassBase fallback) with only the Operation enum + Traits<>::Op swapped. ExecutorPerform.cpp repeats the trivial `case Operation::X:{ Object B=Pop(); Object A=Pop(); Push(PerformBinaryOp(A,B,Operation::X)); break;}` block per operator. Both are also lifted from the old PerformBinaryOp.cpp during this monolith split."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "9dda2c9b0b0e",
+      "where": "Test/Language/TestRho/RhoRecursion*.cpp:6-12 (fixture struct), repeated across RhoRecursionFixTest/RhoRecursionDebugSpecific/RhoElseBranchRecursionTest/RhoRecursionTracingTest/RhoRecursionAnalysis",
+      "fp_class": "idiom",
+      "what_happened": "GoogleTest fixture preamble `struct XxxTest : kai::TestLangCommon { void SetUp() override { TestLangCommon::SetUp(); console_.SetLanguage(kai::Language::Rho); } };` is byte-identical across all sibling test files because the fixture-setup is a mandated idiom, not transplanted logic. The distinctive part (TEST_F bodies) genuinely differs. A token/line chunk detector latches onto the identical SetUp() + identical include block.",
+      "fix_proposal": "#056: add a fixture-preamble suppressor — for matches whose span lies entirely inside a class/struct body that overrides a known framework hook (SetUp/TearDown/AddRequiredClasses) AND whose token length < ~25, drop. More general: down-weight blocks where >70% of tokens are framework-API call names drawn from a per-repo 'idiom dictionary' (auto-built from method names appearing in >=N test files), so SetUp-style boilerplate cannot reach the report threshold."
+    },
+    {
+      "sha": "5bacf9da10d0",
+      "where": "Test/Source/TestArray.cpp:7-14 vs Test/Source/TestMap.cpp:9-18 (AddRequiredClasses override)",
+      "fp_class": "idiom",
+      "what_happened": "Both new test files override `void AddRequiredClasses()` with a near-identical `Reg().AddClass<bool>(); Reg().AddClass<int>(); Reg().AddClass<float>(); Reg().AddClass<String>(); ...` registration ladder. This is registration boilerplate driven by the type system, not copied behavior; the divergent tail (Array vs Map/StringStream/BinaryStream) and the test bodies are different.",
+      "fix_proposal": "#056: collapse repeated single-call-statement ladders before hashing — when a block is N consecutive statements that are all the same call shape `recv().Method<T>()` differing only in the template/arg, normalize it to one canonical line for matching (RLE on statement-shape). Registration/builder ladders then stop dominating the similarity score."
+    },
+    {
+      "sha": "a25e5d1f85c4",
+      "where": "Source/Library/Network/Source/GenerateProxy.cpp vs Source/Library/Language/Tau/Source/Generate/GenerateProxy.cpp",
+      "fp_class": "coincidental",
+      "what_happened": "Two files share the basename GenerateProxy.cpp but are unrelated implementations: the Network one is a self-contained regex/std::regex line-scanner ProxyGenerator class; the Tau one is the AST-walking GenerateProcess subclass. A filename- or proximity-biased pairing heuristic could pair them, but the bodies do not actually overlap.",
+      "fix_proposal": "#056/archcheck: never seed or boost a cross-file candidate pair on basename equality alone; require an actual shared token-shingle anchor (>=k matching shingles) before the pair is even scored. Basename should at most break ties, never create a candidate."
+    }
+  ],
+  "cycle": {
+    "present": true,
+    "desc": "SCC=4 over KAI core config headers: Core/Base.h -> Config/Base.h -> Config/IntegralTypes.h -> Config/Base.h, and Core/Base.h <-> Core/FwdDeclarations.h (FwdDeclarations.h -> Base.h -> FwdDeclarations.h), all four mutually reachable.",
+    "scc_size": 4,
+    "intro_commits": [
+      {"sha": "5489fccf922b", "edge": "Config/Base.h adds #include <KAI/Core/FwdDeclarations.h>", "reason": "2016 'huge refactor' — config layer pulled forward decls back to express KAI_BEGIN/types, closing Base<->Fwd loop. PRE-AI-ERA (2016-05-20)."},
+      {"sha": "d3bf6ecd9817", "edge": "Config/Base.h adds #include <KAI/Core/Config/IntegralTypes.h>", "reason": "2016 'ZOMG huge changes' refactor split integral-type config out of Base.h but Base.h still needs the typedefs, so it re-includes the split-off header. PRE-AI-ERA (2016-05-20)."},
+      {"sha": "50b61bbb11a8", "edge": "Config/IntegralTypes.h adds #include <KAI/Core/Config/Base.h>", "reason": "2017 'Cleaning up' — back-compat include so IntegralTypes can see Base macros, completing the Base<->IntegralTypes 2-cycle. PRE-AI-ERA (2017-02-25)."},
+      {"sha": "0d540dd9b358", "edge": "FwdDeclarations.h adds #include <KAI/Core/Base.h>", "reason": "2016 WIP — forward-declaration header circularly re-includes Base.h. PRE-AI-ERA (2016-05-21)."}
+    ],
+    "evidence": "Authored KAI core, namespace KAI, under Include/KAI/Core/ and Include/KAI/Core/Config/ (NOT vendored — imgui/MacKernelSDK live elsewhere). Cycle is real (header guards/#pragma once present, so it is a true include cycle in the graph). IMPORTANT: all four cycle-closing edges were introduced in 2016-2017, long before the AI-development window (2025-05+); the cycle is legacy human-written debt, not AI-era drift. No 2025/2026 commit grew or re-introduced these edges."
+  }
+}

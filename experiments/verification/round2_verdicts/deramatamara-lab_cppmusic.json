@@ -1,0 +1,4 @@
+{"repo":"deramatamara/cppmusic","commits_checked":3,"confirmed":[],
+"false_positives":[{"sha":"top","where":"src/audio/engine/DawEngine.cpp, src/plugins/PluginHost.cpp, src/ui/App.cpp (within-file)","fp_class":"idiom",
+"what_happened":"JUCE app: repeated track getter/setter and component-setup patterns. The reported verbatim line ranges do not match on HEAD (stale offsets); spot-read shows perf-monitor vs track accessors -- different code, not a copy.","fix_proposal":"#056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom."}],
+"cycle":null,"note":"Within-file repeated-idiom / boilerplate; offsets stale on HEAD; mid-low similarity. No confirmed copypaste. sccs=0."}

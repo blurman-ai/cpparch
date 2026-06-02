@@ -1,0 +1,4 @@
+{"repo":"nayutalienx/cursor-trail","commits_checked":2,"confirmed":[],
+"false_positives":[{"sha":"top","where":"CursorTrail/Game.cpp (within-file)","fp_class":"idiom",
+"what_happened":"Tiny game loop: update vs render share per-particle iteration scaffolding (0.60 line-sim). Idiom.","fix_proposal":"#056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom."}],
+"cycle":null,"note":"Within-file repeated-idiom / boilerplate; offsets stale on HEAD; mid-low similarity. No confirmed copypaste. sccs=0."}

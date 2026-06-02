@@ -1,0 +1,4 @@
+{"repo":"syoyo/tinyexr","commits_checked":4,"confirmed":[],
+"false_positives":[{"sha":"top","where":"deps/miniz/miniz.c vs tinyexr.h","fp_class":"whole-file",
+"what_happened":"tinyexr bundles miniz (zlib-compatible) under deps/miniz/, and tinyexr.h also embeds a copy of miniz inflate/deflate routines. The cross-file hits are two copies of the SAME vendored miniz library (one standalone, one inlined into the header) -- third-party code, not author copypaste.","fix_proposal":"#056: vendoring filter for deps/** and recognized bundled libs (miniz); also low line-similarity (0.30-0.50) here reflects partial vendored overlap."}],
+"cycle":null,"note":"Two copies of vendored miniz (deps/ + inlined in tinyexr.h). Vendored. sccs=0."}

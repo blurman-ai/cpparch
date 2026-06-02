@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-# Собирает VERIFICATION_REPORT_R2.md из verify_results2/*.json (#066 round2).
+# Собирает VERIFICATION_REPORT_R2.md из round-2 вердиктов (#066 round2).
+# Вердикты переехали в experiments/verification/round2_verdicts/ (#070, 2026-06-02).
 import json, glob
 HERE='/home/localadm/projects/cpparch/experiments/ai_repo_run'
-RES=f'{HERE}/verify_results2'; OUT=f'{HERE}/VERIFICATION_REPORT_R2.md'
+RES=f'{HERE}/../verification/round2_verdicts'; OUT=f'{HERE}/VERIFICATION_REPORT_R2.md'
 FIXES=f'{HERE}/round2_new_fixes.md'
 
 recs=[]

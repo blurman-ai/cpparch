@@ -1,0 +1,28 @@
+{
+  "repo": "alexandrosk0/Smatchet",
+  "commits_checked": 13,
+  "confirmed": [],
+  "false_positives": [
+    {
+      "sha": "5b740e92fedcf5f6fa70de8e834f7819f2079fa4",
+      "where": "Source_Core/src/AppController_LuaBindings.cpp:624-660",
+      "fp_class": "idiom",
+      "what_happened": "Family of four near-identical AppController::LuaRegisterFieldDisplayCached*Bind / Unregister*Bind methods (byId vs byName, register vs unregister). They are a copy-of-existing-family 'Cached variant' (renamed member map fieldDisplayCachedProviders_ + an added luaProviderGen_.fetch_add(1)). Each body is only 3-6 lines (empty-check, map assign/erase, gen bump) — a setter/registration delegation idiom. A token-chunk detector that lowered its minimum span would flag this whole family as N^2 self-similar boilerplate, generating noise on every CRUD-pair (add/remove, byId/byName) in the codebase.",
+      "fix_proposal": "#056: keep the minimum chunk span high enough (>= ~8 non-trivial statements / ~25 tokens of distinct body) so 3-6 line setter/eraser pairs never qualify; additionally add a 'CRUD-family suppressor' heuristic — when matched chunks differ ONLY by (a) a single member-identifier swap and (b) presence/absence of one extra statement, downweight, because register/unregister + byId/byName families are an expected, non-actionable idiom."
+    },
+    {
+      "sha": "b6f3511660935125adc382ca72546bff1a659426",
+      "where": "Plugins/Whisper/WhisperConsentGate.cpp:18-90",
+      "fp_class": "idiom",
+      "what_happened": "Three predicate functions (CanCaptureMic / CanDownloadModel / CanCallCloudApi) share the identical platform-guard scaffold: '#if defined(SMATCHET_WITH_WHISPER) ... if(!cfg.WhisperEnabled) return false; ... #else (void)args; return false; #endif'. The shared lines are the #if/#else/#endif compile-guard plus the first guard clause; the substantive logic differs per predicate. A line-based detector keys on the repeated guard shell.",
+      "fix_proposal": "#056/archcheck: exclude preprocessor-directive lines (#if/#else/#endif/#define) and trivial early-return guard clauses ('if (!x) return false;') from the token stream used for chunk hashing, OR require that a matched chunk contain at least one non-guard, non-preprocessor statement of real work before counting it. The compile-time platform-guard shell is structural boilerplate, not duplicated logic."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph on worktree: nodes=592 edges=1746 sccs_cyclic=0 largest_scc=1. Matches CORPUS_CHECK_DETAIL (циклы=0, SCC<=1). No include cycle to attribute."
+  }
+}

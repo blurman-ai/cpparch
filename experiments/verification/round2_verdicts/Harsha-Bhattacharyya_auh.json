@@ -1,0 +1,4 @@
+{"repo":"Harsha-Bhattacharyya/auh","commits_checked":2,"confirmed":[],
+"false_positives":[{"sha":"top","where":"src/main.cpp (within-file)","fp_class":"idiom",
+"what_happened":"Small CLI: repeated arg/option-handling blocks (0.17-0.40). Boilerplate, low similarity.","fix_proposal":"#056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom."}],
+"cycle":null,"note":"Within-file repeated-idiom / boilerplate; offsets stale on HEAD; mid-low similarity. No confirmed copypaste. sccs=0."}

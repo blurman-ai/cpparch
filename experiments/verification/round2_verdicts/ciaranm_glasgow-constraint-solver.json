@@ -1,0 +1,55 @@
+{
+  "repo": "ciaranm/glasgow-constraint-solver",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "e34ebcb83ced72b34ed00a60db035ba5f72e8de4",
+      "klass": "within-file-chunk",
+      "where": "gcs/constraints/lex.cc:582-606",
+      "note": "MustHold vs MustNotHold propagators.install lambdas are near-identical: same capture skeleton + same run_lex_pass(...) call, differing only by gt<->lt flag names and swapped vars_1/vars_2 (negation). AI 'one copied block per reif enum branch' pattern."
+    },
+    {
+      "sha": "e34ebcb83ced72b34ed00a60db035ba5f72e8de4",
+      "klass": "within-file-chunk",
+      "where": "gcs/constraints/lex.cc:620-646",
+      "note": "Inside the Undecided branch the same MustHold/MustNotHold run_lex_pass blocks are re-pasted a second time (gt-flags vs lt-flags, vars swapped), duplicating the pair already present in the top-level overloaded visitor."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "d8c7472434f0c98567f9e5995a83daf5b112f4b3",
+      "where": "gcs/constraints/all_equal.cc:1-65",
+      "fp_class": "idiom",
+      "what_happened": "New constraint file repeats the per-constraint class boilerplate shared by ~71 files: identical include preamble, identical 'using std::...' block, the '#if defined(__cpp_lib_print)' print-vs-fmt idiom, and the fixed clone()/install()/prepare()/define_proof_model()/install_propagators()/s_exprify() NVI skeleton. Token/line detector sees a high-weight cross-file match on the scaffolding even though every propagator body is unique.",
+      "fix_proposal": "#056: strip a per-language 'file preamble' window before hashing — drop the leading contiguous run of #include / using-declaration / preprocessor (#if/#else/#endif) lines from the token stream, and ignore matches whose token span is dominated by declarator/signature tokens with empty bodies. Add a min-distinct-identifier threshold so a block whose only varying tokens are the class name is not counted."
+    },
+    {
+      "sha": "988b6d21cec259b633d29978c680a084cfbcc555",
+      "where": "gcs/constraints/table/negative_table.cc:1-60",
+      "fp_class": "whole-file",
+      "what_happened": "Commit is a directory move (gcs/constraints/{ => table}/table.cc rename, -R in git) plus extraction of negative_table. The shared include/using preamble and the 'depointinate' SFINAE helper (present only in table.cc + negative_table.cc) are genuine carried-over boilerplate from the same family, flagged as cross-file dup. It is a refactor split, not new copied logic.",
+      "fix_proposal": "#056: honour git rename/copy detection (already added for #061/#064) and also suppress matches between a moved file and its rename source within the same commit; treat extract-into-sibling (R/C similarity >50% on the source) as a move, not a clone."
+    },
+    {
+      "sha": "3063256c664371d694d0948be05e2c95d3b9ebce",
+      "where": "minicp_benchmarks/*/*.cc, examples/*/*.cc main()",
+      "fp_class": "idiom",
+      "what_happened": "removed-boost commit rewrites every example/benchmark main() to the same cxxopts CLI preamble ('cxxopts::ParseResult options_vars; options_vars = options.parse(argc, argv);' plus the standard --help/--prove option set). 36 .cc files share this verbatim argument-parsing block — a project-wide example template, not copy-pasted business logic.",
+      "fix_proposal": "#056: add an allowlist / down-weight for known CLI-bootstrap idioms (cxxopts/CLI11/argparse parse blocks) and for code under examples/ + */benchmarks/ dirs; or require that a cross-file match contain at least one project-domain identifier (constraint/propagator/proof symbol) before reporting."
+    },
+    {
+      "sha": "faa17d1cedfdfa23ddb3dc73387d7c354ce0d4e5",
+      "where": "gcs/constraints/linear/linear_greater_than_equal.cc vs linear_less_than_equal.cc",
+      "fp_class": "idiom",
+      "what_happened": "linear_{greater,less}_than_equal.cc are thin subclass families: each ctor just forwards to ReifiedLinearInequality (greater = negate(coeff)+(-value) of less). The files mirror each other almost line-for-line because they are intentional symmetric delegating wrappers with no real body.",
+      "fix_proposal": "#056: ignore cross-file matches whose matched span is entirely constructor-delegation / base-initializer-list with empty bodies (no statements in braces); a sibling-class-family of pure forwarding ctors is structural symmetry, not duplication worth reporting."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph: nodes=284 edges=1312 sccs_total=284 sccs_cyclic=0 largest_scc=1. Author code (gcs/) is acyclic; no vendored library cycle either."
+  }
+}

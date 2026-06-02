@@ -1,0 +1,3 @@
+{"repo":"santzit/go-guitar2","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"q/support/frequency.hpp<->frequency_impl.hpp; libvgmstream.h<->libvgmstream_streamfile.h","scc_size":2,"intro_commits":[],
+"evidence":"gdextension/include/q/** (cycfi Q DSP lib, header.hpp<->header_impl.hpp идиома) и vgmstream-headers/** — оба вендоренные. Не авторский код."}}

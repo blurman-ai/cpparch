@@ -1,0 +1,3 @@
+{"repo":"DavidLee18/DArc","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"MyGuidDef.h -> Types.h -> windows.h -> MyWindows.h -> MyGuidDef.h","scc_size":4,"intro_commits":[],
+"evidence":"srep/Compression/LZMA2/C/** — вендоренный 7-Zip/LZMA SDK (Igor Pavlov). Не авторский код."}}

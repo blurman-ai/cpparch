@@ -1,0 +1,4 @@
+{"repo":"emeryberger/Hoard","commits_checked":3,"confirmed":[],
+"false_positives":[{"sha":"top","where":"src/include/hoard/thresholdheap.h (within); benchmarks/cache-thrash vs cache-scratch","fp_class":"idiom",
+"what_happened":"Hoard allocator: thresholdheap.h has adjacent get/put threshold methods (mirror, 0.88). The benchmark pair (cache-thrash vs cache-scratch) are sibling microbenchmarks sharing the same harness skeleton by design (0.57).","fix_proposal":"#056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom."}],
+"cycle":null,"note":"Within-file repeated-idiom / boilerplate; offsets stale on HEAD; mid-low similarity. No confirmed copypaste. sccs=0."}

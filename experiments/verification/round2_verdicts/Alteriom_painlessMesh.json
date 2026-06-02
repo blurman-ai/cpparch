@@ -1,0 +1,41 @@
+{
+  "repo": "Alteriom/painlessMesh",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "ceb4a0893454b81efbbc557d4556b407733d7c81",
+      "klass": "within-file-chunk",
+      "where": "examples/bridge/mesh_event_publisher.hpp:42-204",
+      "note": "6 near-identical publish* methods (publishNodeJoin/NodeLeave/ConnectionLost/ConnectionRestored/NetworkSplit/NetworkMerged): same DynamicJsonDocument envelope build, differ only in event_type string and one detail key — classic partial-edited block copy"
+    },
+    {
+      "sha": "ceb4a0893454b81efbbc557d4556b407733d7c81",
+      "klass": "cross-file-chunk",
+      "where": "examples/bridge/mesh_topology_reporter.hpp:278-301 vs examples/bridge/mesh_event_publisher.hpp:230-251",
+      "note": "generateDeviceId() and getISO8601Timestamp() helpers byte-identical across both new files added in the same commit (snprintf ALT-%012X + millis-based fake ISO8601); should have been a shared header"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "fe6a19bc92a2650bcb6af20e9607f4646473aca0",
+      "where": "src/arduino/wifi.hpp:421-560",
+      "fp_class": "idiom",
+      "what_happened": "Message Queue public API is ~8 consecutive thin forwarding wrappers, each opening with the identical guard `if (!messageQueueEnabled) { return 0; }` then delegating to messageQueue.<call>(...). A token/line clone detector clusters these on the repeated guard + delegation skeleton, but it is the legitimate facade/forwarding idiom (one-to-one method exposure of an embedded member), not duplicated logic.",
+      "fix_proposal": "#056: add a 'forwarding-wrapper' suppressor — if a candidate block's non-boilerplate body is a single `return member.method(args);` / `member.method(args);` delegation (optionally preceded by one early-return guard), and the only token diff between siblings is the callee method name, drop the match. Equivalently raise the min distinct-statement count so blocks whose unique content is <=2 statements after stripping a shared guard don't qualify."
+    },
+    {
+      "sha": "b014dc5b63b143c8f92c5392b3f702f5b0a4c0a1",
+      "where": "src/painlessmesh/mesh.hpp:412-490",
+      "fp_class": "idiom",
+      "what_happened": "Internet-health-check API on Mesh is a row of 2-3 line facade methods (setInternetCheckTarget/Interval/Timeout/configure...) each just calling internetHealthChecker.set*(...). Same facade pattern as the message-queue API; siblings look like near-clones because the wrapper shell is fixed and only the delegated setter name varies.",
+      "fix_proposal": "#056: same forwarding-wrapper heuristic as above. Also useful: treat a sequence of sibling methods that all delegate to the *same* member object as a generated-facade cluster and report it once (or not at all) rather than as N pairwise clones, to avoid quadratic FP inflation on facade classes."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC: archcheck --graph reports nodes=83 edges=210 sccs_cyclic=0 largest_scc=1",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "include graph over src/ (painlessmesh/*.hpp, arduino/wifi.hpp, boost/asynctcp.hpp) is acyclic; header layering is strictly downward (wifi.hpp -> mesh.hpp/router.hpp/message_queue.hpp -> protocol/layout/connection). No back-edges. Vendored catch.hpp lives under test/include/catch2 and is excluded from authored-cycle concern."
+  }
+}

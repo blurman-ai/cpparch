@@ -1,0 +1,2 @@
+{"repo":"hammermaps/halflife-op4-updated-sohl","commits_checked":3,"confirmed":[],"false_positives":[
+{"sha":"n/a","where":"utils/qcsg/*.cpp <- utils/qcsg/*.c","fp_class":"other","what_happened":"diverged cross-file .cpp<-.c — это МИГРАЦИЯ C->C++ (Half-Life SDK tools переименованы .c->.cpp с правками). Парные .c удалены, текущее дерево только .cpp. Не копипаст, а портирование файла.","fix_proposal":"#056: если X.cpp совпадает с X.c (тот же basename, разное расширение) и .c отсутствует в текущем дереве — классифицировать как rename/port, не clone."}],"cycle":null}

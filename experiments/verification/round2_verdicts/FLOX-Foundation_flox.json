@@ -1,0 +1,4 @@
+{"repo":"FLOX-Foundation/flox","commits_checked":3,"confirmed":[],"false_positives":[],
+"cycle":{"present":true,"desc":"grid_search.h -> walk_forward.h -> strategy.h -> grid_search.h (3-node)","scc_size":3,
+"intro_commits":[{"sha":"db0b906","edge":"strategy.h #include grid_search.h (+ grid_search.h #include walk_forward.h)","reason":"Авторский node/src. Фича walk-forward + type-erased grid search замкнула 3-узловой цикл strategy<->grid_search<->walk_forward. AI-эра дрейф (feat #163)."}],
+"evidence":"node/src/** — авторский. Реальный 3-узловой include-цикл, внесён фичей."}}

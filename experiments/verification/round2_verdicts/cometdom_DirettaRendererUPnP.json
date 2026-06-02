@@ -1,0 +1,35 @@
+{
+  "repo": "cometdom/DirettaRendererUPnP",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "260d60feb3979f148432f4417c32f5b294ef3c28",
+      "klass": "within-file-chunk",
+      "where": "src/DirettaRenderer.cpp:221-262 vs 268-285",
+      "note": "format-change-detected block copy-pasted within audio callback: boxed log + Old/Previous-vs-New 4-field dump, identifier connectedFormat→lastFormat renamed (Case1 connected / Case2 after-close)"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "635159b3f879c35921543e79d3d6c152b692ffc9",
+      "where": "src/FastMemcpy_Audio.h vs src/FastMemcpy_Audio_AVX512.h (also memcpyfast.h/memcpyfast2.h/memcpyfast_audio.h)",
+      "fp_class": "generated",
+      "what_happened": "Vendored SIMD memcpy family imported wholesale in one commit. FastMemcpy_Avx.h carries the upstream attribution header (skywind3000@163.com, 2015). The scalar/AVX512 audio variants are intentional per-ISA copies of the same routine (same body, swapped _mm256_/_mm512_ intrinsics + INLINE macro), and memcpyfast*.h are thin re-declares of the same extern symbol. Token-detector sees near-identical bodies across files and across the AVX/AVX512 split.",
+      "fix_proposal": "#056: treat ISA-variant headers as one FP class — (a) extend vendor/3rd-party skip to files whose top comment matches a known-library attribution regex (email + year banner like 'skywind3000@163.com, 2015'); (b) suppress cross-file pairs when the only diffs are a consistent intrinsic-width substitution (_mm256_*↔_mm512_*, AVX↔AVX512 token classes) — an intentional-SIMD-variant heuristic, not real copy-paste."
+    },
+    {
+      "sha": "603a22732efb255c425edd03497338c57e94a676",
+      "where": "src/DirettaOutput.cpp:935-940 (channel switch) and 940-990 (rate/multiplier ladder)",
+      "fp_class": "data-table",
+      "what_happened": "configureDiretta builds a Diretta FormatID by switch(format.channels){case N: formatID|=CHA_N;} plus an if-ladder over sample-rate multipliers (RAT_MP1/2/4/8/16). This case-per-enum mapping mirrors the PCM bit-depth switch a few lines up and any other format-mapping function; it is a constant lookup table expressed as code, not a logic clone.",
+      "fix_proposal": "#056: down-weight blocks that are pure case/if-ladders mapping one enum constant to another (high ratio of 'case X: lhs |= CONST; break;' lines, low operator/identifier diversity). Add an enum-dispatch-table detector that excludes such mapping switches from the copy-paste corpus, same way header↔impl boilerplate is excluded."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports nodes=27 edges=31 sccs_cyclic=0 largest_scc=1",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "Flat src/ layout (AudioEngine/DirettaOutput/DirettaRenderer/DirettaSync/UPnPDevice + vendored FastMemcpy_* and Diretta SDK headers). No mutual include between author headers; DAG acyclic."
+  }
+}

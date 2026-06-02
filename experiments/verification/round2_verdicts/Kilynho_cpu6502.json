@@ -1,0 +1,4 @@
+{"repo":"Kilynho/cpu6502","commits_checked":2,"confirmed":[],
+"false_positives":[{"sha":"ae48ac939e4f","where":"src/cpu/cpu.cpp vs (deleted) cpu.cpp; src/main/cpu_demo.cpp vs (deleted) main_6502.cpp","fp_class":"other",
+"what_happened":"Release v2.0.0 reorganized flat root files into src/cpu/ and src/main/. Root cpu.cpp and main_6502.cpp were deleted; the 2 hits (line 0.14-0.24, very low) are relocated files vs deleted originals.","fix_proposal":"#056: deleted-BASE-path suppression; low line-similarity floor."}],
+"cycle":null,"note":"Root->src/ reorg (moves); sources deleted; very low similarity. No duplication. sccs=0."}

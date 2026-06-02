@@ -1,0 +1,52 @@
+{
+  "repo": "deskull-m/bakabakaband",
+  "commits_checked": 30,
+  "confirmed": [
+    {
+      "sha": "40765dc964b6279dff3dfd29ed8baa1d136ca0a9",
+      "klass": "cross-file-chunk",
+      "where": "src/birth/birth-select-patron.cpp:63-91",
+      "note": "interpret_patron_select_key_move — клон interpret_personality_select_key_move из birth-select-personality.cpp: тот же switch '8'/'4'/'6'/'2' arrow-nav, та же pp_idx +-4/+-1 + bound-check логика, выпилены sex-check строки, MAX_PERSONALITIES->MAX_PATRON"
+    },
+    {
+      "sha": "40765dc964b6279dff3dfd29ed8baa1d136ca0a9",
+      "klass": "cross-file-chunk",
+      "where": "src/birth/birth-select-patron.cpp:92-154",
+      "note": "select_patron — клон select_personality/select_class loop-скелета: while(true)+inkey(), Q/S/space/'*'/A2I/upper-case ветки, birth_help_option(BirthKind::PATRON); подставлено PATRON/MAX_PATRON, весь файл birth-select-patron.cpp скопирован с соседнего birth-select-*.cpp и механически переименован"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "7017bf895ee5c0e5f16083869f989004dd8be182",
+      "where": "src/alliance/alliance-nurgle.cpp:28-264",
+      "fp_class": "idiom",
+      "what_happened": "Новый подкласс AllianceNurgle (бог Хаоса Warhammer) рядом с уже существующими alliance-khorne/slaanesh/tzeentch. Детектор ловит одинаковый каркас класса: идентичные сигнатуры трёх методов (int X::calcImpressionPoint(PlayerType*) const, void X::panishment(PlayerType&), bool X::isAnnihilated()) + общий блок include (summon/effect/bad-status-setter). Тела при этом полностью разные: у khorne — учёт убийств демонов Khorne и r_akills, у nurgle — расчёт по stat_use[A_CON/STR/CHR], switch по prace, ступенчатый poison/cut. Это реальная отдельная логика на подкласс, не отредактированная копия.",
+      "fix_proposal": "#056: для within/cross-file совпадения, где общими являются ТОЛЬКО строки-сигнатуры методов одного class-hierarchy (Derived::method override) + блок include, понижать вес — детектить 'class-scaffold overlap': если совпавшие строки на >70% состоят из заголовков методов и директив #include, а тела (между { и }) расходятся line-ratio<0.4, не репортить. Эвристика: исключать строки, матчащиеся ^\\w[\\w:<>&* ]+::\\w+\\(.*\\)\\s*(const)?\\s*$ из сигнала similarity."
+    },
+    {
+      "sha": "c9cd49b534399f18e50d11b36c18d187c369f291",
+      "where": "src/achievement/achievement-definitions.cpp:1-2881",
+      "fp_class": "data-table",
+      "what_happened": "+2881 строк — это таблица данных достижений: однотипные записи { AT::ENUM, std::make_shared<AD>(AT::ENUM, \"jp_name\", \"en_name\", \"jp_desc\", \"en_desc\", AC::CATEGORY, ADiff::DIFFICULTY, points) }. Соседние записи почти идентичны по форме (8-аргументный record-литерал), различаются только строковыми/enum литералами — детектор видит within-file повтор блоков.",
+      "fix_proposal": "#056: распознавать record-table — последовательность из N>=4 смежных блоков с одинаковым AST-скелетом вызова (один и тот же callee make_shared<T>/aggregate-init, отличаются только literal-токены) сворачивать как 'initializer table' и не репортить как копипаст. Дешёвый суррогат на токенах: если в окне доля string/numeric/enum-литералов > X% и структурные токены ({ } , :: ( )) полностью совпадают между блоками — это таблица, глушить."
+    }
+  ],
+  "cycle": {
+    "present": true,
+    "desc": "src/alliance/alliance.h -> src/alliance/alliance-angartha.h -> src/alliance/alliance.h",
+    "scc_size": 22,
+    "intro_commits": [
+      {
+        "sha": "f69b49d804ee84b6afdca54ef458a93fa39a0e5b",
+        "edge": "alliance.h adds trailing #include of all alliance-*.h (e.g. alliance-angartha.h); each alliance-*.h adds #include \"alliance/alliance.h\"",
+        "reason": "Рефактор-сплит монолита: подклассы Alliance вынесены в отдельные файлы. Базовый alliance.h объявляет class Alliance, а в конце файла (стр.144+) агрегирует ВСЕ под-хедеры подклассов; каждый alliance-X.h в свою очередь включает базу alliance.h ради 'class X : public Alliance' -> замкнутый цикл база<->подклассы. SCC=22 (база + ~21 под-хедер, перечисленный в хвосте alliance.h)."
+      },
+      {
+        "sha": "e4c80524e4",
+        "edge": "alliance.h adds #include \"alliance-yeek-kingdom.h\" (и аналогичные при каждой новой аллиансе)",
+        "reason": "SCC рос постепенно: каждый коммит '[Add] новая аллианса' дописывал ещё один #include в хвостовой агрегирующий блок alliance.h, расширяя цикл ещё на один узел."
+      }
+    ],
+    "evidence": "Авторский цикл в src/alliance/ (активная разработка форка, 2025-09). ВТОРОЙ найденный цикл system/angband.h <-> term/z-term.h НЕ авторский: z-term.h — наследие движка Angband (Copyright (c) 1997 Ben Harrison), рёбра внесены апстрим-рефакторами hengband (#38862, #40460, merge git.osdn.net hengband), т.е. вендор-наследие, present для авторской оценки = только alliance-цикл."
+  }
+}

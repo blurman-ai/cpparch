@@ -1,0 +1,3 @@
+{"repo":"X4V1-code/Xorion","commits_checked":3,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"include/d3dx11.h<->d3dx11core.h (DirectX SDK); SDK/Entity.h<->Level.h, SDK/ScreenContext.h<->Tessellator.h (Minecraft game SDK)","scc_size":2,"intro_commits":[],
+"evidence":"include/d3dx11* — вендоренный DirectX SDK; SDK/** — реверс-инжиниринг game SDK (не авторская архитектура). Не авторский дрейф."}}

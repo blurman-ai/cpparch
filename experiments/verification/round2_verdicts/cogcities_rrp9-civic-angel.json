@@ -1,0 +1,3 @@
+{"repo":"cogcities/rrp9-civic-angel","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"summary показал 2 цикла (SCC<=3), но текущий --graph даёт sccs_cyclic=0","scc_size":3,"intro_commits":[],
+"evidence":"Цикл НЕ воспроизводится на текущем клоне (артефакт измерения: разная резолюция #include между сканами — повторяющийся #066-эффект). Репо из OpenCog-семейства (P-Systems/cog*), много вендоренного opencog-кода. Не подтверждённый авторский дрейф."}}

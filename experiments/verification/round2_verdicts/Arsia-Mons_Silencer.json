@@ -1,0 +1,4 @@
+{"repo":"Arsia-Mons/Silencer","commits_checked":4,"confirmed":[],"false_positives":[],
+"cycle":{"present":true,"desc":"object.h<->world.h; player.h<->playerai.h; platform.h<->platformset.h (3 SCC)","scc_size":2,
+"intro_commits":[{"sha":"72d40ee","edge":"actors/core/object.h #include world.h, world.h #include object.h","reason":"Авторский игровой код clients/silencer/src. Двусторонняя зависимость объект<->мир (и игрок<->ИИ игрока, платформа<->набор платформ) — реальный цикл, внесён фичей фазы 2+3 (visual scripting/NPC). AI-эра дрейф."}],
+"evidence":"clients/silencer/src/** — авторский C++. 3 реальных взаимных include-цикла между парами тесно связанных классов."}}

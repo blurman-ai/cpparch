@@ -1,0 +1,58 @@
+{
+  "repo": "BALL-Project/ball",
+  "commits_checked": 16,
+  "confirmed": [
+    {
+      "sha": "81118c56e38f8b350b2d3e7beff0e12b9d14ffde",
+      "klass": "cross-file-chunk",
+      "where": "source/VIEW/WIDGETS/inspector/sections/clippingSection.C:26-140",
+      "note": "ClippingSection cloned from materialSection.C — commit msg literally says 'mirroring MaterialSection'; makePercentSlider_ anon-ns helper, ctor scaffold, debounce timer wiring, onController*Changed_ slot block and onDebounceFire_ copied verbatim with fields renamed (ambient/diffuse/specular -> enabled/offset/capped). ~98 common lines."
+    },
+    {
+      "sha": "3d2102a5b2e77da155e75f074ffe00c872764a6b",
+      "klass": "cross-file-chunk",
+      "where": "source/VIEW/WIDGETS/inspector/sections/labelSection.C:35-148",
+      "note": "LabelSection cloned from materialSection.C ('mirroring MaterialSection'); shares ~98 lines — same debounce/reset/revert wiring, connect() block, onDebounceFire_ tail, only the widget set and slot names differ."
+    },
+    {
+      "sha": "0b3934b6273cee3663ef03f60b4aaa02bd25c393",
+      "klass": "cross-file-chunk",
+      "where": "source/VIEW/WIDGETS/inspector/sections/stereoSection.C:1-141",
+      "note": "Single commit lands 4 sections (camera/lights/stereo/background) + 3 controllers all built by cloning the existing MaterialSection/StageController skeleton; camera<->stereo controllers share the apply()-via-ApplyGuard + snapshot helper + revert() scaffold, sections share the ctor/debounce/onController*Changed_ template. Mass copy-paste-with-rename within one commit."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "fc74222cf53c06dd03beeca32434e155116d4a0b",
+      "where": "source/VIEW/KERNEL/controllers/clippingController.C reset() vs stereoController.C reset()",
+      "fp_class": "idiom",
+      "what_happened": "Token/line detector can flag the 7 controllers' reset() bodies as near-clones, but the resemblance is driven by (a) an identical templated doc-comment block ('999.64 — SINGLE-call reset ... NOT the legacy two-step revert(); apply() ...') pasted above every reset(), and (b) a uniform 3-line scaffold tail (emit change signals; single apply()). The actual load-bearing lines — the default field assignments — differ per domain (enabled_/offset_/capped_ vs enabled_/eye_distance_/focal_distance_). It is a deliberate framework contract, not duplicated logic.",
+      "fix_proposal": "#056: strip C/C++ comment tokens before clone scoring (or weight comment lines ~0), so a shared doc-comment template can't inflate similarity; and require the matched span to contain a minimum count of NON-boilerplate statement tokens (assignments/calls with distinct identifiers) — a block that is mostly an identical comment + a fixed emit/apply tail falls below threshold."
+    },
+    {
+      "sha": "0b3934b6273cee3663ef03f60b4aaa02bd25c393",
+      "where": "source/VIEW/KERNEL/controllers/cameraController.C toQ_/fromQ_ + snapshot helpers vs sibling controllers",
+      "fp_class": "idiom",
+      "what_happened": "The anon-namespace adapters (QVector3D toQ_(const Vector3&) / Vector3 fromQ_(const QVector3D&)) and the 'snapshotXState_' payload helper recur across sibling controllers and look like clones, but they are tiny canonical Qt<->BALL conversion idioms / required ApplyPayload boilerplate, not transplanted business logic.",
+      "fix_proposal": "#056: exempt spans below a hard min-token floor even at high similarity (a 3-5 line type-conversion helper should never be a clone hit), and add a same-anon-namespace-helper allowlist so per-TU adapter functions with identical bodies are treated as accepted idiom rather than copy-paste."
+    }
+  ],
+  "cycle": {
+    "present": true,
+    "desc": "scoringComponent.h -> scoringFunction.h -> scoringComponent.h  AND  gridBasedScoring.h -> scoreGridSet.h -> gridBasedScoring.h",
+    "scc_size": 2,
+    "intro_commits": [
+      {
+        "sha": "11bad514e671021975bbd386d7ee6c3077e91b8d",
+        "edge": "scoringFunction.h adds #include scoringComponent.h (and reverse)",
+        "reason": "Original 2005 'added preliminary scoring code including SLICK' — ScoringFunction owns a list of ScoringComponent and each component back-references its function; bidirectional include introduced by the original BALL authors, NOT the 2025+ AI-dev work."
+      },
+      {
+        "sha": "81f92de4a614a06b9a06651aa28392fb078292df",
+        "edge": "gridBasedScoring.h adds #include scoreGridSet.h (and reverse)",
+        "reason": "2012 'Updated and restructured SCORING' refactor split — grid-based scorer and its grid-set container mutually reference each other's types via headers. Legacy, pre-AI."
+      }
+    ],
+    "evidence": "include/BALL/SCORING/COMMON/{scoringComponent.h,scoringFunction.h,gridBasedScoring.h,scoreGridSet.h} — authored BALL code (BALL_SCORING_* header guards, BALL namespace), NOT vendored. Both cycles are size-2 and were introduced in 2005/2012 by the upstream BALL team; no commit in the 2025-05+ AI-dev window adds or grows these SCCs. So cycles are genuine architectural debt but not AI-introduced drift."
+  }
+}

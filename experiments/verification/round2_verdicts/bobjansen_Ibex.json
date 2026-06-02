@@ -1,0 +1,68 @@
+{
+  "repo": "bobjansen/Ibex",
+  "commits_checked": 8,
+  "confirmed": [
+    {
+      "sha": "030a73b5b30df0b54d0c792e878df40a0c1d5a35",
+      "klass": "within-file-chunk",
+      "where": "src/runtime/interpreter.cpp:234-285",
+      "note": "build_index() per-type ladder: Int/Double/Date/Timestamp branches each repeat get_if<Column<T>>(key); if(col==nullptr) return \"...type mismatch\"; build_scalar(*col, X_heads_); with only type and heads-map renamed — partial-edited copy-paste"
+    },
+    {
+      "sha": "030a73b5b30df0b54d0c792e878df40a0c1d5a35",
+      "klass": "within-file-chunk",
+      "where": "src/runtime/interpreter.cpp:341-405",
+      "note": "probe_chunk_against_right() second parallel per-type ladder mirroring build_index: same 6 ExprType branches each calling probe_scalar(X_heads_, ...) with renamed map — sibling copy of the build ladder"
+    },
+    {
+      "sha": "d46cacf5bab86f4cab8bf639f5805bbce994e80a",
+      "klass": "within-file-chunk",
+      "where": "src/runtime/interpreter.cpp:49-83",
+      "note": "compare_same_type(): two near-identical blocks for int<->double and double<->int cross-type, each carrying the full 6-case CompareOp switch (Eq/Ne/Lt/Le/Gt/Ge) with only operand order swapped — copy-paste + edit"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "a8702efefb38d1762618f122361fc951f1bc74f4",
+      "where": "src/runtime/model.cpp:1-646 vs prior src/runtime/interpreter.cpp",
+      "fp_class": "whole-file",
+      "what_happened": "Pure monolith split: 465 of 603 lines removed from interpreter.cpp reappear VERBATIM in the new model.cpp. A line/token clone detector that compares the new file's contents against the repo's prior interpreter.cpp state would report a massive cross-file clone, but no code was duplicated — it was relocated (model extraction refactor).",
+      "fix_proposal": "#056: in diff/commit mode treat a (deletion-in-A, addition-in-B) pair within the SAME commit as a MOVE, not a clone, when removed-block hash-set and added-block hash-set overlap above a threshold (>=60% of lines). Suppress clone reports whose 'source' side is text deleted in the very same commit. Net-line-delta-aware: a commit that nets near-zero new C++ lines but shows a clone is almost always a move."
+    },
+    {
+      "sha": "a238ed63ed66712fe9a39a2e91c2821254f523d1",
+      "where": "src/runtime/join.cpp:1-856 vs prior src/runtime/interpreter.cpp",
+      "fp_class": "whole-file",
+      "what_happened": "Same monolith-split pattern: 484 verbatim lines moved from interpreter.cpp into the new join.cpp (commit also adds genuinely new join code, hence 856 added). The moved portion would be reported as a cross-file duplicate of the old interpreter.cpp.",
+      "fix_proposal": "#056: same move-detection as above — diff the commit, pair deletions in source file with additions in sink file by content hash; if matched, classify as relocation and exclude from clone count. Additionally, only run cross-file clone comparison against the POST-commit tree, never against the pre-commit version of a file edited in the same commit."
+    },
+    {
+      "sha": "030a73b5b30df0b54d0c792e878df40a0c1d5a35",
+      "where": "src/runtime/interpreter.cpp:8124 (and 28 sibling sites)",
+      "fp_class": "idiom",
+      "what_happened": "The std::holds_alternative<Column<std::int64_t>> / <double> / <bool> / <Date> / <Timestamp> / <Categorical|std::string> variant-type dispatch chain occurs 29 times across this 8000+ line column-engine file. Each occurrence is a near-identical 6-branch if/else-if ladder over the same closed set of column types. A normalized-token detector with low min-token threshold flags every pair as a clone, producing O(29^2) spurious hits.",
+      "fix_proposal": "archcheck/#056: add an idiom/closed-enum-dispatch filter — when a candidate clone block is dominated (>70% of tokens) by a fixed dispatch over a known type/enum set (repeated holds_alternative<T>/get_if<T>/case Enum::X), down-weight or suppress. Practically: raise min-token threshold to >= ~40-50 tokens AND require >=2 distinct identifiers that are NOT type names or enum constants to vary between the two blocks; pure type-list dispatch ladders should not count as duplication."
+    },
+    {
+      "sha": "d46cacf5bab86f4cab8bf639f5805bbce994e80a",
+      "where": "src/runtime/ops.cpp:26-61",
+      "fp_class": "idiom",
+      "what_happened": "AST builder-factory boilerplate: filter_col/filter_int/filter_dbl/filter_str/filter_arith/filter_cmp/filter_and/filter_or are each a one-to-two-line make_unique<FilterExpr>(FilterExpr{NodeKind{...}}) wrapper. Structurally identical, differing only in node-kind tag and arg list. Detector sees 8 mutually-similar tiny functions.",
+      "fix_proposal": "#056: enforce a minimum meaningful-line floor (e.g. >=5 non-signature, non-brace statement lines) before a block is eligible to be a clone end; thin single-expression factory/wrapper functions (body is one return/make_unique) should be excluded by a 'trivial-body' guard."
+    },
+    {
+      "sha": "c697f2ad96eb4c0e5af57eae69229331bafd12ef",
+      "where": "src/runtime/ops.cpp:15-31",
+      "fp_class": "idiom",
+      "what_happened": "inner_join() and left_join() are identical 6-line wrappers differing only in JoinKind::Inner vs JoinKind::Left passed to runtime::join_tables, plus the throw-on-error boilerplate. A low-threshold token detector flags the pair.",
+      "fix_proposal": "#056: same trivial-wrapper guard — a function whose body is a single delegated call + uniform error-propagation boilerplate should be below the clone-eligibility floor. Combine with the >=5 meaningful-statement minimum so single-enum-arg variants of one delegating call are not reported."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 111 nodes / 229 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "Author code under include/ibex/ and src/ (config, ir, parser, runtime, codegen, interop, repl). Acyclic include graph; no vendored cyclic library. Round1 also recorded циклы=0 for this repo. Part B negative."
+  }
+}

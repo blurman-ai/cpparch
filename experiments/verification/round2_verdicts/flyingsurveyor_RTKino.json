@@ -1,0 +1,4 @@
+{"repo":"flyingsurveyor/RTKino","commits_checked":3,"confirmed":[],
+"false_positives":[{"sha":"top","where":"src/main.cpp (within-file)","fp_class":"idiom",
+"what_happened":"ESP32 firmware: src/main.cpp is one large sketch; the within-file hits are repeated WiFi/OLED/ESP-NOW setup blocks (AP-mode vs STA-mode init share structure). Reading the reported lines on HEAD shows unrelated functions (offsets are measured at the audited SHA), and similarity is mid (0.82-0.91) idiom.","fix_proposal":"#056: (1) pin reported line ranges to the measured SHA so within-file pairs are verifiable; (2) raise within-file min line-similarity for repeated setup/handler boilerplate in single large files; (3) treat mirror-image symmetric algorithms (rotations, get/put) as idiom."}],
+"cycle":null,"note":"Within-file repeated-idiom / boilerplate; offsets stale on HEAD; mid-low similarity. No confirmed copypaste. sccs=0."}

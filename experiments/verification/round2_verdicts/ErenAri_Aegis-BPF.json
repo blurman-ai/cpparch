@@ -1,0 +1,59 @@
+{
+  "repo": "ErenAri/Aegis-BPF",
+  "commits_checked": 28,
+  "confirmed": [
+    {
+      "sha": "34a664b25d86b7dcbfed1718d708ca6360a59800",
+      "klass": "cross-file-chunk",
+      "where": "src/commands_cgroup.cpp:29-53",
+      "note": "ROUND2-NEW: parse_protocol(29-40)/parse_direction(43-53) скопированы байт-в-байт из commands_network.cpp:22-53 в новый файл вместо общего хелпера (diff пуст). Отдельная находка от within-file add_inode-клона ниже."
+    },
+    {
+      "sha": "34a664b25d86b7dcbfed1718d708ca6360a59800",
+      "klass": "within-file-chunk",
+      "where": "src/commands_cgroup.cpp:118-168",
+      "note": "cmd_cgroup_deny_add_ip near-verbatim copy of cmd_cgroup_deny_add_inode (59-116): identical scaffold resolve_cgroup_identifier->bump_memlock_rlimit->load_bpf->map-null-check->add_*->refresh_policy_empty_hints->log; same 30-line block repeated again in add_port and in all three del_* fns (240-419). Commit message admits 'follows existing pattern'."
+    },
+    {
+      "sha": "7de6392487e49a07b632dbc6926db26cd0f7c6a8",
+      "klass": "within-file-chunk",
+      "where": "src/policy_runtime.cpp:388-444",
+      "note": "populate_shadow_cgroup block (388) duplicated as apply_cgroup_rules block (636): three near-identical per-rule-type loops (deny_inodes/deny_ips/deny_ports each: resolve_cgroup_identifier + add_cgroup_deny_*_to_fd + SLOG_WARN), and the whole block copied twice differing only shadows.deny_cgroup_*.fd() vs bpf_map__fd(state.deny_cgroup_*)."
+    },
+    {
+      "sha": "252809d6769bd7b942dc4c59e22c534808d42e0e",
+      "klass": "within-file-chunk",
+      "where": "src/control.cpp:158-204",
+      "note": "extract_json_uint64_simple (184-204) is a copy of extract_json_int64_simple (158-182): identical overflow-checked digit-accumulation while-loop, differs only in signedness handling and INT64_MAX vs UINT64_MAX. Sibling family extract_json_string/bool/int64_array + parse_u64_env/parse_u32_env (31-59) share the same find_json_value_pos + scan scaffold."
+    },
+    {
+      "sha": "3c2f61d2d5069eb58699c495c9e4c9c1220f26d1",
+      "klass": "partial-edited",
+      "where": "src/ocsf_formatter.cpp:159-183",
+      "note": "format_net_block_event_ocsf reuses the JSON-envelope header of format_block_event_ocsf verbatim-structured (class_uid/category/activity/type_uid/action_id/action/disposition/status/severity/time/message then write_metadata_block+write_actor_block+write_device_block) at 265-296; only class/activity constants renamed. Genuine extractable boilerplate, not pure idiom."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "34a664b25d86b7dcbfed1718d708ca6360a59800",
+      "where": "src/cli_cgroup.cpp:57-89",
+      "fp_class": "idiom",
+      "what_happened": "dispatch_cgroup_command's hand-rolled argv loop `for(int i=4;i<argc;++i){ if(arg==\"--cgroup\"){...} else if(arg==\"--ip\"){...} else if(arg==\"--port\"){parse_port} else if(arg==\"--protocol\"){...} else if(arg==\"--direction\"){...} }` is structurally identical to the same loop in cli_network.cpp/cli_run.cpp/cli_policy.cpp (6 files share it). A cross-file token detector flags cli_cgroup.cpp <- cli_network.cpp, but this is the standard hand-rolled CLI flag-parse idiom (each branch bounds-checks i+1<argc then consumes argv[++i]); the --protocol/--direction/--port branches are necessarily textually identical across subcommands.",
+      "fix_proposal": "#056: add an argv-parse idiom suppressor — when a candidate block is dominated by repeated `arg == \"--<literal>\"` / `argv[++i]` / `if (i+1 >= argc)` tokens (string-literal-keyed dispatch chain), down-weight the match. Concretely: if >60% of matched lines are comparisons against distinct string literals, treat as idiom and require line>=0.85 AND length>=20 to report; otherwise drop."
+    },
+    {
+      "sha": "469ad9a7d8bf",
+      "where": "src/bpf_ops.cpp:105-113",
+      "fp_class": "other",
+      "what_happened": "ROUND2-NEW: хинт чекера bpf_ops.cpp:105-113 <- main.cpp:78-83 (w=0.68 line=0.40). На HEAD merge-коммита main.cpp выпотрошен (<78 строк): блок bump_memlock_rlimit был ПЕРЕНЕСЁН из старого main.cpp в bpf_ops.cpp при модуляризации (acf9a778), детектор сравнил перенос со старой ревизией main.cpp -> ложный cross-file. То же по 26f51b15 'modularize CLI': commands.cpp (-955) разбит на commands_*.cpp, все хендлеры и near-clone пары (deny_add_ip vs deny_add_cidr) уже жили в родительском commands.cpp — чистый refactor-split (move), новой копипасты не внесено.",
+      "fix_proposal": "#056: move-aware атрибуция. Если кандидатный блок в ADDED-файле текстуально совпадает с блоком, УДАЛЁННЫМ в том же коммите (большой -N в одном файле + сопоставимый +N в новых), трактовать как refactor move, не copy. Атрибуцию дупликации вести по git-blame первого появления блока, а не по дате текущего диффа. Доп.: stop-list коротких libbpf-идиом (setrlimit RLIMIT_MEMLOCK / bump_memlock_rlimit), line-floor cross-file >=0.5 при длине < 12 строк."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph: nodes=178 edges=411 sccs_total=178 sccs_cyclic=0 largest_scc=1. Authorial src/ tree, no vendored engine; include graph is acyclic."
+  }
+}

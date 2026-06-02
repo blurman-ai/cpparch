@@ -1,0 +1,4 @@
+{"repo":"hyzboy/CMMath","commits_checked":4,"confirmed":[],
+"false_positives":[{"sha":"top","where":"inc/hgl/math/transform/Transform.h vs (deleted) inc/hgl/math/Transform.h; src/Geometry/AABB.cpp vs (deleted) src/graph/Bounding/AABB.cpp","fp_class":"other",
+"what_happened":"A header/source reorganization: Transform.h was split/moved into a transform/ subdir and AABB.cpp moved from src/graph/Bounding/ to src/Geometry/. Both BASE-side files no longer exist; the verbatim cross-file hits are relocated files vs deleted originals.","fix_proposal":"#056: deleted-BASE-path suppression for moves/splits."}],
+"cycle":null,"note":"Math-header reorg (moves). Sources deleted. No live duplication. sccs=0."}

@@ -1,0 +1,4 @@
+{"repo":"Zero3K20/hpsx64","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"3 SCC в hps1x64/hps2x64 эмуляторном коде","scc_size":2,
+"intro_commits":[],
+"evidence":"hps1x64/hps2x64 — апстрим-форк эмулятора hpsx64 (hellcat69), не авторская архитектура. Initial commit заливкой. Не AI-дрейф."}}

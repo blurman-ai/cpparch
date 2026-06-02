@@ -1,0 +1,13 @@
+{
+  "repo": "ericflo/kiln",
+  "commits_checked": 4,
+  "confirmed": [],
+  "false_positives": [],
+  "cycle": {
+    "present": false,
+    "desc": "measured 11 циклов (SCC<=14) лежат целиком в csrc/cutlass — вендоренная NVIDIA CUTLASS, не авторский код",
+    "scc_size": 14,
+    "intro_commits": [],
+    "evidence": "crates/kiln-flash-attn/csrc/cutlass/cutlass/** (CUTLASS/flash-attn). Проект Rust (681 .rs); 808/819 C++ под kiln-flash-attn (вендор CUDA). --graph дефолт даёт sccs_cyclic=0."
+  }
+}

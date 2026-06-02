@@ -1,0 +1,3 @@
+{"repo":"o9nn/ATenSpace","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"Dict.h -> Dict_inl.h -> ivalue.h -> ivalue_inl.h -> Dict.h (template .h/_inl.h idiom)","scc_size":4,"intro_commits":[],
+"evidence":"aten/src/ATen/** — вендоренный PyTorch ATen. Цикл = идиома header.h<->header_inl.h (template defs). Не авторский код."}}

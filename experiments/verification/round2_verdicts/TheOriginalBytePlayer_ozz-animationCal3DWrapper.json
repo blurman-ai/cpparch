@@ -1,0 +1,4 @@
+{"repo":"TheOriginalBytePlayer/ozz-animationCal3DWrapper","commits_checked":4,"confirmed":[],
+"false_positives":[{"sha":"top","where":"test/options/options_tests.cc, options_registration*_tests.cc","fp_class":"other",
+"what_happened":"Repo wraps ozz-animation (vendored) with a Cal3D adapter; the hits are in ozz's own test/options/ suite -- parametrized registration tests that repeat by construction, and vendored upstream tests at that.","fix_proposal":"#056: tests/ threshold + vendoring filter for the ozz-animation subtree."}],
+"cycle":null,"note":"Vendored ozz-animation test suite + test-fixture repetition. sccs=0."}

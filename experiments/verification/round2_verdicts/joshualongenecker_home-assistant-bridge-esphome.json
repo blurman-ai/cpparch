@@ -1,0 +1,4 @@
+{"repo":"joshualongenecker/home-assistant-bridge-esphome","commits_checked":3,"confirmed":[],
+"false_positives":[{"sha":"top","where":"components/geappliances_bridge/mqtt_bridge.cpp vs (deleted) src/mqtt_bridge.cpp","fp_class":"other",
+"what_happened":"ESPHome external-component restructure: src/mqtt_bridge.cpp was MOVED into components/geappliances_bridge/. The BASE-side src/mqtt_bridge.cpp no longer exists; the 4 cross-file hits are the relocated file vs its deleted original.","fix_proposal":"#056: suppress pairs whose BASE path is deleted in the same commit (move/rename), or use git rename detection."}],
+"cycle":null,"note":"File move into ESPHome component dir; source deleted. No live duplication. sccs=0."}

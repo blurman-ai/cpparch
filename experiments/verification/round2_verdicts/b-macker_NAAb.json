@@ -1,0 +1,54 @@
+{
+  "repo": "b-macker/NAAb",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "1dd08e83520b7e4f3c7d190ee6292f74c1f46141",
+      "klass": "within-file-chunk",
+      "where": "src/vm/vm.cpp:511-606",
+      "note": "OP_ADD/OP_SUB/OP_MUL/OP_DIV arithmetic opcode handlers are near-identical ~13-line blocks (pop b; pop a; int/double dispatch; runtimeError), only operator+message changed — classic per-opcode copy-paste in new VM"
+    },
+    {
+      "sha": "1dd08e83520b7e4f3c7d190ee6292f74c1f46141",
+      "klass": "within-file-chunk",
+      "where": "src/vm/vm.cpp:654-726",
+      "note": "OP_LT/OP_LE/OP_GT/OP_GE comparison handlers are ~17-line near-identical blocks (int / double-coerce / string branches + runtimeError), diverging only in the comparison operator — copy-paste of the same comparison skeleton"
+    },
+    {
+      "sha": "c1d8208d299857959d16b8783623430c8f66b6d6",
+      "klass": "partial-edited",
+      "where": "src/runtime/persistent_shell_executor.cpp:90-150",
+      "note": "PersistentShellExecutor::parseOutput copies the value-coercion block (null/bool reps, numeric parse, trailing-newline trim) from base PersistentProcessExecutor::parseOutput (src/runtime/persistent_process_executor.cpp:356-390) then diverges (adds __NAAB_EXIT__ extraction, stoi instead of stod) instead of delegating like NodePersistentExecutor does — same commit, cross-file copy-with-edit"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "6062e3501c04bc240d0cb77b3dbec092ee08eb31",
+      "where": "src/interpreter/call_dispatch.cpp,expressions.cpp,modules.cpp,polyglot.cpp vs src/interpreter/interpreter.cpp",
+      "fp_class": "other",
+      "what_happened": "Pure code-MOVE refactor: interpreter.cpp shrinks ~10k lines, 7 new files gain them. numstat shows add=9499/del=9309/net=+190 — bodies were relocated verbatim, not duplicated. A cross-file token detector run over the post-commit tree (or over the diff's added vs deleted hunks) reports the moved methods as cross-file clones, but no duplication exists: the source lines were deleted in the same commit.",
+      "fix_proposal": "#056: add a move-aware pass — when a clone pair's two sides were respectively (mostly) deleted-from-A and added-to-B within the SAME commit (git rename/move detection at hunk granularity, or net-delta heuristic add~=del with one file shrinking by ~the size the other grew), suppress the pair. archcheck --diff already does rename detection at file level; extend it to intra-commit block relocation so refactor-splits don't surface as copy-paste."
+    },
+    {
+      "sha": "c1d8208d299857959d16b8783623430c8f66b6d6",
+      "where": "include/naab/node_persistent_executor.h,persistent_ruby_executor.h,persistent_shell_executor.h",
+      "fp_class": "header-impl",
+      "what_happened": "Three sibling subclass headers of PersistentProcessExecutor each #include the base, open the same naab::runtime namespace, and declare the same NVI override set (wrapCodeForExecution/getSentinel/getStartupCode/getExitCommand[/parseOutput]). The only differing token is the class name. A token detector sees ~20 near-identical lines and flags them, but this is mandatory class-declaration boilerplate for a virtual-override hierarchy — proper dedup (the base class) already happened.",
+      "fix_proposal": "#056: down-weight or skip clone candidates that are pure class-declaration boilerplate — blocks consisting only of #pragma once + includes + namespace open + a run of `virtual/override` method signatures with no statement bodies. Heuristic: if a candidate region has zero function bodies (no `{ ... statements ... }` with executable content) and >50% of lines are member-function declarations ending in `override;`/`;`, treat as interface boilerplate, not copy-paste."
+    },
+    {
+      "sha": "946c7febb979d1e0b49ed17124e98d59061283e6",
+      "where": "src/runtime/governance_engine.cpp:283-355 (HARDCODED_RESULT_PATTERNS_DB)",
+      "fp_class": "data-table",
+      "what_happened": "Static const std::vector<...> initializer of {regex, description} rows. Each row has identical structure (\"...\" string literal, \"...\" string literal), so a token detector matching against the sibling pattern DBs in the same file (and other pattern tables) reports a high-overlap clone. It is a declarative data table, not duplicated logic.",
+      "fix_proposal": "#056: classify regions that are aggregate/brace-initializer bodies (a sequence of `{ literal, literal, ... },` rows inside a `static const ... = { ... }`) as data tables and exclude them from the clone corpus — same exclusion class already used for enum/string-lookup tables. Detect via: region is inside a variable initializer, dominated by brace-init rows, and contains no control flow / function calls beyond construction."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 379 nodes / 793 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph /home/localadm/oss/_aidev_dense/b-macker_NAAb -> sccs_total=379, sccs_cyclic=0, largest_scc=1. Matches corpus hint (циклы=0, SCC<=1). No cyclic SCC exists in authorial or vendor code; no closing edge to attribute to a commit."
+  }
+}

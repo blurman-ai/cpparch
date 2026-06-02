@@ -1,0 +1,4 @@
+{"repo":"Autonomy-Logic/matiec","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"symtable.hh -> symtable.cc (.hh включает .cc); absyntax_utils.hh<->get_datatype_info.hh","scc_size":2,
+"intro_commits":[],
+"evidence":"matiec — FOSS IEC 61131-3 компилятор (наследие MatPLC, до-AI). symtable.hh #include symtable.cc = идиома template-в-заголовке. Не AI-дрейф."}}

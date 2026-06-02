@@ -1,0 +1,41 @@
+{
+  "repo": "fernandotonon/QtMeshEditor",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "db45d44dedc9c9004f7b665be928ff39127e85c0",
+      "klass": "within-file-chunk",
+      "where": "src/CLIPipeline.cpp:1598-1620,1659-1681,1863-1885",
+      "note": "Identical export branch (if isAnimOnlyInput -> exportAnimOnly / else refreshAvailableAnimationState + getParentSceneNode + MeshImporterExporter::exporter + Sentry+err) copy-pasted 3x into cmdAnim for resample/decimate/rename, differing only in the 'resample'/'decimate'/'rename' Sentry-message literal. Should be one helper exportEntityOrAnimOnly(entity, skel, outFi, opLabel)."
+    },
+    {
+      "sha": "476a4fb483399093fe7025dfdf2f786898000a37",
+      "klass": "partial-edited",
+      "where": "src/PS1/PS1TMD.cpp:317-470",
+      "note": "TMD primitive-packet dispatch chain: each 'if (mode==0xNN && flag==N && ilen==N){ readU16le(d+offs); bounds-check (i<nVert && n<nNorm); appendTri/appendTriMatchWinding; continue; }' block is a copy of the previous handler with byte offsets and winding tweaked. Textured-tri handlers (0x24 vs 0x34 vs 0x25) and quad handlers (0x28 flag0 vs flag4) are near-clones — copy-edit, not parameterised by a layout table."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "db45d44dedc9c9004f7b665be928ff39127e85c0",
+      "where": "src/CLIPipeline.cpp:230-256 (kUiToAssimp / kExtToAssimp)",
+      "fp_class": "data-table",
+      "what_happened": "Two adjacent static QMap<QString,QString> literals (UI-label->assimp-id and extension->assimp-id) share the same right-hand assimp format ids ('fbx','collada','gltf2','glb2',...). Token stream is dominated by repeated QStringLiteral(...) pairs, so token-overlap looks like a duplicated block, but it is config/format-mapping data, not logic.",
+      "fix_proposal": "#056: treat runs of brace-init / map-literal entries (>=N consecutive 'key , value' pairs with no control flow / no calls other than the literal wrapper) as a data-table region and exclude from chunk matching, OR down-weight blocks whose AST is entirely initializer-list elements. Same lever as the generated-table skip in #065."
+    },
+    {
+      "sha": "b19901cdae4cd2b4c75c9e269220f2faf5453b41",
+      "where": "src/MCPServer.cpp:336-640 (toolTransformSubMesh / toolSetSnapSettings / toolDuplicateEntity / toolExportPose)",
+      "fp_class": "idiom",
+      "what_happened": "Per-MCP-tool handler boilerplate: identical prologue (getSingletonPtr null-check -> makeErrorResult, args[\"entity_name\"].toString() + isEmpty check, findEntityByName + 'not found' makeErrorResult) and the apply-loop shape 'if (args.contains(\"field\")) { auto v = args[..]; setter(v); changes << QString(...).arg(v); }'. The shapes are mechanically the same across handlers, but each handler's semantic core (which setter / which validation) differs; this is the IRule-style one-handler-per-tool convention.",
+      "fix_proposal": "#056: add an argument-dispatch-boilerplate filter — when matched lines are >X% calls to a small fixed allowlist of framework helpers (makeErrorResult/makeSuccessResult/args.contains/args[].toString/.toDouble/.toInt) interleaved with distinct identifier payloads, classify as handler-boilerplate and require a higher essence/non-boilerplate token threshold before reporting. Pairs with the 'idiom' FP class already noted for setter walls."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph on repo root: nodes=523 edges=994 sccs_cyclic=0 largest_scc=1. Matches CORPUS_CHECK_DETAIL hint (циклы=0, SCC<=1). No author or vendor include cycle to attribute."
+  }
+}

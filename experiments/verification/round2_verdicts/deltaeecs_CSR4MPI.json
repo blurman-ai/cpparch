@@ -1,0 +1,4 @@
+{"repo":"deltaeecs/CSR4MPI","commits_checked":2,"confirmed":[],
+"false_positives":[{"sha":"top","where":"include/MatrixMarketLoader.h vs src/MatrixMarketLoader.cpp; include/DistributedOps.h vs src/DistributedOps.cpp","fp_class":"header-impl",
+"what_happened":"Header/impl declaration-definition overlap: the .h declares (and partly inline-defines) functions whose signatures and template bodies reappear in the .cpp. The cross-file similarity is decl<->def, not copied logic.","fix_proposal":"#056: when a cross-file pair is a .h vs its same-stem .cpp, treat as header-impl and require similarity beyond shared signatures (exclude declaration text)."}],
+"cycle":null,"note":"Header<->impl decl/def overlap. No copypaste. sccs=0."}

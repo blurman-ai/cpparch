@@ -1,0 +1,63 @@
+{
+  "repo": "HendrikGC02/Astroray",
+  "commits_checked": 18,
+  "confirmed": [
+    {
+      "sha": "5d290120d39a",
+      "klass": "cross-file-chunk",
+      "where": "include/astroray/sampling/wavefront_rng_device.h:38-149",
+      "note": "CUDA __device__ PCG32 port — 51/53 core arithmetic lines byte-identical to CPU include/astroray/sampling/wavefront_rng.h; only WF_RNG_HD macro + #ifdef __CUDACC__ branches differ. Author documents it as a 'byte-identical mirror'."
+    },
+    {
+      "sha": "69f17178a05a",
+      "klass": "cross-file-chunk",
+      "where": "plugins/passes/sample_heatmap.cpp:24-52",
+      "note": "SampleHeatmap pass cloned from BounceHeatmap (created one commit earlier, 7b91417): same includes/ctor/name() override/execute() skeleton (max-scan loop + normalize + color[i*3..] write); diverges only in the colour ramp + log1p scaling. partial-edited clone."
+    },
+    {
+      "sha": "308a0e41d9fd",
+      "klass": "cross-file-chunk",
+      "where": "plugins/integrators/caustic_path_tracer.cpp + multiwavelength_path_tracer.cpp + neural_cache.cpp (setMaxDepth)",
+      "note": "Identical setMaxDepth(int) override body copy-pasted verbatim into 3 integrator plugins in one commit. Small (interface-override idiom) but genuine triple copy."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "8df924e19a2b",
+      "where": "plugins/metrics/schwarzschild.cpp:9-50",
+      "fp_class": "idiom",
+      "what_happened": "SchwarzschildMetricPlugin shares the Metric-interface override surface (christoffel/inner_product/geodesic_rhs/event_horizon_radius/...) with the sibling KerrMetric class, so a token detector keying on the identical override signature list flags them as a clone. In reality schwarzschild is NOT copied code: it is a thin delegating adapter that constructs a kerr_ with a=0 and forwards every call (kerr_->christoffel(...)). The duplicated tokens are the pure-virtual override signatures mandated by the Metric ABC, not duplicated logic.",
+      "fix_proposal": "#056: when two candidate blocks are both override-method clusters of the same base class, discount lines whose RHS is a single forwarding call (delegate pattern: `return member_->sameName(args);`). Add a 'delegation ratio' heuristic — if >70% of override bodies are one-line forwards to a shared member, treat as adapter and suppress. Also: weight method-signature tokens lower than body tokens so shared ABC override surfaces don't dominate the similarity score."
+    },
+    {
+      "sha": "5d290120d39a",
+      "where": "include/astroray/sampling/wavefront_rng_device.h:38-149",
+      "fp_class": "other",
+      "what_happened": "Although this IS a real duplicate (counted in confirmed), for triage purposes it is the CPU/GPU mirror class of intentional duplication: the two PCG32 implementations are REQUIRED to stay bit-identical (the project's two-tier gate compares CPU vs GPU RNG streams). Flagging it as actionable copy-paste would push the author to deduplicate two files that must not drift, which is the wrong call.",
+      "fix_proposal": "#056: add a 'host/device mirror' suppression. Detect when one file/header carries CUDA markers (`__device__`, `__host__`, `#ifdef __CUDACC__`, `*_device.h`/`*.cu` naming) and its near-duplicate is a plain host header — downgrade severity to 'intentional mirror' rather than 'copy-paste'. Recognize an opt-in marker comment (e.g. `// archcheck:mirror-of <path>`) to whitelist required-identical CPU/GPU pairs."
+    }
+  ],
+  "cycle": {
+    "present": true,
+    "desc": "raytracer.h -> integrator.h -> raytracer.h  (and  raytracer.h -> emission_spectrum.h -> raytracer.h)",
+    "scc_size": 3,
+    "intro_commits": [
+      {
+        "sha": "8030719b238e",
+        "edge": "integrator.h adds #include \"../raytracer.h\"  AND  raytracer.h adds #include \"astroray/integrator.h\"",
+        "reason": "pkg05 split the Integrator interface out of raytracer.h. integrator.h needs raytracer.h types (Renderer/Camera/Vec3); raytracer.h needs the full Integrator definition before Renderer::render() is compiled. Author knowingly created the cycle and works around ODR by including integrator.h at the BOTTOM of raytracer.h with an explanatory comment ('Include integrator interface AFTER all core types are defined to break the circular dependency'). Edge created by carelessness during monolith split — pragma once + bottom-include hides it from the compiler but not from the include graph."
+      },
+      {
+        "sha": "d26d56f",
+        "edge": "emission_spectrum.h adds #include \"../raytracer.h\"  // for Vec3",
+        "reason": "pkg89 'dedicated Light objects' — emission_spectrum.h pulled in raytracer.h just to get Vec3, growing the SCC from 2 to 3. Should have included a lightweight vec/math header instead of the monolith."
+      },
+      {
+        "sha": "06cf72f",
+        "edge": "raytracer.h adds #include \"astroray/emission_spectrum.h\"",
+        "reason": "pkg89 follow-up CI fix; commit message itself names 'circular dependency (emission_spectrum.h <-> raytracer.h <-> light.h)' and reorders includes to make it compile — closing the back-edge that made emission_spectrum part of the SCC."
+      }
+    ],
+    "evidence": "Author engine code under include/ and include/astroray/ (raytracer.h, astroray/integrator.h, astroray/emission_spectrum.h). NOT vendor — external/ excluded. SCC grew incrementally: 8030719 created the 2-node integrator<->raytracer cycle, d26d56f + 06cf72f later pulled emission_spectrum.h in, growing it to size 3."
+  }
+}

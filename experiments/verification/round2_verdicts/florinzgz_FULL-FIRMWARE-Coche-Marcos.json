@@ -1,0 +1,47 @@
+{
+  "repo": "florinzgz/FULL-FIRMWARE-Coche-Marcos",
+  "commits_checked": 30,
+  "confirmed": [
+    {
+      "sha": "838e686d30fb9b0d181f95c36d6274b79c0a7f78",
+      "klass": "within-file-chunk",
+      "where": "src/core/eeprom_persistence.cpp:34-60",
+      "note": "save/loadEncoderConfig pair structurally copied 6x (Sensor/Power/LED/WiFi/General): begin(NS,false)/putX.../end and begin(NS,true)/{defaults}/getX.../end, only Preferences keys + struct fields renamed. This is the actual introducing commit; corpus flagged it at the c52beec merge."
+    },
+    {
+      "sha": "838e686d30fb9b0d181f95c36d6274b79c0a7f78",
+      "klass": "within-file-chunk",
+      "where": "src/core/eeprom_persistence.cpp:130-160",
+      "note": "savePowerConfig/saveLEDConfig blocks are clones of saveEncoderConfig with putUShort/putUInt swapped and key strings changed; loadAll/saveAll/factoryReset also repeat the same 6-call success&=save/load list."
+    },
+    {
+      "sha": "5c9a89e8cf0562fc63f0dad89dd02a769d1203db",
+      "klass": "within-file-chunk",
+      "where": "src/hud/gauges.cpp:214-266 (drawSpeed) vs 147-178 (drawRpm)",
+      "note": "Phase 10 RenderContext overloads: each draw* method got a near-identical body 'if (!ctx.isValid()) return; bool changed = (lastX<0)||(fabs(v-lastX)>THR); ...call sprite version', only the field/threshold/sprite-call differ. Repeated for drawSpeed/drawRpm/etc within gauges.cpp; same skeleton also pasted into hud.cpp/icons.cpp/wheels_display.cpp (cross-file). Corpus flagged gauges.cpp at the merge SHA; this is the real introducer."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "838e686d30fb9b0d181f95c36d6274b79c0a7f78",
+      "where": "src/hud/menu_power_config.cpp / menu_sensor_config.cpp / menu_led_control.cpp",
+      "fp_class": "idiom",
+      "what_happened": "All six new menu-screen .cpp files share the identical screen-lifecycle skeleton: a static bool needsRedraw flag, init()/update()/draw() with the 'if(!needsRedraw)return; needsRedraw=false;' header, handleTouch(), and drawActionButtons() rendering SAVE/RESET buttons. The detector sees high cross-file structural similarity on this lifecycle scaffold even though each draw()/handleTouch() body is genuinely different (different widgets, sliders vs toggles, different field set). It is a per-screen UI boilerplate convention (an implicit base-class shape), not transplanted logic.",
+      "fix_proposal": "#056: when a cross-file clone consists predominantly of (a) a fixed control-flow skeleton (early-return guard + a sequence of draw*/handle* calls) and (b) the divergent token mass is in string literals + identifiers, down-weight it. Concretely: raise the cross-file min-block size to ~25 significant lines AND require token-divergence(line-score) below ~0.35; the menu files sit at line-score ~0.6-0.7 (high divergence) so they should fall below the cross-file confirm threshold. Also add a 'UI-lifecycle' idiom suppressor: blocks whose body is mostly chained method calls to a single receiver (tft./sprite.) with no branches are framework-shaped boilerplate."
+    },
+    {
+      "sha": "5c9a89e8cf0562fc63f0dad89dd02a769d1203db",
+      "where": "src/hud/gauges.cpp / icons.cpp / wheels_display.cpp (RenderContext overloads)",
+      "fp_class": "idiom",
+      "what_happened": "Each pre-existing draw* method gained a RenderContext-taking overload that is a 3-line adapter: 'if(!ctx.isValid())return; bool changed=...; call the sprite version'. Across files these adapters look like cross-file copies because the guard prologue is verbatim, but the construct is a deliberate overload-shim family (one per existing method) added in a single migration step, not duplicated business logic.",
+      "fix_proposal": "#056: detect overload-shim families - a new function whose name matches an existing function in the same TU and whose body is <=5 significant lines delegating to the sibling (a single call to the same base name with a subset/superset of args). Suppress clone hits where >=70% of the block is a guard + delegating call. This is the same class as header-impl forwarding and should share that suppressor."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: sccs_cyclic=0, largest_scc=1 over 177 nodes / 505 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph on repo root reports sccs_cyclic=0; matches corpus report (циклы=0, SCC<=1). 26 unresolved includes (Arduino/ESP-IDF/vendor headers) but no author-code back-edge forms a cycle."
+  }
+}

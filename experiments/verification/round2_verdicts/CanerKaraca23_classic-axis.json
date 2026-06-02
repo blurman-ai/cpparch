@@ -1,0 +1,4 @@
+{"repo":"CanerKaraca23/classic-axis","commits_checked":3,"confirmed":[],
+"false_positives":[{"sha":"top","where":"vendor/GInputAPI/GInputAPI.h vs source/shared/GInputAPI.h","fp_class":"whole-file",
+"what_happened":"GInputAPI is a vendored input library kept in vendor/ and also referenced under source/shared/. The single cross-file hit is two copies of the same vendored header (line=0.53, partial).","fix_proposal":"#056: vendoring filter for vendor/** paths."}],
+"cycle":null,"note":"Duplicated vendored header (vendor/ vs source/shared). Vendored. sccs=0."}

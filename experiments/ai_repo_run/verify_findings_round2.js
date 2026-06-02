@@ -1,6 +1,6 @@
 export const meta = {
   name: 'verify-drift-round2',
-  description: 'Round2: 3x охват drift-коммитов (exclude round1) + археология коммитов, вносящих include-циклы/сложность графа. Пишет verify_results2/<repo>.json',
+  description: 'Round2: 3x охват drift-коммитов (exclude round1) + археология коммитов, вносящих include-циклы/сложность графа. Пишет ../verification/round2_verdicts/<repo>.json',
   phases: [
     { title: 'Discover', detail: 'drift-репы из summary.tsv' },
     { title: 'Audit2', detail: 'агент/репа: 15-30 коммитов копипаста + cycle-intro археология' },
@@ -11,7 +11,7 @@ const HERE = '/home/localadm/projects/cpparch/experiments/ai_repo_run'
 const ARCH = '/home/localadm/projects/cpparch/build/debug/src/archcheck'
 const DETAIL = `${HERE}/CORPUS_CHECK_DETAIL.md`
 const TSV = `${HERE}/corpus_check_summary.tsv`
-const RESULTS = `${HERE}/verify_results2`
+const RESULTS = `${HERE}/../verification/round2_verdicts`  // переехало (#070, 2026-06-02)
 const STATE = `/home/localadm/oss/_aidev_state`
 const EXCLUDE = `${STATE}/round1_shas.txt`
 
@@ -59,7 +59,7 @@ const allRepos = (disc && disc.repos) ? disc.repos : []
 
 await agent(`Bash: mkdir -p ${RESULTS}`, { label: 'mkdir-results2' })
 
-// RESUME: пропустить репы, по которым уже есть verify_results2/<repo>.json (переживает reboot)
+// RESUME: пропустить репы, по которым уже есть round2_verdicts/<repo>.json (переживает reboot)
 const doneRes = await agent(
   `Bash: \`ls ${RESULTS}/*.json 2>/dev/null | xargs -r -n1 basename | sed 's/\\.json$//'\` (может быть пусто). ` +
   `Верни JSON {done:[...]} — список basenames без .json (это repo с '/' заменённым на '_').`,

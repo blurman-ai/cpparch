@@ -1,0 +1,3 @@
+{"repo":"onouh/FibonacciHeap","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"FibonacciHeap.hpp <-> FibonacciHeap.tpp","scc_size":2,"intro_commits":[{"sha":"n/a","edge":"FibonacciHeap.hpp #include FibonacciHeap.tpp (низ файла)","reason":"Идиома разнесения template-определений: .hpp подключает .tpp в конце, .tpp включает .hpp обратно. Не build/ODR-цикл."}],
+"evidence":"Авторский, но цикл = template .hpp<->.tpp идиома. FP-класс include-only детектора."}}

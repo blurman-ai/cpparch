@@ -1,0 +1,4 @@
+{"repo":"aapokaapo/JoyShockMapper-systemd","commits_checked":2,"confirmed":[],
+"false_positives":[{"sha":"top","where":"JoyShockMapper/src/win32/InputHelpers.cpp vs (deleted) JoyShockMapper/include/inputHelpers.cpp","fp_class":"other",
+"what_happened":"inputHelpers.cpp was moved/renamed from include/ to src/win32/InputHelpers.cpp. BASE-side include/inputHelpers.cpp no longer exists; the single hit (line=0.27) is the moved file vs its deleted original.","fix_proposal":"#056: deleted-BASE-path suppression (move/rename); drop very-low line-similarity (<0.3) cross-file hits."}],
+"cycle":null,"note":"File move include/->src/win32; source deleted. Fork of JoyShockMapper. No live duplication. sccs=0."}

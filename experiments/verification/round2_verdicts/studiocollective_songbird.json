@@ -1,0 +1,41 @@
+{
+  "repo": "studiocollective/songbird",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "598cfe528d194491ad736930a16d6b8214937df6",
+      "klass": "within-file-chunk",
+      "where": "app/bridge/PluginMixerBridge.cpp:291-299 / 327-334",
+      "note": "track-resolution preamble copied between setTrackMixer and setMixerParamRT handlers: 'auto audioTracks=te::getAudioTracks(*edit); te::AudioTrack* track=nullptr; if(trackId==(int)audioTracks.size()) track=dynamic_cast<te::AudioTrack*>(edit->getMasterTrack()); else if(...) track=audioTracks[trackId];' verbatim, bodies then diverge (volume/pan/mute/solo vs RT param switch)"
+    },
+    {
+      "sha": "838d965a4858c38b56d661f914e02a119d7107aa",
+      "klass": "within-file-chunk",
+      "where": "app/bridge/TrackBridge.cpp:680-684 / 757-761 (and ~9 handlers total)",
+      "note": "5-line track-resolution guard 'auto audioTracks=te::getAudioTracks(*edit); if(trackId<0||trackId>=(int)audioTracks.size()){complete(\"{\\\"success\\\":false}\");return;} auto* track=audioTracks[trackId];' copy-pasted across ~9 withNativeFunction handlers added in this single commit, each body diverging afterward"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "a3efcf621dfa3916fdada95feb4663827a0d6972",
+      "where": "app/loader/BirdParser.cpp / BirdPopulator.cpp / BirdSerializer.cpp (vs deleted BirdLoader.cpp -1082)",
+      "fp_class": "other",
+      "what_happened": "'refactored loader' splits a 1082-line monolith BirdLoader.cpp into BirdParser/BirdPopulator/BirdSerializer. A line/token detector comparing the new files against the same-commit deletion (or against the prior BirdLoader.cpp blob) flags large verbatim overlap, but this is a MOVE (extract), not duplication — the original copies are gone, no surviving redundancy.",
+      "fix_proposal": "#056: when an ADDED block's near-identical BASE block lives in a file that is DELETED (or heavily shrunk, net lines<<0) in the SAME commit, classify as 'extracted/moved' and suppress. Heuristic: pair each ADDED region with same-commit deletions before cross-file dup scoring; if base-of-match is a deletion, drop the hit."
+    },
+    {
+      "sha": "838d965a4858c38b56d661f914e02a119d7107aa",
+      "where": "app/bridge/TrackBridge.cpp (withNativeFunction lambda scaffolds)",
+      "fp_class": "idiom",
+      "what_happened": "Every JUCE WebBrowser handler is '.withNativeFunction(\"name\", [this](auto& args, auto complete){ if(!edit||args.size()<N){complete(err);return;} ... complete(juce::JSON::toString(...)); })'. The fixed scaffold (arg-check, callAsync wrapper, complete(json)) makes ANY two unrelated handlers score high on token similarity even when their actual logic differs, inflating cross/within-file hit counts.",
+      "fix_proposal": "#056: lower weight of project-wide ubiquitous idiom tokens. Build a per-repo frequency model of n-grams; if a matched block is dominated by tokens whose document-frequency exceeds a threshold (e.g. .withNativeFunction / complete / juce::JSON::toString appearing in >X% of handlers), discount the match. Only flag when the DIVERGENT (non-scaffold) core also exceeds min unique-token length."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: SCC<=1 across all C++ in HEAD",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph on libraries/juce-host => sccs_cyclic=0, largest_scc=1. The entire app/ C++ tree (SongbirdEditor + bridge/ + loader/, where all churn lived) was removed from HEAD; project pivoted to Rust + thin JUCE host (3 .cpp). Remaining C++ has 0 internal edges. No author-code cycle exists in current tree."
+  }
+}

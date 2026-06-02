@@ -1,0 +1,41 @@
+{
+  "repo": "FiveTechSoft/OpenADS",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "6e166e9ab4e8b7a96040005ec1ee0bd6cccb36c6",
+      "klass": "partial-edited",
+      "where": "src/drivers/ntx/ntx_index.cpp:158-210",
+      "note": "NtxIndex::descend_leftmost_ and descend_rightmost_ are near-identical B-tree walks; only slot 0 vs kc and key_index 0 vs kc-1 differ. Classic mirror copypaste in a freshly added file."
+    },
+    {
+      "sha": "6d95220007bbd5a46df2f06bd33a9e1742539e6b",
+      "klass": "within-file-chunk",
+      "where": "src/drivers/cdx/cdx_index.cpp:401-453",
+      "note": "CdxIndex::next() and prev() are mirror copies: +1/-1 step, read_u32_le offset 8 (right) vs 4 (left), AfterEnd vs BeforeBegin, first vs last decoded entry. Same 25-line skeleton copied and edited."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "30233c0381b9fbdf2d803fea0eec0f33ddb53776",
+      "where": "bindings/php_ext/src/ads_arginfo.h:46-301",
+      "fp_class": "data-table",
+      "what_happened": "Each PHP arg spec is a ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(...) / ZEND_ARG_TYPE_INFO(...) / ZEND_END_ARG_INFO() block. Dozens of these differ only in the arginfo name and IS_STRING/IS_LONG type tokens, so the token pass sees many near-verbatim 3-6 line windows. This is generated-style declaration boilerplate (a macro-driven ABI signature table), not logic copypaste.",
+      "fix_proposal": "#056: add a macro-declaration-table filter — when a candidate window is dominated (>70% of non-trivial tokens) by ALL-CAPS macro invocations whose bodies carry no control flow (no if/for/while/return, no operators beyond ',' and '('), drop it. Generalizes the existing protobuf/moc generated-header marker to hand-written but table-shaped macro blocks like ZEND_*, X_MACRO, gperf tables."
+    },
+    {
+      "sha": "692567201805cba309e329105eacd5b68c67bb20",
+      "where": "src/abi/ace_exports.cpp:35-72",
+      "fp_class": "data-table",
+      "what_happened": "System-table definitions are built from inline std::vector<Col> initializer lists ({\"COL_NAME\",'C',200,0}, ...). Multiple such Col-table literals across the file share the {name,type,len,dec} shape and the surrounding build(cols, rows) idiom, so the detector matches the brace-init rows as duplicated chunks even though they encode distinct schemas.",
+      "fix_proposal": "#056: when a window is mostly brace-enclosed aggregate initializers (high ratio of string/char/number literals + braces, near-zero identifiers-as-callees and no statements ending in ';' other than the initializer), treat it as a data table and exclude. Same heuristic also kills the round1 ace_exports literal-table hits, raising precision without hiding the genuine wrapper-logic copies."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 260 nodes / 438 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "Authored tree under src/ (openads:: namespace, no vendored engine). Graph is acyclic; nothing to attribute."
+  }
+}

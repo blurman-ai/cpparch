@@ -1,0 +1,4 @@
+{"repo":"cwida/privacy","commits_checked":3,"confirmed":[],"false_positives":[],
+"cycle":{"present":true,"desc":"privacy_metadata_manager.hpp <-> parser/privacy_parser.hpp","scc_size":2,
+"intro_commits":[{"sha":"cb1b86f","edge":"manager.hpp #include parser/privacy_parser.hpp; parser.hpp #include metadata/privacy_metadata_manager.hpp","reason":"Авторский src/include. Переименование pac->privacy + генерализация замкнуло цикл metadata-manager<->parser. AI-эра дрейф."}],
+"evidence":"src/include/** — авторский. Реальный двусторонний цикл manager<->parser."}}

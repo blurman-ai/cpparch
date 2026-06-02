@@ -1,0 +1,23 @@
+{
+  "repo": "alphaonex86/CatchChallenger",
+  "commits_checked": 8,
+  "confirmed": [],
+  "false_positives": [
+    {
+      "sha": "ea5021f64826",
+      "where": "general/tinyXML2/tinyxml2.cpp vs (deleted) tinyxml2b.cpp/tinyxml2c.cpp",
+      "fp_class": "whole-file",
+      "what_happened": "tinyXML2 is a vendored third-party XML library. During an edit it existed transiently as tinyxml2.cpp + tinyxml2b.cpp + tinyxml2c.cpp (a manual split of one amalgamated file); the current tree has only tinyxml2.cpp. The verbatim cross-file hits are vendored code reassembled from its own temporary split.",
+      "fix_proposal": "#056: directory/name vendoring filter for tinyXML2 (and known amalgamated single-file libs); plus the deleted-source-side suppression already proposed for moves."
+    },
+    {
+      "sha": "ea5021f64826",
+      "where": "server/cli/db/EventLoopPostgresql.cpp vs (deleted) server/epoll/db/EpollPostgresql.cpp; server/base/BaseServer/* vs (deleted) server/base/*; client/libqtcatchchallenger/maprender/* vs (deleted) client/qtmaprender/*",
+      "fp_class": "other",
+      "what_happened": "A sweeping rename/relocation: the Epoll* server backend was renamed to EventLoop* and moved cli/, BaseServer sources moved into a BaseServer/ subdir, and qtmaprender/ was relocated under libqtcatchchallenger/maprender/. The source paths (server/epoll/, server/base/BaseServer2.cpp, client/qtmaprender/) no longer exist in the tree. These are file moves/renames, not maintained duplicate copies.",
+      "fix_proposal": "#056: suppress pairs whose BASE path is deleted by the same commit (treat as move/rename). Optionally detect rename via git --find-renames and exclude the renamed pair."
+    }
+  ],
+  "cycle": null,
+  "note": "121 hits dominated by (a) vendored tinyXML2 amalgamation split and (b) a large Epoll->EventLoop backend rename + directory relocations. All moves/vendor; no live author copypaste confirmed. sccs=0."
+}

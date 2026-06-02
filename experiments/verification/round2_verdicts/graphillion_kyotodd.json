@@ -1,0 +1,47 @@
+{
+  "repo": "graphillion/kyotodd",
+  "commits_checked": 11,
+  "confirmed": [
+    {
+      "sha": "e04128add0d677989e0ec9fb6a1a7226a16ec17a",
+      "klass": "within-file-chunk",
+      "where": "src/zdd_ops_iter.cpp:397-516 (bddunion_iter) vs 517-654 (bddintersec_iter) vs 655-803 (bddsubtract_iter) vs 944-1079 (bddissubset_iter) vs 1080-1228 (bddisdisjoint_iter)",
+      "note": "iter_plan batch 2: 14 *_iter functions repeat the same explicit-stack state machine (enum Phase + struct Frame{f,g,top_var,f_hi,g_hi,lo_result,phase} + stack.reserve(64) + while/switch ENTER/GOT_* scaffold) verbatim, swapping only terminal cases and the combine step; 15x identical stack.reserve(64) init block, 7x identical 'enum class Phase{ENTER,GOT_LO,GOT_HI}'. union vs intersec differ in only ~40 of 120 lines."
+    },
+    {
+      "sha": "357b0c0175be69ce3477b8941eff5b5248328fd8",
+      "klass": "within-file-chunk",
+      "where": "src/zdd_adv_count_iter.cpp:22-127 / 128-215 / 216-310 / 311-406 / 407-527 / 528-630 / 631-end (7 *_iter ops)",
+      "note": "iter_plan batch 4: same manual-stack scaffold copied across the 7 count/profile/elmfreq/exactcount/countintersec _iter variants (7x stack.reserve block), each a partial edit of the prior with the per-op combine logic swapped. Same authored copypaste idiom as batch 2."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "9b3659358d57630d1aa8c97c80b7ba0e1872b3a1",
+      "where": "src/zdd_adv_count.cpp / zdd_adv_filter.cpp / zdd_adv_rank.cpp / zdd_adv_weight.cpp <- src/zdd_adv.cpp",
+      "fp_class": "whole-file",
+      "what_happened": "Pure monolith split: 2239 lines deleted from zdd_adv.cpp and re-created verbatim across 4 new per-category .cpp files (0 net logic change). A token/line dup detector run on the resulting tree (as the ca7523 hint did with zdd_adv_count.cpp:916-925 <- zdd_adv.cpp:850-859) reports the moved bodies as cross-file verbatim clones, but no code was duplicated - it was relocated. The original source no longer exists, so it is a move, not a copy.",
+      "fix_proposal": "#056: in cross-file mode, when scanning a commit diff treat a block as moved (not cloned) if the matching source lines are DELETED in the same commit (rename/move detection over hunks, like git -M). Net: if src-range total deletions ~= dst-range additions and source file shrinks correspondingly, suppress. Already partly addressed by 0beb2f7 rename detection; extend it to N-way splits (one source file -> many)."
+    },
+    {
+      "sha": "dbf24972cddf0cef8fdd5ca5dde631fd3a37607a",
+      "where": "include/mtbdd_core.h / mtbdd_class.h / mtbdd_io.h <- include/mtbdd.h",
+      "fp_class": "whole-file",
+      "what_happened": "Header monolith split (mtbdd.h 2934 lines -> 3 internal headers + 18-line umbrella). Same move-not-copy situation as 9b365935 but for headers; verbatim template bodies relocated into new headers would be reported as cross-file clones.",
+      "fix_proposal": "#056: same move-detection over commit hunks (delete-in-source => suppress) plus exclude umbrella/re-export headers (file whose body is only #include directives) from being a clone endpoint."
+    }
+  ],
+  "cycle": {
+    "present": true,
+    "desc": "bdd_types.h -> bdd_class.h -> bdd_types.h  AND  bdd_types.h -> zdd_class.h -> bdd_types.h (3-node SCC)",
+    "scc_size": 3,
+    "intro_commits": [
+      {
+        "sha": "b91602c686eb01173a2b2731cbdbb246eb6af40d",
+        "edge": "include/bdd_types.h:346-347 adds #include \"bdd_class.h\" and #include \"zdd_class.h\"; both new headers include \"bdd_types.h\" back (bdd_class.h:8, zdd_class.h:8)",
+        "reason": "Proactive monolith split of bdd_types.h (1852 lines): BDD class -> bdd_class.h, ZDD class -> zdd_class.h. Author kept a trailing back-compat re-include of the two extracted class headers in bdd_types.h so existing #include \"bdd_types.h\" callers compile unchanged. The extracted headers still need the types/constants from bdd_types.h, so each includes it back -> 3-node include cycle. Classic split-with-back-compat-umbrella regression; single commit created the whole SCC."
+      }
+    ],
+    "evidence": "Author code under include/ of graphillion/kyotodd (NOT vendored): bdd_types.h, bdd_class.h, zdd_class.h. SCC verified via Tarjan over basename include graph and via archcheck --graph (sccs_cyclic=1, largest_scc=3). Sibling mtbdd split (dbf24972) used an 18-line umbrella that does NOT include its children back, so it did not create a cycle - confirms b91602c's trailing re-include is the specific cause."
+  }
+}

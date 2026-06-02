@@ -1,0 +1,41 @@
+{
+  "repo": "melkyr/znineeight",
+  "commits_checked": 11,
+  "confirmed": [
+    {
+      "sha": "b2fe2bae55a0e96020653f9a37d7e572519e46d5",
+      "klass": "within-file-chunk",
+      "where": "src/bootstrap/double_free_analyzer.cpp:428-491",
+      "note": "visitWhileStmt and visitForStmt are a copy-paste pair: identical pushScope(true)x2, 'Analyze body once', verbatim 'Conservative: all variables modified in loop become AS_UNKNOWN' loop over loop_state->modified, then mergeScopesLinear; only diff is while_stmt.body vs for_stmt->body and final_while_state vs final_for_state"
+    },
+    {
+      "sha": "09ebf19f30c0b7862872c9a03bb9a02ea2f3f495",
+      "klass": "within-file-chunk",
+      "where": "src/bootstrap/ast_utils.cpp:241-267",
+      "note": "cloneASTNode case NODE_STRUCT_DECL / NODE_UNION_DECL / NODE_ENUM_DECL are 3 byte-identical clone blocks modulo type name: alloc *DeclNode, plat_memcpy, alloc DynamicArray<ASTNode*>, ensure_capacity(fields->length()), append-loop over ->fields. Same pattern repeats for function_call/tuple/block array members"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "589a9272bf72",
+      "where": "tests/test_runner_main.hpp:17-31 <- tests/main.cpp:9-23",
+      "fp_class": "idiom",
+      "what_happened": "Verbatim cross-file match is the textbook read-file-into-buffer stdio helper (fopen rb / fseek SEEK_END / ftell / malloc length+1 / fread / buffer[length]=0 / fclose). test_runner_main.hpp is ALREADY the deliberately-shared header-only helper, #included by ~30 tests/main_batchNN.cpp; tests/main.cpp just carries a stale inline copy of the same idiom. Detector reports a 'cross-file chunk' but the canonical copy is intentional dedup-into-header, and the body is a universal ~15-line stdio boilerplate.",
+      "fix_proposal": "#056: (a) suppress cross-file chunk matches where the canonical/base side lives in a header-only helper that is #included by >=N translation units (it is shared-by-design, not drift); (b) maintain a small idiom-fingerprint denylist for file-slurp helpers (fopen+fseek SEEK_END+ftell+malloc+fread+fclose) and require >25-30 non-idiom tokens before a cross-file pair is reported."
+    },
+    {
+      "sha": "212e067a3fb9fe59d36d7335e2e6b538561fd4fb",
+      "where": "src/bootstrap/lifetime_analyzer.cpp:117-202",
+      "fp_class": "idiom",
+      "what_happened": "isDangerousLocalPointer / trackLocalPointerAssignment / extractVariableName each repeat the same visitor guard 'expr->type==NODE_UNARY_OP && op==TOKEN_AMPERSAND && operand->type==NODE_IDENTIFIER -> operand->as.identifier.name'. This is the AST-visitor unwrap idiom, not a copied logic block; each function does different work after the guard.",
+      "fix_proposal": "#056: down-weight short matched regions whose tokens are dominated by AST field-access chains shared across the project's node vocabulary (e.g. as.unary_op.op, NODE_*, ->as.identifier.name appear in the project-wide common dictionary). Require the matched span to contain >=K tokens OUTSIDE the top-frequency project identifier set before flagging."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC; archcheck --graph: nodes=578 edges=2171 sccs_cyclic=0 largest_scc=1",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "Single-author/jules-bot C++ bootstrap compiler under src/bootstrap + src/include + tests; include graph is a DAG, no back-include edges. No vendored library masquerading."
+  }
+}

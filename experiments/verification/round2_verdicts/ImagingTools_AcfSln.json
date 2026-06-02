@@ -1,0 +1,23 @@
+{
+  "repo": "ImagingTools/AcfSln",
+  "commits_checked": 6,
+  "confirmed": [],
+  "false_positives": [
+    {
+      "sha": "28335c8cbbb3",
+      "where": "Include/i*/C*Comp.cpp (cross-file, e.g. CSimpleLoginComp<->CUsersManagerComp, CPerspectiveCalibrationShape<->CGeneralCalibrationShape)",
+      "fp_class": "header-impl",
+      "what_happened": "Acf is a component framework where every component .cpp implements the same NVI lifecycle skeleton (OnComponentCreated/OnComponentDestroyed/OnSelectionChanged, model attach/detach, RegisterModel/UnregisterAllModels, DoRetranslate). Sibling components therefore share large near-identical structural boilerplate that the token detector scores as verbatim cross-file duplication. This is framework idiom, not copied-and-edited logic.",
+      "fix_proposal": "#056: down-weight blocks that are dominated by framework-lifecycle calls / member-attach boilerplate; or require a minimum density of NON-boilerplate tokens (literals, arithmetic, domain calls) before counting a hit."
+    },
+    {
+      "sha": "28335c8cbbb3",
+      "where": "Include/icmpstr/CVisualRegistryEditorComp.cpp:893-932 vs 849-888 (and other within-file verbatim pairs)",
+      "fp_class": "other",
+      "what_happened": "Verification artifact: the hint's BASE/ADDED line ranges are relative to the audited commit snapshot, not current HEAD. Reading those line numbers on the working tree shows unrelated code (a selection-change handler vs component init/teardown). The 'verbatim' within-file pairs cannot be confirmed against HEAD and many are likely the same lifecycle boilerplate appearing in multiple methods.",
+      "fix_proposal": "#056/#066 tooling: pin detector line ranges to the SHA they were measured at (emit blob-relative ranges), so verification reads the correct revision rather than HEAD."
+    }
+  ],
+  "cycle": null,
+  "note": "Acf component-framework boilerplate (NVI lifecycle) drives the cross-file hits; within-file pairs not verifiable on HEAD due to stale offsets. No authored copypaste confirmed. sccs=0."
+}

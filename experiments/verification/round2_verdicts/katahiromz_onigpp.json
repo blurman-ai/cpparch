@@ -1,0 +1,35 @@
+{
+  "repo": "katahiromz/onigpp",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "21e189effb4ffb538d678d8cc5a945d16d6df39d",
+      "klass": "within-file-chunk",
+      "where": "src/onigpp.cpp:1849-1994",
+      "note": "format_literal() copies the hex/octal helpers (is_hex_digit/hex_value/is_octal_digit -> _is_hex_digit/_hex_value/_is_octal_digit) and the \\xHH / \\uHHHH scan-and-decode loop verbatim from _preprocess_pattern_for_ecmascript() (same file, lines 1054-1093), renaming the inline lambdas to free template fns and extending with \\U/octal; later reverted wholesale in 3bddb01c, corroborating the dup"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "477339a8d75872e601c07ec29c7581190034d193",
+      "where": "onigpp.h:248-447",
+      "fp_class": "idiom",
+      "what_happened": "24 non-member comparison operators for sub_match (==,!=,<,<=,>,>= across 4 operand-pair categories: sub_match/sub_match, sub_match/string_type and reverse, sub_match/C-string and reverse). Each body is a one-liner forwarding to compare() with the same comparison constant; only the template signature and the compare-arg order differ. Token/line dedup sees ~24 near-identical 3-line blocks within the file and flags diverged within-file copies. But this is the mandated std::sub_match operator set -- the std spec requires exactly these overloads, so it is canonical boilerplate, not avoidable copy-paste.",
+      "fix_proposal": "#056: add a 'mandatory-overload-set' suppressor -- when matched blocks are non-member operator definitions whose bodies are a single return/forwarding statement to a common compare()/<=> primitive and they differ only in (a) the comparison token and (b) operand order/template params, collapse them into one cluster and drop below report threshold. Concretely: if >=6 candidate dups in one file are all `operator<cmp>` one-liners delegating to the same method, treat as idiom and suppress."
+    },
+    {
+      "sha": "50b5bd207616aec19ea24fffa8d7b974dc5f4fb2",
+      "where": "tests/regex_exception_test.cpp:9-60",
+      "fp_class": "idiom",
+      "what_happened": "Each test_* function is the same scaffold: cout banner -> bool threw=false -> try{ construct regex }catch(regex_error&){threw=true; cout} -> assert(threw && \"...\") -> cout PASSED. Only the pattern literal and the message string change. Line/token dedup flags many diverged within-file copies across the test_* functions; the same scaffold also recurs across regex_iterator_zero_width_test.cpp as cross-file dups.",
+      "fix_proposal": "#056: apply the existing test-file class -- for paths matching tests/ (or files including a test harness header like tests.h / a TEST_CASE/assert harness), raise the min line-similarity AND min unique-token thresholds (e.g. require >=12 non-scaffold tokens of divergence), and exclude blocks whose only varying tokens are string literals + a single function name. Assert/try-catch/cout scaffolds with literal-only variation should be filtered as test boilerplate."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC -- archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 36 nodes / 32 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "Authored surface is a header-only-ish lib: onigpp.h + src/onigpp.cpp + tests/*. The only large dependency subtree is oniguruma/ (the vendored Oniguruma C regex engine, upstream), which is not part of the authored include graph forming any cycle. No cycle-introducing commit exists."
+  }
+}

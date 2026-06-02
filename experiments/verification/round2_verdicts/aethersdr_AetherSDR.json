@@ -1,0 +1,53 @@
+{
+  "repo": "aethersdr/AetherSDR",
+  "commits_checked": 30,
+  "confirmed": [
+    {
+      "sha": "ca609c66",
+      "klass": "within-file-chunk",
+      "where": "src/gui/MainWindow.cpp (both confirmClientSlotAvailability overloads, RadioInfo + WanRadioInfo)",
+      "note": "feat #2488 added the same ~22-line ConnectedStationsDialog build block (RadioMeta meta + sdClients loop building ConnectedStationsDialog::Client + dialog.exec + selectedHandle) verbatim into BOTH confirmClientSlotAvailability overloads in one commit (2x 'ConnectedStationsDialog::Client sc;', 2x 'sdClients.append(sc);'); differs only by the gate condition (multiFlexEnabled vs licensedClients<=1)"
+    },
+    {
+      "sha": "477f1eb5",
+      "klass": "within-file-chunk",
+      "where": "src/gui/MainWindow.cpp (3 AetherDspDialog open sites)",
+      "note": "feat #796 added the AetherDspDialog raise-or-create + ~25 connect(dlg,&AetherDspDialog::nrXChanged,...QMetaObject::invokeMethod(m_audio,...setNrX)) signal-wiring block 3 times in one commit (3x 'new AetherDspDialog', 3x nr4ReductionChanged, 44 added invokeMethod(m_audio,...) lines); later a 4th copy was layered on"
+    },
+    {
+      "sha": "aedcd11a",
+      "klass": "within-file-chunk",
+      "where": "src/core/ThemeManager.cpp:~945-964 (pre-existing scope->tokens) vs ~1106-1125 (new m_tokens)",
+      "note": "feat #3176 duplicated the existing per-scope QVariant->QJsonValue token serializer (QString/Int/Double/Bool/gradMetaId ThemeGradient->QJsonObject linear/radial-gradient + stops) into a new global m_tokens serializer; bodies identical except the iterated container. Original block introduced 030d82d2, second copy is net-new in aedcd11a (1 added 'radial-gradient', 1 added gradMetaId branch)"
+    },
+    {
+      "sha": "37411c6d",
+      "klass": "cross-file-chunk",
+      "where": "src/gui/Strip{Comp,Gate,Eq,Tube,Pudu}Panel.cpp (geometry-persistence + window-event tail)",
+      "note": "Channel-Strip PR #2307 created 5 sibling Strip*Panel classes in one commit; saveGeometryToSettings/restoreGeometryFromSettings + closeEvent/moveEvent/resizeEvent/showEvent/hideEvent block is copy-pasted across all siblings, edited only by class name and the '<Panel>Geometry' settings key string (partial-edited siblings)"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "081cb1b2",
+      "where": "src/core/ClientEq.cpp:~147-166 vs ~259-279",
+      "fp_class": "data-table",
+      "what_happened": "Two copies of the RBJ Audio-EQ-Cookbook biquad-coefficient computation (Peak/LowShelf/HighShelf cases: b0=1+alpha*A, twoSqrtAalpha=2*sqrtA*alpha, etc.). One is the design-time coefficient path, the other the cached-runtime path. The line/token detector sees ~20 identical algebraic-assignment lines and flags a chunk clone, but these are a canonical published DSP formula table, not refactorable application logic (extracting it would hurt the audio hot path).",
+      "fix_proposal": "#056: add an 'algebraic data-formula' suppressor — when a candidate clone is >=70% lines of the shape 'ident = <arithmetic expr of known math idents (alpha,cosW,sqrtA,A,...)>;' with no calls/branches/side-effects beyond a switch-case skeleton, downweight (treat like a data-table). Equivalently extend the existing data-table heuristic to recognize dense numeric/arithmetic assignment runs, not just brace-init literal arrays."
+    },
+    {
+      "sha": "477f1eb5",
+      "where": "src/gui/MainWindow.cpp (Qt connect(...) blocks, e.g. 6065-6079 vs 2932-2947)",
+      "fp_class": "idiom",
+      "what_happened": "Beyond the genuine 3x AetherDspDialog clone (counted as confirmed), the line-window detector ALSO fires on individual runs of the Qt connect(obj,&Sig,this,[this](T v){ QMetaObject::invokeMethod(m_audio,[this,v](){ m_audio->setX(v); }); }); idiom that repeats per-signal within a single wiring site. These per-signal repeats are mechanical Qt signal-slot boilerplate (one line per parameter), not a copied logic chunk.",
+      "fix_proposal": "#056: detect the connect(...)/QMetaObject::invokeMethod lambda-forwarding idiom and collapse a run of consecutive such statements into a single 'signal-wiring' token before clone matching, so N near-identical one-liner connects don't inflate a window match. More generally, suppress windows whose only varying tokens are a signal name + setter name drawn from the same identifier family."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle at HEAD",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph on HEAD: nodes=607 edges=1447 sccs_total=607 sccs_cyclic=0 largest_scc=1. CORPUS_CHECK_DETAIL also reports циклы=0(SCC<=1). No cyclic SCC to attribute; nothing to archaeology."
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "repo": "chrxh/alien",
+  "commits_checked": 30,
+  "confirmed": [
+    {
+      "sha": "a812c978d6456b9844bc60f39c70a86f781f2e77",
+      "klass": "within-file-chunk",
+      "where": "source/EngineTests/ConstructorTests.cpp:450-498 <- 407-449",
+      "note": "firstCell_gene0_branch2_finished copied from firstCell_gene0_branch1_finished: identical setSimulationData/calcTimesteps/getSimulationData skeleton, edited only numBranches(1)->numBranches(2) and currentBranch literal"
+    },
+    {
+      "sha": "f36b1859e6288390e89e3440c1396d91635df4e5",
+      "klass": "within-file-chunk",
+      "where": "source/EngineTests/GenomeDescriptionInfoServiceTests.cpp:379-409 <- 356-378",
+      "note": "getGenesForCreatureParts_twoNonSeparatingHulls copied from _singleNonSeparatingHull: same GeneDescription().separation(false).nodes({NodeDescription().cellTypeData(ConstructorGenomeDescription().geneIndex(N))}) builder blocks, edited geneIndex/separation/expected vector"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "0066f052f1a1a11a7729310d2278232f646e8a1e",
+      "where": "source/EngineInterface/ShapeGenerator.h:67-87 (vs cpp:334-355) and the generateNextConstructionDataFor* family",
+      "fp_class": "idiom",
+      "what_happened": "ShapeGenerator dispatch is a family of generateNextConstructionDataForSegment/Triangle/Rectangle/Hexagon/Tube/Lolli/Zigzag functions plus getPreferredFrontAngle, each built from the same repeated assignment idiom (result.numAdditionalConnections=...; result.requiredNodeId[i]=...; result.requiredNodeAngle1[i]=...; result.requiredNodeAngle2[i]=...) and parallel switch(shape){case ...: return literal;} blocks. The cross-file hit ShapeGenerator.h:67-87 <- ShapeGenerator.cpp:334-355 (w=0.60 line=0.32) matches two such switch/return literal tables that share structure but encode different geometry constants.",
+      "fix_proposal": "#056: treat blocks dominated by a single repeated statement template (>=70% of lines normalize to one assignment/return shape with only array-index/literal differences) as a low-information idiom and suppress; for switch-on-enum returning literals, require token-identity not just structural-shape before reporting. Combine with the existing line-similarity floor (line=0.32 is far below any sane threshold and should never surface)."
+    },
+    {
+      "sha": "a2e905cf2a896c1c81e933dd958354baf2e53d61",
+      "where": "source/Gui/InspectionWindow.cpp:1-879 (vs deleted source/Gui/InspectorWindow.cpp)",
+      "fp_class": "whole-file",
+      "what_happened": "WIP rewrite that adds InspectionWindow.cpp (+879) while deleting InspectorWindow.cpp (-901). The new file is overwhelmingly a renamed copy of the deleted one (InspectorWindow->InspectionWindow). A naive cross-file detector flags this as massive duplication, but it is a file move/rename, not parallel duplicated code (the source no longer exists).",
+      "fix_proposal": "#056/diff-mode: extend rename detection (already added in 0beb2f7) to handle add+delete pairs within one commit where similarity is very high AND the basename differs by a stable substring (Inspector->Inspection). Score the pair as a rename, exclude both sides from copy-paste accounting."
+    },
+    {
+      "sha": "2ee06dd37707",
+      "where": "source/PersisterInterface/SerializerService.cpp / ParameterParser encodeDecode call runs",
+      "fp_class": "idiom",
+      "what_happened": "(de)serialization is a long sequence of ParameterParser::encodeDecode(tree, field, default, \".Name\", parserTask) calls, one per field. Consecutive lines are near-identical, only field/default/name change. Token n-gram matching sees high overlap between any two windows of these call runs. CORPUS_CHECK_DETAIL already flagged SerializerService.cpp:225-244 <- 122-141 (w=0.97 line=0.50) from this idiom.",
+      "fix_proposal": "#056: add a 'serialization/registration run' guard - if a candidate block is a contiguous run of calls to the SAME function name (>=N identical callee, varying only argument literals), down-weight or suppress as a builder/registration idiom rather than copied logic."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle; archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 462 nodes / 1769 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph /home/localadm/oss/_aidev_dense/chrxh_alien: nodes=462 edges=1769 sccs_cyclic=0 largest_scc=1. Author C++ code is acyclic at include level; no closing back-edges to investigate."
+  }
+}

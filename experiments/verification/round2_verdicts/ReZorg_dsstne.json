@@ -1,0 +1,16 @@
+{
+  "repo": "ReZorg/dsstne",
+  "commits_checked": 5,
+  "confirmed": [],
+  "false_positives": [
+    {
+      "sha": "914d1cbc36dd",
+      "where": "src/amazon/dsstne/engine/NN*.cpp (within-file)",
+      "fp_class": "whole-file",
+      "what_happened": "The repo is a fork of Amazon DSSTNE (src/amazon/dsstne/**) -- a vendored deep-learning engine, not code authored by the repo owner. The 28 within-file hits sit entirely in that upstream tree (NNNetwork.cpp, NNTypes.cpp, NNWeight.cpp, NNLayer.cpp). Spot-checking the reported pair NNNetwork.cpp:4143-4192 vs 3593-3642 shows non-matching content (MPI ring-reduce vs JSON layer parsing), so the high w-score also reflects noisy offset matching on a large file.",
+      "fix_proposal": "#056: path-based vendoring filter for src/amazon/** (forked-upstream namespace), and tighten within-file matching so reported line ranges must actually share normalized tokens (the 4143/3593 pair should not have scored verbatim)."
+    }
+  ],
+  "cycle": null,
+  "note": "Fork of Amazon DSSTNE; all hits in vendored upstream engine. No author copypaste. sccs=0."
+}

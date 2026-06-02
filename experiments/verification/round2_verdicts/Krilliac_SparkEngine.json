@@ -1,0 +1,63 @@
+{
+  "repo": "Krilliac/SparkEngine",
+  "commits_checked": 30,
+  "round": 2,
+  "note": "Round1 stop-list (1ef9347d LOC-bot snapshot, e134c453 platform-split mirror files, etc.) honored. New coverage spread across 30 commits by C++-only fatness, ranks 1..985 over 2025-08..2026-04. The biggest fat commits this round are MOVES (header/file splits: 28ce1564, 571f4542, 5046212c delete-dead-code) which are legitimate extraction, not copy-paste. Genuine NEW copy-paste lives in the 'add N systems' commits where AI generated parallel stub/render classes.",
+  "confirmed": [
+    {
+      "sha": "1547f78a75b4",
+      "klass": "within-file-chunk",
+      "where": "SparkEngine/Source/Engine/OnlineServices/OnlineServices.h:370-485",
+      "note": "SteamPlatform / EpicPlatform / ConsolePlatform are three near-identical IOnlinePlatform stub classes; ~22 method bodies each are byte-identical (all return false / {}), only GetPlatformName() return-string differs. Classic AI triple copy-paste of a null-object stub."
+    },
+    {
+      "sha": "00078283011f",
+      "klass": "partial-edited",
+      "where": "SparkEditor/Source/Panels/DialogueEditorPanel.cpp:737-940",
+      "note": "RenderNPCLineNode / RenderPlayerChoiceNode / RenderConditionNode / RenderEventNode — four ~50-line per-node-type render functions sharing identical ImGui rect/header/color/label drawing; differ only in node type enum and node dimensions. Real partial-edited chunk copy."
+    },
+    {
+      "sha": "5947c7f5da0a",
+      "klass": "within-file-chunk",
+      "where": "SparkEngine/Source/Graphics/UpscalingShaders.h:285-313 vs 523-550",
+      "note": "Ironically in a commit titled 'reduce code duplication': CatmullRomWeight() and SampleHistoryCatmullRom() HLSL helpers are copy-pasted verbatim between two embedded raw-string shaders (kTemporalUpscaling_CS and kSparkSR_CS). Real dup, but lives inside C++ raw string literals."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "8175be5d610b",
+      "where": "SparkEngine/Source/Graphics/DynamicQualityTypes.h:1-23 <=> UpscalingTypes.h:1-23",
+      "fp_class": "idiom",
+      "what_happened": "Matched window is the engine-wide header preamble: '#pragma once' + '#include \"../Core/Platform.h\"' + '#ifdef SPARK_PLATFORM_WINDOWS / #include <DirectXMath.h> [/ <d3d11.h>] / #endif' + a block of std <string>/<cstdint>/<cmath> includes. Every header in the repo opens this way, so any two headers collide on a 10-15 line window. Not a code chunk.",
+      "fix_proposal": "#056: exclude preprocessor-directive runs from the token stream before windowing — a window whose non-comment tokens are >=70% #include/#ifdef/#endif/#pragma should not seed a clone. Equivalently, require each clone window to contain at least one statement/expression token (assignment, call, control-flow keyword), not only directives + braces."
+    },
+    {
+      "sha": "e12cdf2076ae",
+      "where": "SparkEngine/Source/Engine/Destruction/DestructionSystem.h:34-49 <=> SparkEngine/Source/Engine/Replay/ReplaySystem.h:41-56",
+      "fp_class": "idiom",
+      "what_happened": "Same shared header prologue as above (Platform.h + SPARK_PLATFORM_WINDOWS DirectXMath guard + std includes + 'namespace Spark {' + a '// ====' banner). Two freshly-added system headers from the same generator template share the identical opening boilerplate; no actual logic is duplicated.",
+      "fix_proposal": "#056: same directive-run exclusion; additionally drop decorative comment-banner lines ('// ===...') and lone 'namespace X {' lines from window content so the boilerplate scaffold of a generated header does not anchor a match. Set a minimum of N>=8 substantive statement tokens per clone."
+    },
+    {
+      "sha": "00078283011f",
+      "where": "SparkEditor/Source/Panels/DialogueEditorPanel.cpp:705,748,801 (drawList->AddRectFilled node-frame calls)",
+      "fp_class": "idiom",
+      "what_happened": "Beyond the genuine 4-function copy reported above, the SHORTER 3-6 line ImGui drawing idioms (AddRectFilled/AddRect with IM_COL32 + 6.0f*m_canvasZoom) recur across RenderNode and every per-type renderer; with a small window these fire as standalone clones even where only the canonical ImGui call pattern is shared, not a copied block.",
+      "fix_proposal": "#056: raise the minimum clone length for GUI/draw-immediate-mode call chains, or weight call-only windows (consecutive lines that are all member-call statements with literal args) lower so a 3-line ImGui idiom does not score as a clone; only flag when the duplicated run includes branching/loops or local-variable computation, as the real 4-function copy does."
+    }
+  ],
+  "cycle": {
+    "present": true,
+    "desc": "SparkEngine/Source/Graphics/RHI/RHIPipelineTypes.h -> RHITypes.h -> RHIPipelineTypes.h",
+    "scc_size": 2,
+    "scc_grew_gradually": false,
+    "intro_commits": [
+      {
+        "sha": "8175be5d610b",
+        "edge": "both edges in one commit: RHIPipelineTypes.h adds #include \"RHITypes.h\" (line 14, needs core format/resource types) AND RHITypes.h adds a trailing #include \"RHIPipelineTypes.h\" (line 463, labeled 'Backwards compatibility ... so existing code that only includes RHITypes.h still sees pipeline state types')",
+        "reason": "Split-the-monolith refactor ('split 25+ oversized headers'): pipeline state types were extracted from RHITypes.h into a new RHIPipelineTypes.h, but the original header kept a back-compat re-include of the new child, while the child legitimately includes the parent for the core types it still depends on -> immediate 2-node cycle."
+      }
+    ],
+    "evidence": "Authentic author code, header '@author Spark Engine Team'. Files: SparkEngine/Source/Graphics/RHI/RHITypes.h (closing edge at line 463) and RHIPipelineTypes.h (line 14). Not vendor (imgui/MacKernelSDK live elsewhere). SCC size 2, both edges from the single commit 8175be5d; no gradual growth."
+  }
+}

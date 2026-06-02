@@ -1,0 +1,35 @@
+{
+  "repo": "brooksthemaker/ProtoHUD",
+  "commits_checked": 14,
+  "confirmed": [
+    {
+      "sha": "03c239f74dd217c0b706d9f05e7db43bed462da5",
+      "klass": "within-file-chunk",
+      "where": "src/main.cpp:1314-1390",
+      "note": "draw_boop_face_preview lambda is draw_face_preview (main.cpp:1048-1116) copied near-verbatim: identical ~60-line texture-upload/decode body (glGenTextures/glTexImage2D/AddImage + decode-failed fallback), only id swaps face_preview->boop_face_preview, kFaceSlots->kBoopFaceSlots, expr_label->lbl, s.expression->s.file_stem"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "db9ef404acde7c84a350e5921f315b9f5ee30bbc",
+      "where": "src/face/particles.cpp:155-410",
+      "fp_class": "idiom",
+      "what_happened": "8 sibling effect classes (Sparkle/Snow/Embers/Confetti/Rings/Rain/Fireflies/Clouds) derive from BaseEffect and each have update(double dt)/render() with the SAME scaffolding: a 'particles_.erase(remove_if...)' decay loop and a 'while((int)particles_.size() < count(N)) { pick_life/pick_color/emit_pos; particles_.push_back(p); }' spawn loop, plus a near-identical 'cv::Mat c = blank(); for(p) draw_particle(c,p,alpha); return c;' render. The shared lines are framework boilerplate of a polymorphic effect family; the actual per-effect physics inside the loops genuinely differs.",
+      "fix_proposal": "For within-file hits where both fragments are method bodies of DIFFERENT classes sharing a common base (detect via 'class X : public Base'), and the matched lines are dominated by a recognized container-spawn/decay idiom (remove_if + while-size<N + push_back), require the DIVERGENT (non-idiom) line ratio to exceed a threshold before reporting. I.e. subtract a per-family idiom skeleton: if >60% of matched tokens are the shared loop scaffolding, suppress."
+    },
+    {
+      "sha": "b227dfe4dc2c86c38e8736c9288572ca163680cc",
+      "where": "src/net/bt_monitor.cpp:9-18",
+      "fp_class": "idiom",
+      "what_happened": "BtMonitor/PingMonitor/WifiMonitor/WeatherMonitor each define a thread-lifecycle pair: start(AppState*) { state_=...; running_=true; thread_=std::thread(&X::thread_fn,this); } and stop() { running_=false; if(thread_.joinable()) thread_.join(); }. The stop() bodies are byte-identical and start() differs only by class name and a couple of extra assignments. A cross-file token detector flags these 6-12 line skeletons even though each monitor's scan_devices/thread_fn payload is distinct.",
+      "fix_proposal": "Add a min-distinctive-body filter for cross-file hits: ignore matches whose body is a std::thread start/stop lifecycle skeleton (thread_=std::thread(&...,this); running_=...; joinable()/join()). More generally, gate cross-file reports on a minimum count of non-boilerplate statements (>=N unique non-RAII/non-lifecycle stmts), so 6-8 line ctor/start/stop/dtor skeletons that recur across a class family don't fire."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 180 nodes / 208 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph on /home/localadm/oss/_aidev_dense/brooksthemaker_ProtoHUD: nodes=180 edges=208 sccs_total=180 sccs_cyclic=0 largest_scc=1. Author code is layered (camera/ hud/ face/ net/ sensor/ menu/ -> app_state.h + protocols.h); no back-edge closing a cycle. Matches corpus hint (circles=0, SCC<=1)."
+  }
+}

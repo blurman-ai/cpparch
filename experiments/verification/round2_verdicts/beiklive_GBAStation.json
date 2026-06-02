@@ -1,0 +1,48 @@
+{
+  "repo": "beiklive/GBAStation",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "7ca25cdd86a615db2afd1b31fb117b606b94f76e",
+      "klass": "within-file-chunk",
+      "where": "src/ui/utils/GameMenuView.cpp:630-1012",
+      "note": "Three SidePanel setup blocks (m_ShaderSidePanel 630-806, m_OverlaySidePanel 810-896, m_CustomSidePanel 901-1012) each open with the SAME verbatim 10-line brls::Box configuration header (setHideHighlight/setPositionType/setPositionTop/Left/setWidthPercentage/HeightPercentage/setBackgroundColor(0,0,0,60)/setFocusable(false)/setVisibility(GONE)), only the member name differs; bodies diverge (shader params vs overlay path vs custom). Classic copy-paste-and-edit of a panel-builder block."
+    },
+    {
+      "sha": "4e98729fd1f588b7dac47fb201ae12c28e8f7b3c",
+      "klass": "partial-edited",
+      "where": "src/ui/page/UpdatePage.cpp:152-173",
+      "note": "formatSpeed() copied to formatSize(): identical 1024/1024*1024 ladder + snprintf(buf,\"%.1f KB\",.../1024.0) structure, only the unit-suffix literals edited (\" B/s\"->\" B\", \"KB/s\"->\"KB\", \"MB/s\"->\"MB\") and the divisor variable type. formatETA below diverges (time formatting) so it is not part of the clone."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "03cfe2bb563dca1d0d0095e0203b03275ceba6af",
+      "where": "src/ui/utils/CheatMatcher.cpp:206-215 vs 233-242",
+      "fp_class": "idiom",
+      "what_happened": "Two brls::Button construction blocks (the cancel button in ProgressDialog ctor and the OK button in showResult()): new brls::Button / setText(...) / setWidth(140.f) / registerClickAction([...]{popActivity; return true;}) / m_buttonBox->addView(btn). They are ~7 near-identical lines because the brls UI framework forces this exact build-button idiom; the differing parts (label text, captured this, extra m_onCancel call) are tiny. A token detector at w>=0.79 flags it but there is no copied logic, only a GUI-widget construction idiom.",
+      "fix_proposal": "#056: add an idiom-suppression filter for short GUI-builder runs — when a candidate clone is <=8 statements AND >=70% of its tokens are method-call chains on a freshly new'd local/member of a single widget type (new X(); x->setA(); x->setB(); container->addView(x);), down-weight or drop it. Equivalently raise the min-token / min-statement threshold for blocks dominated by setter-chain calls so framework boilerplate doesn't cross the report bar."
+    },
+    {
+      "sha": "4e98729fd1f588b7dac47fb201ae12c28e8f7b3c",
+      "where": "src/ui/page/UpdatePage.cpp:120-130 vs 229-236 vs 238-245 vs 254-261",
+      "fp_class": "idiom",
+      "what_happened": "Multiple brls::DetailCell button blocks (cancel / manual / close / install): new brls::DetailCell(); cell->setText(...); cell->registerClickAction([](View*){ ...; popActivity(); return true; }); box->addView(cell). Same DetailCell-builder idiom repeated for each action button; only the captured lambda body and label differ. Detector sees high token overlap on the builder skeleton.",
+      "fix_proposal": "#056: same GUI-builder idiom suppression as above — treat repeated new+setter-chain+registerClickAction+addView sequences on framework widget types as boilerplate, not clones. Could be data-driven via an allowlist of builder method names (setText/setWidth/registerClickAction/addView/registerAction) that, when they dominate a block, exclude it from clone reporting."
+    },
+    {
+      "sha": "4e98729fd1f588b7dac47fb201ae12c28e8f7b3c",
+      "where": "src/ui/page/UpdatePage.cpp:152-181",
+      "fp_class": "data-table",
+      "what_happened": "formatSpeed/formatSize/formatETA family share the cascading-threshold-return shape (if x<A return ...; if x<B return ...; return ...). formatETA in particular looks similar to the byte formatters structurally but encodes a totally different unit ladder (seconds->minutes) with different literals. A structural/token detector can over-match the three as one cluster, but formatETA is independent logic, not copied.",
+      "fix_proposal": "#056: when comparing short threshold-ladder functions, weight numeric-literal and string-literal divergence higher — if the constant set and format-string set differ substantially between two blocks (e.g. 1024 vs 60, \"KB\" vs \"分\"), treat them as a units-family idiom rather than a clone. This keeps the real formatSpeed<->formatSize pair (same 1024 constants) while dropping the formatETA false pairing."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports nodes=127 edges=251 sccs_cyclic=0 largest_scc=1",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "Author code under src/ and include/ (127 nodes, 6 unresolved, 340 external). No cyclic SCC. Vendored libs (third_party/borealis, extern/mgba, example/gfx retroarch) are excluded from author graph and were not assessed for cycles per scope."
+  }
+}

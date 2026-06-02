@@ -1,0 +1,3 @@
+{"repo":"ReZorg/plingua","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"summary 2 цикла, текущий граф sccs_cyclic=0","scc_size":3,"intro_commits":[],
+"evidence":"P-Lingua membrane-computing tool, examples/opencog вендор. Цикл не воспроизводится. Артефакт измерения."}}

@@ -1,0 +1,41 @@
+{
+  "repo": "CTalkobt/M65Compiler",
+  "commits_checked": 9,
+  "confirmed": [
+    {
+      "sha": "994d276ba83845f459d9fc1bc942f16c052c4037",
+      "klass": "within-file-chunk",
+      "where": "src/main/AssemblerSimulatedOps.cpp:32-199",
+      "note": "symbol->addr resolution block 'uint32_t addr=0; if(sym) addr=sym->value; else {try{addr=parseNumericLiteral(X);}catch(...){addr=0;}}' pasted 13x in this commit (37x total in file), only the parsed identifier (target/src/dest/op...) edited; should be one resolveAddr() helper"
+    },
+    {
+      "sha": "cd5ce3cbf88810b101ba5350a5945fca60e81cfc",
+      "klass": "within-file-chunk",
+      "where": "src/main/AssemblerSimulatedOps.cpp:47-142",
+      "note": "dispatch_AddSub16/dispatch_AddSub32, dispatch_Bitwise16/32, dispatch_CMP16/32, dispatch_NegNot16/32 etc. are 16->32 copy-edited wrapper pairs (same body, swapped enum + emitXxx16->emitXxx32 callee)"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "2fb1539550839f5efe35823ee49cb3123b627079",
+      "where": "src/test/test_validation_addressing.cpp:89-127",
+      "fp_class": "idiom",
+      "what_happened": "6 new validation test files each redefine the SAME static test-harness helpers (writeAssemblyFile/readFile/readBinaryFile/assembleCode/assemblySucceeded). The only per-file difference is the hardcoded temp filename string ('test_validation_addressing_temp' vs '..._directives_temp' ...). Token detector sees near-identical cross-file blocks and flags clone, but this is standard per-suite test scaffolding, not architectural drift.",
+      "fix_proposal": "#056: add a 'test-harness boilerplate' filter — when a near-dup block lives in files under a tests/ or *test*/ path AND the block is file-static (static linkage, only used within its TU) AND the only divergence is string literals, downweight/suppress. Practically: exclude file-local static helpers in test dirs from cross-file clone scoring, or raise the cross-file threshold for paths matching test globs."
+    },
+    {
+      "sha": "cd5ce3cbf88810b101ba5350a5945fca60e81cfc",
+      "where": "src/main/AssemblerSimulatedOps.cpp:32-130",
+      "fp_class": "idiom",
+      "what_happened": "Most dispatch_Xxx() wrappers are 2-3 line adapter thunks (forward the (parser,emitter,stmt) signature to an existing emitXxxCode with field unpacking). Detector groups dozens of them as a near-dup family, but they are intentional uniform-signature adapters introduced by a DEDUP refactor (this commit removed ~490 lines of if-else chains). Flagging the adapters as new copy-paste inverts the intent.",
+      "fix_proposal": "#056: short-thunk exemption — suppress clone hits where the matched block is <=3 statements AND the body is a single call/return forwarding the function's own params (pure delegation), since collapsing such thunks adds indirection without removing real logic. Min meaningful-token threshold for adapter functions."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle: archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 339 nodes / 222 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "authoritative include graph from build/debug/src/archcheck --graph; matches corpus hint (cycles=0, SCC<=1). No vendored library under nonstandard name needed to explain it."
+  }
+}

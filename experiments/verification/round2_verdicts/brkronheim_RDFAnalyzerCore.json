@@ -1,0 +1,48 @@
+{
+  "repo": "brkronheim/RDFAnalyzerCore",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "3b9cfac49f76a3698af325a8ebced3817df43e5b",
+      "klass": "cross-file-chunk",
+      "where": "core/plugins/NDHistogramManagerNew/NDHistogramManager.h:1-108",
+      "note": "В одном коммите автор создал параллельный модуль NDHistogramManagerNew/, скопировав целиком NDHistogramManager.h (98% идентичен оригиналу — отличие лишь в 2 удалённых #include string/vector) и побайтово идентичный .cc (187 строк, diff=0), одновременно правя оригинальный .cc на 202 строки. Классический fork-copy модуля = архитектурный дрейф."
+    },
+    {
+      "sha": "3b9cfac49f76a3698af325a8ebced3817df43e5b",
+      "klass": "cross-file-chunk",
+      "where": "core/plugins/NDHistogramManagerNew/NDHistogramManager.cc:1-187",
+      "note": "Сопутствующий .cc нового модуля — побайтовая копия старого NDHistogramManager.cc (comm -12 = 188/188 строк совпадают, diff пуст). Это whole-file копия авторского, не вендорного, кода: HandleAxisVarVector + BookSingleHistogram перенесены без изменений в форкнутую папку."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "60e634fec811e204b0a622fcb53ad9f38ccc9a86",
+      "where": "core/plugins/JetEnergyScaleManager/JetEnergyScaleManager.cc:193-218 (propagateMET, output MET pT vs MET phi)",
+      "fp_class": "idiom",
+      "what_happened": "Два соседних блока внутри propagateMET имеют идентичный каркас RDataFrame-идиомы: `{ ROOT::RDF::RNode df = dataManager_m->getDataFrame(); auto newDf = df.Define(col, lambda, {tmpCol}); dataManager_m->setDataFrame(newDf); }`. Реально различается лишь тело лямбды (std::sqrt(x*x+y*y) против std::atan2(y,x)) и имя выходной колонки. Совпадает обвязка, а не логика. Детектор ловит каркас как near-copy (line~0.5).",
+      "fix_proposal": "#056: при селективной нормализации НЕ нормализовать тела лямбд/выражения внутри df.Define()-обвязки; считать get/Define/set-триплет фреймворковым scaffolding-токеном и исключать из веса совпадения. Альтернатива — порог min-distinct-statements>=2 на не-обвязочных строках (исключив объявления RNode/auto newDf и парный set)."
+    },
+    {
+      "sha": "2e93293fe5b947cbbb9889102294be606a51d401",
+      "where": "core/bindings/python_bindings.cpp:241-272 (.def(\"DefineJIT\") vs .def(\"FilterJIT\"))",
+      "fp_class": "data-table",
+      "what_happened": "pybind11 registration-таблица: цепочка `.def(\"X\", &Wrapper::X, py::arg(...), R\"pbdoc(...)\", py::return_value_policy::reference_internal)`. DefineJIT и FilterJIT почти идентичны структурно — отличаются только именем метода и текстом docstring внутри raw-string R\"pbdoc(...)\". Это декларативная таблица биндингов, а не дублированная логика.",
+      "fix_proposal": "#056: трактовать содержимое raw string literals (R\"...(...)...\") как непрозрачный токен (хешировать целиком, не по строкам) — тогда docstring не раздувает совпадение, а .def-каркас распознаётся как одиночная декларативная запись; плюс эвристика 'method-chain of .def(...) на одном receiver' = registration table → понизить вес."
+    },
+    {
+      "sha": "60e634fec811e204b0a622fcb53ad9f38ccc9a86",
+      "where": "core/test/testJetEnergyScaleManager.cc:101-114 (SetJetColumnsWithEmptyPtThrows и семейство ...WithEmptyXThrows)",
+      "fp_class": "idiom",
+      "what_happened": "Кластер GoogleTest-кейсов TEST_F(..., <Name>WithEmptyXThrows) по 3-4 строки: создать mgr, EXPECT_THROW(mgr.setX(\"\"...), std::invalid_argument). Отличаются лишь подставляемым пустым аргументом — это нераскрытый параметризованный тест (по сути TEST_P), а не копипаст содержательной логики.",
+      "fix_proposal": "#056: минимальный порог по числу значимых строк блока (>=5) ДО учёта в копипаст-репорте, и/или распознавать TEST_F/TEST_CASE-обёртку с единственным EXPECT_* как параметризуемый кейс → не репортить такие как дубликаты (отдельная категория 'parametrizable-test', не FP-шум)."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "циклов нет",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph: nodes=135, edges=577, sccs_cyclic=0, largest_scc=1. Граф ацикличен на текущем HEAD; авторский код в core/interface + core/plugins, без вендорных под-папок в include-графе."
+  }
+}

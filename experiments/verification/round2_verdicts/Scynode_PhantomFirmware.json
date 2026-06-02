@@ -1,0 +1,16 @@
+{
+  "repo": "Scynode/PhantomFirmware",
+  "commits_checked": 6,
+  "confirmed": [],
+  "false_positives": [
+    {
+      "sha": "c2e2089",
+      "where": "src/mech/*.cpp, src/ble/*.cpp, src/app/*.cpp vs (deleted) src/scultpureMode.cpp, src/BLE.cpp, src/main.cpp",
+      "fp_class": "other",
+      "what_happened": "Commit c2e2089 'Create src/app/ module and remove original monolithic source files' decomposed three huge monolith files (scultpureMode.cpp, BLE.cpp, main.cpp) into per-subsystem files under src/mech, src/ble, src/app, src/chess, src/sensors. The 37 reported within/cross-file hits are near-100%% similar because the code was MOVED, not duplicated: the BASE side (monolith) was deleted in the same change. No live duplicate pair exists in the current tree.",
+      "fix_proposal": "#056: when a near-100%% similar BASE block lives in a file that is DELETED by the same commit (status D in the diff), classify the pair as a code-move/rename rather than copypaste and suppress it. Cross-check the BASE path against the commit's deleted-paths set before emitting a hit."
+    }
+  ],
+  "cycle": null,
+  "note": "Monolith-split refactor (c2e2089). Detector flags moved code vs its deleted source as duplication. No author copypaste; no cycle (sccs=0)."
+}

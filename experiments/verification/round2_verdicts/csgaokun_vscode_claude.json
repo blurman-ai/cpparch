@@ -1,0 +1,38 @@
+{
+  "repo": "csgaokun/vscode_claude",
+  "commits_checked": 16,
+  "confirmed": [
+    {
+      "sha": "5fbb660b670b",
+      "klass": "cross-file-chunk",
+      "where": "qtcreator/hldplugin-src/src/plugins/{chartshell,radarshell,videoshell,cuascontrolshell}plugin/*.cpp:1-90",
+      "note": "M5 shell-panel scaffolding: 4 plugins (chart/radar/video/cuascontrol) created in ONE commit, each plugin's panelfactories.cpp/panelwidget.cpp/plugin.cpp byte-identical after stripping the module name. plugin.cpp of chart vs video is a pure rename copy (empty diff after s/chart//,s/video//). Classic AI 4x copy-from-template."
+    },
+    {
+      "sha": "173c9a33",
+      "klass": "within-file-chunk",
+      "where": "qtcreator/hldplugin-src/src/plugins/usermanagementplugin/usermanagementservice.cpp:129-247",
+      "note": "Account/Group API mirror by copy-rename within one file: getAccount(129-138) vs getGroup(197-206) identical after Account->Group; allAccountIds/allGroupIds, deleteAccount/deleteGroup (Group adds a back-unbind loop = partial-edited), grantModule/revokeModule share the same id/moduleId validation boilerplate."
+    },
+    {
+      "sha": "173c9a33",
+      "klass": "partial-edited",
+      "where": "qtcreator/hldplugin-src/src/plugins/usermanagementplugin/usermanagementservice.cpp:76-86 vs 181-196",
+      "note": "deleteAccount copied to deleteGroup, then extended with a reverse-unbind loop over m_accounts that clears permissionId. Body otherwise identical -> copy-then-edit."
+    }
+  ],
+  "false_positives": [],
+  "cycle": {
+    "present": false,
+    "desc": "actioncontainer_p.h -> actionmanager_p.h -> actioncontainer_p.h (coreplugin/actionmanager)",
+    "scc_size": 2,
+    "intro_commits": [
+      {
+        "sha": "5393e3b1",
+        "edge": "actioncontainer_p.h adds #include \"actionmanager_p.h\" (and reciprocal)",
+        "reason": "NOT author-introduced. 5393e3b1 is a 12598-file bulk folder rename of the entire vendored Qt Creator 4.13.3 tree. The bidirectional p.h<->p.h include is pre-existing upstream Qt Company code (header: Copyright (C) 2016 The Qt Company Ltd.). The single commit merely imported/renamed it."
+      }
+    ],
+    "evidence": "qtcreator/hldplugin-src/src/plugins/coreplugin/actionmanager/{actioncontainer_p.h,actionmanager_p.h} -- vendored Qt Creator, Copyright (C) 2016 The Qt Company Ltd. Repo is a renamed/pruned Qt Creator fork; cycle is in vendor code, not author code."
+  }
+}

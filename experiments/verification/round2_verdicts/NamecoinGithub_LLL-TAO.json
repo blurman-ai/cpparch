@@ -1,0 +1,47 @@
+{
+  "repo": "NamecoinGithub/LLL-TAO",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "cc00fc8be176",
+      "klass": "within-file-chunk",
+      "where": "src/LLP/node_session_registry.cpp:229-238 (and clone at 484-494)",
+      "note": "Dual-write 'sync liveness flags to SessionStore' block copy-pasted: verbatim comment + SessionStore::Get().Transform(hashKeyID,[&](const CanonicalSession& cs){...}) lambda, body partially edited (block 1 sets all 3 flags from entry; block 2 conditionally sets one flag by lane)"
+    },
+    {
+      "sha": "c2f451cb9d77",
+      "klass": "within-file-chunk",
+      "where": "src/LLP/session_store.cpp:322-360",
+      "note": "Secondary-index lookups LookupBySessionId/ByAddress/ByGenesis/ByIP are 4 cloned bodies; only the mapXToKey index name and param type/name differ: auto optKey=mapXToKey.Get(x); if(!optKey) return nullopt; return mapSessions.Get(optKey.value()); reducible to one template helper"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "234d9f218f02",
+      "where": "tests/unit/LLP/concurrency_testing.cpp:179-199 vs 232-247",
+      "fp_class": "idiom",
+      "what_happened": "Concurrency-test scaffolding: every Catch2 SECTION wraps its work in the identical frame for(int t=0;t<nThreads;++t){threads.emplace_back([&]{ for(...) {BODY} });} for(auto& thread:threads) thread.join(); REQUIRE(...). Token detector latches onto the spawn/emplace_back/join boilerplate; only the lambda BODY (the unit under test) actually differs, so the matched span is the test harness, not real logic duplication",
+      "fix_proposal": "#056: add a test-scaffold filter — when a matched span's high-similarity lines are dominated by thread/loop-control + framework macros (threads.emplace_back, thread.join(), TEST_CASE/SECTION/REQUIRE) and the interior lambda/loop body diverges, down-weight or drop. Concretely: require the matched chunk to contain >=N consecutive non-control, non-macro statement lines before counting, and exclude lines matching emplace_back/\\.join\\(\\)/REQUIRE/SECTION from the similarity numerator"
+    },
+    {
+      "sha": "789008f0fb6b",
+      "where": "src/TAO/API/commands/mining/start-pool.cpp:1-30 vs get-poolstats.cpp:1-30 (and siblings)",
+      "fp_class": "idiom",
+      "what_happened": "API-command template boilerplate: every TAO::API Mining::Xxx endpoint file shares the identical Nexus license banner, the same include block, and the same skeleton namespace TAO::API { encoding::json Mining::Xxx(const encoding::json& jParams, const bool fHelp){ if(fHelp) return std::string(\"...help...\"); ... }. Cross-file detector matches banner+includes+help-prologue that the project mandates for every command, not copied business logic",
+      "fix_proposal": "#056: strip the shared license/comment banner before hashing (already partially done), and add a per-project 'command-template prologue' suppressor — detect that the matched cross-file span is bounded to the leading include cluster + a function signature + a fHelp early-return string literal, and exclude it. Generally: exclude included-header lines and string-literal-only lines (help text) from cross-file similarity scoring so only executable statements count"
+    }
+  ],
+  "cycle": {
+    "present": true,
+    "desc": "Legacy/types/wallettx.h → Legacy/wallet/wallet.h → Legacy/types/wallettx.h",
+    "scc_size": 2,
+    "intro_commits": [
+      {
+        "sha": "f616c29c8aabc",
+        "edge": "wallettx.h adds #include <Legacy/wallet/wallet.h> AND wallet.h adds #include <Legacy/types/wallettx.h> (both in same commit)",
+        "reason": "Header-split refactor ('Break up some headers into their proper source files'): wallettx.h was newly extracted from /dev/null and both headers were wired to include each other, creating a back-reference cycle. NOTE: this is a 2019 commit by VidereLicet — original Nexus/LLL-TAO code, predates the 2025-05+ AI-authoring window; the cycle is inherited, not AI-introduced drift"
+      }
+    ],
+    "evidence": "Authored code in src/Legacy/ (wallet subsystem), not vendor. The only other mutual include pair, src/LLD/hash/xxhash.c <-> xxhash.h, is the vendored xxHash amalgamation (Yann Collet, BSD-2; xxhash.h line 433 #include \"xxhash.c\" guarded by XXH_PRIVATE_API for static inlining) — a normal vendor idiom, not counted as an authored cycle"
+  }
+}

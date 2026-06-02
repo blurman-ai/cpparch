@@ -1,0 +1,31 @@
+{
+  "repo": "brontoguana/krasis",
+  "commits_checked": 14,
+  "confirmed": [
+    {
+      "sha": "b01bae6c4849820865136e64b1a53588413bdd18",
+      "klass": "within-file-chunk",
+      "where": "src/cuda/decode_kernels.cu:1437-1546",
+      "note": "gated_rmsnorm_silu_bf16 is a near-verbatim copy of gated_rmsnorm_silu (RMSNorm warp-reduction body identical; differs only in BF16 output store). Author's own comment says 'Same as gated_rmsnorm_silu but outputs BF16 directly'."
+    },
+    {
+      "sha": "f6b0cb7",
+      "klass": "within-file-chunk",
+      "where": "src/cuda/decode_kernels.cu:668-1043",
+      "note": "mla_attention_g (~194 lines) is a near-verbatim copy of mla_attention (~183 lines); the whole MLA attention algorithm duplicated, the _g variant only swaps host int seq_len for a device pointer d_seq_len for CUDA-graph capture. Same commit also duplicated mla_kv_cache_write_g vs mla_kv_cache_write."
+    }
+  ],
+  "false_positives": [],
+  "scope_note": "All Part-A-globbed files (*.cpp *.cc *.h *.hpp) in this repo are vendored: src/cuda/flash_attn/cutlass (NVIDIA CUTLASS/CUTE, added wholesale in c405878 'Vendor FA2/FLA libraries', 484 .h + 258 .hpp) and src/cuda/marlin/* (explicitly marked '// Common infrastructure for vendored Marlin GEMM kernels', KRASIS_MARLIN_VENDOR guard). The repo is a Rust project; ALL authored C++ lives in .cu files (src/cuda/decode_kernels.cu 10395 lines, src/cuda/prefill_kernels.cu 5231 lines) which the scanner does NOT index. This is why the corpus detector reported copipaste=0 — a coverage gap, not a clean repo. The two confirmed cases above were found by manual inspection of .cu files.",
+  "detector_gap": {
+    "what_happened": "archcheck dedup (#056) and the include-graph scanner only index .cpp/.cc/.cxx/.h/.hpp; .cu/.cuh are ignored. In CUDA/ML repos like this one, 100% of authored logic is in .cu, so the detector sees only vendored headers and reports copipaste=0 and cycles among CUTLASS templates.",
+    "fix_proposal": "Add .cu/.cuh (and .cuh-as-header) to the dedup+graph extension set, behind a --cuda / --include-ext flag (default off to avoid mis-lexing CUDA-only syntax like <<<>>> launch params, __global__/__device__, extern \"C\" __global__). For the duplicate-variant pattern specifically (same body, dtype/launch-mode suffix _bf16/_g), no special heuristic needed — token dedup already scores these >0.95; the only barrier is file-extension filtering."
+  },
+  "cycle": {
+    "present": false,
+    "desc": "no authorial include cycle",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "Current archcheck --graph on the repo / src / src/cuda/marlin all report sccs_cyclic=0, largest_scc=1. cutlass header tree resolves to 0 nodes (relative/quoted vendor includes not mapped). The corpus report's 'cycles=10 SCC<=13' came from an older/different scan; any such cycles would be inside vendored NVIDIA CUTLASS/CUTE template headers (src/cuda/flash_attn/cutlass), not authored code. No authored .h cycle exists; authored code is .cu which the graph does not scan."
+  }
+}

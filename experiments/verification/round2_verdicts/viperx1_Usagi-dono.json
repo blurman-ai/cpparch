@@ -1,0 +1,48 @@
+{
+  "repo": "viperx1/Usagi-dono",
+  "commits_checked": 18,
+  "confirmed": [
+    {
+      "sha": "c7f2ba91aee4dddb7e53076c1cc818bfd2471f3a",
+      "klass": "within-file-chunk",
+      "where": "usagi/src/watchsessionmanager.cpp:516-553",
+      "note": "getFilesForDeletion vs getFilesForDownload — same iterate-m_fileMarks-and-collect-by-markType skeleton copied, only the FileMarkType enum and the score-sort tail edited; classic copy-then-tweak of sibling accessors in a freshly-added file"
+    },
+    {
+      "sha": "c7f2ba91aee4dddb7e53076c1cc818bfd2471f3a",
+      "klass": "within-file-chunk",
+      "where": "usagi/src/watchsessionmanager.cpp:553-677",
+      "note": "autoMarkFilesForDeletion vs autoMarkFilesForDownload share the db-open guard + per-row QSqlQuery loop + std::sort(lambda) + mark/emit skeleton; bodies diverge in the SQL and threshold logic but the structural block was copied and partially edited"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "77d8d2ae596b63fa70658a6da4187a9babb28239",
+      "where": "usagi/src/animestats.cpp:22-44",
+      "fp_class": "idiom",
+      "what_happened": "Five sibling setters (setNormalEpisodes/setTotalNormalEpisodes/setNormalViewed/setOtherEpisodes/setOtherViewed) are each a single-line `m_x = std::max(0, count);`. Token-stream is near-identical across the five because trivial accessors carry almost no distinguishing tokens — only the member-name differs. This is generated-shaped getter/setter boilerplate from a struct->class SOLID conversion, not plagiarised logic.",
+      "fix_proposal": "#056: add a trivial-accessor filter — drop candidate blocks whose body is <=2 statements AND consists only of a single assignment/return touching one member (regex `m_\\w+\\s*=` or `return m_\\w+`). Equivalently raise min-distinct-token / min-statement floor so 1-3 line setter/getter bodies never become chunk candidates."
+    },
+    {
+      "sha": "c7f2ba91aee4dddb7e53076c1cc818bfd2471f3a",
+      "where": "usagi/src/watchsessionmanager.cpp:63-127",
+      "fp_class": "data-table",
+      "what_happened": "loadSettings and saveSettings each contain 4 near-identical 3-line blocks of the Qt settings idiom (`q.prepare(\"SELECT value FROM settings WHERE name='...'\"); if (q.exec() && q.next()) {...}` / `INSERT OR REPLACE ...`). The repetition is a key/value data table expressed as inline code; only the setting name string and target member differ. Flagging it as a copied chunk is misleading — it is structurally a config table, not duplicated business logic.",
+      "fix_proposal": "#056: treat blocks that differ only in a string literal + one member/lvalue as a 'data-table row' and collapse them: when N>=3 sibling blocks in one function are token-identical except for a quoted literal, emit at most one low-severity 'repeated literal-parameterised block' signal instead of N pairwise copy hits. Add string-literal masking before block hashing so literal-only variation does not register as a near-miss copy."
+    },
+    {
+      "sha": "238159cc2006c66cfd08a4f76a5cdf5f3758a3d9",
+      "where": "usagi/src/deletionhistorymanager.cpp:22-38",
+      "fp_class": "idiom",
+      "what_happened": "Every *Manager class added in this commit opens with the identical Qt skeleton: `Ctor(QObject*parent):QObject(parent){}` + `ensureTablesExist(){ db=QSqlDatabase::database(); if(!db.isOpen()){LOG(...);return;} QSqlQuery q(db); q.exec(\"CREATE TABLE ...\"); }`. The ctor and the db-open guard are byte-identical across DeletionHistoryManager/DeletionLockManager/WatchSessionManager; only the CREATE TABLE schema differs. Cross-file detector sees the shared header/guard as a copied chunk.",
+      "fix_proposal": "archcheck/#056: maintain a small framework-idiom denylist (Qt: empty-body QObject ctor `: QObject(parent) {}`, the `database();/isOpen() guard`, moc-generated bodies) and strip those leading idiom lines before computing block similarity, so only the differing schema/body drives the match. Combined with the trivial-accessor floor this removes the bulk of the cross-file manager-boilerplate FPs."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no include cycle — archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 194 nodes / 225 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "Single authored module tree usagi/src/ (55 .cpp); no vendored/third_party/imgui dirs present. Include DAG is acyclic; nothing to attribute."
+  }
+}

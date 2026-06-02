@@ -1,0 +1,4 @@
+{"repo":"lwqwag/PclCSharp","commits_checked":4,"confirmed":[],
+"false_positives":[{"sha":"top","where":"pcl_util.cpp/util_module.cpp vs (deleted) PclDll.cpp","fp_class":"other",
+"what_happened":"A monolithic PclDll.cpp was split into pcl_util.cpp + util_module.cpp (functions extracted to new files). BASE-side PclDll.cpp is gone; the verbatim cross-file hits are extracted functions vs their deleted source file.","fix_proposal":"#056: deleted-BASE-path suppression; treat one-source->many-target with source deleted as an extract refactor, not copypaste."}],
+"cycle":null,"note":"Monolith PclDll.cpp split into util files; source deleted. No live duplication. sccs=0."}

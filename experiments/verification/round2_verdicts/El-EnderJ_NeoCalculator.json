@@ -1,0 +1,3 @@
+{"repo":"El-EnderJ/NeoCalculator","commits_checked":2,"confirmed":[],"false_positives":[],
+"cycle":{"present":false,"desc":"monomial.h <-> poly.h","scc_size":2,"intro_commits":[],
+"evidence":"lib/giac/src/** — вендоренная Giac/Xcas CAS-библиотека. Не авторский код."}}

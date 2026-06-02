@@ -1,0 +1,49 @@
+{
+  "repo": "CrispStrobe/CrispASR",
+  "commits_checked": 16,
+  "confirmed": [
+    {
+      "sha": "f550f4ab3c49",
+      "klass": "cross-file-chunk",
+      "where": "src/moonshine_streaming.cpp:1092-1199 <- src/kyutai_stt.cpp:1396-1510",
+      "note": "Entire chunked-batch streaming wrapper (struct *_stream + run_decode/open/feed/get_text/flush/close, 6 funcs) copied kyutai_stt -> moonshine_streaming with mechanical rename; only the inner *_transcribe call body diverges. Author even left comment 'Same shape as kyutai_stt_stream_*; see src/kyutai_stt.cpp'. partial-edited."
+    },
+    {
+      "sha": "f550f4ab3c49",
+      "klass": "within-file-chunk",
+      "where": "src/crispasr_c_api.cpp (5 crispasr_stream_* dispatch fns)",
+      "note": "Per-backend dispatch block '#if __has_include(\"X.h\")\\n if(s->X_stream_state) return X_stream_OP(...)' duplicated for kyutai and moonshine across close/feed/get_text/flush/open. Parallel-branch within-file copy-paste of the routing boilerplate."
+    },
+    {
+      "sha": "c9e0357b629c",
+      "klass": "within-file-chunk",
+      "where": "src/crispasr_c_api.cpp (funasr/paraformer/sensevoice init branches)",
+      "note": "Three near-identical backend-init blocks: if(s->backend==\"X\"){ X_context_params p = X_default_params(); ...; s->X_ctx = X_init_from_file(model_path,p); if(!s->X_ctx){...} }. Copy-paste-with-rename across the 3 sibling backends in the same dispatch function."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "272f7ee0914c",
+      "where": "src/f5_tts.cpp (weight-loader block) vs src/moonshine_streaming.cpp / src/kyutai_stt.cpp loaders",
+      "fp_class": "data-table",
+      "what_happened": "ggml model files all populate a weights struct with long sequential runs of 'w.NAME = get(\"prefix.NAME.weight\"); w.NAME_bias = get(\"prefix.NAME.bias\");'. Lines differ only by the tensor-name string literal, so the token stream after identifier/string normalization collapses to a near-identical skeleton -> #056 token pass scores high cross-file similarity (f5_tts 30, moonshine 36, kyutai 9 such pairs). It is a name table, not transplanted logic.",
+      "fix_proposal": "Add a 'tensor-table / accessor-table' density filter to #056: if a candidate block's lines are dominated (>~70%) by a single repeated call shape whose only varying token is a string literal (assignment target = get(<string-literal>) idiom), down-weight or suppress. Concretely: when normalized tokens-per-line are near-constant AND >60% of distinct tokens are string literals, treat as data-table and require a higher w-threshold (e.g. >=0.97 verbatim) before reporting."
+    },
+    {
+      "sha": "f550f4ab3c49",
+      "where": "src/kyutai_stt.cpp:36-78 sample_token vs other model files",
+      "fp_class": "idiom",
+      "what_happened": "sample_token (argmax-or-softmax-temperature sampler) is a self-contained ~40-line idiom that recurs nearly verbatim in many of the autoregressive model files (every TTS/ASR decoder needs it). Token detector flags it cross-file, but it is a standard utility every backend independently needs, not architectural drift introduced by this commit.",
+      "fix_proposal": "Maintain a small allowlist of well-known numeric idioms (softmax/argmax sampler, RoPE table fill, layernorm) OR better: archcheck should report such recurring small utilities once as a 'candidate for extraction to a shared header' (advisory) rather than as N copy-paste violations. Heuristic: if the same block recurs in >=3 files identically, reclassify from 'copy-paste pair' to single 'extract-to-common' suggestion, lowering noise."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "ggml-remoting.h -> virtgpu.h -> ggml-remoting.h",
+    "scc_size": 2,
+    "intro_commits": [
+      {"sha": "ca0911db460c", "edge": "virtgpu.h:21 adds #include \"ggml-remoting.h\" and ggml-remoting.h:6 adds #include \"virtgpu.h\"", "reason": "Both files entered the tree together via the whisper.cpp fork import (vendored ggml virtgpu/RPC backend); later refreshed by ggml vendor bumps 0f53dd55 and b3317bb2. The 2-cycle is upstream ggml virtgpu backend code, not authored CrispASR code."}
+    ],
+    "evidence": "Cycle is entirely inside ggml/src/ggml-virtgpu/ (vendored ggml backend). present=false because not authored code. archcheck --graph: sccs_cyclic=1, largest_scc=2."
+  }
+}

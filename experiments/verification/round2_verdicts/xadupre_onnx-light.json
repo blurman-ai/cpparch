@@ -1,0 +1,40 @@
+{
+  "repo": "xadupre/onnx-light",
+  "commits_checked": 16,
+  "confirmed": [
+    {
+      "sha": "9ecdeab85a7f8e1a1bc7e7b74e6634b0e66943b3",
+      "klass": "cross-file-chunk",
+      "where": "onnx_light/onnx_optim/shapes/nn/shape_attention.cc:22-67",
+      "note": "MergeDim+RequireRank4 helpers and the Q/K/V rank-4/MergeDim attention skeleton copied verbatim (only error-message op-name string changed) from shape_preview.cc ComputeShapeFlexAttention (f3f220a); local helpers re-declared per file instead of shared"
+    },
+    {
+      "sha": "e64faada6e70a53627810134176994031b4cc913",
+      "klass": "cross-file-chunk",
+      "where": "onnx_light/onnx_optim/shapes/tensor/shape_gridsample.cc:25-40",
+      "note": "MergeDim helper body identical to the one in shape_attention.cc / shape_preview.cc, only the error-message prefix (ComputeShapeGridSample) and the param name (axis_name) differ; same anon-namespace helper copied a third time rather than factored into a shared shapes/ header"
+    },
+    {
+      "sha": "c3929280e72bc75538a602a581816d53351c5b1a",
+      "klass": "within-file-chunk",
+      "where": "unittests/cc_onnx_backend_test/cases/test_cases_math.cc:20-110",
+      "note": "consecutive TEST(BackendTestCase, <Op>...) blocks are ~20-line near-identical clones (collect cases -> find by name -> assert sizes -> loop EXPECT_NEAR), differing only in op name literal and the std:: math function; e.g. Acos vs Acosh diverged-near copy"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "c3929280e72bc75538a602a581816d53351c5b1a",
+      "where": "onnx_light/onnx_optim/shapes/math/shape_mul.cc:13-18",
+      "fp_class": "idiom",
+      "what_happened": "shape_mul.cc and shape_sub.cc are 24-line per-operator dispatch wrappers that differ only in the op-name literal (\"Mul\" vs \"Sub\") and the matching comment word; a near-100%% cross-file match. The real logic is already deduplicated into the shared ComputeShapeBinaryBroadcast() helper they both call -- these files are thin registration shims, the project's deliberate one-file-per-op convention, not duplicated logic.",
+      "fix_proposal": "#056: add a 'thin-wrapper' suppressor -- if a flagged cross-file clone is a single function whose body is <=3 statements and >=1 of them is a call to a shared symbol that ALSO appears in the other clone (same callee), drop it. More generally raise the cross-file minimum-token floor (>= ~25 non-comment tokens of UNIQUE, non-call body) so single-line-delegation files stop matching; tie-break with 'distinct identifiers / total identifiers' ratio -- when the only difference between two files is one string/enum literal AND the rest is a call to a common helper, classify as boilerplate-dispatch, not clone."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC; archcheck --graph reports sccs_cyclic=0, largest_scc=1 over 53 nodes / 85 edges",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph on /home/localadm/oss/_aidev_dense/xadupre_onnx-light: nodes=53 edges=85 sccs_cyclic=0 largest_scc=1; include graph is a DAG (note: 303 external + 48 unresolved includes, so vendored ONNX subtrees are largely outside the resolved author graph)"
+  }
+}

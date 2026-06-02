@@ -1,0 +1,41 @@
+{
+  "repo": "fenrus75/powertop",
+  "commits_checked": 15,
+  "confirmed": [
+    {
+      "sha": "7aaca6fa69a89df02e1162e120ae235fd274159d",
+      "klass": "cross-file-chunk",
+      "where": "src/cpu/cpu_rapl_device.cpp:81-89 <- src/cpu/dram_rapl_device.cpp:82-90",
+      "note": "collect_json_fields() bodies byte-identical except class name: same parent call (cpudevice::collect_json_fields) + identical JSON_KV(last_time)/JSON_FIELD(last_energy,consumed_power,device_valid). Copy was INTRODUCED here (round1 attributed the pair to the later dedup-include commit 4f8f6d19, not to its real origin)."
+    },
+    {
+      "sha": "9daf37f362ff975da8f13115d12296783cc8e5b8",
+      "klass": "within-file-chunk",
+      "where": "src/gpu-tab.cpp:488-507 <- src/gpu-tab.cpp:252-275",
+      "note": "report_gpu_stats() Frequency block duplicates the per-GT sysfs walk introduced 26 min earlier in show_frequency_section (commit 39221eb): identical for-tile/for-gt loop, identical paths freq0/{cur,min,max,rp0,rpn}_freq; only the sink differs (freq_row vector vs draw_progress_bar). partial-edited within-file copy."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "2495600904c239f1cca9864477556514d7ea68f2",
+      "where": "tests/devices/device_stub.cpp:1-58 vs src/devices/device.cpp",
+      "fp_class": "header-impl",
+      "what_happened": "Test stub re-implements production class methods (device ctor, register_sysfs_path, collect_json_fields) with the SAME signatures and small bodies to break the dependency chain for unit tests. A token detector sees matching signature lines + JSON_KV/JSON_FIELD idiom and flags it as a copy of the real impl, but it is a deliberate test double (different file root, tests/ tree).",
+      "fix_proposal": "#056: add a path-class exclusion — when one side of a candidate pair lives under tests/ (or matches *stub*/*mock*/*fake* filename) and the other under src/, drop the pair. Stub-vs-impl mirroring is intentional, not drift."
+    },
+    {
+      "sha": "7aaca6fa69a89df02e1162e120ae235fd274159d",
+      "where": "src/cpu/intel_cpus.cpp:745-820 (nhm_package/nhm_core/nhm_cpu collect_json_fields)",
+      "fp_class": "idiom",
+      "what_happened": "Three collect_json_fields overrides each are long runs of JSON_FIELD(x) macro lines. The macro names repeat across overrides (same dictionary of field-serialize tokens) so token similarity is high even though the actual field SETS differ (package c-states vs core c1/c3 vs cpu). Detector can over-weight the repeated JSON_FIELD token.",
+      "fix_proposal": "#056: treat single-token macro-call lines (JSON_FIELD/JSON_KV style: IDENT '(' args ')' ';') as low-entropy and down-weight them in the similarity score, the same way getters/setters are; require a minimum count of non-macro distinct tokens before a block qualifies as a clone."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph: nodes=205 edges=392 sccs_cyclic=0 largest_scc=1. Include graph is acyclic; no closing back-edges exist."
+  }
+}

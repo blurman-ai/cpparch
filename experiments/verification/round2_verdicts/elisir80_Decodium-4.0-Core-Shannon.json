@@ -1,0 +1,41 @@
+{
+  "repo": "elisir80/Decodium-4.0-Core-Shannon",
+  "commits_checked": 13,
+  "confirmed": [
+    {
+      "sha": "d501c0f7b624da51beaca77674e02da4a0c4a1e8",
+      "klass": "within-file-chunk",
+      "where": "Detector/MSK144DecodeWorker.cpp:2171-2223 (copy of 1549-1601)",
+      "note": "53-line verbatim copy of three local lambdas (best_in_range / range_average / parabola_delta) plus their peak-pick/parabola-delta usage block, duplicated across two coarse/fine scan routines in the same file; should have been a file-scope helper. Both blocks added in this commit (new MSK144 worker)."
+    },
+    {
+      "sha": "a708c5fffa99d147a9e753948c92651d1bbbc954",
+      "klass": "within-file-chunk",
+      "where": "Detector/FtxFt8Stage4.cpp:3979-3998 (copy of 3720-3739)",
+      "note": "extern-C wrapper ftx_ft8_a7d_ref_c is a copy of ftx_ft8_a7d_c: identical 12-arg out-param signature plus identical null-check + sentinel-init preamble for msg37/nharderrors/dmin/xsnr; only the decode body diverges. Two near-twin Fortran-bridge entry points introduced together in this commit."
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "98f05bec642c4b20c621ca812390a0a825386f52",
+      "where": "DecodiumBridge.cpp setTargetCall{MaxRetries,TimeoutS,Period,PauseS}",
+      "fp_class": "idiom",
+      "what_happened": "Four numeric Qt property setters added together share the canonical Qt setter idiom: v = qBound(lo,v,hi); if (m_x != v) { m_x = v; emit xChanged(); QSettings().setValue(\"CallFeature/Key\", v); }. Only the clamp bounds and the QSettings key string differ, so a token-level detector sees 4 near-identical 6-7 line blocks as within-file copypaste. This is mandatory NVI/property boilerplate, not extractable duplication.",
+      "fix_proposal": "#056: add a Qt-property-setter idiom filter — if a flagged block matches the shape <clamp?; if (member != v) { member = v; emit *Changed(); persist(...) }> treat as boilerplate; more generally raise min-window for blocks whose only inter-block differences are (a) a member/method identifier sharing a common prefix and (b) a string literal, and require >=2 differing *statements* (not just literals) before counting as a clone."
+    },
+    {
+      "sha": "a708c5fffa99d147a9e753948c92651d1bbbc954",
+      "where": "Network/RemoteCommandServer.cpp:4772-4811 (and sibling GET-route blocks)",
+      "fp_class": "idiom",
+      "what_happened": "Serial HTTP dispatch: each route handler is if (method==GET && route==\"/x\") { QByteArray response; body = gen(); response += \"HTTP/1.1 200 OK\\r\\n\"; + Content-Type + Cache-Control + Content-Length + Connection; write; disconnectFromHost; return; }. Consecutive route arms differ only in the route string, the body generator, the content-type and the cache header, so the fixed 5-line response-assembly tail repeats verbatim and trips within-file copy detection.",
+      "fix_proposal": "#056: treat verbatim string-literal-heavy lines (HTTP header constants, response += \"...\\r\\n\") as low-entropy and weight them down in the clone score; combined with the existing literal-divergence check, a run whose differing lines are only a route literal + a content-type literal should fall below threshold. Alternatively expose a per-file 'dispatch table' idiom suppression when N>=3 sibling if-arms share the same skeleton."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no cyclic SCC: archcheck --graph reports nodes=728 edges=1191 sccs_cyclic=0 largest_scc=1",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "Author code is organized as a flat-ish include DAG (Detector/, Network/, Transceiver/, Modulator/, widgets/, DecodiumBridge). No back-edge between any header pair; matches corpus hint (циклы=0, SCC<=1)."
+  }
+}

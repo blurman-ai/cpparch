@@ -1,0 +1,61 @@
+{
+  "repo": "fuddlesworth/PlasmaZones",
+  "commits_checked": 14,
+  "confirmed": [
+    {
+      "sha": "a2e2e0c941cc",
+      "klass": "cross-file-chunk",
+      "where": "kcm/general/kcmgeneral.cpp:load/save vs kcm/snapping/kcmsnapping.cpp + kcm/autotiling/kcmautotiling.cpp",
+      "note": "monolith-split into sub-KCMs copied load()/save() lifecycle scaffolding verbatim (KQuickConfigModule::load + m_settings->load + emitAllChanged + setNeedsSave; save = m_settings->save + KCMDBus::notifyReload + KQuickConfigModule::save) across every sub-KCM instead of a shared base"
+    },
+    {
+      "sha": "a2e2e0c941cc",
+      "klass": "cross-file-chunk",
+      "where": "kcm/snapping/kcmsnapping.cpp:38-43 vs kcm/autotiling/kcmautotiling.cpp:36-40",
+      "note": "duplicated QDBusConnection::sessionBus().connect(ServiceName,ObjectPath,Screen,screenAdded/screenRemoved -> refreshScreens()) wiring block copied into each sub-KCM ctor; author added common/dbusutils.h but left this block duplicated"
+    },
+    {
+      "sha": "c5f6c67393fe",
+      "klass": "within-file-chunk",
+      "where": "kcm/kcm_plasmazones.cpp:1183-1380 (setAutotile* cluster)",
+      "note": "~30 setAutotileX setters share the copy-pasted-and-edited Qt property-setter body (qBound clamp + if(cur!=v){set;Q_EMIT xChanged();setNeedsSave(true);}) with only property name / bound constants changed"
+    }
+  ],
+  "false_positives": [
+    {
+      "sha": "78ee9b04d2ce",
+      "where": "src/editor/EditorController.cpp -> EditorController_*.cpp (10 TU files)",
+      "fp_class": "whole-file",
+      "what_happened": "monolith->translation-unit split: EditorController.cpp 4234->427 lines, method bodies MOVED verbatim into _gaps/_layout/_zones/... partials of the same class. Cross-file detector matches each moved body against the shrunken original in the same diff and against the prior tree, reporting 'duplicate' for code that was relocated, not duplicated (at any single tree state only one copy exists).",
+      "fix_proposal": "#056: treat a near-100%-similar block as a MOVE (not copy) when the source region's lines were deleted in the same commit/diff (added-here == removed-there). Detect rename/move: if cross-file pair has w>=0.97 AND the BASE-side lines are removed in the commit that introduced the ADDED side, suppress. At static-tree scan time, require both copies to coexist in the working tree before reporting."
+    },
+    {
+      "sha": "9a892dd9916a",
+      "where": "src/daemon/daemon.cpp -> daemon_autotile.cpp/daemon_navigation.cpp/daemon_osd.cpp/daemon_signals.cpp",
+      "fp_class": "whole-file",
+      "what_happened": "same monolith split pattern: daemon.cpp 1415->shrunk, methods moved into daemon_<topic>.cpp partials of class Daemon. Same move-not-copy false positive.",
+      "fix_proposal": "#056: same move-detection heuristic as above. Additionally, recognize the <base>_<suffix>.cpp naming convention (foo.cpp + foo_x.cpp implementing methods of the same class) as one logical TU group and exclude intra-group cross-file matches from copy-paste counts."
+    },
+    {
+      "sha": "c5f6c67393fe",
+      "where": "kcm/kcm_plasmazones.cpp:170-330 (getter cluster)",
+      "fp_class": "idiom",
+      "what_happened": "trivial one-line Qt property getters 'T KCMPlasmaZones::prop() const { return m_settings->prop(); }' repeated ~50x. Token detector with identifier normalization sees them as identical/near-identical chunks.",
+      "fix_proposal": "#056: skip blocks whose normalized body is a single return/delegation statement (<=2 effective tokens after stripping the call target), or set a minimum non-boilerplate body size (>= N effective statements) before a chunk is eligible as a copy-paste candidate."
+    },
+    {
+      "sha": "c5f6c67393fe",
+      "where": "src/autotile/algorithms/ColumnsAlgorithm.cpp + BSPAlgorithm.cpp + FibonacciAlgorithm.cpp + MasterStackAlgorithm.cpp (name/description/icon + registrar)",
+      "fp_class": "idiom",
+      "what_happened": "Strategy-pattern scaffolding repeated per algorithm class: AlgorithmRegistrar<X> s_xRegistrar(...) line, ctor : TilingAlgorithm(parent){}, and name()/description()/icon() one-liners returning QStringLiteral. Cross-file detector flags this per-class boilerplate even though the real calculateZones() bodies differ.",
+      "fix_proposal": "#056: down-weight/exclude blocks dominated by registration macros and single-return literal accessors; recognize per-subclass interface-implementation scaffolding (overrides returning constant literals) as idiom. Same min-effective-statement filter applies."
+    }
+  ],
+  "cycle": {
+    "present": false,
+    "desc": "no mutual include cycle in authored headers",
+    "scc_size": 1,
+    "intro_commits": [],
+    "evidence": "archcheck --graph returned 0 nodes for this tree (graph builder produced no nodes even on a flat copy of src/core — tool limitation, not evidence of a cycle). Manual mutual-#include scan over all 923 .h/.hpp/.cpp authored files found 0 mutual pairs. Consistent with CORPUS_CHECK_DETAIL.md which reports cycles=0 (SCC<=1)."
+  }
+}

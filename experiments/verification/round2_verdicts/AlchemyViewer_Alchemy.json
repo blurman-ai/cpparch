@@ -1,0 +1,36 @@
+{
+  "repo": "AlchemyViewer/Alchemy",
+  "commits_checked": 14,
+  "confirmed": [],
+  "false_positives": [
+    {
+      "sha": "e10df6c0bd841ae9ff29b3e1e5def13fc3f3df3b",
+      "where": "indra/newview/llvowlsky.cpp:624-693 vs 757-851",
+      "fp_class": "idiom",
+      "what_happened": "LLVOWLSky::updateStarGeometry and updateMeteorGeometry share a near-identical preamble (allocate LLVertexBuffer, the getVertexStrider/getNormalStrider/getColorStrider/getTexCoord0Strider acquire-and-check block) plus a static six-vertex quad table (kCornerOffsets vs kUV) and a nested 'for v in 0..6 { *(positions++)=...; *(colors++)=...; *(texcoords++)=... }' fill loop. The structural skeleton of VBO fill is the same so line/token similarity is high, but the actual geometry math (star center splat vs meteor stretched-quad envelope/head/tail) is entirely different. This is the mandatory LL VBO-strider idiom, not lazy copy-paste — the rewrite genuinely needs both buffers filled this way.",
+      "fix_proposal": "#056: treat the LL VBO-strider preamble (allocateBuffer + the getXStrider()&&getYStrider() conjunction + unmapBuffer) as a domain idiom and discount it before scoring, OR weight token-similarity by the *divergent* core (drop the matched preamble/epilogue from the span and re-score only the loop body). General archcheck fix: raise the within-file min-distinct-token threshold so that two functions whose similarity is concentrated in a shared call-sequence boilerplate (>60% of matched tokens are identical API-call chains) are demoted; require the divergent middle to also exceed the line threshold, not just the whole span."
+    },
+    {
+      "sha": "c23583390b5a741e509fc8f8827a8eee8bc62a2f",
+      "where": "indra/newview/llfloatersearchreplace.cpp:175-211 (onSearchClick/onReplaceClick/onReplaceAllClick)",
+      "fp_class": "idiom",
+      "what_happened": "Three one-statement dispatcher methods each open with the identical 'LLTextEditor* pEditor = getEditor(); if (pEditor) { ... }' guard and differ only in the single forwarded call (selectNext / replaceText / replaceTextAll). The repeated null-guard wrapper inflates similarity. This is restored third-party Catznip (Kitty Barnett, LGPL) code, and the repetition is an unavoidable getter+guard idiom, not copied logic.",
+      "fix_proposal": "#056: enforce a minimum significant-body size (e.g. >=5 non-trivial statements after stripping the shared guard/return scaffolding) before a within-file pair is reported. A function whose only non-guard content is a single method call should never be a CP hit. Also skip spans whose only divergence is the callee identifier of one call expression."
+    },
+    {
+      "sha": "84484171836... (Add AO engine back to viewer)",
+      "where": "indra/newview/alpanelaomini.cpp vs indra/newview/alpanelaopulldown.cpp",
+      "fp_class": "whole-file",
+      "what_happened": "Two sibling LLPanel subclasses added in the same commit share the full ~30-line MIT-style license header (Cinder Roxley 2014/2016 + Rye Mutt 2020) and the LLPanel boilerplate (ctor registering commit callbacks, postBuild getChild wiring, dtor disconnecting boost signals). Cross-file similarity is driven by the identical license block and the LLPanel lifecycle skeleton. These are restored heritage files (orig copyright 2014-2020), genuinely distinct widgets, not AI-duplicated.",
+      "fix_proposal": "#056: strip comment/license-header lines before scoring (a shared verbatim license block must never contribute to similarity). archcheck: add a header-provenance filter — if matched region is >50% comment lines or sits within the file's leading license banner, drop it. Additionally exclude file pairs whose only matched chunk is the framework lifecycle quadruple (ctor/postBuild/dtor) when method bodies diverge."
+    }
+  ],
+  "cycle": {
+    "present": true,
+    "desc": "two SCCs of size 2: llcharacter.h -> llmotioncontroller.h -> llcharacter.h ; and llfloatergotoline.h -> llpreviewscript.h -> llfloatergotoline.h",
+    "scc_size": 2,
+    "intro_commits": [],
+    "reason_no_ai_intro": "Both closing edges predate the AI-development window (audit window 2025-05+). char<->motioncontroller closing include was added by James Cook 'Print done when done.' (2007-01-02, upstream Linden Lab) and llmotioncontroller.h even carries an explicit comment 'This is necessary because llcharacter.h includes this file.' acknowledging the deliberate mutual dependency. gotoline<->previewscript was added by MartinRJ Fayray in STORM-1911 (2012-09-19, upstream SL contribution). Neither is AI-era drift; 0 cycle-introducing commits in the audited window.",
+    "evidence": "Author code (the viewer's own indra/llcharacter and indra/newview trees, NOT a vendored 3rd-party lib). Closing edges: indra/llcharacter/llcharacter.h:38 includes llmotioncontroller.h and indra/llcharacter/llmotioncontroller.h:237 includes llcharacter.h; indra/newview/llfloatergotoline.h:33 includes llpreviewscript.h and indra/newview/llpreviewscript.h:35 includes llfloatergotoline.h. Heritage: git log -S confirms commits 420b91db29 (2007) and 005cd40247 (2012)."
+  }
+}
