@@ -1,76 +1,182 @@
 # archcheck — ROADMAP
 
-_2026-06-01 · phase: **v0.1 (in progress — duplication pass)**_
+_2026-06-02 · phase: **v0.1 (in progress — trusted dependency diff core)**_
+
+## Product framing
+
+`archcheck` — это **dependency-diff / drift guardrail для C++ pull requests**.
+
+Он нужен, чтобы поймать до merge:
+
+- новые include-зависимости;
+- новые циклы;
+- рост dependency knot / SCC;
+- новые связи между областями проекта;
+- позже — нарушения явно заданных модульных границ.
+
+Главный продуктовый тезис:
+
+> This PR added a dependency you probably did not want.
+
+Это **не**:
+
+- AI attribution tool;
+- duplication-first checker;
+- универсальная quality platform;
+- bug finder / formatter / include optimizer.
+
+«Что в работе прямо сейчас» — `backlog/wip/`.
+Очередь — `backlog/new/`.
+«Что уже зашипилось» — [CHANGELOG.md](../CHANGELOG.md).
+Боевые прогоны и исследовательские выводы — [milestones.md](milestones.md).
+Продуктовая рамка подробнее — [product_vision.md](product_vision.md).
+
+---
 
 ## Current focus
 
-**v0.1** — граф-правила готовы; **duplication pass внесён в MVP-scope** и пока не готов.
+Сейчас главный фокус — **довести trusted graph/drift core**, а не расширять
+research-ветки.
 
-Открытый блокер — **рост дубликатов**: по предв. оценке на dense-корпусе (#054) класс не менее серьёзный, чем циклы графа. Дедуп пока живёт спайками (`experiments/line_duplication`, `experiments/partial_duplication`), в бинарь не интегрирован; precision `--diff` дедуп-детектора 16.5% (iter1-4, surface- и essence-LCS подходы исчерпаны — #060/#063). Hardening-loop #060 (≤5 итераций) активен.
+Приоритеты текущей фазы:
 
-Граф-часть открытых блокеров не имеет (#049 закрыт 2026-05-29). SF.21 → v0.3 (preview в v0.2 через `--with-clang`), см. [#050](../backlog/future/050_min_sf21_anonymous_namespace.md).
+- выровнять CLI/документационные контракты;
+- укрепить baseline / diff / drift workflow;
+- сделать dependency-diff понятным и пригодным для CI;
+- держать duplication и AI-attribution вне trusted gate, пока нет нужной точности.
 
-«Что в работе прямо сейчас» — `backlog/wip/`. Очередь — `backlog/new/`.
-«Что уже зашипилось» — [CHANGELOG.md](../CHANGELOG.md).
-«Боевые прогоны на чужом коде» — [milestones.md](milestones.md).
+Особенно важно:
 
----
-
-## v0.1 — zero-config intrinsic rules + drift (current)
-
-**Cover-story:** пользователь запускает `archcheck <path>` без конфига, получает осмысленные нарушения, замораживает baseline, встраивает в CI.
-
-- Default intrinsic rules: SF.7, SF.8, SF.9, Lakos.GodHeader, Lakos.ChainLength
-- Drift rules: DRIFT.1 (shortcut edges), DRIFT.2 (cycle growth)
-- Baseline mode: `--baseline`, `--save-baseline`, `--save-graph-baseline`, `--drift-baseline`
-- PR diff mode: `--diff <revspec>`
-- Output: text + JSON; exit codes 0 / 1 / 2 / 3
-- Fast preprocessor backend (без `compile_commands.json`, без libclang)
-- Duplication pass (fast backend): line-level (#053) + token/partial (#056) с precision-фильтрами (#059); интеграция в бинарь + hardening (#060) — в работе
-
-## v0.2 — config + libclang semantic backend
-
-- `.archcheck.yml` v1: spec закрыт; loader в работе (#051) — modules + typed rules (`layers` / `independence` / `forbidden`)
-- `--with-clang` opt-in libclang backend (спайк #043 → backend #042)
-- Semantic SF rules: SF.2, SF.5, SF.10, SF.11
-- SF.21 — preview через `--with-clang` (default-ON в v0.3, см. [#050](../backlog/future/050_min_sf21_anonymous_namespace.md))
-- SARIF output (для GitHub Code Scanning)
-- `archcheck init`
-
-## v0.3 — расширение правил + AI loop
-
-- C / I / NL секции Core Guidelines: C.121, C.133, C.134, I.2, I.3, I.22, NL.27
-- SF.21 — default-ON (см. [#050](../backlog/future/050_min_sf21_anonymous_namespace.md))
-- BDE: no-inter-component-friendship, external-linkage-in-header
-- DRIFT расширения (intrinsic-only)
-- AI rule synthesis contract — `archcheck synthesize` (#010)
-
-## v0.4 — Martin metrics + distribution
-
-- Ce / Ca / I / A / D на уровне namespace (опционально, по флагу)
-- Кастомные regex pattern-правила
-- Pre-commit hook, Docker image, static binary releases (linux x64/arm64, macOS arm64, win x64)
-
-## v0.5 — templates + community
-
-- Layer / hexagonal / onion templates (готовые `.archcheck.yml`)
-- Регрессионный CI на топ-N OSS (fmt, Catch2, spdlog, abseil, folly, grpc)
-- Полная документация, migration guides
-
-## Long-term (опционально, по запросу)
-
-- Plugin API для кастомных правил
-- Опциональная визуализация графа (graphviz output, не GUI)
-- Поддержка C
-- clangd index bridge для скорости на больших проектах
-
-## Что НЕ делаем
-
-- `--suggest-config` (авто-вывод модульной структуры).
-- GUI / web dashboard / IDE extension.
-- AST-rules в v0.1.
-- Замена линтеров / formatter / bug finder / include optimizer.
+- graph/drift уже выглядит как продуктовый wedge;
+- duplication пока остаётся preview/research;
+- AI-vs-human drift — полезное исследование, но не продуктовый promise.
 
 ---
 
-Детальные обоснования — [architecture-spec.md](architecture-spec.md).
+## v0.1 — Trusted Dependency Diff for PRs (current)
+
+**Цель:** показать архитектурные dependency changes, внесённые PR, почти без настройки.
+
+**Cover-story:** пользователь запускает `archcheck` в CI и получает понятный
+ответ, ухудшил ли этот diff dependency graph.
+
+### Product core
+
+- include graph extraction без обязательного `compile_commands.json`;
+- baseline save/load;
+- graph baseline + drift comparison;
+- PR/diff workflow;
+- deterministic text/json output;
+- documented exit codes `0 / 1 / 2 / 3`;
+- advisory-first default;
+- строгий gate только для самых надёжных regressions.
+
+### Trusted signals
+
+- intrinsic include-graph checks (`SF.7`, `SF.8`, `SF.9`, Lakos-style defaults);
+- `DRIFT.1`, `DRIFT.2`;
+- новые нежелательные dependency edges;
+- новые циклы;
+- рост SCC / dependency knot;
+- новые cross-directory / cross-area зависимости.
+
+### Что доделываем в v0.1
+
+- убрать ложные и недоведённые user-facing контракты;
+- сделать diff/drift output стабильным и explainable;
+- привести roadmap/docs/CLI к реальному состоянию;
+- удержать zero-config сигнал полезным и безопасным для первого включения.
+
+### Что не является центром v0.1
+
+- duplication как blocking gate;
+- AI attribution;
+- AI rule synthesis;
+- широкая AST semantic platform;
+- visualization / plugin API / broad C support.
+
+Duplication в `v0.1` допустима только как:
+
+- preview;
+- advisory report;
+- research-backed experiment.
+
+---
+
+## v0.2 — Dependency Policy Rules
+
+**Цель:** превратить `archcheck` из zero-config dependency diff в dependency diff
+плюс enforceable project policy.
+
+### Scope
+
+- `.archcheck.yml` как реальная runtime-фича;
+- modules / path mapping;
+- `forbidden` dependencies;
+- `layers`;
+- `independence`;
+- более понятные violation explanations;
+- CI examples;
+- optional SARIF там, где он помогает adoption.
+
+### Supporting expansion
+
+- fan-out growth;
+- blast-radius growth;
+- coupling growth;
+- selective `libclang` backend только там, где он улучшает enforceable checks.
+
+Важно: продуктовая история `v0.2` — не “теперь у нас libclang”, а
+“теперь можно проверять мои архитектурные границы”.
+
+---
+
+## v0.3+ — Selective Semantic Expansion
+
+Семантическое расширение идёт только после того, как product core и policy layer
+стабильны.
+
+Потенциальный scope:
+
+- AST-backed уточнение существующих checks;
+- SF.2 / SF.5 / SF.10 / SF.11;
+- SF.21 preview/default-ON по готовности;
+- дополнительные intrinsic drift metrics, если они выдерживают trust bar.
+
+Принцип: semantic expansion нужна только там, где она даёт проверяемую
+пользовательскую ценность, а не ради самого backend-а.
+
+---
+
+## Preview / Research
+
+Эти направления важны, но **не входят в trusted CI gate**, пока не доказали
+стабильность и product-fit.
+
+- duplication detection;
+- AI-vs-human drift comparison;
+- AI-assisted rule synthesis;
+- semantic dependency extraction beyond current product core;
+- Martin metrics;
+- visualization;
+- plugin API;
+- C support.
+
+Их можно развивать в `research/`, `preview/` и `future/`, но не надо продавать
+как ядро ближайшего продукта.
+
+---
+
+## What We Are Not Doing
+
+- не строим “общую платформу качества кода”;
+- не делаем AI detector / AI attribution tool;
+- не двигаем duplication в mandatory gate до нужной precision;
+- не размываем MVP широким AST-scope;
+- не делаем GUI / web dashboard / IDE extension;
+- не заменяем линтеры, formatter-ы и bug finder-ы.
+
+---
+
+Детальные продуктовые аргументы — [product_vision.md](product_vision.md).
+Архитектурный контекст и long-form spec — [architecture-spec.md](architecture-spec.md).
