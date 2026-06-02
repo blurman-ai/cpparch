@@ -994,6 +994,26 @@ void explainPair(const Fragment& fa, const Fragment& fb, double similarity)
   printIgnored("literals", lits);
 }
 
+// LD.14 — duplicated LOC over the reported pairs. A fragment is counted once even
+// if it appears in several pairs (set-dedup); blocks = distinct clone fragments.
+// Returns {clone LOC, block count}; density is clone LOC over scanned total LOC.
+std::pair<std::size_t, std::size_t> cloneLocAndBlocks(const std::vector<Pair>& reported,
+                                                      const std::vector<Fragment>& frags)
+{
+  std::unordered_set<std::size_t> seen;
+  for (const Pair& p : reported)
+  {
+    seen.insert(p.a);
+    seen.insert(p.b);
+  }
+  std::size_t loc = 0;
+  for (std::size_t idx : seen)
+  {
+    loc += static_cast<std::size_t>(frags[idx].endLine - frags[idx].startLine + 1);
+  }
+  return {loc, seen.size()};
+}
+
 void printUsage()
 {
   std::cout << "usage: partial_duplication <root> [--min-tokens N] [--max-tokens N]\n"
@@ -1572,6 +1592,7 @@ int main(int argc, char** argv)
   // 1-2. collect fragments from every source file under root.
   std::vector<Fragment> frags;
   std::size_t fileCount = 0;
+  std::size_t totalLoc = 0;  // LD.14: scanned source LOC = density denominator
   std::vector<fs::path> files;
   if (fs::is_directory(opt.root))
   {
@@ -1603,6 +1624,7 @@ int main(int argc, char** argv)
     ss << in.rdbuf();
     const std::string src = ss.str();
     ++fileCount;
+    totalLoc += static_cast<std::size_t>(std::count(src.begin(), src.end(), '\n')) + 1;
     // single collection path (snapshot/baseline/diff all funnel here) → generated-skip guard applies
     const std::string rel = fs::relative(p, fs::is_directory(opt.root) ? opt.root : opt.root.parent_path()).string();
     collectFromSource(src, rel, opt, frags);
@@ -1716,7 +1738,11 @@ int main(int argc, char** argv)
             << effRareDf << "): " << candidateCount << " of " << totalPairs
             << " possible\n";
   std::cout << "reported (" << gateName << " >= " << opt.simThreshold
-            << "): " << reported.size() << "\n\n";
+            << "): " << reported.size() << "\n";
+  const auto [cloneLoc, blocks] = cloneLocAndBlocks(reported, frags);
+  const double density = totalLoc != 0 ? 100.0 * static_cast<double>(cloneLoc) / static_cast<double>(totalLoc) : 0.0;
+  std::cout << "clone density: " << cloneLoc << " / " << totalLoc << " LOC (" << density
+            << "%), " << blocks << " fragments in " << reported.size() << " pairs\n\n";
 
   const std::size_t shown = std::min(reported.size(), opt.top);
   for (std::size_t i = 0; i < shown; ++i)
