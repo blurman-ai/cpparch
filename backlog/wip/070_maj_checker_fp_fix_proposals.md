@@ -59,10 +59,17 @@ backlog фиксов — **разбираем потом**, приоритизи
   - 8e2fdd6: `feat(scan/duplication): P0.1 + P0.3 FP guards`
   - 8fd4e95: `feat(scan/duplication): P0.6 joint token∧order floor`
 
+- ✅ **Measurement-harness** — infrastructure для оценки гардов на корпусе.
+  Функции: `loadCorpusGroundTruth()`, `evaluateAgainstCorpus()` → CorpusMetrics.
+  Коммит 96204e9. Реализация пока placeholder (real version маппит пары по content-hash).
+
+Статус сессии: **4 коммита, 43 дубликат-тестов (100%), 318/319 всего тестов**.
+
 В работе / следующий шаг:
-- Measurement-harness: mapping output → `fp_corpus_r2.tsv` → precision_before/after, TP-retention, FP-по-классам.
-- P0.2 (git rename/move): требует git-интеграции (дефер: требует #054 diff-mode integration)
-- Фитировка P0.6 порогов на корпусе (текущие 0.75 / 0.50 = стартовые)
+- Полная реализация measurement-harness: match pairs по content-hash, подсчёт TP/FP by class
+- Замер P0.1+P0.3+P0.6 эффекта на корпусе (ожидается precision 42% → ~55–62%)
+- P0.2 (git rename/move): требует git-интеграции (блокирует #054 diff-mode)
+- Фитировка P0.6 порогов на корпусе (текущие 0.75 / 0.50 = стартовые, нужны данные)
 
 ---
 
