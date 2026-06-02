@@ -1,6 +1,6 @@
-#include "archcheck/scan/duplication/clone_classifier.h"
-
 #include <catch2/catch_test_macros.hpp>
+
+#include "archcheck/scan/duplication/clone_classifier.h"
 
 using namespace archcheck::scan::duplication;
 

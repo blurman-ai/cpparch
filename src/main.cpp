@@ -290,17 +290,16 @@ int run_duplication(const std::filesystem::path &root)
   }
 
   const auto result = archcheck::scan::duplication::scanForDuplication(sources);
-  std::cout << "scanned " << result.fileCount << " files, " << result.fragments.size()
-            << " fragments, " << result.candidateCount << " candidate pairs\n"
+  std::cout << "scanned " << result.fileCount << " files, " << result.fragments.size() << " fragments, "
+            << result.candidateCount << " candidate pairs\n"
             << "reported (>= " << result.pairs.size() << " pairs above threshold)\n";
 
   for (const auto &p : result.pairs)
   {
     const auto &fa = result.fragments[p.a];
     const auto &fb = result.fragments[p.b];
-    std::cout << "  " << fa.file << ":" << fa.startLine << "-" << fa.endLine << "  <->  "
-              << fb.file << ":" << fb.startLine << "-" << fb.endLine << "  (weighted="
-              << p.weighted << ")\n";
+    std::cout << "  " << fa.file << ":" << fa.startLine << "-" << fa.endLine << "  <->  " << fb.file << ":"
+              << fb.startLine << "-" << fb.endLine << "  (weighted=" << p.weighted << ")\n";
   }
 
   return 0;

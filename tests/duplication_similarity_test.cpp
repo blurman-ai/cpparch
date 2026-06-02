@@ -1,8 +1,7 @@
-#include "archcheck/scan/duplication/similarity.h"
-
 #include <catch2/catch_test_macros.hpp>
-
 #include <cmath>
+
+#include "archcheck/scan/duplication/similarity.h"
 
 using namespace archcheck::scan::duplication;
 
@@ -29,8 +28,8 @@ TEST_CASE("Similarity: plainJaccard disjoint fragments", "[duplication]")
 TEST_CASE("Similarity: plainJaccard partial overlap", "[duplication]")
 {
   Fragment a, b;
-  a.bag = {{"id", 2}, {"lit", 1}};  // total: 3
-  b.bag = {{"id", 1}, {"+", 1}};    // total: 2
+  a.bag = {{"id", 2}, {"lit", 1}}; // total: 3
+  b.bag = {{"id", 1}, {"+", 1}};   // total: 2
 
   const double sim = plainJaccard(a, b);
   REQUIRE(std::abs(sim - 0.25) < 0.001);
