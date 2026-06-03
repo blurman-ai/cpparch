@@ -175,8 +175,8 @@ std::string toLowerCopy(std::string s)
 bool isGeneratedPath(const std::string &lowerPath)
 {
   static const std::vector<std::string> kMarkers = {".pb.h",       ".pb.cc",      ".pb.cpp", "_generated.",
-                                                     ".generated.", "/generated/", "/moc_",   "/ui_",
-                                                     "/qrc_",       ".tab.c",      "lex.yy",  ".g.cpp"};
+                                                    ".generated.", "/generated/", "/moc_",   "/ui_",
+                                                    "/qrc_",       ".tab.c",      "lex.yy",  ".g.cpp"};
   for (const auto &m : kMarkers)
   {
     if (lowerPath.find(m) != std::string::npos)
@@ -259,7 +259,7 @@ void phase12HeaderImplGate(std::vector<Pair> &candidates, const std::vector<Frag
 {
   // For now, keep all pairs (full implementation would count declaration tokens)
   // Heuristic: files ending in .h are headers; pairs between .h and .cpp are expected
-  (void)allFragments;  // Placeholder implementation
+  (void)allFragments; // Placeholder implementation
   (void)candidates;
 }
 
@@ -306,10 +306,7 @@ void phase13FileLoclalIDFDownweight(std::vector<Pair> &candidates, const std::ve
 }
 
 // Canonical "fileA\nfileB" key (order-independent) for a cross-file pair.
-std::string filerPairKey(const std::string &x, const std::string &y)
-{
-  return x < y ? x + "\n" + y : y + "\n" + x;
-}
+std::string filerPairKey(const std::string &x, const std::string &y) { return x < y ? x + "\n" + y : y + "\n" + x; }
 
 // Set of file-pairs that are whole-file clones: ≥80% of the smaller file's
 // fragments (and it has ≥2) are matched across the pair → move/copy/vendored twin.
@@ -425,6 +422,41 @@ void phaseClassifyCloneType(std::vector<Pair> &candidates, const std::vector<Fra
     p.type = cloneType(allFragments[p.a], allFragments[p.b]);
   }
 }
+// Ordered candidate-filtering pipeline (sort → canon → coordinate revalidation →
+// P0/P1 guards → clone-type classification), run in place. Split out of
+// scanForDuplication so each stays within the complexity budget.
+void applyCandidateFilters(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments, ScanResult &result,
+                           const ScannerOptions &opts)
+{
+  phase4Sort(candidates, opts);
+  phase5SymmetricPairCanon(candidates);
+  phase6CoordinateRevalidation(candidates, allFragments);
+  phase7SameFunctionFilter(candidates, allFragments);
+  if (opts.enableJointFloor)
+  {
+    phase8JointTokenOrderFloor(candidates, opts.jointWeightedThreshold, opts.jointLineThreshold);
+  }
+  if (opts.enableWholeFileGuard)
+  {
+    result.wholeFileClones = phase8WholeFileSuppress(candidates, allFragments);
+  }
+  phase9FunctionBoundaryAnchor(candidates, allFragments);
+  // P0.7-P0.9: path-based suppression of intentional/generated duplication
+  if (opts.enablePathGuards)
+  {
+    phasePathBasedFpSuppress(candidates, allFragments);
+  }
+  // P1 classifiers (optional, can reduce recall if miscalibrated)
+  if (opts.enableP1Guards)
+  {
+    phase10DataTableClassifier(candidates, allFragments);
+    phase11BoilerplateDensity(candidates, allFragments);
+    phase12HeaderImplGate(candidates, allFragments);
+    phase13FileLoclalIDFDownweight(candidates, allFragments);
+  }
+  phaseClassifyCloneType(candidates, allFragments);
+}
+
 } // namespace
 
 ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::string>> &files, const ScannerOptions &opts)
@@ -445,37 +477,8 @@ ScanResult scanForDuplication(const std::vector<std::pair<std::string, std::stri
   result.candidateCount = result.index.sharedRare.size();
 
   std::vector<Pair> candidates = phase3ScoreCandidates(allFragments, result.index, opts);
-  result.scoredCandidateCount = candidates.size();  // Count after similarity gate
-  phase4Sort(candidates, opts);
-  phase5SymmetricPairCanon(candidates);
-  phase6CoordinateRevalidation(candidates, allFragments);
-  phase7SameFunctionFilter(candidates, allFragments);
-  if (opts.enableJointFloor)
-  {
-    phase8JointTokenOrderFloor(candidates, opts.jointWeightedThreshold, opts.jointLineThreshold);
-  }
-  if (opts.enableWholeFileGuard)
-  {
-    result.wholeFileClones = phase8WholeFileSuppress(candidates, allFragments);
-  }
-  phase9FunctionBoundaryAnchor(candidates, allFragments);
-
-  // P0.7-P0.9: path-based suppression of intentional/generated duplication
-  if (opts.enablePathGuards)
-  {
-    phasePathBasedFpSuppress(candidates, allFragments);
-  }
-
-  // P1 classifiers (optional, can reduce recall if miscalibrated)
-  if (opts.enableP1Guards)
-  {
-    phase10DataTableClassifier(candidates, allFragments);
-    phase11BoilerplateDensity(candidates, allFragments);
-    phase12HeaderImplGate(candidates, allFragments);
-    phase13FileLoclalIDFDownweight(candidates, allFragments);
-  }
-
-  phaseClassifyCloneType(candidates, allFragments);
+  result.scoredCandidateCount = candidates.size(); // Count after similarity gate
+  applyCandidateFilters(candidates, allFragments, result, opts);
   result.pairs = candidates;
   return result;
 }
