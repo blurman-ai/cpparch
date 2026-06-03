@@ -84,3 +84,6 @@ sandbox/
 
 # Stray local copy of Claude's private memory (canonical copy lives in ~/.claude)
 memory/
+
+# Experiment / corpus-analysis artifacts — local only, not part of the shipped repo (#079/#080 research)
+experiments/
