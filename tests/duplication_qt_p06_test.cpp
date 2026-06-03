@@ -135,8 +135,7 @@ void dummy5() {
     {
       for (const auto &p : result.pairs)
       {
-        std::cout << "Pair[" << p.a << "," << p.b << "]: "
-                  << "w=" << p.weighted << ", line=" << p.line << "\n";
+        std::cout << "Pair[" << p.a << "," << p.b << "]: " << "w=" << p.weighted << ", line=" << p.line << "\n";
       }
     }
     else
@@ -200,8 +199,7 @@ void dummy5() {
     {
       for (const auto &p : result.pairs)
       {
-        std::cout << "Pair[" << p.a << "," << p.b << "]: "
-                  << "w=" << p.weighted << ", line=" << p.line << "\n";
+        std::cout << "Pair[" << p.a << "," << p.b << "]: " << "w=" << p.weighted << ", line=" << p.line << "\n";
 
         // For identical blocks, both metrics should be 1.0 or very high
         std::cout << "  ✓ P0.6 passed (both metrics high for identical blocks)\n";

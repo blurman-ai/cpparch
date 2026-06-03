@@ -88,8 +88,7 @@ void onReplaceAllClick() {
     {
       for (const auto &p : result.pairs)
       {
-        std::cout << "  Pair[" << p.a << "," << p.b << "]: "
-                  << "w=" << p.weighted << ", line=" << p.line << "\n";
+        std::cout << "  Pair[" << p.a << "," << p.b << "]: " << "w=" << p.weighted << ", line=" << p.line << "\n";
       }
     }
 
@@ -116,8 +115,7 @@ void onReplaceAllClick() {
     {
       for (const auto &p : result.pairs)
       {
-        std::cout << "  Pair[" << p.a << "," << p.b << "]: "
-                  << "w=" << p.weighted << ", line=" << p.line << "\n";
+        std::cout << "  Pair[" << p.a << "," << p.b << "]: " << "w=" << p.weighted << ", line=" << p.line << "\n";
 
         // P0.6 REQUIREMENT: BOTH metrics must pass
         if (!((p.weighted >= 0.75 && p.line >= 0.50)))
