@@ -136,11 +136,22 @@
 
 ---
 
-## Следующие шаги
+## Итоги
 
-1. Скрипт-оркестратор: enumerate C++ репы → per-repo graph-drift (с мая 2025) ‖ HEAD dup.
-2. Агрегатор → `corpus_report.md` с AI-корреляцией.
-3. Прогон, ревью глазами, drill-down коммитов-виновников копипаста на интересных.
+**✓ Выполнено:**
+1. Оркестратор собирает 317 C++ реп за ~40 мин параллельно
+2. AI-детект по маркерам в коммитах (mean 52.8%, stdev ±29.3%)
+3. Дупликация на HEAD: 232 реп с копипастом, топ = CnC_Generals 2538 пар
+4. Анализ: биmodal распределение (51% с 50-95% AI), 13 репо 100% AI
+
+**Коммит:** e4ba6b9 (feat: corpus orchestrator for parallel C++ repo analysis)
+
+## Возможные улучшения (будущее)
+
+1. **Graph-drift per-commit** — дорого (~5 часов на 280k commits), отложено
+2. **Spearman correlation** — между AI% и graph_errors/dup_pairs (нужна scipy)
+3. **Blame drill-down** — какой % дупликатов создан AI-коммитами
+4. **Trend analysis** — временное развитие AI-adoption по кварталам
 
 ## Related
 
