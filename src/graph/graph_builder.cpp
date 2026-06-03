@@ -40,9 +40,12 @@ void applyResolved(const std::vector<scan::ResolvedInclude> &resolved, NodeId so
   }
 }
 
-// Vendored code (dirs #068, single-file libs #069) pollutes cycles and metrics
-// without being author drift — drop it before it enters the graph. Reads each
-// file once and caches the content for the include scan below.
+// Vendored code (dirs #068, single-file libs #069) and unit/integration test
+// code (#070) are not author architecture: vendored libs pollute cycles/metrics,
+// and test code is not subject to architecture checks at all. Drop both before
+// they enter the graph — this also stops tests/ from showing up as a cross-area
+// dependency source. Reads each file once and caches the content for the include
+// scan below.
 struct FilteredFiles
 {
   std::vector<scan::ProjectFile> files;
@@ -54,7 +57,8 @@ FilteredFiles filterVendored(scan::FileSource &source)
   FilteredFiles out;
   for (const auto &f : source.list())
   {
-    if (scan::pathHasVendoredDir(f.path))
+    if (scan::pathHasVendoredDir(f.path) || scan::pathHasTestDir(f.path) ||
+        scan::isTestBasename(scan::baseName(f.path)))
     {
       continue;
     }

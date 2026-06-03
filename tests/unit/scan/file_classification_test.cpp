@@ -5,9 +5,12 @@
 
 using archcheck::scan::baseName;
 using archcheck::scan::hasVendorLicenseHeader;
+using archcheck::scan::isTestBasename;
+using archcheck::scan::isTestDirName;
 using archcheck::scan::isVendoredBasename;
 using archcheck::scan::isVendoredDirName;
 using archcheck::scan::isVendoredFile;
+using archcheck::scan::pathHasTestDir;
 using archcheck::scan::pathHasVendoredDir;
 
 // === Layer 1: curated single-file-lib basenames (#069) =======================
@@ -91,4 +94,35 @@ TEST_CASE("baseName extracts the final path segment", "[scan][vendor]")
 {
   REQUIRE(baseName("a/b/c.cpp") == "c.cpp");
   REQUIRE(baseName("c.cpp") == "c.cpp");
+}
+
+// === Unit/integration test exclusion (#070) ==================================
+
+TEST_CASE("test dir name: every spelling collapses", "[scan][test]")
+{
+  for (const auto *n : {"test", "tests", "unit_test", "unit-tests", "UnitTests"})
+  {
+    REQUIRE(isTestDirName(n));
+  }
+  REQUIRE_FALSE(isTestDirName("src"));
+  REQUIRE_FALSE(isTestDirName("latest")); // whole-segment match, not substring
+}
+
+TEST_CASE("pathHasTestDir tests directory segments only", "[scan][test]")
+{
+  REQUIRE(pathHasTestDir("tests/unit/foo.cpp"));
+  REQUIRE(pathHasTestDir("src/test/bar.cpp"));
+  REQUIRE_FALSE(pathHasTestDir("src/graph/graph_builder.cpp"));
+  REQUIRE_FALSE(pathHasTestDir("latest/x.cpp")); // segment is "latest", not "test"
+}
+
+TEST_CASE("isTestBasename matches test_/_test/_tests/_spec stems", "[scan][test]")
+{
+  REQUIRE(isTestBasename("graph_test.cpp"));
+  REQUIRE(isTestBasename("graph_tests.cpp"));
+  REQUIRE(isTestBasename("test_helpers.cpp"));
+  REQUIRE(isTestBasename("widget_spec.cpp"));
+  REQUIRE(isTestBasename("Foo_Test.CPP")); // case-insensitive
+  REQUIRE_FALSE(isTestBasename("graph_builder.cpp"));
+  REQUIRE_FALSE(isTestBasename("contest.cpp")); // not a _test suffix
 }

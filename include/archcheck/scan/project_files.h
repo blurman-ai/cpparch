@@ -48,9 +48,10 @@ ProjectIndex buildProjectIndex(const std::vector<ProjectFile> &files);
 class FileSource; // defined in file_source.h
 
 // Read all project files from `source`, dropping vendored code (vendored
-// directory segments, vendored basenames, or vendor license headers — the same
-// exclusion the graph builder applies) and empty files. Vendored code is noise
-// in every signal, including duplication. Returns (repo-relative path, content).
+// directory segments, vendored basenames, or vendor license headers), unit and
+// integration test code (#070: test/ tests/ dirs, *_test/*_spec basenames), and
+// empty files — the same exclusion set the graph builder applies. All three are
+// noise in every signal, including duplication. Returns (repo-relative path, content).
 std::vector<std::pair<std::string, std::string>> collectNonVendoredSources(FileSource &source);
 
 } // namespace archcheck::scan

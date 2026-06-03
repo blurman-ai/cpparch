@@ -65,15 +65,10 @@ inline std::string toLowerAscii(std::string_view s)
   return out;
 }
 
-// Vendored dependency directories (#068). Name is normalised (lowercased,
-// '_'/'-'/space stripped) so third_party / 3rd-party / node_modules / ThirdParty
-// all collapse to one canonical spelling.
-inline constexpr std::array<std::string_view, 14> kVendoredDirNames = {
-    "thirdparty", "3rdparty", "vendor",       "vendored",   "vendors",   "external",    "externals",
-    "extern",     "deps",     "dependencies", "submodules", "submodule", "nodemodules", "contrib",
-};
-
-inline bool isVendoredDirName(std::string_view name)
+// Canonical directory-segment spelling: lowercased with '_'/'-'/space removed,
+// so third_party / 3rd-party / ThirdParty and unit_test / unit-tests / UnitTests
+// each collapse to one form. Shared by the vendored- and test-dir classifiers.
+inline std::string normalizeDirSegment(std::string_view name)
 {
   std::string norm;
   norm.reserve(name.size());
@@ -85,12 +80,13 @@ inline bool isVendoredDirName(std::string_view name)
     }
     norm.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
   }
-  return std::find(kVendoredDirNames.begin(), kVendoredDirNames.end(), norm) != kVendoredDirNames.end();
+  return norm;
 }
 
-// True if any *directory* segment of a repo-relative POSIX path is vendored
-// (the final, file-name segment is not tested).
-inline bool pathHasVendoredDir(std::string_view path)
+// True if any *directory* segment of a repo-relative POSIX path satisfies
+// `pred` (the final, file-name segment is never tested). Shared walker so the
+// vendored- and test-dir checks cannot drift apart.
+inline bool pathAnyDirSegment(std::string_view path, bool (*pred)(std::string_view))
 {
   std::size_t start = 0;
   while (start < path.size())
@@ -100,7 +96,7 @@ inline bool pathHasVendoredDir(std::string_view path)
     {
       return false; // last segment = file name, skip
     }
-    if (isVendoredDirName(path.substr(start, slash - start)))
+    if (pred(path.substr(start, slash - start)))
     {
       return true;
     }
@@ -108,6 +104,24 @@ inline bool pathHasVendoredDir(std::string_view path)
   }
   return false;
 }
+
+// Vendored dependency directories (#068). Name is normalised (lowercased,
+// '_'/'-'/space stripped) so third_party / 3rd-party / node_modules / ThirdParty
+// all collapse to one canonical spelling.
+inline constexpr std::array<std::string_view, 14> kVendoredDirNames = {
+    "thirdparty", "3rdparty", "vendor",       "vendored",   "vendors",   "external",    "externals",
+    "extern",     "deps",     "dependencies", "submodules", "submodule", "nodemodules", "contrib",
+};
+
+inline bool isVendoredDirName(std::string_view name)
+{
+  const std::string norm = normalizeDirSegment(name);
+  return std::find(kVendoredDirNames.begin(), kVendoredDirNames.end(), norm) != kVendoredDirNames.end();
+}
+
+// True if any *directory* segment of a repo-relative POSIX path is vendored
+// (the final, file-name segment is not tested).
+inline bool pathHasVendoredDir(std::string_view path) { return pathAnyDirSegment(path, isVendoredDirName); }
 
 inline std::string_view baseName(std::string_view path)
 {
@@ -174,6 +188,51 @@ inline bool hasVendorLicenseHeader(std::string_view headerBytes)
 inline bool isVendoredFile(std::string_view filename, std::string_view headerBytes)
 {
   return isVendoredBasename(filename) || hasVendorLicenseHeader(headerBytes);
+}
+
+// === Unit/integration test exclusion (#070) ==================================
+// Test code duplicates by nature — parallel cases, shared fixtures,
+// CHECK()-boilerplate — and its cycles / god-headers are not author drift. It is
+// dropped from every signal alongside vendored code: directory segments
+// test/ tests/ unit_test(s)/, plus basenames foo_test.* / foo_tests.* /
+// test_foo.* / foo_spec.*.
+inline constexpr std::array<std::string_view, 4> kTestDirNames = {
+    "test",
+    "tests",
+    "unittest",
+    "unittests",
+};
+
+inline bool isTestDirName(std::string_view name)
+{
+  const std::string norm = normalizeDirSegment(name);
+  return std::find(kTestDirNames.begin(), kTestDirNames.end(), norm) != kTestDirNames.end();
+}
+
+inline bool pathHasTestDir(std::string_view path) { return pathAnyDirSegment(path, isTestDirName); }
+
+// Test-file basename heuristic on the stem: starts with test_, or ends with
+// _test / _tests / _spec (case-insensitive).
+// GCC8-COMPAT: libstdc++8 has no std::string_view::ends_with — match via
+// compare() like the vendored helpers above.
+inline bool isTestBasename(std::string_view filename)
+{
+  const std::string name = toLowerAscii(filename);
+  const std::size_t dot = name.rfind('.');
+  const std::string stem = (dot == std::string::npos) ? name : name.substr(0, dot);
+  if (stem.rfind("test_", 0) == 0)
+  {
+    return true;
+  }
+  static constexpr std::array<std::string_view, 3> kTestStemSuffixes = {"_test", "_tests", "_spec"};
+  for (std::string_view suffix : kTestStemSuffixes)
+  {
+    if (stem.size() >= suffix.size() && stem.compare(stem.size() - suffix.size(), suffix.size(), suffix) == 0)
+    {
+      return true;
+    }
+  }
+  return false;
 }
 
 } // namespace archcheck::scan

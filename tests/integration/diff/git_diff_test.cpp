@@ -158,19 +158,40 @@ TEST_CASE("git diff: first cross-area dependency is reported as a new area pair"
   TempDir repo;
   initRepo(repo.path);
   fs::create_directories(repo.path / "src");
+  fs::create_directories(repo.path / "app");
+  writeFile(repo.path / "src" / "core.h", "// core\n");
+  writeFile(repo.path / "src" / "util.h", "#include \"core.h\"\n");
+  commitAll(repo.path, "baseline");
+  // app -> src is a real cross-area link. (tests/ -> src is intentionally NOT a
+  // signal: test code is excluded from the graph, #070.)
+  writeFile(repo.path / "app" / "widget.h", "#include \"../src/core.h\"\n");
+  commitAll(repo.path, "PR adds app -> src link");
+
+  const auto report = diffRefs(repo.path, "HEAD~1", "HEAD");
+  REQUIRE(report.newCrossAreaDependencies.size() == 1);
+  REQUIRE(report.newCrossAreaDependencies[0].fromArea == "app");
+  REQUIRE(report.newCrossAreaDependencies[0].toArea == "src");
+  REQUIRE(report.newCrossAreaDependencies[0].edgeCount == 1);
+  REQUIRE(report.hasRegression());
+}
+
+TEST_CASE("git diff: test code is excluded from the graph (#070)", "[diff][git][integration]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  fs::create_directories(repo.path / "src");
   fs::create_directories(repo.path / "tests");
   writeFile(repo.path / "src" / "core.h", "// core\n");
   writeFile(repo.path / "src" / "util.h", "#include \"core.h\"\n");
   commitAll(repo.path, "baseline");
+  // A test starting to depend on src is NOT architecture drift — test code is
+  // not checked for architecture, so nothing must be reported.
   writeFile(repo.path / "tests" / "core_test.h", "#include \"../src/core.h\"\n");
   commitAll(repo.path, "PR adds tests -> src link");
 
   const auto report = diffRefs(repo.path, "HEAD~1", "HEAD");
-  REQUIRE(report.newCrossAreaDependencies.size() == 1);
-  REQUIRE(report.newCrossAreaDependencies[0].fromArea == "tests");
-  REQUIRE(report.newCrossAreaDependencies[0].toArea == "src");
-  REQUIRE(report.newCrossAreaDependencies[0].edgeCount == 1);
-  REQUIRE(report.hasRegression());
+  REQUIRE(report.newCrossAreaDependencies.empty());
+  REQUIRE_FALSE(report.hasRegression());
 }
 
 TEST_CASE("git diff: no-op PR (touch unrelated text) → no regression", "[diff][git][integration]")

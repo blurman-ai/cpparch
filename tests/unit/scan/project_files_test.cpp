@@ -223,3 +223,19 @@ TEST_CASE("collect_non_vendored_sources: drops vendored + empty, keeps project c
   REQUIRE(out.size() == 1);
   REQUIRE(out[0].first == "src/app/foo.cpp");
 }
+
+TEST_CASE("collect_non_vendored_sources: drops unit-test code (#070)", "[scan][test]")
+{
+  FakeSource src;
+  src.files = {{"src/app/foo.cpp"}, {"tests/unit/foo_test.cpp"}, {"src/widget_test.cpp"}};
+  src.blobs = {
+      {"src/app/foo.cpp", "int foo() { return 1; }"},
+      {"tests/unit/foo_test.cpp", "int t() { return 1; }"}, // test directory segment
+      {"src/widget_test.cpp", "int w() { return 1; }"},     // test basename
+  };
+
+  const auto out = collectNonVendoredSources(src);
+
+  REQUIRE(out.size() == 1);
+  REQUIRE(out[0].first == "src/app/foo.cpp");
+}
