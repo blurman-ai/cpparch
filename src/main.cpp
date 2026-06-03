@@ -181,9 +181,9 @@ int run_check(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts 
   archcheck::scan::DiskFileSource src(root);
   auto readFile = [&](std::string_view path) -> std::string { return src.read(std::string(path)); };
   auto rules = archcheck::rules::makeDefaultRuleSet(*config);
-  if (baseline.driftFile)
-    if (const int rc = applyDriftFile(*baseline.driftFile, rules); rc != 0)
-      return rc;
+  const int driftRc = baseline.driftFile ? applyDriftFile(*baseline.driftFile, rules) : 0;
+  if (driftRc != 0)
+    return driftRc;
   archcheck::rules::ViolationList all;
   for (const auto &rule : rules)
   {
