@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <string>
 #include <system_error>
+#include <utility>
 
 #include "archcheck/scan/file_classification.h"
+#include "archcheck/scan/file_source.h"
 
 namespace archcheck::scan
 {
@@ -90,5 +92,24 @@ ProjectIndex buildProjectIndex(const std::vector<ProjectFile> &files)
 bool hasProjectExtension(const std::filesystem::path &p) { return has_project_extension(p); }
 
 bool isHeaderFile(const std::filesystem::path &p) { return is_header_file(p); }
+
+std::vector<std::pair<std::string, std::string>> collectNonVendoredSources(FileSource &source)
+{
+  std::vector<std::pair<std::string, std::string>> out;
+  for (const auto &f : source.list())
+  {
+    if (pathHasVendoredDir(f.path))
+    {
+      continue; // vendored directory segment (third_party/, vendor/, deps/, ...)
+    }
+    std::string content = source.read(f.path);
+    if (content.empty() || isVendoredFile(baseName(f.path), content))
+    {
+      continue; // empty, or vendored basename / vendor license header
+    }
+    out.push_back({f.path, std::move(content)});
+  }
+  return out;
+}
 
 } // namespace archcheck::scan

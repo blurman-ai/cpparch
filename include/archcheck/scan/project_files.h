@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace archcheck::scan
@@ -43,5 +44,13 @@ bool isHeaderFile(const std::filesystem::path &p);
 // Build exact-path + '/'-segment suffix indexes over `files`. The NodeId
 // of a file equals its index in the input vector.
 ProjectIndex buildProjectIndex(const std::vector<ProjectFile> &files);
+
+class FileSource; // defined in file_source.h
+
+// Read all project files from `source`, dropping vendored code (vendored
+// directory segments, vendored basenames, or vendor license headers — the same
+// exclusion the graph builder applies) and empty files. Vendored code is noise
+// in every signal, including duplication. Returns (repo-relative path, content).
+std::vector<std::pair<std::string, std::string>> collectNonVendoredSources(FileSource &source);
 
 } // namespace archcheck::scan
