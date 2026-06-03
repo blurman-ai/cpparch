@@ -64,6 +64,43 @@ TEST_CASE("buildRegressionReport: new cycle is reported as grown SCC", "[diff][r
   REQUIRE(r.hasRegression());
 }
 
+TEST_CASE("buildRegressionReport: first cross-area dependency is reported once per area pair", "[diff][report]")
+{
+  DependencyGraph baseline;
+  const auto srcA = baseline.addNode("src/a.h");
+  const auto srcB = baseline.addNode("src/b.h");
+  baseline.addEdge(srcA, srcB);
+
+  DependencyGraph current = baseline;
+  const auto testA = current.addNode("tests/test_a.h");
+  const auto testB = current.addNode("tests/test_b.h");
+  current.addEdge(testA, NodeId{0});
+  current.addEdge(testB, NodeId{1});
+
+  const auto r = buildRegressionReport(baseline, current);
+  REQUIRE(r.newCrossAreaDependencies.size() == 1);
+  REQUIRE(r.newCrossAreaDependencies[0].fromArea == "tests");
+  REQUIRE(r.newCrossAreaDependencies[0].toArea == "src");
+  REQUIRE(r.newCrossAreaDependencies[0].edgeCount == 2);
+  REQUIRE(r.hasRegression());
+}
+
+TEST_CASE("buildRegressionReport: existing cross-area dependency growth is not reported as new", "[diff][report]")
+{
+  DependencyGraph baseline;
+  const auto srcA = baseline.addNode("src/a.h");
+  const auto srcB = baseline.addNode("src/b.h");
+  const auto testA = baseline.addNode("tests/test_a.h");
+  baseline.addEdge(testA, srcA);
+
+  DependencyGraph current = baseline;
+  const auto testB = current.addNode("tests/test_b.h");
+  current.addEdge(testB, srcB);
+
+  const auto r = buildRegressionReport(baseline, current);
+  REQUIRE(r.newCrossAreaDependencies.empty());
+}
+
 TEST_CASE("writeTextReport: removed-only diff is not a regression", "[diff][report]")
 {
   // Removing edges should NOT trip exit-code-1 in CI — PRs that drop edges
@@ -132,10 +169,33 @@ TEST_CASE("writeTextReport: empty report shows zeros only", "[diff][report]")
   REQUIRE(s.find("added_edges:    0") != std::string::npos);
   REQUIRE(s.find("removed_edges:  0") != std::string::npos);
   REQUIRE(s.find("grown_cycles:   0") != std::string::npos);
+  REQUIRE(s.find("new_area_deps:  0") != std::string::npos);
   // No added:/removed:/grown_cycles: sections when empty
   REQUIRE(s.find("\nadded:\n") == std::string::npos);
   REQUIRE(s.find("\nremoved:\n") == std::string::npos);
   REQUIRE(s.find("\ngrown_cycles:\n") == std::string::npos);
+}
+
+TEST_CASE("writeTextReport: new cross-area dependency appears in output", "[diff][report]")
+{
+  DependencyGraph baseline;
+  const auto srcA = baseline.addNode("src/a.h");
+  const auto srcB = baseline.addNode("src/b.h");
+  baseline.addEdge(srcA, srcB);
+
+  DependencyGraph current = baseline;
+  const auto testA = current.addNode("tests/test_a.h");
+  current.addEdge(testA, NodeId{0});
+
+  const auto r = buildRegressionReport(baseline, current);
+
+  std::ostringstream out;
+  writeTextReport(r, out);
+  const auto s = out.str();
+  REQUIRE(s.find("new_area_deps:  1") != std::string::npos);
+  REQUIRE(s.find("new_cross_area_dependencies:") != std::string::npos);
+  REQUIRE(s.find("tests -> src") != std::string::npos);
+  REQUIRE(s.find("tests/test_a.h") != std::string::npos);
 }
 
 // --- metric regression tests ---

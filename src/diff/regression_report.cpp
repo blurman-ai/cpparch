@@ -1,7 +1,10 @@
 #include "archcheck/diff/regression_report.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "archcheck/graph/algorithms.h"
@@ -10,6 +13,116 @@
 
 namespace archcheck::diff
 {
+
+namespace
+{
+
+struct AreaClassifier
+{
+  bool useSecondLevel = false;
+
+  std::string classify(std::string_view path) const
+  {
+    const auto firstSlash = path.find('/');
+    if (firstSlash == std::string_view::npos)
+      return "<root>";
+    if (!useSecondLevel)
+      return std::string(path.substr(0, firstSlash));
+    const auto secondSlash = path.find('/', firstSlash + 1);
+    if (secondSlash == std::string_view::npos)
+      return std::string(path.substr(0, firstSlash));
+    return std::string(path.substr(0, secondSlash));
+  }
+};
+
+struct AreaEdgeStats
+{
+  std::string fromArea;
+  std::string toArea;
+  std::size_t edgeCount = 0;
+  std::string sampleFrom;
+  std::string sampleTo;
+};
+
+using AreaEdgeMap = std::unordered_map<std::string, AreaEdgeStats>;
+
+AreaClassifier buildAreaClassifier(const graph::DependencyGraph &baseline, const graph::DependencyGraph &current)
+{
+  std::unordered_set<std::string> topDirs;
+  const auto collectTopDirs = [&](const graph::DependencyGraph &g)
+  {
+    for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(g.nodeCount()); ++i)
+    {
+      const auto path = g.pathOf(graph::NodeId{i});
+      const auto slash = path.find('/');
+      if (slash != std::string_view::npos)
+        topDirs.emplace(path.substr(0, slash));
+    }
+  };
+  collectTopDirs(baseline);
+  collectTopDirs(current);
+  return AreaClassifier{topDirs.size() == 1};
+}
+
+std::string makeAreaKey(std::string_view fromArea, std::string_view toArea)
+{
+  std::string key;
+  key.reserve(fromArea.size() + toArea.size() + 1);
+  key.append(fromArea);
+  key.push_back('\n');
+  key.append(toArea);
+  return key;
+}
+
+AreaEdgeMap collectCrossAreaEdges(const graph::DependencyGraph &g, const AreaClassifier &classifier)
+{
+  AreaEdgeMap result;
+  for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(g.nodeCount()); ++i)
+  {
+    const graph::NodeId from{i};
+    const auto fromPath = g.pathOf(from);
+    const auto fromArea = classifier.classify(fromPath);
+    for (graph::NodeId to : g.successors(from))
+    {
+      const auto toPath = g.pathOf(to);
+      const auto toArea = classifier.classify(toPath);
+      if (fromArea == toArea)
+        continue;
+      const auto key = makeAreaKey(fromArea, toArea);
+      auto &stats = result[key];
+      if (stats.edgeCount == 0)
+      {
+        stats.fromArea = fromArea;
+        stats.toArea = toArea;
+        stats.sampleFrom = std::string(fromPath);
+        stats.sampleTo = std::string(toPath);
+      }
+      ++stats.edgeCount;
+    }
+  }
+  return result;
+}
+
+std::vector<NewCrossAreaDependency> detectNewCrossAreaDependencies(const graph::DependencyGraph &baseline,
+                                                                   const graph::DependencyGraph &current)
+{
+  const auto classifier = buildAreaClassifier(baseline, current);
+  const auto baselineAreas = collectCrossAreaEdges(baseline, classifier);
+  const auto currentAreas = collectCrossAreaEdges(current, classifier);
+  std::vector<NewCrossAreaDependency> result;
+  for (const auto &[key, stats] : currentAreas)
+  {
+    if (baselineAreas.count(key) != 0)
+      continue;
+    result.push_back(
+        NewCrossAreaDependency{stats.fromArea, stats.toArea, stats.edgeCount, stats.sampleFrom, stats.sampleTo});
+  }
+  std::sort(result.begin(), result.end(), [](const NewCrossAreaDependency &a, const NewCrossAreaDependency &b)
+            { return a.fromArea < b.fromArea || (a.fromArea == b.fromArea && a.toArea < b.toArea); });
+  return result;
+}
+
+} // namespace
 
 void collectEdgesAndCycles(const graph::DependencyGraph &baseline, const graph::DependencyGraph &current,
                            RegressionReport &r)
@@ -57,6 +170,7 @@ RegressionReport buildRegressionReport(const graph::DependencyGraph &baseline, c
 {
   RegressionReport r;
   collectEdgesAndCycles(baseline, current, r);
+  r.newCrossAreaDependencies = detectNewCrossAreaDependencies(baseline, current);
   const auto bm = graph::computeGraphMetrics(baseline);
   const auto cm = graph::computeGraphMetrics(current);
   if (cm.maxChainLength > bm.maxChainLength)
@@ -66,9 +180,6 @@ RegressionReport buildRegressionReport(const graph::DependencyGraph &baseline, c
     r.nccdDelta = cm.nccd - bm.nccd;
   return r;
 }
-
-namespace
-{
 
 void writeAdded(const std::vector<AddedEdge> &v, std::ostream &out)
 {
@@ -102,6 +213,21 @@ void writeGrown(const std::vector<GrownCycle> &v, std::ostream &out)
   }
 }
 
+void writeCrossAreaDependencies(const std::vector<NewCrossAreaDependency> &v, std::ostream &out)
+{
+  if (v.empty())
+    return;
+  out << "\nnew_cross_area_dependencies:\n"; // LCOV_EXCL_BR_LINE
+  for (const auto &dep : v)
+  {
+    out << "  * " << dep.fromArea << " -> " << dep.toArea << " (" << dep.edgeCount << " edge";
+    if (dep.edgeCount != 1)
+      out << 's';
+    out << ")\n";                                                               // LCOV_EXCL_BR_LINE
+    out << "      e.g. " << dep.sampleFrom << "  ->  " << dep.sampleTo << '\n'; // LCOV_EXCL_BR_LINE
+  }
+}
+
 void writeChainLength(const std::optional<MetricDelta> &d, std::ostream &out)
 {
   if (!d)
@@ -125,19 +251,19 @@ void writeNccdDelta(const std::optional<double> &d, std::ostream &out)
   out << "\nnccd_grown: +" << *d << '\n'; // LCOV_EXCL_BR_LINE
 }
 
-} // namespace
-
 void writeTextReport(const RegressionReport &r, std::ostream &out)
 {
   out << "added_edges:    " << r.addedEdges.size() << '\n' // LCOV_EXCL_BR_LINE
       << "removed_edges:  " << r.removedEdges.size() << '\n'
-      << "grown_cycles:   " << r.grownCycles.size() << '\n';
-  writeAdded(r.addedEdges, out);             // LCOV_EXCL_BR_LINE
-  writeRemoved(r.removedEdges, out);         // LCOV_EXCL_BR_LINE
-  writeGrown(r.grownCycles, out);            // LCOV_EXCL_BR_LINE
-  writeChainLength(r.chainLengthGrown, out); // LCOV_EXCL_BR_LINE
-  writeGodHeaders(r.newGodHeaders, out);     // LCOV_EXCL_BR_LINE
-  writeNccdDelta(r.nccdDelta, out);          // LCOV_EXCL_BR_LINE
+      << "grown_cycles:   " << r.grownCycles.size() << '\n'
+      << "new_area_deps:  " << r.newCrossAreaDependencies.size() << '\n';
+  writeAdded(r.addedEdges, out);                               // LCOV_EXCL_BR_LINE
+  writeRemoved(r.removedEdges, out);                           // LCOV_EXCL_BR_LINE
+  writeGrown(r.grownCycles, out);                              // LCOV_EXCL_BR_LINE
+  writeCrossAreaDependencies(r.newCrossAreaDependencies, out); // LCOV_EXCL_BR_LINE
+  writeChainLength(r.chainLengthGrown, out);                   // LCOV_EXCL_BR_LINE
+  writeGodHeaders(r.newGodHeaders, out);                       // LCOV_EXCL_BR_LINE
+  writeNccdDelta(r.nccdDelta, out);                            // LCOV_EXCL_BR_LINE
 }
 
 } // namespace archcheck::diff
