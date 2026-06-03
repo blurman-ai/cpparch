@@ -1,6 +1,7 @@
 #include "archcheck/scan/include_resolver.h"
 
 #include <array>
+#include <filesystem>
 #include <string>
 #include <string_view>
 
@@ -38,6 +39,14 @@ std::string source_directory(std::string_view sourceFile)
     return {};
   }
   return std::string{sourceFile.substr(0, slash + 1)};
+}
+
+// Collapse "." / ".." segments so a relative include like "tests/../src/core.h"
+// matches the indexed project path "src/core.h". Includes that escape the
+// project root keep their leading ".." and simply fail to match (correct).
+std::string normalize_relative(std::string_view path)
+{
+  return std::filesystem::path(path).lexically_normal().generic_string();
 }
 
 ResolvedInclude make_project(const IncludeDirective &d, std::string_view source, NodeId target)
@@ -91,7 +100,7 @@ ResolvedInclude resolve_by_suffix(const IncludeDirective &d, std::string_view so
 ResolvedInclude resolve_quote(const IncludeDirective &d, std::string_view source, const std::vector<ProjectFile> &files,
                               const ProjectIndex &index)
 {
-  const std::string relative = source_directory(source) + d.token;
+  const std::string relative = normalize_relative(source_directory(source) + d.token);
   if (const NodeId *hit = find_exact(index, relative))
   {
     return make_project(d, source, *hit);
