@@ -37,6 +37,15 @@ struct MetricDelta
   std::size_t current = 0;
 };
 
+struct NewCrossAreaDependency
+{
+  std::string fromArea;
+  std::string toArea;
+  std::size_t edgeCount = 0;
+  std::string sampleFrom;
+  std::string sampleTo;
+};
+
 struct MetricThresholds
 {
   std::size_t chainLengthLimit = 10; // unused in comparison; reserved for rule engine
@@ -51,14 +60,15 @@ struct RegressionReport
   std::vector<AddedEdge> addedEdges;
   std::vector<RemovedEdge> removedEdges;
   std::vector<GrownCycle> grownCycles;
+  std::vector<NewCrossAreaDependency> newCrossAreaDependencies;
   std::optional<MetricDelta> chainLengthGrown; // set when current max depth > baseline
   std::vector<std::string> newGodHeaders;      // nodes crossing godHeaderFanIn threshold
   std::optional<double> nccdDelta;             // set when NCCD increased
 
   bool hasRegression() const
   {
-    return !addedEdges.empty() || !grownCycles.empty() || chainLengthGrown.has_value() || !newGodHeaders.empty() ||
-           (nccdDelta.has_value() && *nccdDelta > 0.0);
+    return !addedEdges.empty() || !grownCycles.empty() || !newCrossAreaDependencies.empty() ||
+           chainLengthGrown.has_value() || !newGodHeaders.empty() || (nccdDelta.has_value() && *nccdDelta > 0.0);
   }
 };
 
