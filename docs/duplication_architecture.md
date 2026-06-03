@@ -19,6 +19,11 @@ _Актуально на 2026-06-01. Источник истины по диза
 physical design: код, который должен был быть общим (заголовок, базовый класс,
 шаблон), но размножен копипастой. archcheck ищет такие места, чтобы:
 
+> Эмпирическое подтверждение этой рамки — [research/dedup_techniques_corpus.md](research/dedup_techniques_corpus.md):
+> разбор реальных коммитов в OSS, где разработчики убирали копипаст (доминирующий
+> приём — вынос общего кода в общий заголовок/модуль, ровно «missing reuse edge»).
+
+
 - **гейтить в CI** рост дублирования (не дашборд — exit≠0, заставляет действовать);
 - давать **конкретные находки** (`file:line ↔ file:line`), а не общий `%`;
 - работать в fast-backend: **без libclang и `compile_commands.json`**, дёшево,
@@ -268,7 +273,13 @@ detect (#053/#056 recall) → confirm (#070 precision) → ДЕЙСТВИЕ
 - **#033** — `ai_drift_dataset` (дублирование как AI-drift сигнал).
 - ~~**#053** `fast_backend_line_duplication_pass` (line Type-1)~~ — убран, git history.
 - ~~**#052** `cross_tu_duplication_detector` (AST-слой)~~ — убран, git history.
-- Отчёты: `experiments/partial_duplication/{SPIKE_REPORT,OSS_SWEEP_REPORT}.md`,
-  `experiments/ai_repo_run/SUMMARY.md`.
 - Литература (precision): essence-clones (info-theoretic, arXiv 2502.19219),
   Kapser & Godfrey (benign clones), SourcererCC (low-freq index).
+
+> **`experiments/` вынесена из гита** (локальная песочница, см. корневой
+> `.gitignore`). Дампы и сырые отчёты (`partial_duplication/*`,
+> `ai_repo_run/SUMMARY.md`, корпусные TSV) — регенерируемы, в гите их больше нет.
+> Рукописный синтез сохранён в трекаемых доках:
+> - дедуп-приёмы из OSS (ground truth TP) → [research/dedup_techniques_corpus.md](research/dedup_techniques_corpus.md);
+> - FP-классы + precision → [duplication_fp_analysis.md](duplication_fp_analysis.md);
+> - корпусные AI-корреляции (#079/#080) → `backlog/wip/079…`, `backlog/wip/080…`.

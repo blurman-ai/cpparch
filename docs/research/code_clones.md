@@ -3,7 +3,8 @@
 _Составлено 2026-06-03. Литературная сводка + gap-анализ: что из этого
 **уже умеет код archcheck**, а что нет. Дизайн-источник по подсистеме —
 [../duplication_architecture.md](../duplication_architecture.md); правила TP/FP —
-задача `backlog/new/071_fp_classification_rules.md` и mem:`fp_classification_rules`._
+задача `backlog/new/071_fp_classification_rules.md` и mem:`fp_classification_rules`;
+эмпирика TP (реальные дедуп-рефакторинги в OSS) — [dedup_techniques_corpus.md](dedup_techniques_corpus.md)._
 
 Зачем эта дока: подсистема дубликатов выросла из практики (замеры на vmecpp /
 LibreSprite / BambuStudio), а не из теории. Здесь — внешняя авторитетная опора
