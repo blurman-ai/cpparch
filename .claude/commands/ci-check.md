@@ -42,21 +42,30 @@
 
 ## Локальные гейты (по запросу, если CI красный и хочется проверить до пуша)
 
-Те же проверки, что гоняет `.github/workflows/ci.yml`, в порядке «быстрые сначала»:
+Те же проверки, что гоняет `.github/workflows/ci.yml`, в порядке «быстрые сначала».
+
+⚠️ Версии инструментов на Astra ≠ CI, локально «чисто» может не значить «зелёный CI»:
+- **clang-format**: системный 18.1.8 форматирует иначе, чем CI (18.1.3). Ставить pin:
+  `python3 -m pip install --user --quiet 'clang-format==18.1.3'` → `$HOME/.local/bin/clang-format`.
+- **cppcheck**: системный 1.86 старше CI-шного, пропускает часть проверок.
+- **build/debug**: если сконфигурирован без `-Werror` — пропустит варнинги, на которых CI падает. CI гонит Debug с дефолтным `ARCHCHECK_ENABLE_WARNINGS=ON`.
 
 ```bash
+CF="$HOME/.local/bin/clang-format"   # 18.1.3, как на CI
+
 # 1. clang-format (как в CI)
 find src include tests -name '*.h' -o -name '*.cpp' \
-  | xargs clang-format-18 --dry-run --Werror --style=file
+  | xargs "$CF" --dry-run --Werror --style=file
 
 # 2. cppcheck (gate)
 cppcheck --enable=warning,performance,portability --inline-suppr \
   --error-exitcode=1 --suppress=missingIncludeSystem --quiet -I include src/ include/
 
-# 3. lizard (gate: CCN≤15, length≤30, args≤5)
-lizard --CCN 15 --length 30 --arguments 5 --warnings_only src/ include/ tests/
+# 3. lizard (gate: NLOC≤30, CCN≤15, args≤5, только production)
+lizard --CCN 15 -T nloc=30 --arguments 5 --warnings_only src/ include/
 
-# 4. build + test (Debug)
-cmake -B build/debug -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build/debug
+# 4. build + test (Debug, со строгими варнингами как на CI)
+cmake -B build/debug -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug -DARCHCHECK_ENABLE_WARNINGS=ON
+cmake --build build/debug
 ( cd build/debug && ctest --output-on-failure )
 ```

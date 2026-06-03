@@ -8,11 +8,18 @@ Argument (optional): подсказка типа (например `/commit fix`
 
 1. `git status` — посмотреть изменённые/неотслеживаемые файлы.
 2. `git diff` — посмотреть содержимое изменений.
-3. **Auto-format** — переформатировать все изменённые/новые `.h`/`.cpp` файлы:
+3. **Auto-format** — переформатировать все изменённые/новые `.h`/`.cpp` файлы.
+
+   ⚠️ Системный `clang-format` на Astra — 18.1.8 и форматирует ИНАЧЕ, чем CI
+   (Ubuntu, 18.1.3). Всегда использовать pinned 18.1.3, иначе локально «чисто»,
+   а CI-джоба clang-format падает. Установка идемпотентна:
 
    ```bash
+   python3 -m pip install --user --quiet 'clang-format==18.1.3'
+   CF="$HOME/.local/bin/clang-format"   # 18.1.3 — совпадает с CI
+
    { git diff --name-only HEAD; git ls-files --others --exclude-standard; } \
-     | grep -E '\.(h|cpp)$' | xargs -r clang-format -i
+     | grep -E '\.(h|cpp)$' | xargs -r "$CF" -i
    ```
 
 4. **Lint-gate** — запустить на изменённых `.h`/`.cpp` файлах:
@@ -20,18 +27,20 @@ Argument (optional): подсказка типа (например `/commit fix`
    ```bash
    # clang-format: ВСЁ дерево src include tests — как format-check джоба CI.
    # Не только изменённые файлы: ловим дрейф форматирования в нетронутых
-   # файлах, иначе CI упадёт на том, что локально пропустили.
+   # файлах, иначе CI упадёт на том, что локально пропустили. $CF = 18.1.3.
    find src include tests \( -name '*.h' -o -name '*.cpp' \) -print \
-     | xargs -r clang-format --dry-run --Werror --style=file
+     | xargs -r "$CF" --dry-run --Werror --style=file
 
-   # cppcheck: всегда на src/ include/ (дёшево, ~1 сек) — как static-analysis CI
+   # cppcheck: всегда на src/ include/ (дёшево, ~1 сек) — как static-analysis CI.
+   # NB: системный cppcheck (Astra 1.86) старше CI-шного и пропускает часть
+   # проверок (напр. performance:stlFindInsert) — на нём «чисто» ≠ CI «чисто».
    cppcheck --enable=warning,performance,portability \
             --inline-suppr --error-exitcode=1 \
             --suppress=missingIncludeSystem --quiet \
             -I include src/ include/
 
-   # lizard: complexity/length пороги (как в CI)
-   lizard --CCN 15 --length 30 --arguments 5 --warnings_only src/ include/ tests/
+   # lizard: NLOC + complexity пороги, только production (как в CI)
+   lizard --CCN 15 -T nloc=30 --arguments 5 --warnings_only src/ include/
    ```
 
    Если хотя бы одна проверка упала — **остановиться**, вывести ошибки и не продолжать до исправления.
