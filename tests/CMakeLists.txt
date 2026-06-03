@@ -23,8 +23,9 @@ add_executable(archcheck_tests
    duplication_fp_guards_test.cpp
    duplication_path_guards_test.cpp
    duplication_fp_corpus_eval_test.cpp
-   duplication_vmecpp_test.cpp
-   duplication_all_projects_test.cpp
+   # duplication_vmecpp_test.cpp / duplication_all_projects_test.cpp — research
+   # harnesses that read hardcoded local corpus paths (sandbox/, drift_repos/);
+   # not hermetic, cannot run on CI. Build/run manually when the corpora exist.
    duplication_synthetic_fp_test.cpp
    duplication_qt_slots_test.cpp
    duplication_qt_p06_test.cpp
