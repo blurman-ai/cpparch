@@ -1,5 +1,4 @@
 #include <catch2/catch_test_macros.hpp>
-
 #include <string>
 #include <utility>
 #include <vector>
@@ -30,13 +29,13 @@ void processData(const std::vector<int>& data) {
 std::vector<std::pair<std::string, std::string>> withFillers(const std::string &pathA, const std::string &pathB)
 {
   return {
-    {pathA, kBlock},
-    {pathB, kBlock},
-    {"filler1.cpp", R"(void f1(){for(int i=0;i<10;i++){int x=i*2;int y=x+1;int z=y+3;use(x,y,z);log(z);}})"},
-    {"filler2.cpp", R"(void f2(){while(go){int a=next();if(a<0)break;int b=a*5;int c=b-2;emit(a,b,c);tick();}})"},
-    {"filler3.cpp", R"(void f3(){for(auto&it:items){int p=it.k;int q=p+7;int r=q*q;if(r>cap)drop(p,q,r);}})"},
-    {"filler4.cpp", R"(void f4(){int s=0;for(int n=0;n<50;n++){s+=n;if(s%3==0)flush(s);else hold(n);}done(s);})"},
-    {"filler5.cpp", R"(void f5(){std::vector<int> v;for(int u=0;u<20;u++){v.add(u*u);trim(v);}sort(v);})"},
+      {pathA, kBlock},
+      {pathB, kBlock},
+      {"filler1.cpp", R"(void f1(){for(int i=0;i<10;i++){int x=i*2;int y=x+1;int z=y+3;use(x,y,z);log(z);}})"},
+      {"filler2.cpp", R"(void f2(){while(go){int a=next();if(a<0)break;int b=a*5;int c=b-2;emit(a,b,c);tick();}})"},
+      {"filler3.cpp", R"(void f3(){for(auto&it:items){int p=it.k;int q=p+7;int r=q*q;if(r>cap)drop(p,q,r);}})"},
+      {"filler4.cpp", R"(void f4(){int s=0;for(int n=0;n<50;n++){s+=n;if(s%3==0)flush(s);else hold(n);}done(s);})"},
+      {"filler5.cpp", R"(void f5(){std::vector<int> v;for(int u=0;u<20;u++){v.add(u*u);trim(v);}sort(v);})"},
   };
 }
 
@@ -132,11 +131,11 @@ int accumulate(const std::vector<Sample>& xs) {
 std::vector<std::pair<std::string, std::string>> fillersOnly()
 {
   return {
-    {"filler1.cpp", R"(void f1(){for(int i=0;i<10;i++){int x=i*2;int y=x+1;int z=y+3;use(x,y,z);log(z);}})"},
-    {"filler2.cpp", R"(void f2(){while(go){int a=next();if(a<0)break;int b=a*5;int c=b-2;emit(a,b,c);tick();}})"},
-    {"filler3.cpp", R"(void f3(){for(auto&it:items){int p=it.k;int q=p+7;int r=q*q;if(r>cap)drop(p,q,r);}})"},
-    {"filler4.cpp", R"(void f4(){int s=0;for(int n=0;n<50;n++){s+=n;if(s%3==0)flush(s);else hold(n);}done(s);})"},
-    {"filler5.cpp", R"(void f5(){std::vector<int> v;for(int u=0;u<20;u++){v.add(u*u);trim(v);}sort(v);})"},
+      {"filler1.cpp", R"(void f1(){for(int i=0;i<10;i++){int x=i*2;int y=x+1;int z=y+3;use(x,y,z);log(z);}})"},
+      {"filler2.cpp", R"(void f2(){while(go){int a=next();if(a<0)break;int b=a*5;int c=b-2;emit(a,b,c);tick();}})"},
+      {"filler3.cpp", R"(void f3(){for(auto&it:items){int p=it.k;int q=p+7;int r=q*q;if(r>cap)drop(p,q,r);}})"},
+      {"filler4.cpp", R"(void f4(){int s=0;for(int n=0;n<50;n++){s+=n;if(s%3==0)flush(s);else hold(n);}done(s);})"},
+      {"filler5.cpp", R"(void f5(){std::vector<int> v;for(int u=0;u<20;u++){v.add(u*u);trim(v);}sort(v);})"},
   };
 }
 } // namespace

@@ -67,8 +67,7 @@ CorpusMetrics evaluateAgainstCorpus(const ScanResult &result, const GroundTruth 
   // Placeholder metrics (would be calculated from TP/FP/FN counts)
   if (metrics.truePositives + metrics.falsePositives > 0)
   {
-    metrics.precision = static_cast<double>(metrics.truePositives) /
-                        (metrics.truePositives + metrics.falsePositives);
+    metrics.precision = static_cast<double>(metrics.truePositives) / (metrics.truePositives + metrics.falsePositives);
   }
 
   return metrics;

@@ -12,12 +12,12 @@ namespace archcheck::scan::duplication
 // Evaluation metrics for duplication detector against fp_corpus_r2.tsv ground truth.
 struct CorpusMetrics
 {
-  std::size_t truePositives = 0;      // TP: real clones kept
-  std::size_t falsePositives = 0;     // FP: false positives kept
-  std::size_t falseNegatives = 0;     // FN: real clones missed
-  std::size_t trueNegatives = 0;      // TN: non-clones correctly rejected
-  double precision = 0.0;              // TP / (TP + FP)
-  double recall = 0.0;                 // TP / (TP + FN)
+  std::size_t truePositives = 0;  // TP: real clones kept
+  std::size_t falsePositives = 0; // FP: false positives kept
+  std::size_t falseNegatives = 0; // FN: real clones missed
+  std::size_t trueNegatives = 0;  // TN: non-clones correctly rejected
+  double precision = 0.0;         // TP / (TP + FP)
+  double recall = 0.0;            // TP / (TP + FN)
 
   std::unordered_map<std::string, int> fpByClass; // FP count per class (idiom, data-table, etc)
 };
