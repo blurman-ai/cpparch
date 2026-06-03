@@ -72,14 +72,14 @@ TEST_CASE("buildRegressionReport: first cross-area dependency is reported once p
   baseline.addEdge(srcA, srcB);
 
   DependencyGraph current = baseline;
-  const auto testA = current.addNode("tests/test_a.h");
-  const auto testB = current.addNode("tests/test_b.h");
-  current.addEdge(testA, NodeId{0});
-  current.addEdge(testB, NodeId{1});
+  const auto appA = current.addNode("app/a.h");
+  const auto appB = current.addNode("app/b.h");
+  current.addEdge(appA, NodeId{0});
+  current.addEdge(appB, NodeId{1});
 
   const auto r = buildRegressionReport(baseline, current);
   REQUIRE(r.newCrossAreaDependencies.size() == 1);
-  REQUIRE(r.newCrossAreaDependencies[0].fromArea == "tests");
+  REQUIRE(r.newCrossAreaDependencies[0].fromArea == "app");
   REQUIRE(r.newCrossAreaDependencies[0].toArea == "src");
   REQUIRE(r.newCrossAreaDependencies[0].edgeCount == 2);
   REQUIRE(r.hasRegression());

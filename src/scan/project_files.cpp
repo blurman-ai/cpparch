@@ -102,6 +102,10 @@ std::vector<std::pair<std::string, std::string>> collectNonVendoredSources(FileS
     {
       continue; // vendored directory segment (third_party/, vendor/, deps/, ...)
     }
+    if (pathHasTestDir(f.path) || isTestBasename(baseName(f.path)))
+    {
+      continue; // unit/integration test code: duplicates by nature (#070)
+    }
     std::string content = source.read(f.path);
     if (content.empty() || isVendoredFile(baseName(f.path), content))
     {
