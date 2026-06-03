@@ -73,9 +73,8 @@ void phase5SymmetricPairCanon(std::vector<Pair> &candidates)
   for (const auto &p : candidates)
   {
     std::string canonical = std::to_string(std::min(p.a, p.b)) + "," + std::to_string(std::max(p.a, p.b));
-    if (seen.find(canonical) == seen.end())
+    if (seen.insert(std::move(canonical)).second)
     {
-      seen.insert(canonical);
       deduped.push_back(p);
     }
   }
