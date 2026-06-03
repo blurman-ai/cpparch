@@ -2,7 +2,7 @@
 
 **Дата создания:** 2026-06-03  
 **Дата старта:** 2026-06-03  
-**Статус:** wip  
+**Статус:** completed  
 **Приоритет:** high  
 **Тип:** [ANALYSIS][RESEARCH]
 
@@ -139,10 +139,17 @@ print(f"graph_errors vs dup_pairs: ρ={rho_graph_dup:.3f}, p={p_graph_dup:.2e}")
 - ✅ **Top-10 анализ** — по всем 3 метрикам + пересечения
 - ✅ **Гипотезы** — обновлены с выводами
 
-## В работе
+## Итоги
 
-1. **Итоговый отчёт** — `experiments/MANUAL_ANALYSIS.md` (начать)
-2. **Drill-down** (опционально) — git blame на CnC_Generals, graphillion_kyotodd
+**✅ Выполнено полностью:**
+1. Spearman корреляция (3 пары): AI% не коррелирует с graph_errors/dup_pairs
+2. Top-10 анализ: по graph_errors, dup_pairs, пересечениям
+3. Гипотезы: 4 из 4 проверены, выводы обновлены
+4. Итоговый отчёт: MANUAL_ANALYSIS.md написан
+
+**Ключевой вывод:** Code quality problems (граф-дрифт + дупликация) независимы от AI% adoption. Оба — признаки tech debt, не AI-риск.
+
+**Будущее:** Blame drill-down (опционально, в отдельной задаче)
 
 ---
 
@@ -156,7 +163,14 @@ print(f"graph_errors vs dup_pairs: ρ={rho_graph_dup:.3f}, p={p_graph_dup:.2e}")
 
 ## Изменённые файлы
 
-(будут заполнены)
+- **experiments/MANUAL_ANALYSIS.md** — полный отчёт (295 строк)
+  - Spearman correlations, top-10 tables, two-problem taxonomy, risk assessment
+- **backlog/wip/080_* (этот файл)** — checkpoint и notes
+
+## Коммиты
+
+- `b93729a` feat(corpus): full graph-drift + duplication analysis (317 repos)
+- `f29429a` docs(corpus): manual analysis — no AI% correlation with code quality
 
 ---
 
