@@ -138,15 +138,17 @@ jobs:
             src/ include/
 
       # lizard: gate. Пороги из docs/code_quality.md
-      # (function ≤ 30 lines, CCN ≤ 15, args ≤ 4 — округлено до 5).
+      # (function ≤ 30 строк "исключая скобки" → NLOC, CCN ≤ 15, args ≤ 4 — округлено до 5).
+      # NLOC, а не физическая длина: иначе плотно документированный код штрафуется за
+      # комментарии. Tests/fixtures исключены из бюджета (code_quality.md), поэтому только src/ include/.
       - name: lizard (cyclomatic complexity + function length)
         run: |
           lizard \
             --CCN 15 \
-            --length 30 \
+            -T nloc=30 \
             --arguments 5 \
             --warnings_only \
-            src/ include/ tests/ \
+            src/ include/ \
             | tee lizard-report.txt
           # lizard exits 0 even on warnings; check for any flagged lines.
           if grep -E "warning:|!!!" lizard-report.txt; then
