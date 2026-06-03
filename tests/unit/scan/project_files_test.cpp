@@ -4,11 +4,14 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "archcheck/scan/file_source.h"
 #include "archcheck/scan/project_files.h"
 
 using archcheck::scan::buildProjectIndex;
+using archcheck::scan::collectNonVendoredSources;
 using archcheck::scan::discoverFiles;
 using archcheck::scan::NodeId;
 using archcheck::scan::ProjectFile;
@@ -181,4 +184,42 @@ TEST_CASE("build_project_index: single-segment path indexes only itself", "[scan
   REQUIRE(idx.exactPathIndex.at("main.cpp") == NodeId{0});
   REQUIRE(idx.suffixIndex.size() == 1);
   REQUIRE(idx.suffixIndex.at("main.cpp") == std::vector<NodeId>{0});
+}
+
+namespace
+{
+// In-memory FileSource: returns the configured files and their content.
+struct FakeSource : archcheck::scan::FileSource
+{
+  std::vector<ProjectFile> files;
+  std::vector<std::pair<std::string, std::string>> blobs;
+  std::vector<ProjectFile> list() override { return files; }
+  std::string read(const std::string &path) override
+  {
+    for (const auto &b : blobs)
+    {
+      if (b.first == path)
+      {
+        return b.second;
+      }
+    }
+    return "";
+  }
+};
+} // namespace
+
+TEST_CASE("collect_non_vendored_sources: drops vendored + empty, keeps project code", "[scan][vendor]")
+{
+  FakeSource src;
+  src.files = {{"src/app/foo.cpp"}, {"third_party/lib/bar.cpp"}, {"src/empty.cpp"}};
+  src.blobs = {
+      {"src/app/foo.cpp", "int foo() { return 1; }"},
+      {"third_party/lib/bar.cpp", "int bar() { return 2; }"}, // vendored directory segment
+      {"src/empty.cpp", ""},                                  // empty
+  };
+
+  const auto out = collectNonVendoredSources(src);
+
+  REQUIRE(out.size() == 1);
+  REQUIRE(out[0].first == "src/app/foo.cpp");
 }

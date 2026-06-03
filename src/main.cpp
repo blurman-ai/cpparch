@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -276,30 +277,26 @@ int run_graph(const std::filesystem::path &root)
 
 int run_duplication(const std::filesystem::path &root)
 {
-  const auto files = archcheck::scan::discoverFiles(root);
-  std::vector<std::pair<std::string, std::string>> sources;
-
+  // Exclude vendored code (noise in every signal), mirroring the graph builder.
   archcheck::scan::DiskFileSource diskSrc(root);
-  for (const auto &f : files)
-  {
-    const auto content = diskSrc.read(f.path);
-    if (!content.empty())
-    {
-      sources.push_back({f.path, content});
-    }
-  }
-
+  const auto sources = archcheck::scan::collectNonVendoredSources(diskSrc);
   const auto result = archcheck::scan::duplication::scanForDuplication(sources);
+
+  // Re-sort by weighted desc: P1 classifiers down-weight pairs after the scanner's sort.
+  auto pairs = result.pairs;
+  std::sort(pairs.begin(), pairs.end(), [](const auto &l, const auto &r) { return l.weighted > r.weighted; });
+
   std::cout << "scanned " << result.fileCount << " files, " << result.fragments.size() << " fragments, "
             << result.candidateCount << " candidate pairs\n"
-            << "reported (>= " << result.pairs.size() << " pairs above threshold)\n";
-
-  for (const auto &p : result.pairs)
+            << "reported " << pairs.size() << " pairs above threshold (" << result.wholeFileClones
+            << " whole-file clone group(s) suppressed)\n";
+  for (const auto &p : pairs)
   {
     const auto &fa = result.fragments[p.a];
     const auto &fb = result.fragments[p.b];
     std::cout << "  " << fa.file << ":" << fa.startLine << "-" << fa.endLine << "  <->  " << fb.file << ":"
-              << fb.startLine << "-" << fb.endLine << "  (" << p.type << ", weighted=" << p.weighted << ")\n";
+              << fb.startLine << "-" << fb.endLine << "  (" << p.type << ", weighted=" << p.weighted
+              << ", line=" << p.line << ")\n";
   }
 
   return 0;
