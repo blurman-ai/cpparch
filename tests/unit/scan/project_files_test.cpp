@@ -121,6 +121,28 @@ TEST_CASE("discover_files does NOT auto-exclude third_party / vendor", "[scan][p
   REQUIRE(contains(paths, "vendor/y.h"));
 }
 
+TEST_CASE("discover_files survives a self-referential directory symlink (#081)", "[scan][project_files]")
+{
+  auto tree = make_tree("symloop");
+  touch(tree.root / "real.cpp");
+  touch(tree.root / "sub" / "nested.h");
+  std::error_code ec;
+  // CodeQL-style self-loop: a directory symlink pointing back at its own parent.
+  // Before #081 this spun recursive_directory_iterator and the walk returned 0.
+  std::filesystem::create_directory_symlink(tree.root, tree.root / "loop", ec);
+  if (ec)
+  {
+    SUCCEED("filesystem does not support directory symlinks here");
+    return;
+  }
+  const auto paths = paths_of(discoverFiles(tree.root));
+  // Walk must terminate and surface the real files (not 0), without descending
+  // into the symlinked dir (else "loop/real.cpp" would double-count).
+  REQUIRE(paths.size() == 2);
+  REQUIRE(contains(paths, "real.cpp"));
+  REQUIRE(contains(paths, "sub/nested.h"));
+}
+
 TEST_CASE("discover_files returns POSIX-normalized repo-relative paths", "[scan][project_files]")
 {
   auto tree = make_tree("posix");

@@ -77,8 +77,9 @@ TEST_CASE("graph excludes vendored lib by permissive-license header", "[graph][v
 {
   const TempTree tree = make_tree();
   write(tree.root / "app.cpp", "// author code\n");
-  // Renamed/unknown vendor caught only by the license banner (layer 2).
-  write(tree.root / "renamed_lib.h", "// SPDX-License-Identifier: MIT\nint vendored();\n");
+  // Renamed/unknown vendor caught only by the license banner (layer 2). Uses the
+  // full verbatim MIT text — a bare SPDX tag is no longer a vendor signal (#081).
+  write(tree.root / "renamed_lib.h", "// Permission is hereby granted, free of charge\nint vendored();\n");
 
   const auto built = buildGraphForPath(tree.root);
 

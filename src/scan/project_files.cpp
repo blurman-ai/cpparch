@@ -33,28 +33,47 @@ std::string to_posix(const std::filesystem::path &relative)
   return s;
 }
 
+// True for a dir the walk must not descend into: an excluded name, or *any*
+// symlinked dir — a self/loop symlink (e.g. CodeQL's
+// _codeql_detected_source_root -> .) would otherwise spin the iterator forever.
+bool should_skip_dir(const std::filesystem::directory_entry &entry)
+{
+  std::error_code ec;
+  if (!entry.is_directory(ec))
+  {
+    return false;
+  }
+  return entry.is_symlink(ec) || isExcludedDirName(entry.path().filename().string());
+}
+
 } // namespace
 
 std::vector<ProjectFile> discoverFiles(const std::filesystem::path &root)
 {
   std::vector<ProjectFile> out;
   std::error_code ec;
-  std::filesystem::recursive_directory_iterator it(root, ec);
+  // skip_permission_denied: one unreadable subtree must not abort the whole walk.
+  std::filesystem::recursive_directory_iterator it(root, std::filesystem::directory_options::skip_permission_denied,
+                                                   ec);
   const std::filesystem::recursive_directory_iterator end;
-  while (!ec && it != end)
+  while (it != end)
   {
     const auto &entry = *it;
-    if (entry.is_directory(ec) && isExcludedDirName(entry.path().filename().string()))
+    std::error_code item_ec;
+    if (should_skip_dir(entry))
     {
       it.disable_recursion_pending();
-      it.increment(ec);
-      continue;
     }
-    if (entry.is_regular_file(ec) && has_project_extension(entry.path()))
+    else if (entry.is_regular_file(item_ec) && has_project_extension(entry.path()))
     {
-      out.push_back(ProjectFile{to_posix(std::filesystem::relative(entry.path(), root, ec))});
+      const auto rel = std::filesystem::relative(entry.path(), root, item_ec);
+      if (!item_ec)
+      {
+        out.push_back(ProjectFile{to_posix(rel)});
+      }
     }
     it.increment(ec);
+    ec.clear(); // a per-entry increment error must not halt the remaining walk
   }
   std::sort(out.begin(), out.end(), [](const ProjectFile &a, const ProjectFile &b) { return a.path < b.path; });
   return out;
