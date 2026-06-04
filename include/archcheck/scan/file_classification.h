@@ -159,13 +159,14 @@ inline bool isVendoredBasename(std::string_view filename)
 }
 
 // Layer 2 — license-header heuristic. Renamed / unknown vendors still carry a
-// permissive-license banner in the first ~40 lines. archcheck's own sources
-// carry no per-file license header (verified), so this never fires on dogfooding.
+// permissive-license banner in the first ~40 lines. Only *full verbatim* license
+// texts count as a vendor signal: authored projects using SPDX paste a one-line
+// `SPDX-License-Identifier:` tag, not the full text, so the SPDX tag alone is NOT
+// a vendor marker (#081 — KDE/SPDX-GPL repos were 0-scanned by over-exclusion).
 inline bool hasVendorLicenseHeader(std::string_view headerBytes)
 {
   const std::string head = toLowerAscii(headerBytes.substr(0, std::min<std::size_t>(headerBytes.size(), 2000)));
-  static constexpr std::array<std::string_view, 7> kLicenseMarkers = {
-      "spdx-license-identifier",          // any SPDX banner
+  static constexpr std::array<std::string_view, 6> kLicenseMarkers = {
       "permission is hereby granted",     // MIT
       "redistribution and use in source", // BSD
       "released into the public domain",  // stb / public-domain

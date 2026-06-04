@@ -50,10 +50,10 @@ TEST_CASE("vendored basename: author files are not vendored", "[scan][vendor]")
 
 TEST_CASE("vendored license header: catches renamed/unknown vendors", "[scan][vendor]")
 {
-  REQUIRE(hasVendorLicenseHeader("// SPDX-License-Identifier: MIT\nint x;"));
   REQUIRE(hasVendorLicenseHeader("/* Permission is hereby granted, free of charge ... */"));
   REQUIRE(hasVendorLicenseHeader("// Redistribution and use in source and binary forms"));
   REQUIRE(hasVendorLicenseHeader("// This is released into the public domain."));
+  REQUIRE(hasVendorLicenseHeader("// Licensed under the Apache License, Version 2.0"));
 }
 
 TEST_CASE("vendored license header: plain author code does not fire", "[scan][vendor]")
@@ -62,11 +62,20 @@ TEST_CASE("vendored license header: plain author code does not fire", "[scan][ve
   REQUIRE_FALSE(hasVendorLicenseHeader("// Copyright header without a license phrase"));
 }
 
+// #081: a bare SPDX-License-Identifier tag is now standard on *authored* code
+// (KDE etc.), not a vendor signal. Only full verbatim license texts fire layer 2.
+TEST_CASE("vendored license header: bare SPDX tag is not a vendor signal", "[scan][vendor]")
+{
+  REQUIRE_FALSE(hasVendorLicenseHeader("// SPDX-License-Identifier: GPL-3.0-or-later\nint x;"));
+  REQUIRE_FALSE(hasVendorLicenseHeader("/* SPDX-License-Identifier: MIT */\nclass Widget {};"));
+}
+
 TEST_CASE("isVendoredFile combines name and license layers", "[scan][vendor]")
 {
-  REQUIRE(isVendoredFile("qcustomplot.cpp", "no license here"));                  // layer 1
-  REQUIRE(isVendoredFile("renamed_lib.cpp", "// SPDX-License-Identifier: Zlib")); // layer 2
-  REQUIRE_FALSE(isVendoredFile("widget.cpp", "#include <vector>\n"));             // neither
+  REQUIRE(isVendoredFile("qcustomplot.cpp", "no license here"));                           // layer 1
+  REQUIRE(isVendoredFile("renamed_lib.cpp", "// Permission is hereby granted, free ...")); // layer 2
+  REQUIRE_FALSE(isVendoredFile("widget.cpp", "#include <vector>\n"));                      // neither
+  REQUIRE_FALSE(isVendoredFile("widget.cpp", "// SPDX-License-Identifier: GPL-3.0\n"));    // #081: SPDX-only
 }
 
 // === Vendored directories (#068, folded into #069) ===========================
