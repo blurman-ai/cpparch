@@ -87,5 +87,34 @@ scope («Не улучшать сам алгоритм duplication "заодно
 4. Прогон recall-retention против корпуса; откат при падении recall > порога.
 5. Только при достаточной aggregate precision — решать про opt-in gate (item 4 выше).
 
-**Статус:** стартована, заскоуплена; имплементация P1.3 ждёт доступа к корпусу для
-валидации recall (или явного решения пользователя реализовать без corpus-гейта).
+**Статус:** стартована, заскоуплена.
+
+### Уточнение (2026-06-05): корпус НА МЕСТЕ
+
+Прежнее «корпус недоступен» — **неверно**: `experiments/` это локальная untracked
+песочница, и на этой машине она есть. Корпус присутствует:
+`experiments/verification/fp_corpus_r2.tsv` (160 KB, 197 размеченных строк, в т.ч.
+**6 header-impl FP**). Примеры header-impl: platform-split stubs (os_macos vs os_linux,
+`return accept-all`), Qt-test parallel decls (Q_OBJECT/initTestCase), NVI-lifecycle
+скелеты (OnComponentCreated/...).
+
+**Главная трудность (вскрыта корпусом):** header-impl FP на токенах **не отличить**
+от структурного TP. Рядом в корпусе TP «AKP05 клонирован из AKP03» — структурно
+идентичен (byte-identical методы), но это настоящий copy-paste. Stub `return true;` vs
+реальная логика `return computeX();` — без AST/валидации не разделить. Крудовый
+token-эвристик даст шум за marginal gain (потому P1-классификаторы и помечены
+«requires validation» в CHANGELOG).
+
+**Recall-safety решена частью:** пайплайн дропает по weighted только в
+`phase8JointTokenOrderFloor` (ДО P1-блока); P1-классификаторы идут последними. Значит
+P1.3 как **down-weight** (не drop), вставленный после `phase11`, recall-neutral —
+худший случай: структурный TP ранжируется чуть ниже в advisory-выводе, но всё равно
+репортится.
+
+**Правильный путь (focused-сессия, не autonomous-burst):**
+1. Прогнать детектор на размеченных репо корпуса (harness `duplication_all_projects_test`
+   / `duplication_vmecpp_test`, читают `sandbox/`/`drift_repos/` — non-hermetic).
+2. Цикл: эвристик → измерить precision/recall на 197 размеченных → тюнить.
+3. Ship как down-weight (recall-safe) при доказанном discrimination FP-vs-TP.
+
+Без этого цикла имплементация = угадайка. Ждёт focused-сессии с прогоном по репо.
