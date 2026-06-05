@@ -105,7 +105,7 @@ archcheck v1 uses **typed contracts** in the Import Linter sense, not a single b
 
 This is a deliberate mix — `layers` and `independence` give implicit-allowlist strictness where you want a contract, `forbidden` gives a no-tax escape hatch where you only want to nail one direction. You do not have to choose globally between "allowlist project" and "blocklist project"; you choose **per rule**, and a config can carry all three at once.
 
-This resolves the open question from the originating task ([v1_maj_config_format_minimal_contract.md](../backlog/wip/v1_maj_config_format_minimal_contract.md) — "allowlist vs forbidden model"): **mixed by rule type**, modelled on Import Linter's typed contracts.
+This resolves the open question from the originating task ([v1_maj_config_format_minimal_contract.md](../backlog/completed/v1_maj_config_format_minimal_contract.md) — "allowlist vs forbidden model"): **mixed by rule type**, modelled on Import Linter's typed contracts.
 
 ### `type: layers`
 

@@ -115,7 +115,7 @@ slic3r/GUI/MsgDialog.cpp:         [DRIFT.1] shortcut edge: ... -> slic3r/GUI/Msg
   низкоуровневого виджета напрямую. Классический shortcut UI-слоя.
 - `FilamentMapPanel.hpp -> Widgets/SwitchButton.hpp` — то же самое для panel.
 
-**False-positive (1) — баг в сканере, заведена задача [#047](../../backlog/new/047_crt_scan_utf8_bom.md):**
+**False-positive (1) — баг в сканере, заведена задача [#047](../../backlog/completed/047_crt_scan_utf8_bom.md):**
 - `MsgDialog.cpp -> MsgDialog.hpp` — `MsgDialog.cpp` ВСЕГДА начинался с `#include "MsgDialog.hpp"`.
   В before-ревизии первая строка имеет UTF-8 BOM (`EF BB BF`), наш `include_scanner`
   не зачищает BOM → первая строка не матчит regex → в graph-baseline ребра нет →
@@ -150,7 +150,7 @@ archcheck --drift-baseline /tmp/libresprite_before.graph.json src
 
 1. Превратить LibreSprite-кейс в integration fixture `fixtures/drift_real_world/libresprite_pr581/`
    — минимальный воспроизводимый срез графа (без полного клона репо).
-   Заведена задача [#048](../../backlog/new/048_maj_fixture_libresprite_pr581.md);
+   Заведена задача [#048](../../backlog/completed/048_maj_fixture_libresprite_pr581.md);
    skeptic-проверка (включая «PR целиком, а не только merge-range») закрыта
    секцией «Верификация» выше — CONFIRMED.
 2. Добавить ещё 2-3 кейса из Tier 2 (nodos-dev/sys-device, ...) для

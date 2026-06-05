@@ -810,8 +810,36 @@ P1.3-нарратива/CHANGELOG переносятся в **Slice 5** (duplica
 - имя продукта зафиксировано `archcheck` (убран открытый вопрос брендинга);
 - все markdown-ссылки проверены — ведут на живые файлы.
 
-**Следующий шаг:** Slice 4 — backlog/link hygiene (битые локальные ссылки,
-ссылки на удалённые `experiments/*`, развести current/historical/cancelled).
+### Slice 4 — backlog/link hygiene ✅ (2026-06-05)
+
+Прогнан чекер битых локальных markdown-ссылок: **27 битых в 7 файлах**.
+Исправлено **26**; 1 — false-positive (C++ lambda `[cb](Variant&...)` в прозе 070,
+не ссылка, оставлен).
+
+**Уточнение по `experiments/`:** каталог НЕ удалён целиком — это untracked
+локальная песочница (вынесена из гита намеренно). Удалён только подкаталог
+`experiments/line_duplication/` (в git-истории, commit `35085ca`).
+
+Фиксы:
+
+- переехавшие в `backlog/completed/` цели (018/022/023/025/047/048/v1_maj_config):
+  пути обновлены в `ci_integration.md`, `config_format.md`, `research/ai_drift_cases.md`;
+  заодно снят устаревший статус «#018 wip» → «завершено».
+- 050 → `backlog/future/` (в `architecture-spec.md`, 3 ссылки).
+- системный пропуск `../` в `ci_integration.md` (ссылки резолвились в `docs/...`): добавлен.
+- `../research/` → `research/` в `architecture-spec.md`.
+- удалённый `experiments/line_duplication/*` в 053/054: markdown-ссылки де-линкованы
+  в backtick-пути + краткая historical note («в git-истории, commit 35085ca / см. #053»).
+
+Чекер после фиксов: 0 реальных битых ссылок (остался только false-positive).
+
+**Не делал** (вне scope link-hygiene, риск scope-creep): массовую переоценку
+статусов старых задач и нормализацию «отменённых веток» — задача явно запрещает
+переписывать backlog-файлы подряд и менять смысл задач.
+
+**Следующий шаг:** Slice 5 — duplication → product: удалить no-op `phase12HeaderImplGate`,
+решить судьбу `fp_corpus_eval`, реконсилировать P1.3-нарратив (docs/CHANGELOG),
+build/test hygiene, промоушен help `preview` → shipped. **Кодовые правки → полный gate + тесты.**
 
 ## Изменённые файлы
 
@@ -823,3 +851,6 @@ P1.3-нарратива/CHANGELOG переносятся в **Slice 5** (duplica
 | `docs/MVP.md` | Slice 1: diagnostics `file:line:column` → `file:line` |
 | `docs/architecture-spec.md` | Slice 1: diagnostics `file:line:column` → `file:line` |
 | `AGENTS.md` | Slice 3: полный rewrite под фактическое состояние, naming → code_style.md, build-правило → CLAUDE.md |
+| `docs/ci_integration.md` | Slice 4: 11 битых ссылок (пропуск `../`, 018/022/023/025 → completed/) |
+| `docs/research/ai_drift_cases.md` | Slice 4: 047/048 → completed/ |
+| `backlog/wip/053_*.md`, `backlog/wip/054_*.md` | Slice 4: де-линк удалённого `experiments/line_duplication` + historical note |
