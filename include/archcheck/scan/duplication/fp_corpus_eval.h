@@ -1,5 +1,12 @@
 #pragma once
 
+// Research / QA precision-evaluation harness for the duplication detector.
+// NOT part of the shipped archcheck_core library: this translation unit is
+// compiled into archcheck_tests only (see tests/CMakeLists.txt). It measures
+// detector precision against a labelled corpus and is internal QA tooling, not
+// a user-facing capability. `evaluateAgainstCorpus` is currently a placeholder
+// (full content-hash matching is future work — see #083/#084).
+
 #include <string>
 #include <unordered_map>
 #include <vector>

@@ -22,6 +22,9 @@ add_executable(archcheck_tests
    duplication_clone_index_test.cpp
    duplication_fp_guards_test.cpp
    duplication_path_guards_test.cpp
+   # Research/QA precision-evaluation harness — test-only, deliberately NOT in
+   # the shipped archcheck_core library (#084). Compiled straight into the tests.
+   ${CMAKE_SOURCE_DIR}/src/scan/duplication/fp_corpus_eval.cpp
    duplication_fp_corpus_eval_test.cpp
    # duplication_vmecpp_test.cpp / duplication_all_projects_test.cpp — research
    # harnesses that read hardcoded local corpus paths (sandbox/, drift_repos/);
