@@ -15,7 +15,7 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 - **Lakos.ChainLength rule** — include chain length (default 10).
 - **DRIFT.1 / DRIFT.2 rules** — shortcut edges and cycle growth against a saved graph baseline. (#009, #040)
 - **Baseline modes** — `--baseline`, `--save-baseline`, `--save-graph-baseline`, `--drift-baseline`.
-- **PR diff mode** — `--diff <revspec>` reports structural graph regressions (added/removed edges, grown cycles, new god-headers, chain-length growth) between two git refs.
+- **PR diff mode** — `--diff <revspec>` reports structural graph regressions (added/removed edges, grown cycles, new god-headers, chain-length growth, new cross-area dependencies) between two git refs. (#076)
 - **JSON reporter** and stabilised exit-code contract (`0` ok / `1` violations / `2` config error / `3` internal error).
 - **Fast preprocessor backend** — runs without `compile_commands.json` and without libclang; default for v0.1.
 - **PR sticky-comment CI integration** — single auto-updating PR comment with violations. (#025)
@@ -37,6 +37,9 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
   - **P1 Classifiers** (4 guards, requires validation): data-table/literal-run classifier (P1.1), boilerplate-density filter (P1.2), header-impl gate (P1.3), file-local IDF down-weight (P1.4).
   - **measurement-harness** infrastructure for evaluating guards against `fp_corpus_r2.tsv` ground truth (CorpusMetrics, load/evaluate functions).
   - **Expected precision improvement**: baseline 42% → P0: ~55–62% → P1: ~65–75%. Idiom-floor ~40 FP unremovable without semantics (LLM confirmation planned v0.2).
+- **Vendored-code exclusion** — both the include graph and the duplication scan now skip vendored single-file libraries and vendored directories outside `third_party/`, removing phantom signal from bundled dependencies. (#068, #069, #071)
+- **Test-code exclusion** — test files are excluded from architecture and duplication signals by default, so the zero-config first run reflects production code. (#070)
+- **Clone-type labels** — reported duplication pairs are tagged Type-1 / Type-2 / Type-3 (exact / renamed / gapped). Preview signal.
 
 ### Changed
 
@@ -59,5 +62,7 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 - **Ambiguous includes resolved against mirror dirs** — skip well-known mirror trees (`copies/`, `upgrade/`, etc.) when picking a target. (#036)
 - **Self-edge from system include suffix-collision** — a system/library `#include <name.h>` that suffix-matches a same-named project file (e.g. `src/compat/cpuid.h` → `<cpuid.h>`) no longer resolves to itself; tagged External/Unresolved instead. Removes phantom 1-node cycles in SF.9 (corpus: 26 false self-edges, 8 repos with a fake cycle). Single-candidate variant of #036. (#058)
 - **GCC 8 / GCC 13 build warnings** — `starts_with` cppcheck noise silenced; unused-result warning in git object reader suppressed.
+- **Relative include paths with `../` not resolved** — scanner now normalises `..`/`.` segments so relative includes resolve to the correct target instead of being dropped.
+- **Duplication scanner over-excluded files** — the test/vendor exclusion no longer removes legitimate files from the duplication scan. (#081)
 
 [Unreleased]: https://github.com/blurman-ai/archcheck/commits/master
