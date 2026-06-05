@@ -1,8 +1,8 @@
 # [SCAN][DUPLICATION] Поднять precision `--duplication` до gate-grade
 
 **Дата создания:** 2026-06-05
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-05
+**Статус:** wip
 **Модуль:** SCAN/DUPLICATION
 **Приоритет:** major
 **Сложность:** L
@@ -50,3 +50,42 @@ scope («Не улучшать сам алгоритм duplication "заодно
 
 - Не ломать текущий advisory-контракт (`exit 0`) по умолчанию — gating только opt-in.
 - fixtures обязательны (правило проекта).
+
+## Scoping / разведка (2026-06-05, при старте)
+
+Разобраны структуры данных сканера для реализации P1.3:
+
+- `Fragment` ([include/archcheck/scan/duplication/fragmenter.h](../../include/archcheck/scan/duplication/fragmenter.h))
+  даёт `seq` (упорядоченные нормализованные токены), `rawSeq` (сырые написания,
+  выровнены с seq), `normLines`, `diversity`, `tokenCount`. Этого достаточно, чтобы
+  считать declaration-маркеры (`virtual`/`override`/`final`/access-specifier/`Q_OBJECT`/
+  pure-`= 0`) и контроль-флоу (`if`/`for`/`while`/`return`/`switch`).
+- Существующие P1-классификаторы (`phase10DataTableClassifier`,
+  `phase11BoilerplateDensity`) — чистые ~15-25-строчные функции: P1.1 down-weight
+  (`p.weighted *= k`), P1.2 filter (drop). P1.3 встанет тем же паттерном.
+- **Важно:** `extractFragments` эмитит тела `)`-`{` (function/control bodies), а не
+  чистые декларации. Значит header-impl FP возникает в специфических формах (inline-тела
+  в .h, init-list конструкторов, параллельные определения). Точную форму нужно увидеть
+  на 6 размеченных header-impl примерах из корпуса.
+
+### Почему имплементация не сделана при старте (честно)
+
+1. **Recall-gate требует корпуса.** Спека #070 прямо требует прогон против 195 TP с
+   метрикой TP-retention и откатом при падении recall. Корпус (`fp_corpus_r2.tsv`,
+   6 header-impl FP) — в **untracked `experiments/`**, не hermetic. Влить precision-
+   suppressor, не измерив recall, — нарушение этоса #082 (не шипать невалидируемое).
+2. **Эвристика decl-vs-executable нетривиальна** на токенах (отличить `void foo();` от
+   `foo();` без парсера). Ошибка → либо нет пользы, либо суппресс реальных TP.
+
+### План реализации (когда есть корпус)
+
+1. Посмотреть 6 размеченных header-impl FP → понять фактическую форму fragment'ов.
+2. Реализовать `phase12HeaderImplGate` (имя свободно — no-op удалён в #082) как
+   консервативный классификатор: declRatio ≥0.7 **И** <2 executable-statement → suppress.
+3. Fixtures: `fixtures/duplication/header_impl/pass/` (реальный logic-клон — НЕ суппрессить),
+   `fixtures/duplication/header_impl/fail_*/` (параллельные декларации — суппресс).
+4. Прогон recall-retention против корпуса; откат при падении recall > порога.
+5. Только при достаточной aggregate precision — решать про opt-in gate (item 4 выше).
+
+**Статус:** стартована, заскоуплена; имплементация P1.3 ждёт доступа к корпусу для
+валидации recall (или явного решения пользователя реализовать без corpus-гейта).
