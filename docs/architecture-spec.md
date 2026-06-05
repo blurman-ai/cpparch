@@ -162,15 +162,15 @@ C++ community консервативнее джавовского. "Clean archit
 | **SF.7** | Нет `using namespace` в глобальном scope заголовка | text-scan / AST | **v0.1** (approx), v0.2 (precise) |
 | **SF.8** | Каждый `.h` имеет include guards или `#pragma once` | препроцессор | **v0.1** |
 | **SF.9** | **Нет циклических зависимостей между source-файлами** | граф | **v0.1** |
-| **SF.21** | Нет анонимных namespace в заголовках | AST | v0.2 (preview, `--with-clang`) / **v0.3** default-ON (см. [`backlog/wip/050`](../backlog/wip/050_min_sf21_anonymous_namespace.md) — перенос с v0.1: не относится к physical-design / drift, clang-tidy уже покрывает) |
+| **SF.21** | Нет анонимных namespace в заголовках | AST | v0.2 (preview, `--with-clang`) / **v0.3** default-ON (см. [`backlog/future/050`](../backlog/future/050_min_sf21_anonymous_namespace.md) — перенос с v0.1: не относится к physical-design / drift, clang-tidy уже покрывает) |
 | **SF.2** | `.h` не содержит определений объектов / non-inline функций | AST | v0.2 |
 | **SF.5** | `.cpp` обязан включать свой `.h` | имена + AST | v0.2 |
 | **SF.10** | Нет зависимостей на implicitly-included names | AST + includes | v0.2 |
 | **SF.11** | Заголовки self-contained (можно включить первым в TU без падения) | компиляция | v0.2 |
 
-**SF.4 (`#include` идут перед другими декларациями)** — намеренно не дефолт: проверяется тривиально, но продуктовой ценности почти нет — это ещё один style-check, а не архитектурный инвариант. Можно включить руками через `--enable=SF.4`. Оценку правил см. в [`docs/research/`](../research/).
+**SF.4 (`#include` идут перед другими декларациями)** — намеренно не дефолт: проверяется тривиально, но продуктовой ценности почти нет — это ещё один style-check, а не архитектурный инвариант. Можно включить руками через `--enable=SF.4`. Оценку правил см. в [`docs/research/`](research/).
 
-Маркетинговая фраза: *"implements 8 statically-checkable rules from the C++ Core Guidelines SF section across v0.1, v0.2 and v0.3"* (SF.21 — hygiene-добивка в v0.3, см. [`backlog/wip/050`](../backlog/wip/050_min_sf21_anonymous_namespace.md)).
+Маркетинговая фраза: *"implements 8 statically-checkable rules from the C++ Core Guidelines SF section across v0.1, v0.2 and v0.3"* (SF.21 — hygiene-добивка в v0.3, см. [`backlog/future/050`](../backlog/future/050_min_sf21_anonymous_namespace.md)).
 
 ### Уровень 2. Lakos physical design (Large-Scale C++ Software Design)
 
@@ -623,12 +623,12 @@ tests/
 
 ### v0.3 — Правила из C / I / NL секций CCG + BDE + AI-контур (3–4 недели)
 
-См. [docs/research/rules/](../research/rules/).
+См. [docs/research/rules/](research/rules/).
 
 - **C:** C.121 (interface pure abstract), C.133 (no protected data), C.134 (uniform access level).
 - **I:** I.2 (no mutable globals), I.3 (no singletons), I.22 (no complex global init).
 - **NL:** NL.27 (file suffix).
-- **SF.21** — anonymous namespace в `.h`, default-ON (preview в v0.2 через `--with-clang`; перенос с v0.1 — не относится к physical-design / drift, см. [`backlog/wip/050`](../backlog/wip/050_min_sf21_anonymous_namespace.md)).
+- **SF.21** — anonymous namespace в `.h`, default-ON (preview в v0.2 через `--with-clang`; перенос с v0.1 — не относится к physical-design / drift, см. [`backlog/future/050`](../backlog/future/050_min_sf21_anonymous_namespace.md)).
 - **Bloomberg BDE:** no-inter-component-friendship, external-linkage-declared-in-header.
 - Прочие: forward-decl-of-std, deep-nested-namespace.
 - **DRIFT.1 + DRIFT.2** — первый прототип drift-regression rules. Только `intrinsic`, только file-level, warning по умолчанию (см. §«Drift-regression rules»).
