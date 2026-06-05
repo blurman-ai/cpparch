@@ -2,12 +2,12 @@
 
 **Дата создания:** 2026-06-05
 **Дата старта:** 2026-06-05
-**Статус:** wip
+**Статус:** blocked (gate-grade недостижим на токенах — нужен P2 semantic / v0.2)
 **Модуль:** SCAN/DUPLICATION
 **Приоритет:** major
 **Сложность:** L
 **Блокирует:** опциональный blocking `--duplication` gate в CI
-**Заблокирован:** —
+**Заблокирован:** P2 semantic/LLM confirm-слой (v0.2) — см. validation ниже
 **Related:** #082 (alignment umbrella — родитель, Slice 5b), #070 (FP fix proposals + спека header-impl gate), #071 (FP/TP classification), #078 (co-change harm-signal / severity)
 
 ## Цель
@@ -118,3 +118,50 @@ P1.3 как **down-weight** (не drop), вставленный после `phas
 3. Ship как down-weight (recall-safe) при доказанном discrimination FP-vs-TP.
 
 Без этого цикла имплементация = угадайка. Ждёт focused-сессии с прогоном по репо.
+
+## VALIDATION-ПРОГОН (2026-06-05) — решающий результат
+
+Прогон выполнен (корпусные репо нашлись в `~/oss/_aidev_dense/`).
+Для каждой из 6 размеченных header-impl FP: checkout корпусного SHA → `archcheck
+--duplication` → проверка, репортит ли *текущий* детектор labeled FP-пару.
+
+| Репо | corpus SHA | header-impl FP репортится? |
+|---|---|---|
+| DataDog/java-profiler (os_macos↔os_linux) | b7cc386a | **НЕТ** — не пейрится |
+| fenrus75/powertop (test-stub↔prod) | 24956009 | **НЕТ** |
+| deltaeecs/CSR4MPI (.h↔.cpp decl-def) | top | **НЕТ** (0 пар вообще) |
+| ImagingTools/Acf (Qt-test .h/.cpp) | f8440296 | **НЕТ** (27 пар, labeled нет) |
+| b-macker/NAAb (sibling NVI headers) | c1d8208d | **НЕТ** (12 пар, labeled нет) |
+| **ImagingTools/AcfSln** (NVI `C*Comp.cpp`) | 28335c8c | **ДА** — 5× **EXACT weighted=1** |
+
+### Выводы (данными, не гаданием)
+
+1. **5 из 6 header-impl FP корпуса УЖЕ устранены** текущим archcheck. Корпус-baseline
+   (6 header-impl, 42.1% precision, round 2) мерился по **старому/standalone** детектору;
+   нынешний archcheck с P0+P1-гардами их уже не даёт. То есть P1.3-цель в основном
+   **уже закрыта** существующими механизмами.
+2. **Единственный остаток — AcfSln — это EXACT weighted=1** (NVI-скелеты компонент-`.cpp`).
+   По токенам они **неотличимы** от настоящего copy-paste (тот же weighted=1). Любой
+   token-based P1.3 (down-weight/drop) задавит их **вместе с реальными клонами** → recall
+   страдает или precision не растёт. Подтверждает: остаток требует **семантики** (понять,
+   что это разные компоненты с одинаковым lifecycle-скелетом), а не token-эвристики.
+
+### Итоговое решение по #083
+
+**P1.3 (token header-impl gate) НЕ реализуем** — цель в основном закрыта, остаток
+контрпродуктивен на токенах. Шире: доминирующий FP-класс — **idiom (108) + idiom-floor
+(~40)** — корпус и CHANGELOG прямо говорят, что неустраним без семантики. Значит
+**gate-grade precision недостижим token-level средствами**; путь — **P2 semantic/LLM
+confirm-слой**, а это **v0.2** (см. CHANGELOG: «LLM confirmation planned v0.2»).
+
+→ `--duplication` остаётся **advisory** (как зафиксировано в #082-Slice5b) до появления
+P2-семантики в v0.2. Статус задачи → **blocked** (на v0.2 semantic backend), остаётся в
+`wip/` (по правилу «blocked ≠ completed, держим в wip со статусом blocked»). Token-level
+тюнинг здесь ROI не даёт — переоткрывать, когда появится семантический слой v0.2.
+
+### Что считать «сделанным» в рамках этой сессии
+
+- Validation-loop **прогнан** (то, что просил пользователь): 6 header-impl репо,
+  before-состояние текущего детектора измерено.
+- P1.3-вопрос **закрыт данными**: не реализуем (5/6 уже устранены, остаток семантический).
+- Корректно зафиксировано, что gate-grade = v0.2 semantic-зависимость, а не token-работа.
