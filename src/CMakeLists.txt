@@ -10,7 +10,9 @@ add_library(archcheck_core STATIC
    scan/duplication/clone_classifier.cpp
    scan/duplication/clone_index.cpp
    scan/duplication/duplication_scanner.cpp
-   scan/duplication/fp_corpus_eval.cpp
+   # NB: scan/duplication/fp_corpus_eval.cpp is NOT here — it is a research/QA
+   # precision-evaluation harness, compiled into archcheck_tests only (see
+   # tests/CMakeLists.txt), not into the shipped archcheck_core library. (#084)
    graph/dependency_graph.cpp
    graph/algorithms.cpp
    graph/diff.cpp
