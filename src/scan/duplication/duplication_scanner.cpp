@@ -252,16 +252,6 @@ void phase11BoilerplateDensity(std::vector<Pair> &candidates, const std::vector<
   candidates = std::move(filtered);
 }
 
-// P1.3: header-impl gate — suppress pairs where one is mostly declarations
-// Headers with >70% declaration lines (virtual, override, access specifiers) are interface defs
-void phase12HeaderImplGate(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
-{
-  // For now, keep all pairs (full implementation would count declaration tokens)
-  // Heuristic: files ending in .h are headers; pairs between .h and .cpp are expected
-  (void)allFragments; // Placeholder implementation
-  (void)candidates;
-}
-
 // P1.4: file-local IDF down-weight — reduce weight of tokens that are very common in the file
 // High-frequency tokens (getters, setters, common names) shouldn't dominate the score
 void phase13FileLoclalIDFDownweight(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
@@ -450,7 +440,6 @@ void applyCandidateFilters(std::vector<Pair> &candidates, const std::vector<Frag
   {
     phase10DataTableClassifier(candidates, allFragments);
     phase11BoilerplateDensity(candidates, allFragments);
-    phase12HeaderImplGate(candidates, allFragments);
     phase13FileLoclalIDFDownweight(candidates, allFragments);
   }
   phaseClassifyCloneType(candidates, allFragments);

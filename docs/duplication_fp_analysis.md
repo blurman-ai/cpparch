@@ -41,9 +41,11 @@ The 10 implemented guards (6 P0 mechanical + 4 P1 classifiers) remove ~100 false
 - Impact: **removes ~7 FP**
 - Example: generated code (fftx_prdftbat_*.cpp variants)
 
-**P1.3 (header-impl gate)** → header-impl (6 FP)
+**P1.3 (header-impl gate)** → header-impl (6 FP) — **НЕ РЕАЛИЗОВАН**
 - Detection: pairs between .h and .cpp with >70% declarations
-- Impact: **removes ~4 FP**
+- Impact (проектный, не достигнут): ~4 FP. В коде P1.3 был no-op-заглушкой
+  (`(void)candidates`) и **никогда не убирал FP**; заглушка удалена. Полная
+  реализация спланирована — см. #070.
 - Example: interface declared in header, stub implemented in cpp
 
 ### Partially Addressed ⚠️
@@ -98,7 +100,7 @@ FP removed:
   ├─ data-table (P1.1):    -20
   ├─ idiom (P0.1+P1.2):    -30
   ├─ generated (P0.6):     -7
-  ├─ header-impl (P1.3):   -4
+  ├─ header-impl (P1.3):    0   (проектные -4; P1.3 был no-op-заглушкой, удалён — см. #070)
   ├─ symmetric (P0.5):     -5
   └─ other:                -5
 ────────────────
@@ -198,7 +200,7 @@ int bubbleSort(data, m) { for(...) if(data[x] > data[x+1]) swap(...); }
 | P0.6 | joint token∧order floor | mechanical | 70% | -7 FP | ✅ |
 | P1.1 | data-table classifier | classifier | 85% | -20 FP | ✅ |
 | P1.2 | boilerplate-density | classifier | 25% | -27 FP | ✅ |
-| P1.3 | header-impl gate | classifier | 70% | -4 FP | ✅ |
+| P1.3 | header-impl gate | classifier | 70% | 0 (проектные -4) | ❌ no-op, удалён (#070) |
 | P1.4 | file-local IDF downweight | classifier | — | tech | ✅ |
 | P2.* | LLM semantic confirm | semantic | 80% | -30 FP | ⏳ v0.2 |
 

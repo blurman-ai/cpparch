@@ -32,9 +32,9 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 - Stability contract section in [`docs/architecture-spec.md`](docs/architecture-spec.md) defining what counts as a breaking change after v1.0. (#007)
 - Architecture spec: two-backend decision recorded — fast preprocessor-only backend is the v0.1 default, libclang opt-in via `--with-clang` (lands as v0.2). Semantic SF rules (SF.2/5/10/11) moved from v0.1 to v0.2. (#006)
 - `README.md`: Secondary goal note — side experiment to test whether a useful CLI tool can be built end-to-end purely through agent conversation.
-- **Duplication detector FP guards (P0+P1)** — ten precision-improving filters:
+- **Duplication detector FP guards (P0+P1)** — nine precision-improving filters:
   - **P0 Mechanical** (6 guards, low-risk, no AST): symmetric-pair canonicalization (P0.5), coordinate revalidation (P0.3), same-function filter (P0.1), function-boundary anchor (P0.4), git rename/move suppress (P0.2, simplified), joint token∧order floor (P0.6).
-  - **P1 Classifiers** (4 guards, requires validation): data-table/literal-run classifier (P1.1), boilerplate-density filter (P1.2), header-impl gate (P1.3), file-local IDF down-weight (P1.4).
+  - **P1 Classifiers** (3 guards, requires validation): data-table/literal-run classifier (P1.1), boilerplate-density filter (P1.2), file-local IDF down-weight (P1.4). (P1.3 header-impl gate shipped as a no-op placeholder and was removed in cleanup; full implementation planned — see #070.)
   - **measurement-harness** infrastructure for evaluating guards against `fp_corpus_r2.tsv` ground truth (CorpusMetrics, load/evaluate functions).
   - **Expected precision improvement**: baseline 42% → P0: ~55–62% → P1: ~65–75%. Idiom-floor ~40 FP unremovable without semantics (LLM confirmation planned v0.2).
 - **Vendored-code exclusion** — both the include graph and the duplication scan now skip vendored single-file libraries and vendored directories outside `third_party/`, removing phantom signal from bundled dependencies. (#068, #069, #071)
