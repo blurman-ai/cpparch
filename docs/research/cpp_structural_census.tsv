@@ -1,0 +1,1494 @@
+repo	files	nodes	edges	sccs_cyclic	dup_pairs	dup_per100f	size_mb	verdict
+protocolbuffers/protobuf							226	TOO_BIG
+mongodb/mongo							1347	TOO_BIG
+ceph/ceph							910	TOO_BIG
+qt/qtbase							867	TOO_BIG
+grpc/grpc							611	TOO_BIG
+TrinityCore/TrinityCore							1412	TOO_BIG
+v8/v8							1212	TOO_BIG
+abseil/abseil-cpp	5	5	0	0	0	0.0	0	CLEAN
+google/angle							204	TOO_BIG
+google/perfetto							238	TOO_BIG
+facebook/fbthrift							289	TOO_BIG
+facebook/hhvm							872	TOO_BIG
+brave/brave-core							4400	TOO_BIG
+blender/blender							945	TOO_BIG
+XRPLF/rippled	1157	1162	8496	0	16	1.4	46	VIOLATION_KEPT
+rapidsai/cudf							209	TOO_BIG
+godotengine/godot							1821	TOO_BIG
+microsoft/WSL	569	569	1490	8	12	2.1	56	VIOLATION_KEPT
+openbabel/openbabel	480	480	1988	1	22	4.6	71	VIOLATION_KEPT
+qt-creator/qt-creator							673	TOO_BIG
+eranif/codelite							631	TOO_BIG
+google/mozc							784	TOO_BIG
+facebook/CacheLib	0	0	0	0	0		0	CLEAN
+esphome/esphome	2586	2586	7776	1	53	2.0	69	VIOLATION_KEPT
+KhronosGroup/SPIRV-Tools	0	0	0	0	0		0	CLEAN
+gcc-mirror/gcc							4090	TOO_BIG
+google/skia							1219	TOO_BIG
+openvinotoolkit/openvino							937	TOO_BIG
+apple/foundationdb							205	TOO_BIG
+wpilibsuite/allwpilib	2121	2121	6028	34	58	2.7	123	VIOLATION_KEPT
+percona/percona-server							5060	TOO_BIG
+randombit/botan	1300	1300	121	0	41	3.2	39	VIOLATION_KEPT
+CleverRaven/Cataclysm-DDA							12539	TOO_BIG
+OvenMediaLabs/OvenMediaEngine	1451	1451	3855	3	39	2.7	38	VIOLATION_KEPT
+envoyproxy/envoy							306	TOO_BIG
+MariaDB/server							1673	TOO_BIG
+amule-project/amule	455	455	2032	1	28	6.2	24	VIOLATION_KEPT
+ClickHouse/ClickHouse							6828	TOO_BIG
+electron/electron							203	TOO_BIG
+facebook/react-native							970	TOO_BIG
+ermig1979/Simd	12	12	0	0	2	16.7	43	VIOLATION_KEPT
+scylladb/scylladb							264	TOO_BIG
+KiCad/kicad-source-mirror							4085	TOO_BIG
+LibreOffice/core							6195	TOO_BIG
+Rust-GCC/gccrs							1601	TOO_BIG
+ArduPilot/ardupilot							602	TOO_BIG
+colmap/colmap	103	103	175	0	5	4.9	32	VIOLATION_KEPT
+IfcOpenShell/IfcOpenShell							371	TOO_BIG
+microsoft/react-native-windows							375	TOO_BIG
+facebook/rocksdb							244	TOO_BIG
+PCSX2/pcsx2							321	TOO_BIG
+open-telemetry/opentelemetry-cpp	887	887	4676	0	21	2.4	16	VIOLATION_KEPT
+shader-slang/slang	1423	1424	5200	3	43	3.0	68	VIOLATION_KEPT
+opencv/opencv							559	TOO_BIG
+sofa-framework/sofa							385	TOO_BIG
+pytorch/FBGEMM	399	399	787	0	43	10.8	26	VIOLATION_KEPT
+mysql/mysql-server							4795	TOO_BIG
+crawl/crawl							330	TOO_BIG
+haiku/haiku							475	TOO_BIG
+facebookincubator/fizz	282	282	686	0	12	4.3	10	VIOLATION_KEPT
+manticoresoftware/manticoresearch	662	662	2202	3	13	2.0	57	VIOLATION_KEPT
+alibaba/MNN							329	TOO_BIG
+harfbuzz/harfbuzz	134	134	148	0	5	3.7	48	VIOLATION_KEPT
+MRPT/mrpt							306	TOO_BIG
+dmlc/xgboost	316	316	1513	0	6	1.9	16	VIOLATION_KEPT
+NixOS/nix	727	727	2833	1	5	0.7	66	VIOLATION_KEPT
+FastLED/FastLED							300	TOO_BIG
+microsoft/terminal	1103	1103	2462	2	28	2.5	64	VIOLATION_KEPT
+domoticz/domoticz							412	TOO_BIG
+sysown/proxysql							639	TOO_BIG
+casadi/casadi	853	855	1761	1	32	3.8	26	VIOLATION_KEPT
+Stellarium/stellarium							5832	TOO_BIG
+contour-terminal/contour	237	238	756	2	5	2.1	20	VIOLATION_KEPT
+hluk/CopyQ	320	320	944	0	1	0.3	12	VIOLATION_KEPT
+mavlink/qgroundcontrol							535	TOO_BIG
+microsoft/onnxruntime							1547	TOO_BIG
+ros-navigation/navigation2	30	30	48	0	2	6.7	87	VIOLATION_KEPT
+PaddlePaddle/Paddle							552	TOO_BIG
+mixxxdj/mixxx							607	TOO_BIG
+google/sandboxed-api	12	12	6	0	0	0.0	0	CLEAN
+f4exb/sdrangel							250	TOO_BIG
+multitheftauto/mtasa-blue							950	TOO_BIG
+Z3Prover/z3	1898	1899	7994	0	67	3.5	45	VIOLATION_KEPT
+ton-blockchain/ton	1240	1240	5310	1	53	4.3	49	VIOLATION_KEPT
+mltframework/shotcut	396	396	1169	0	19	4.8	52	VIOLATION_KEPT
+ETLCPP/etl	14	15	0	0	2	14.3	33	VIOLATION_KEPT
+google/filament							1126	TOO_BIG
+AcademySoftwareFoundation/OpenImageIO	239	239	1053	0	36	15.1	67	VIOLATION_KEPT
+xbmc/xbmc							1648	TOO_BIG
+intel/compute-runtime	3177	3177	12801	1	202	6.4	141	VIOLATION_KEPT
+subsurface/subsurface	520	520	2336	0	12	2.3	41	VIOLATION_KEPT
+cataclysmbn/Cataclysm-BN							7296	TOO_BIG
+sorbet/sorbet							213	TOO_BIG
+facebookresearch/faiss							279	TOO_BIG
+nextcloud/desktop							668	TOO_BIG
+facebook/proxygen	623	623	1240	0	21	3.4	17	VIOLATION_KEPT
+idaholab/moose							763	TOO_BIG
+wled/WLED	184	184	238	1	5	2.7	22	VIOLATION_KEPT
+nasa/fprime							457	TOO_BIG
+openthread/openthread	0	0	0	0	0		0	CLEAN
+vnotex/vnote	803	803	2833	0	52	6.5	20	VIOLATION_KEPT
+facebook/watchman	234	234	771	0	7	3.0	10	VIOLATION_KEPT
+typesense/typesense	172	172	530	0	19	11.0	17	VIOLATION_KEPT
+facebook/folly	1	1	0	0	0	0.0	0	CLEAN
+facebook/wangle	0	0	0	0	0		0	CLEAN
+facebook/mvfst	365	365	1299	0	20	5.5	18	VIOLATION_KEPT
+KDE/kdeconnect-kde	279	279	549	0	6	2.2	20	VIOLATION_KEPT
+yhirose/cpp-httplib	19	19	0	0	0	0.0	0	CLEAN
+zeek/zeek							266	TOO_BIG
+emscripten-core/emscripten							266	TOO_BIG
+espressif/arduino-esp32							2233	TOO_BIG
+apache/arrow							229	TOO_BIG
+InsightSoftwareConsortium/ITK							225	TOO_BIG
+cvxpy/cvxpy							225	TOO_BIG
+CoolProp/CoolProp	248	248	577	2	13	5.2	36	VIOLATION_KEPT
+ihhub/fheroes2	465	465	4231	0	13	2.8	75	VIOLATION_KEPT
+microsoft/DirectXShaderCompiler	3202	3202	22101	1	132	4.1	140	VIOLATION_KEPT
+apache/impala							240	TOO_BIG
+capnproto/capnproto	9	9	0	0	0	0.0	0	CLEAN
+apache/trafficserver	1705	1705	5819	2	63	3.7	69	VIOLATION_KEPT
+NVIDIA/nccl	427	427	993	2	17	4.0	18	VIOLATION_KEPT
+google/boringssl							387	TOO_BIG
+wxWidgets/wxWidgets							444	TOO_BIG
+mawww/kakoune	141	141	806	0	1	0.7	7	VIOLATION_KEPT
+kokkos/kokkos	734	734	2303	5	66	9.0	25	VIOLATION_KEPT
+jank-lang/jank	403	403	1526	2	9	2.2	13	VIOLATION_KEPT
+zeux/meshoptimizer	52	52	51	0	9	17.3	5	VIOLATION_KEPT
+uxlfoundation/oneTBB	30	30	32	0	1	3.3	20	VIOLATION_KEPT
+sideeffects/SideFXLabs							1532	TOO_BIG
+gem5/gem5							231	TOO_BIG
+zcash/zcash	584	584	2212	0	28	4.8	26	VIOLATION_KEPT
+OSGeo/PROJ							306	TOO_BIG
+zeroc-ice/ice							223	TOO_BIG
+uncrustify/uncrustify	289	289	748	0	20	6.9	21	VIOLATION_KEPT
+TheHPXProject/hpx							421	TOO_BIG
+texstudio-org/texstudio							316	TOO_BIG
+dolphin-emu/dolphin							550	TOO_BIG
+nomacs/nomacs	130	130	440	0	4	3.1	19	VIOLATION_KEPT
+OGRECave/ogre							445	TOO_BIG
+FEniCS/dolfinx	176	176	820	1	4	2.3	7	VIOLATION_KEPT
+SerenityOS/serenity							241	TOO_BIG
+SimpleITK/SimpleITK	18	18	6	0	2	11.1	9	VIOLATION_KEPT
+Bitcoin-ABC/bitcoin-abc							316	TOO_BIG
+actor-framework/actor-framework	1202	1202	5401	0	16	1.3	16	VIOLATION_KEPT
+gerbera/gerbera	314	314	1404	0	10	3.2	64	VIOLATION_KEPT
+ocornut/imgui	37	37	15	0	28	75.7	14	VIOLATION_KEPT
+percona/percona-xtrabackup							4569	TOO_BIG
+bitcoin/bitcoin							317	TOO_BIG
+widelands/widelands							3251	TOO_BIG
+meganz/sdk	882	882	2230	1	12	1.4	41	VIOLATION_KEPT
+mfem/mfem							276	TOO_BIG
+savoirfairelinux/opendht	78	78	206	0	2	2.6	4	VIOLATION_KEPT
+Tencent/ncnn	2300	2300	3851	0	138	6.0	62	VIOLATION_KEPT
+AcademySoftwareFoundation/MaterialX							236	TOO_BIG
+google/tcmalloc	1	1	0	0	0	0.0	0	CLEAN
+Chatterino/chatterino2	943	943	3123	0	11	1.2	16	VIOLATION_KEPT
+revng/revng	1017	1017	3992	2	10	1.0	20	VIOLATION_KEPT
+aardappel/lobster	148	150	379	1	2	1.4	92	VIOLATION_KEPT
+apache/thrift	333	333	709	0	30	9.0	17	VIOLATION_KEPT
+iree-org/iree							288	TOO_BIG
+halide/Halide	877	877	2573	0	47	5.4	57	VIOLATION_KEPT
+mpusz/mp-units	2	2	0	0	0	0.0	0	CLEAN
+WasmEdge/WasmEdge								CLONE_FAIL
+doxygen/doxygen	462	463	1911	0	38	8.2	40	VIOLATION_KEPT
+Cockatrice/Cockatrice	928	928	2213	4	18	1.9	45	VIOLATION_KEPT
+scylladb/seastar	392	392	1563	0	6	1.5	11	VIOLATION_KEPT
+ispc/ispc	207	207	401	0	32	15.5	29	VIOLATION_KEPT
+NVIDIA/DALI							539	TOO_BIG
+librats/rats-search	69	69	122	0	4	5.8	5	VIOLATION_KEPT
+diffblue/cbmc							1570	TOO_BIG
+bpftrace/bpftrace	389	389	996	1	1	0.3	16	VIOLATION_KEPT
+KDE/kwin							563	TOO_BIG
+stellar/stellar-core	595	595	2977	2	14	2.4	58	VIOLATION_KEPT
+xLightsSequencer/xLights							958	TOO_BIG
+Icinga/icinga2	607	607	2905	5	28	4.6	18	VIOLATION_KEPT
+facebook/openr	140	140	356	2	5	3.6	9	VIOLATION_KEPT
+uxlfoundation/oneDAL	0	0	0	0	0		0	CLEAN
+openvinotoolkit/model_server	3	3	2	0	0	0.0	0	CLEAN
+uxlfoundation/oneDPL	167	167	370	0	18	10.8	39	VIOLATION_KEPT
+gromacs/gromacs							431	TOO_BIG
+tenzir/tenzir							2302	TOO_BIG
+inviwo/inviwo							948	TOO_BIG
+OpenMS/OpenMS							912	TOO_BIG
+canonical/mir							222	TOO_BIG
+googleapis/google-cloud-cpp							14271	TOO_BIG
+hpcc-systems/HPCC-Platform							344	TOO_BIG
+intel/intel-graphics-compiler	2012	2013	8795	5	97	4.8	112	VIOLATION_KEPT
+MOLAorg/mola	95	95	118	0	16	16.8	6	VIOLATION_KEPT
+swoole/phpx	250	250	590	0	1	0.4	8	VIOLATION_KEPT
+reupen/columns_ui	296	296	787	1	16	5.4	7	VIOLATION_KEPT
+xapian/xapian	598	600	2078	0	23	3.8	57	VIOLATION_KEPT
+KDE/dolphin							378	TOO_BIG
+openthread/ot-br-posix	0	0	0	0	0		0	CLEAN
+DCMTK/dcmtk	2196	2196	7818	0	162	7.4	87	VIOLATION_KEPT
+SteamTracking/GameTracking-Dota2							6703	TOO_BIG
+Xilinx/XRT	760	760	2014	1	104	13.7	39	VIOLATION_KEPT
+facebook/fboss	3124	3124	9530	4	83	2.7	208	VIOLATION_KEPT
+OpenMPT/openmpt							227	TOO_BIG
+AMReX-Codes/amrex	243	243	6	0	53	21.8	31	VIOLATION_KEPT
+eclipse-omr/omr	2669	2669	14778	5	230	8.6	71	VIOLATION_KEPT
+NeoGeographyToolkit/StereoPipeline							244	TOO_BIG
+grumpycoders/pcsx-redux	268	268	671	1	13	4.9	53	VIOLATION_KEPT
+MythTV/mythtv							561	TOO_BIG
+rapidsai/rmm	130	130	372	0	2	1.5	5	VIOLATION_KEPT
+msoos/cryptominisat	6	6	3	0	25	416.7	6	VIOLATION_KEPT
+Bforartists/Bforartists							2668	TOO_BIG
+LunarG/gfxreconstruct	1	1	0	0	0	0.0	0	CLEAN
+scribusproject/scribus							814	TOO_BIG
+microsoft/CCF	0	0	0	0	0		0	CLEAN
+Cantera/cantera	410	410	1251	1	12	2.9	15	VIOLATION_KEPT
+open-edge-platform/dlstreamer							382	TOO_BIG
+KhronosGroup/VK-GL-CTS							2047	TOO_BIG
+OpenChemistry/avogadrolibs	673	673	2030	2	65	9.7	66	VIOLATION_KEPT
+ros-controls/ros2_control	0	0	0	0	0		0	CLEAN
+rpm-software-management/rpm	224	224	1134	0	3	1.3	7	VIOLATION_KEPT
+ipsilon/evmone	57	57	63	0	0	0.0	0	CLEAN
+OpenEnroth/OpenEnroth	816	816	3656	2	9	1.1	58	VIOLATION_KEPT
+ad-freiburg/qlever							209	TOO_BIG
+nsnam/ns-3-dev-git							213	TOO_BIG
+inet-framework/inet							259	TOO_BIG
+tonioni/WinUAE	1000	1001	3915	2	116	11.6	90	VIOLATION_KEPT
+coal-library/coal	188	188	247	0	1	0.5	8	VIOLATION_KEPT
+openMSX/openMSX	1190	1190	5108	0	13	1.1	28	VIOLATION_KEPT
+Mudlet/Mudlet							208	TOO_BIG
+wingtk/gvsbuild	219	219	39	0	6	2.7	14	VIOLATION_KEPT
+lagadic/visp							253	TOO_BIG
+GerbilSoft/rom-properties	1950	1950	4663	0	76	3.9	128	VIOLATION_KEPT
+mavlink/MAVSDK	718	718	1572	0	90	12.5	52	VIOLATION_KEPT
+ja2-stracciatella/ja2-stracciatella	854	854	8497	0	19	2.2	54	VIOLATION_KEPT
+cisco/mercury							347	TOO_BIG
+dxx-rebirth/dxx-rebirth	420	420	3805	0	7	1.7	11	VIOLATION_KEPT
+torognes/vsearch	10	10	8	0	0	0.0	0	CLEAN
+ROCm/AMDMIGraphX	3	3	1	0	0	0.0	0	CLEAN
+OPM/ResInsight							269	TOO_BIG
+OpenSourceRisk/Engine	2463	2464	9201	0	38	1.5	134	VIOLATION_KEPT
+esbmc/esbmc	8280	8264	6040	1	195	2.4	138	VIOLATION_KEPT
+qt/qtdeclarative							307	TOO_BIG
+stillwater-sc/universal	2225	2225	5388	4	50	2.2	70	VIOLATION_KEPT
+qt/qtwebengine	629	629	1190	0	20	3.2	15	VIOLATION_KEPT
+KDE/plasma-workspace							438	TOO_BIG
+chaos-polymtl/lethe							976	TOO_BIG
+qt/qttools	1141	1141	2727	1	37	3.2	39	VIOLATION_KEPT
+scp-fs2open/fs2open.github.com							245	TOO_BIG
+krrishnarraj/clpeak	97	97	201	0	12	12.4	4	VIOLATION_KEPT
+IppClub/Dora-SSR							279	TOO_BIG
+mantidproject/mantid							954	TOO_BIG
+netxms/netxms	1304	1305	2436	1	93	7.1	84	VIOLATION_KEPT
+linuxdeepin/dde-file-manager							209	TOO_BIG
+onecoolx/picasso	104	104	337	0	15	14.4	43	VIOLATION_KEPT
+mickem/nscp	702	702	2454	0	28	4.0	23	VIOLATION_KEPT
+webrtc-sdk/webrtc							353	TOO_BIG
+XCSoar/XCSoar	3627	3629	13511	0	26	0.7	59	VIOLATION_KEPT
+highperformancecoder/minsky							280	TOO_BIG
+masc-ucsc/livehd	243	243	473	0	2	0.8	47	VIOLATION_KEPT
+openbmc/bmcweb	359	359	1482	0	7	1.9	15	VIOLATION_KEPT
+aburch/simutrans	848	848	5688	0	11	1.3	17	VIOLATION_KEPT
+BLAST-WarpX/warpx	243	243	0	0	17	7.0	22	VIOLATION_KEPT
+leuat/TRSE	746	747	1737	2	27	3.6	89	VIOLATION_KEPT
+ornladios/ADIOS2	899	899	2083	2	49	5.5	49	VIOLATION_KEPT
+kokkos/kokkos-kernels	805	805	1813	1	64	8.0	26	VIOLATION_KEPT
+lttng/lttng-tools	728	728	3747	4	25	3.4	21	VIOLATION_KEPT
+percona/percona-xtradb-cluster							4973	TOO_BIG
+NVIDIA/VisRTX	490	490	1294	0	14	2.9	74	VIOLATION_KEPT
+sonic-net/sonic-swss	350	350	1149	0	20	5.7	18	VIOLATION_KEPT
+Washington-University/workbench	3965	3967	17393	5	181	4.6	79	VIOLATION_KEPT
+BearWare/TeamTalk5							233	TOO_BIG
+LoneGazebo/Community-Patch-DLL							4673	TOO_BIG
+aws/aws-ofi-nccl	99	99	290	1	2	2.0	17	VIOLATION_KEPT
+flatironinstitute/finufft	89	89	137	0	3	3.4	18	VIOLATION_KEPT
+GNOME/gparted	144	144	556	1	1	0.7	9	VIOLATION_KEPT
+OpenChemistry/avogadroapp	37	37	48	0	2	5.4	10	VIOLATION_KEPT
+gwdevhub/GWToolboxpp	417	418	1304	0	15	3.6	41	VIOLATION_KEPT
+MerginMaps/mobile	244	244	463	0	4	1.6	25	VIOLATION_KEPT
+zxlxz/sfc	144	144	253	0	2	1.4	3	VIOLATION_KEPT
+Samsung/escargot							203	TOO_BIG
+ViewTouch/viewtouch	202	202	922	0	3	1.5	38	VIOLATION_KEPT
+mysql/mysql-shell	1162	1162	4735	1	24	2.1	44	VIOLATION_KEPT
+jjuran/metamage_1	3803	3806	11717	6	23	0.6	46	VIOLATION_KEPT
+project-gemmi/gemmi	261	261	952	0	8	3.1	11	VIOLATION_KEPT
+DroneDB/DroneDB	225	225	775	0	4	1.8	12	VIOLATION_KEPT
+Open-KO/KnightOnline							334	TOO_BIG
+stereolabs/zed-ros2-wrapper	4	4	2	0	0	0.0	0	CLEAN
+socnetv/app	174	174	272	0	11	6.3	7	VIOLATION_KEPT
+OpenChemistry/tomviz	422	422	1028	0	13	3.1	11	VIOLATION_KEPT
+ryzom/ryzomcore							306	TOO_BIG
+batocera-linux/batocera-emulationstation	415	415	2202	0	16	3.9	44	VIOLATION_KEPT
+glotzerlab/hoomd-blue	617	617	1496	0	41	6.6	19	VIOLATION_KEPT
+glotzerlab/freud	143	143	542	0	4	2.8	10	VIOLATION_KEPT
+raspberrypi/libcamera	612	612	2074	0	13	2.1	14	VIOLATION_KEPT
+ROCm/rccl	324	324	695	1	27	8.3	14	VIOLATION_KEPT
+acts-project/acts	2103	2103	10118	46	22	1.0	147	VIOLATION_KEPT
+mariadb-corporation/mariadb-columnstore-engine	1462	1463	5821	2	77	5.3	49	VIOLATION_KEPT
+sxs-collaboration/spectre	3538	3538	27898	6	14	0.4	81	VIOLATION_KEPT
+qt/qtmultimedia	948	948	1137	0	31	3.3	42	VIOLATION_KEPT
+qtproject/pyside-pyside-setup	444	444	1583	0	9	2.0	36	VIOLATION_KEPT
+linuxdeepin/dde-control-center							433	TOO_BIG
+cilium/proxy	59	59	111	0	0	0.0	0	CLEAN
+mne-tools/mne-cpp	945	945	2157	1	49	5.2	79	VIOLATION_KEPT
+nakatamaho/mplapack							314	TOO_BIG
+couchbase/kv_engine	1070	1070	4006	0	19	1.8	41	VIOLATION_KEPT
+dds-bridge/dds	96	96	211	0	6	6.2	17	VIOLATION_KEPT
+seto77/ReciPro							627	TOO_BIG
+savoirfairelinux/jami-daemon							213	TOO_BIG
+InternationalColorConsortium/iccDEV	37	37	11	0	3	8.1	64	VIOLATION_KEPT
+OpendTect/OpendTect	3529	3529	24365	4	129	3.7	54	VIOLATION_KEPT
+BelledonneCommunications/flexisip	812	812	2627	1	9	1.1	18	VIOLATION_KEPT
+OutpostUniverse/OPHD	317	317	939	0	1	0.3	7	VIOLATION_KEPT
+objeck/objeck-lang							3295	TOO_BIG
+kernkonzept/l4re-core	919	921	510	0	6	0.7	196	VIOLATION_KEPT
+kernkonzept/fiasco	1501	1506	1840	0	39	2.6	21	VIOLATION_KEPT
+diffblue/hw-cbmc	503	503	1116	0	10	2.0	11	VIOLATION_KEPT
+USNavalResearchLaboratory/simdissdk	988	988	3836	0	32	3.2	24	VIOLATION_KEPT
+kbingham/libcamera	604	604	2064	1	13	2.2	13	VIOLATION_KEPT
+GNOME/gjs	151	151	779	0	5	3.3	5	VIOLATION_KEPT
+GIBIS-UNIFESP/wiRedPanda							578	TOO_BIG
+BelledonneCommunications/linphone-sdk							230	TOO_BIG
+LoveDaisy/ice_halo_sim	108	108	269	0	4	3.7	29	VIOLATION_KEPT
+ESPWortuhr/Multilayout-ESP-Wordclock	62	62	88	0	2	3.2	115	VIOLATION_KEPT
+yoyofr/modizer							1159	TOO_BIG
+jrywu/DIME							569	TOO_BIG
+SCIInstitute/ShapeWorks							1524	TOO_BIG
+TimelordUK/node-sqlserver-v8	126	130	479	0	1	0.8	5	VIOLATION_KEPT
+bertiniteam/b2	205	206	397	1	8	3.9	5	VIOLATION_KEPT
+christoph2/pyA2L	146	146	339	22	7	4.8	38	VIOLATION_KEPT
+envoyproxy/envoy-openssl							324	TOO_BIG
+alphaonex86/CatchChallenger	963	967	2674	0	67	7.0	56	VIOLATION_KEPT
+luspi/photoqt	187	187	338	0	4	2.1	27	VIOLATION_KEPT
+AntaresSimulatorTeam/Antares_Simulator							503	TOO_BIG
+stackrox/collector	113	113	280	0	0	0.0	0	CLEAN
+Kyoril/mmo	1394	1396	5338	0	52	3.7	53	VIOLATION_KEPT
+qoretechnologies/qore	177	177	181	0	31	17.5	102	VIOLATION_KEPT
+CerebusOSS/CereLink	68	68	150	0	1	1.5	5	VIOLATION_KEPT
+facebook/fb303	0	0	0	0	0		0	CLEAN
+qt/qtdoc	332	332	245	1	4	1.2	60	VIOLATION_KEPT
+D-Programming-GDC/gcc							1433	TOO_BIG
+solvcon/modmesh	20	20	20	0	1	5.0	5	VIOLATION_KEPT
+qt/qtquick3d	637	637	595	0	22	3.5	91	VIOLATION_KEPT
+Cytnx-dev/Cytnx							333	TOO_BIG
+qt/qtsvg	71	71	90	0	2	2.8	6	VIOLATION_KEPT
+fifengine/fifechan	203	203	660	0	5	2.5	11	VIOLATION_KEPT
+ModbusScope/ModbusScope	207	207	419	0	2	1.0	97	VIOLATION_KEPT
+kadas-albireo/kadas-albireo2	301	301	652	0	12	4.0	89	VIOLATION_KEPT
+PierreSenellart/provsql	142	142	390	0	7	4.9	15	VIOLATION_KEPT
+TrinityCore/TrinityCoreCustomChanges							703	TOO_BIG
+RuleWorld/bionetgen	462	462	739	0	145	31.4	54	VIOLATION_KEPT
+atmtools/arts							278	TOO_BIG
+marekjm/viuavm	376	376	941	0	9	2.4	8	VIOLATION_KEPT
+veltzer/demos-os-linux	1206	1205	1927	0	54	4.5	11	VIOLATION_KEPT
+rzeronte/brakeza3d	437	437	1260	0	43	9.8	107	VIOLATION_KEPT
+tagattie/FreeBSD-Electron	40770	40770	0	0	199	0.5	229	VIOLATION_KEPT
+ValeevGroup/SeQuant	232	232	1028	0	15	6.5	10	VIOLATION_KEPT
+eclipse-openj9/openj9-omr	2669	2669	14778	5	230	8.6	71	VIOLATION_KEPT
+bylins/mud	961	961	4080	0	11	1.1	23	VIOLATION_KEPT
+artis-mcrt/artis	54	54	328	0	0	0.0	0	CLEAN
+osmocom/osmo-ttcn3-hacks	59	59	14	0	6	10.2	5	VIOLATION_KEPT
+nextgis-borsch/lib_gdal							397	TOO_BIG
+MaximumTrainer/MaximumTrainer_Redux	508	508	990	0	32	6.3	88	VIOLATION_KEPT
+MUME/MMapper	610	610	2480	0	10	1.6	13	VIOLATION_KEPT
+ciyam/ciyam	323	323	1370	0	39	12.1	66	VIOLATION_KEPT
+dalihub/dali-core	6	6	0	0	0	0.0	0	CLEAN
+sjg20/paperman	251	251	497	0	13	5.2	9	VIOLATION_KEPT
+stpaine/FERS	145	145	330	0	6	4.1	7	VIOLATION_KEPT
+lukas-w/pdfium	2508	2508	11271	0	51	2.0	52	VIOLATION_KEPT
+dasch-swiss/sipi							488	TOO_BIG
+nvdajp/nvdajp							887	TOO_BIG
+UO-OACISS/tau2							275	TOO_BIG
+openbmc/entity-manager	48	48	71	0	0	0.0	0	CLEAN
+domob1812/namecoin-core							205	TOO_BIG
+3drepo/3drepobouncer							377	TOO_BIG
+LegalizeAdulthood/iterated-dynamics							225	TOO_BIG
+qt/qtapplicationmanager	308	308	641	0	5	1.6	15	VIOLATION_KEPT
+kotuku-group/kotuku	961	962	2872	2	63	6.6	71	VIOLATION_KEPT
+sneezymud/sneezymud							279	TOO_BIG
+kronosaur/TranscendenceDev							307	TOO_BIG
+lairworks/nas2d-core	35	35	26	0	0	0.0	0	CLEAN
+mosra/magnum-extras	0	0	0	0	0		0	CLEAN
+openbmc/openpower-vpd-parser	64	64	265	0	1	1.6	3	VIOLATION_KEPT
+ca2/app							350	TOO_BIG
+EIGHTFINITE/dolphin							493	TOO_BIG
+jwmcglynn/donner	693	693	2482	0	32	4.6	81	VIOLATION_KEPT
+nomadsinteractive/ark	1005	1008	4864	0	2	0.2	13	VIOLATION_KEPT
+OPENDAP/bes							898	TOO_BIG
+CueMol/cuemol2	1197	1199	4818	3	55	4.6	29	VIOLATION_KEPT
+reupen/typefind_panel	7	7	7	0	0	0.0	0	CLEAN
+Tatsh/bpmdetect	32	32	54	0	2	6.2	10	VIOLATION_KEPT
+foss-for-synopsys-dwc-arc-processors/gcc							1744	TOO_BIG
+magao-x/MagAOX	511	511	680	2	24	4.7	52	VIOLATION_KEPT
+GrapheneOS/platform_art							406	TOO_BIG
+aladur/flexemu	288	288	1149	0	10	3.5	18	VIOLATION_KEPT
+ccrs/EG-Source	2174	2174	11938	0	76	3.5	67	VIOLATION_KEPT
+exodusdb/exodusdb	308	308	410	0	5	1.6	21	VIOLATION_KEPT
+GrapheneOS/platform_frameworks_native	65	65	5	0	0	0.0	0	CLEAN
+mrapp-ke/MLRL-Boomer							852	TOO_BIG
+LBNL-ETA/Windows-CalcEngine	660	660	1586	1	19	2.9	12	VIOLATION_KEPT
+evilmucedin/project-euler							803	TOO_BIG
+dalihub/dali-adaptor	10	11	0	0	0	0.0	0	CLEAN
+VERITAS-Observatory/EventDisplay_v4	436	436	668	0	21	4.8	10	VIOLATION_KEPT
+dalihub/dali-toolkit	77	77	2	0	0	0.0	0	CLEAN
+MIPS/gcc							2922	TOO_BIG
+uksf/modpack							446	TOO_BIG
+GrapheneOS/platform_frameworks_av							272	TOO_BIG
+yhirose/culebra	22	22	49	1	10	45.5	5	VIOLATION_KEPT
+JeffersonLab/JANA2	276	277	684	0	9	3.3	18	VIOLATION_KEPT
+northriv/KAME	361	362	921	0	22	6.1	17	VIOLATION_KEPT
+umkoin/umkoin	1111	1111	5206	0	37	3.3	43	VIOLATION_KEPT
+Haldir65/androidMedia							286	TOO_BIG
+crdroidandroid/android_hardware_interfaces	33	33	11	0	1	3.0	98	VIOLATION_KEPT
+fmidev/smartmet-plugin-wms							614	TOO_BIG
+ZeraGmbH/zera-classes	811	811	1504	0	15	1.8	17	VIOLATION_KEPT
+tkadauke/raytracer	626	626	1978	0	17	2.7	16	VIOLATION_KEPT
+hyyh619/irrlicht-1.8.3	868	868	3223	0	58	6.7	106	VIOLATION_KEPT
+125jdavis/gauge	21	21	30	0	1	4.8	2	VIOLATION_KEPT
+SenaxInc/SenaxTankAlarm	12	12	13	0	0	0.0	0	CLEAN
+numaes/protoCore							257	TOO_BIG
+derekbsnider/madc	122	122	234	0	16	13.1	8	VIOLATION_KEPT
+zackb/code	210	212	409	0	3	1.4	311	VIOLATION_KEPT
+google/xls	0	0	0	0	0		0	CLEAN
+ossappscollective/OSS-DocumentScanner	77	77	216	0	22	28.6	37	VIOLATION_KEPT
+memgraph/memgraph	1094	1094	4016	0	45	4.1	50	VIOLATION_KEPT
+Serial-Studio/Serial-Studio							321	TOO_BIG
+project-chip/connectedhomeip							1107	TOO_BIG
+maplibre/maplibre-native							4091	TOO_BIG
+organicmaps/organicmaps							9384	TOO_BIG
+aravindkrishnaswamy/RISE	1212	1212	4047	6	61	5.0	221	VIOLATION_KEPT
+redpanda-data/redpanda	2673	2673	14212	0	28	1.0	98	VIOLATION_KEPT
+meshtastic/firmware	1128	1128	3082	4	16	1.4	31	VIOLATION_KEPT
+TorqueGameEngines/Torque3D							784	TOO_BIG
+Open-Cascade-SAS/OCCT							216	TOO_BIG
+thorvg/thorvg							419	TOO_BIG
+chrxh/alien							490	TOO_BIG
+rui314/mold	64	64	65	0	4	6.2	39	VIOLATION_KEPT
+google/tensorstore	21	23	1	0	0	0.0	0	CLEAN
+Slicer/Slicer	2311	2311	7357	4	94	4.1	49	VIOLATION_KEPT
+aristocratos/btop	29	29	17	0	0	0.0	0	CLEAN
+libjxl/libjxl	553	553	3702	0	8	1.4	13	VIOLATION_KEPT
+llvm/circt	1077	1077	3725	0	54	5.0	44	VIOLATION_KEPT
+carbon-language/carbon-lang	583	583	2876	0	9	1.5	103	VIOLATION_KEPT
+o3de/o3de							228	TOO_BIG
+y-scope/clp	683	683	2292	2	58	8.5	18	VIOLATION_KEPT
+CollaboraOnline/online							455	TOO_BIG
+CesiumGS/cesium-unreal	294	294	780	0	11	3.7	21	VIOLATION_KEPT
+NVIDIA/stdexec	1	1	0	0	0	0.0	0	CLEAN
+FEX-Emu/FEX	519	519	1927	1	14	2.7	28	VIOLATION_KEPT
+simpleble/simpleble	369	369	803	0	27	7.3	9	VIOLATION_KEPT
+simdutf/simdutf	400	400	638	0	49	12.2	14	VIOLATION_KEPT
+artemsen/swayimg	75	75	148	0	2	2.7	6	VIOLATION_KEPT
+fraunhoferhhi/vvenc	0	0	0	0	0		0	CLEAN
+topling/toplingdb	1011	1011	5359	4	36	3.6	42	VIOLATION_KEPT
+mozilla-mobile/mozilla-vpn-client	646	646	1772	0	4	0.6	32	VIOLATION_KEPT
+ROCm/HIPIFY	2	2	1	0	0	0.0	0	CLEAN
+logicalclocks/rondb							1900	TOO_BIG
+beyond-all-reason/RecoilEngine							210	TOO_BIG
+KinkyMakers/OSSM-hardware							821	TOO_BIG
+ecubus/EcuBus-Pro							308	TOO_BIG
+opengauss-mirror/openGauss-server							332	TOO_BIG
+tksuoran/erhe	1508	1537	5846	4	62	4.1	44	VIOLATION_KEPT
+bitcoin-core/gui	1093	1093	5120	0	24	2.2	80	VIOLATION_KEPT
+josevcm/nfc-laboratory	350	350	725	1	37	10.6	72	VIOLATION_KEPT
+Samsung/ONE							1234	TOO_BIG
+zeek/spicy	571	571	9	0	7	1.2	17	VIOLATION_KEPT
+jameshball/osci-render	260	260	573	0	1	0.4	88	VIOLATION_KEPT
+nntrainer/nntrainer							393	TOO_BIG
+Azure/azure-sdk-for-cpp	698	698	2544	0	39	5.6	29	VIOLATION_KEPT
+nv-legate/legate	735	735	2951	163	11	1.5	25	VIOLATION_KEPT
+open-telemetry/opentelemetry-dotnet-instrumentation	479	479	1139	33	16	3.3	21	VIOLATION_KEPT
+pigweed-project/pigweed	0	0	0	0	0		0	CLEAN
+Phobos-developers/Phobos	324	324	720	0	10	3.1	110	VIOLATION_KEPT
+grommunio/gromox	436	436	2552	1	37	8.5	17	VIOLATION_KEPT
+openhive-network/hive							406	TOO_BIG
+iains/gcc-darwin-arm64							1360	TOO_BIG
+doudar/SmartSpin2k							1265	TOO_BIG
+brunoherbelin/vimix							228	TOO_BIG
+RefPerSys/RefPerSys	118	118	120	0	27	22.9	7	VIOLATION_KEPT
+LoRaMesher/LoRaMesher	127	127	348	0	5	3.9	7	VIOLATION_KEPT
+IntelPython/dpnp							1285	TOO_BIG
+mooch443/trex							233	TOO_BIG
+teriflix/scrite	279	279	767	0	5	1.8	164	VIOLATION_KEPT
+MOLAorg/mola_lidar_odometry	19	19	16	0	1	5.3	4	VIOLATION_KEPT
+IntelPython/dpctl							246	TOO_BIG
+rvdbreemen/OTGW-firmware	13	13	10	1	1	7.7	29	VIOLATION_KEPT
+munich-quantum-toolkit/core	330	330	956	0	14	4.2	18	VIOLATION_KEPT
+parthenon-hpc-lab/parthenon	293	293	1490	0	7	2.4	13	VIOLATION_KEPT
+munich-quantum-toolkit/ddsim	23	23	39	0	4	17.4	6	VIOLATION_KEPT
+munich-quantum-toolkit/qcec	36	36	98	0	0	0.0	0	CLEAN
+XRPLF/clio	507	507	2238	0	10	2.0	16	VIOLATION_KEPT
+Xilinx/Vitis_Model_Composer							361	TOO_BIG
+munich-quantum-toolkit/qmap	134	134	368	0	8	6.0	11	VIOLATION_KEPT
+signalapp/webrtc							433	TOO_BIG
+UCLA-VAST/tapa	89	89	161	0	2	2.2	14	VIOLATION_KEPT
+maitrungduc1410/webrtc							319	TOO_BIG
+erf-model/ERF							305	TOO_BIG
+exapde/Exasim							766	TOO_BIG
+quokka-astro/quokka							260	TOO_BIG
+ea4k/klog	194	194	438	0	10	5.2	13	VIOLATION_KEPT
+tier4/scenario_simulator_v2	0	0	0	0	0		0	CLEAN
+dismine/valentina							352	TOO_BIG
+allen-cell-animated/agave	236	236	637	0	10	4.2	12	VIOLATION_KEPT
+KeyWorksRW/wxUiEditor	782	782	2661	0	28	3.6	32	VIOLATION_KEPT
+nrfconnect/sdk-connectedhomeip							269	TOO_BIG
+celeritas-project/celeritas	1730	1730	9078	0	18	1.0	33	VIOLATION_KEPT
+andeplane/atomify							366	TOO_BIG
+libcamera-org/libcamera	604	604	2064	1	13	2.2	13	VIOLATION_KEPT
+defold/extension-rive							4340	TOO_BIG
+tlapack/tlapack	333	333	1059	3	24	7.2	6	VIOLATION_KEPT
+LutzGross/esys-escript.github.io							840	TOO_BIG
+acts-project/traccc	611	611	2289	2	14	2.3	11	VIOLATION_KEPT
+CubePilot/qgroundcontrol-herelink							561	TOO_BIG
+fernandotonon/QtMeshEditor	371	371	685	0	29	7.8	83	VIOLATION_KEPT
+sharjith/ModelViewer-Qt							6029	TOO_BIG
+small-db/small-db	3	3	0	0	0	0.0	0	CLEAN
+frstrtr/c2pool	269	273	718	0	18	6.7	12	VIOLATION_KEPT
+egege/webrtc-src							250	TOO_BIG
+esrrhs/fakelua	65	65	151	0	4	6.2	56	VIOLATION_KEPT
+live-clones/eigen							419	TOO_BIG
+solidi/hl-mods							431	TOO_BIG
+AntaresSimulatorTeam/antares-xpansion	312	312	750	0	6	1.9	30	VIOLATION_KEPT
+clEsperanto/CLIc	184	184	757	0	3	1.6	6	VIOLATION_KEPT
+centreon/centreon-collect	173	173	415	1	11	6.4	31	VIOLATION_KEPT
+TheochemUI/eOn							383	TOO_BIG
+libsemigroups/libsemigroups_pybind11	51	51	57	0	0	0.0	0	CLEAN
+conradhuebler/curcuma	282	282	820	1	28	9.9	22	VIOLATION_KEPT
+AlexandriaChemistry/ACT							207	TOO_BIG
+djeada/Lightpad	358	360	689	0	18	5.0	8	VIOLATION_KEPT
+crdroidandroid/android_frameworks_av							303	TOO_BIG
+Asher-1/ACloudViewer							1352	TOO_BIG
+sswroom/SClass	5502	5506	28478	1	136	2.5	90	VIOLATION_KEPT
+ibis-ssl/crane	262	262	588	0	2	0.8	13	VIOLATION_KEPT
+legend-exp/remage							611	TOO_BIG
+crdroidandroid/android_frameworks_native	65	65	5	0	0	0.0	0	CLEAN
+Srlive1201/LibRPA	170	172	703	0	12	7.1	152	VIOLATION_KEPT
+psryland/rylogic-code							264	TOO_BIG
+hydrobricks/hydrobricks	196	196	533	1	5	2.6	12	VIOLATION_KEPT
+imperialCHEPI/healthgps	256	256	658	0	10	3.9	8	VIOLATION_KEPT
+deskull-m/bakabakaband	2115	2115	16396	2	17	0.8	82	VIOLATION_KEPT
+luyuancpp/mmorpg							1285	TOO_BIG
+externpro/buildpro	0	0	0	0	0		0	CLEAN
+sailfishos-mirror/zxing-cpp							252	TOO_BIG
+maflcko/bitcoin-core-with-ci	1073	1073	4792	0	24	2.2	65	VIOLATION_KEPT
+crow-misia/libwebrtc							231	TOO_BIG
+AMS21/DLXEmu							815	TOO_BIG
+zhao-shihan/MACESW	20	20	0	0	3	15.0	6	VIOLATION_KEPT
+SciQLop/SciQLopPlots	211	212	523	0	6	2.8	6	VIOLATION_KEPT
+carlos-sweb/scrapy-indicadores	4	4	3	0	1	25.0	12	VIOLATION_KEPT
+sailfishos-mirror/kio							764	TOO_BIG
+yaap/frameworks_native	65	65	5	0	0	0.0	0	CLEAN
+CanftIn/CanftIn	1	1	0	0	0	0.0	0	CLEAN
+sailfishos-mirror/qtmultimedia	948	948	1137	0	31	3.3	41	VIOLATION_KEPT
+henrikgrubbe/breadboard_computer	6	6	8	0	0	0.0	0	CLEAN
+sailfishos-mirror/protobuf	1099	1099	6082	1	472	42.9	61	VIOLATION_KEPT
+ca2/operating_system-posix	4528	4576	3824	0	335	7.4	53	VIOLATION_KEPT
+google-deepmind/mujoco	18	18	0	0	0	0.0	0	CLEAN
+MaaAssistantArknights/MaaAssistantArknights							1073	TOO_BIG
+facebookincubator/velox							257	TOO_BIG
+dragonflydb/dragonfly	405	405	1449	0	8	2.0	23	VIOLATION_KEPT
+autowarefoundation/autoware_universe							450	TOO_BIG
+LizardByte/Sunshine	142	142	478	0	8	5.6	36	VIOLATION_KEPT
+espressif/esp-matter	223	223	153	0	3	1.3	21	VIOLATION_KEPT
+google/crubit	241	241	488	0	1	0.4	24	VIOLATION_KEPT
+userver-framework/userver	3452	3454	13028	0	46	1.3	58	VIOLATION_KEPT
+dsp56300/gearmulator							497	TOO_BIG
+risc0/risc0							339	TOO_BIG
+ramensoftware/windhawk-mods							372	TOO_BIG
+bdring/FluidNC	493	493	1157	1	22	4.5	13	VIOLATION_KEPT
+mpc-qt/mpc-qt	81	81	165	0	2	2.5	14	VIOLATION_KEPT
+MeshInspector/MeshLib	1532	1533	7352	1	25	1.6	73	VIOLATION_KEPT
+google/quiche	1338	1338	7148	0	25	1.9	33	VIOLATION_KEPT
+intel/compile-time-init-build	144	144	325	0	2	1.4	4	VIOLATION_KEPT
+blender/cycles	693	693	2524	1	23	3.3	16	VIOLATION_KEPT
+saturneric/GpgFrontend	432	432	1293	0	7	1.6	11	VIOLATION_KEPT
+EVerest/EVerest	2060	2061	4549	1	41	2.0	64	VIOLATION_KEPT
+ROCm/composable_kernel	5053	5053	19636	9	145	2.9	188	VIOLATION_KEPT
+dpaulat/supercell-wx	598	598	1476	0	14	2.3	11	VIOLATION_KEPT
+markaren/threepp	726	726	2048	2	24	3.3	158	VIOLATION_KEPT
+cvanaret/Uno	232	232	772	0	6	2.6	13	VIOLATION_KEPT
+ZuluSCSI/ZuluSCSI-firmware	258	258	633	0	30	11.6	11	VIOLATION_KEPT
+MonsterDruide1/OdysseyDecomp							272	TOO_BIG
+OpenKneeboard/OpenKneeboard	487	487	1722	0	5	1.0	34	VIOLATION_KEPT
+pyside/pyside-setup	444	444	1583	0	9	2.0	36	VIOLATION_KEPT
+Xilinx/mlir-air	217	217	335	0	35	16.1	17	VIOLATION_KEPT
+ReactiveDrop/reactivedrop_public_src							463	TOO_BIG
+getsentry/sentry-unreal	308	308	805	0	8	2.6	6	VIOLATION_KEPT
+autowarefoundation/autoware_core	0	0	0	0	0		0	CLEAN
+amd/ZenDNN	1	1	0	0	0	0.0	0	CLEAN
+jermp/sshash	42	42	69	1	0	0.0	28	VIOLATION_KEPT
+tink-crypto/tink-cc	0	0	0	0	0		0	CLEAN
+ncbi/ncbi-cxx-toolkit-public							570	TOO_BIG
+spicelang/spice	158	158	560	0	4	2.5	12	VIOLATION_KEPT
+bolucat/Archive							1229	TOO_BIG
+linuxdeepin/treeland	576	576	1927	0	31	5.4	11	VIOLATION_KEPT
+BLAST-ImpactX/impactx	90	90	0	0	0	0.0	0	CLEAN
+LBALab/lba2-classic-community	9	9	9	0	0	0.0	0	CLEAN
+opendcdiag/opendcdiag	141	141	246	0	4	2.8	4	VIOLATION_KEPT
+Open-CMSIS-Pack/devtools	302	302	1010	0	8	2.6	17	VIOLATION_KEPT
+StreamUPTips/obs-streamup	102	102	267	0	10	9.8	6	VIOLATION_KEPT
+eigen-mirror/eigen	1138	1138	623	0	28	2.5	26	VIOLATION_KEPT
+gstlearn/gstlearn	814	814	3930	0	42	5.2	74	VIOLATION_KEPT
+scylladb/cpp-rs-driver	5	5	0	0	0	0.0	0	CLEAN
+munich-quantum-toolkit/syrec	72	72	232	0	1	1.4	7	VIOLATION_KEPT
+eigendude/OASIS	311	311	421	0	6	1.9	109	VIOLATION_KEPT
+loda-lang/loda-cpp	170	170	639	0	1	0.6	4	VIOLATION_KEPT
+openharmony/communication_dsoftbus	0	0	0	0	0		0	CLEAN
+webrtc-mirror/webrtc							390	TOO_BIG
+drsnuggles8/OloEngineBase							381	TOO_BIG
+facebookexperimental/edencommon	113	113	110	0	5	4.4	4	VIOLATION_KEPT
+sonic-net/sonic-pins	47	47	30	0	0	0.0	0	CLEAN
+ciaranm/glasgow-constraint-solver	256	256	1233	0	10	3.9	6	VIOLATION_KEPT
+danielatrivella/NP3_MS_Workflow							594	TOO_BIG
+GenieTim/pylimer-tools							336	TOO_BIG
+osamu620/OpenHTJ2K	68	68	140	0	2	2.9	151	VIOLATION_KEPT
+pg83/std	327	327	1224	0	11	3.4	5	VIOLATION_KEPT
+w3c/ift-encoder	150	150	573	0	4	2.7	13	VIOLATION_KEPT
+jimhester/libvroom	104	104	188	0	22	21.2	8	VIOLATION_KEPT
+openharmony/communication_ipc	0	0	0	0	0		0	CLEAN
+xfce-mirror/xfce4-docklike-plugin	29	29	65	1	0	0.0	2	VIOLATION_KEPT
+battlesloth/AstrOs.ESP	109	109	196	0	0	0.0	0	CLEAN
+pcornier/iigs_simulation	70	70	114	0	6	8.6	13	VIOLATION_KEPT
+openharmony/startup_appspawn	0	0	0	0	0		0	CLEAN
+openharmony/powermgr_power_manager	0	0	0	0	0		0	CLEAN
+openharmony/multimodalinput_input	0	0	0	0	0		0	CLEAN
+openharmony/hiviewdfx_faultloggerd	0	0	0	0	0		0	CLEAN
+openharmony/account_os_account	0	0	0	0	0		0	CLEAN
+BoleynSu-Org/monorepo	1156	1159	40	0	23	2.0	30	VIOLATION_KEPT
+rapastranac/gempba	33	33	59	0	13	39.4	24	VIOLATION_KEPT
+openharmony/drivers_peripheral	60	60	34	0	2	3.3	59	VIOLATION_KEPT
+swiftforarduino/swift							747	TOO_BIG
+Bemental77/Bemental77.github.io							5644	TOO_BIG
+ytsaurus/ytsaurus							1156	TOO_BIG
+openxla/xla							362	TOO_BIG
+ggml-org/llama.cpp							405	TOO_BIG
+NVIDIA/cuda-quantum							1987	TOO_BIG
+christianrauch/libcamera	604	604	2064	1	13	2.2	13	VIOLATION_KEPT
+OrcaSlicer/OrcaSlicer							1101	TOO_BIG
+tenstorrent/tt-metal							1311	TOO_BIG
+community-shaders/skyrim-community-shaders							358	TOO_BIG
+HIllya51/LunaTranslator	718	721	709	0	5	0.7	29	VIOLATION_KEPT
+category-labs/monad	549	549	2977	0	14	2.6	36	VIOLATION_KEPT
+dalathegreat/Battery-Emulator	348	348	1061	0	8	2.3	19	VIOLATION_KEPT
+MaaXYZ/MaaFramework	384	384	931	1	7	1.8	10	VIOLATION_KEPT
+man-group/ArcticDB							237	TOO_BIG
+cloudflare/workerd	56	56	30	0	1	1.8	35	VIOLATION_KEPT
+ggml-org/whisper.cpp	655	655	1523	0	65	9.9	51	VIOLATION_KEPT
+official-pikafish/Pikafish	64	64	234	0	7	10.9	4	VIOLATION_KEPT
+bambulab/BambuStudio							964	TOO_BIG
+shadps4-emu/shadPS4	775	777	2792	0	24	3.1	97	VIOLATION_KEPT
+unum-cloud/USearch	18	18	21	0	8	44.4	4	VIOLATION_KEPT
+ggml-org/ggml	431	431	1180	0	51	11.8	37	VIOLATION_KEPT
+openwebf/webf							302	TOO_BIG
+sophgo/tpu-mlir							5918	TOO_BIG
+tenacityteam/tenacity							303	TOO_BIG
+awslabs/palace							371	TOO_BIG
+mod-playerbots/mod-playerbots	1312	1312	4242	0	19	1.4	41	VIOLATION_KEPT
+AztecProtocol/aztec-packages							1400	TOO_BIG
+infiniflow/infinity	190	191	49	0	15	7.9	86	VIOLATION_KEPT
+spice2x/spice2x.github.io	695	695	2422	1	16	2.3	22	VIOLATION_KEPT
+nvidia-holoscan/holohub							487	TOO_BIG
+NVIDIAGameWorks/dxvk-remix	861	863	1947	2	93	10.8	37	VIOLATION_KEPT
+f-koehler/KTailctl	54	54	105	0	0	0.0	0	CLEAN
+rpm-software-management/dnf5	850	850	2852	0	12	1.4	19	VIOLATION_KEPT
+lingo-db/lingo-db	353	353	1060	0	27	7.6	20	VIOLATION_KEPT
+BlueSCSI/BlueSCSI-v2	126	126	303	0	5	4.0	13	VIOLATION_KEPT
+xiphonics/picoTracker	353	353	1184	0	4	1.1	114	VIOLATION_KEPT
+FirestormViewer/phoenix-firestorm							292	TOO_BIG
+ROCm/clr								CLONE_FAIL
+ydb-platform/nbs							949	TOO_BIG
+jklappenbach/cajeta								CLONE_FAIL
+OpenAtom-Linyaps/linyaps	412	412	1247	1	2	0.5	25	VIOLATION_KEPT
+OpenXiangShan/GEM5	707	707	1406	3	50	7.1	102	VIOLATION_KEPT
+NVIDIA/Fuser	591	590	3292	2	25	4.2	51	VIOLATION_KEPT
+cppalliance/mrdocs	271	270	5	0	1	0.4	27	VIOLATION_KEPT
+ROCm/amdsmi	1	1	0	0	0	0.0	0	CLEAN
+arc-research-lab/CHARM							313	TOO_BIG
+simutrans/simutrans	848	848	5688	0	11	1.3	17	VIOLATION_KEPT
+ENZYME-APD/tapir-archicad-automation	61	61	124	0	1	1.6	140	VIOLATION_KEPT
+taodd/cephtrace	13	13	19	0	2	15.4	10	VIOLATION_KEPT
+compiler-research/CppInterOp	23	23	31	1	1	4.3	4	VIOLATION_KEPT
+AlchemyViewer/Alchemy							220	TOO_BIG
+ayon-ssp/The-SDE-Prep	198	198	0	0	0	0.0	0	CLEAN
+sedited/rust-bitcoinkernel	1089	1089	4967	0	24	2.2	49	VIOLATION_KEPT
+u236/homed-service-zigbee	56	56	104	0	0	0.0	0	CLEAN
+PrincetonUniversity/SPECFEMPP							328	TOO_BIG
+IDNI/tau-lang	100	100	185	15	3	3.0	10	VIOLATION_KEPT
+oneapi-src/unified-runtime	400	400	1419	0	34	8.5	31	VIOLATION_KEPT
+DanceManiac/Advanced-X-Ray-Public							378	TOO_BIG
+privatevoid-net/nix-super	729	729	2858	1	6	0.8	64	VIOLATION_KEPT
+uxlfoundation/oneapi-construction-kit	9	9	2	0	0	0.0	0	CLEAN
+ROCm/hip-tests	1310	1311	2289	0	36	2.7	21	VIOLATION_KEPT
+grafana/pyroscope-dotnet	402	403	745	11	12	3.0	98	VIOLATION_KEPT
+qt/qtgraphs	300	300	315	0	9	3.0	20	VIOLATION_KEPT
+qt/qtgrpc	190	190	127	0	4	2.1	12	VIOLATION_KEPT
+savoirfairelinux/jami-client-qt							224	TOO_BIG
+kevlu8/PZChessBot	47	47	93	1	1	2.1	5	VIOLATION_KEPT
+iTwin/imodel-native							402	TOO_BIG
+OpenMagnetics/MKF	192	192	978	0	14	7.3	78	VIOLATION_KEPT
+DataDog/java-profiler	104	104	263	0	5	4.8	6	VIOLATION_KEPT
+rossvideo/Catena	19	19	1	0	3	15.8	49	VIOLATION_KEPT
+EXP-code/EXP	392	396	20	0	60	15.3	18	VIOLATION_KEPT
+contour-terminal/endo	706	706	1684	0	26	3.7	17	VIOLATION_KEPT
+doyaGu/BallanceModLoaderPlus	142	142	292	0	2	1.4	5	VIOLATION_KEPT
+PeterHallonmark/clang-tidy-automotive	235	235	379	0	4	1.7	3	VIOLATION_KEPT
+Porcupine-Factory/FirstPersonController	33	33	59	0	8	24.2	2	VIOLATION_KEPT
+hiero-ledger/hiero-sdk-cpp	631	631	2735	0	13	2.1	11	VIOLATION_KEPT
+OpenSEMBA/dgtd	75	75	134	0	3	4.0	67	VIOLATION_KEPT
+VTT-ProperTune/OpenPFC	327	327	964	1	13	4.0	17	VIOLATION_KEPT
+xms0g/abra							342	TOO_BIG
+Emute-Lab-Instruments/uSEQ	105	105	169	0	5	4.8	32	VIOLATION_KEPT
+scawful/yaze	1403	1403	5026	0	231	16.5	43	VIOLATION_KEPT
+eic/EICrecon	429	429	968	0	16	3.7	12	VIOLATION_KEPT
+vowstar/qsoc	349	349	698	0	20	5.7	10	VIOLATION_KEPT
+ThomasGhione/chess_engine	377	377	1319	1	2	0.5	117	VIOLATION_KEPT
+microsoft/Teams-AdaptiveCards-Mobile	547	413	824	3	1	0.2	12	VIOLATION_KEPT
+GenSpectrum/LAPIS-SILO	454	454	1392	0	5	1.1	13	VIOLATION_KEPT
+GrapheneOS/platform_packages_modules_Bluetooth							262	TOO_BIG
+amd/ZenDNN-tensorflow-plugin	2	2	0	0	0	0.0	0	CLEAN
+ObjectVision/GeoDMS	854	855	5393	1	28	3.3	29	VIOLATION_KEPT
+haxscramper/haxorg	320	334	1195	1	9	2.8	18	VIOLATION_KEPT
+Matthew-McRaven/Pepp	748	748	1728	4	26	3.5	37	VIOLATION_KEPT
+multi-ego/multi-eGO							586	TOO_BIG
+LineageOS/android_packages_modules_Bluetooth							391	TOO_BIG
+seoklab/nurikit	106	106	355	0	10	9.4	6	VIOLATION_KEPT
+masc-ucsc/hhds	24	24	42	0	2	8.3	16	VIOLATION_KEPT
+Royna2544/c_cpp_telegrambot	184	184	432	0	1	0.5	17	VIOLATION_KEPT
+MundyRepo/MuNDy	193	193	662	0	17	8.8	70	VIOLATION_KEPT
+RebelToolbox/RebelEngine	2005	2005	7693	5	130	6.5	176	VIOLATION_KEPT
+beerda/nuggets	137	137	304	1	6	4.4	5	VIOLATION_KEPT
+gvsoc/gvsoc-core	111	111	18	0	12	10.8	13	VIOLATION_KEPT
+xord/all	402	402	1062	0	7	1.7	5	VIOLATION_KEPT
+aegis-aead/boringssl	13	14	0	0	1	7.7	113	VIOLATION_KEPT
+sailfishos-mirror/abseil-cpp	5	5	0	0	0	0.0	0	CLEAN
+VoltageOS/packages_modules_Bluetooth							282	TOO_BIG
+art-daq/otsdaq	311	311	716	0	4	1.3	9	VIOLATION_KEPT
+crdroidandroid/android_packages_modules_Bluetooth							276	TOO_BIG
+Unispace365/DsQt	185	185	310	1	4	2.2	68	VIOLATION_KEPT
+alexwu1984/MiniEngine							294	TOO_BIG
+Mu2e/otsdaq-mu2e	28	28	22	0	3	10.7	9	VIOLATION_KEPT
+damacaa/weird-engine	104	104	232	0	2	1.9	15	VIOLATION_KEPT
+Palpitate-xus/DBMS_C_plus_plus	34	34	40	0	9	26.5	5	VIOLATION_KEPT
+raspberry-vanilla/android_external_drm_hwcomposer	0	0	0	0	0		0	CLEAN
+Bipto/Nexus	473	473	1447	6	19	4.0	193	VIOLATION_KEPT
+godot42x/ya	500	502	1623	0	27	5.4	52	VIOLATION_KEPT
+danielnachun/recipe_staging	230	230	582	11	27	11.7	34	VIOLATION_KEPT
+ZeraGmbH/zenux-services	582	582	1058	0	16	2.7	9	VIOLATION_KEPT
+freebsd/freebsd-src							3402	TOO_BIG
+GregorGullwi/FlashCpp	169	169	697	4	35	20.7	45	VIOLATION_KEPT
+tomconder/maze	130	130	294	0	7	5.4	22	VIOLATION_KEPT
+nrfconnect/sdk-nrf							218	TOO_BIG
+illumos/illumos-gate							571	TOO_BIG
+wolfSSL/wolfssl							913	TOO_BIG
+zephyrproject-rtos/zephyr							877	TOO_BIG
+timescale/timescaledb	220	220	650	1	11	5.0	28	VIOLATION_KEPT
+haproxy/haproxy	619	619	3626	3	50	8.1	38	VIOLATION_KEPT
+lede-project/source							286	TOO_BIG
+libssh2/libssh2	38	38	30	0	2	5.3	5	VIOLATION_KEPT
+openwrt/openwrt							296	TOO_BIG
+apache/nuttx							378	TOO_BIG
+curl/curl	623	623	2437	1	28	4.5	47	VIOLATION_KEPT
+asterisk/asterisk							382	TOO_BIG
+arendst/Tasmota							280	TOO_BIG
+tianocore/edk2							340	TOO_BIG
+hathach/tinyusb	362	362	165	0	9	2.5	31	VIOLATION_KEPT
+Kitware/CMake	2197	2197	8506	1	74	3.4	152	VIOLATION_KEPT
+FRRouting/frr	1375	1375	11127	3	88	6.4	69	VIOLATION_KEPT
+AOMediaCodec/libavif	66	66	120	0	0	0.0	0	CLEAN
+wireshark/wireshark							1470	TOO_BIG
+FreeRADIUS/freeradius-server	945	945	560	3	36	3.8	43	VIOLATION_KEPT
+ColinIanKing/stress-ng	526	526	2169	1	22	4.2	27	VIOLATION_KEPT
+rsyslog/rsyslog	72	72	134	0	5	6.9	38	VIOLATION_KEPT
+wiredtiger/wiredtiger	407	407	438	1	18	4.4	54	VIOLATION_KEPT
+bloomberg/comdb2	541	541	1177	0	50	9.2	54	VIOLATION_KEPT
+fwupd/fwupd	1728	1728	3793	1	59	3.4	48	VIOLATION_KEPT
+videolan/vlc							655	TOO_BIG
+ElementsProject/lightning	798	798	3665	0	35	4.4	56	VIOLATION_KEPT
+FFmpeg/FFmpeg							479	TOO_BIG
+OpenVPN/openvpn	263	263	1091	2	11	4.2	10	VIOLATION_KEPT
+unikraft/unikraft	615	616	1133	1	14	2.3	16	VIOLATION_KEPT
+analogdevicesinc/no-OS							362	TOO_BIG
+lvgl/lvgl							521	TOO_BIG
+GStreamer/gstreamer							371	TOO_BIG
+rspamd/rspamd	29	29	1	0	0	0.0	0	CLEAN
+apache/httpd							386	TOO_BIG
+open5gs/open5gs	7064	7069	22541	2	52	0.7	87	VIOLATION_KEPT
+SWI-Prolog/swipl-devel	71	71	79	0	1	1.4	16	VIOLATION_KEPT
+OpenSC/OpenSC	296	296	953	1	16	5.4	12	VIOLATION_KEPT
+openvswitch/ovs	37	37	19	0	1	2.7	22	VIOLATION_KEPT
+systemd/systemd							654	TOO_BIG
+openucx/ucx	662	662	3125	1	9	1.4	23	VIOLATION_KEPT
+mackyle/sqlite							205	TOO_BIG
+netdata/netdata							272	TOO_BIG
+openbsd/src							1646	TOO_BIG
+redis/redis							213	TOO_BIG
+GNOME/gimp							853	TOO_BIG
+google/XNNPACK	9293	9293	35749	0	102	1.1	216	VIOLATION_KEPT
+openssh/openssh-portable	203	203	529	0	7	3.4	10	VIOLATION_KEPT
+checkpoint-restore/criu	614	598	1699	0	10	1.6	12	VIOLATION_KEPT
+SchedMD/slurm							350	TOO_BIG
+RediSearch/RediSearch	444	444	1711	1	5	1.1	36	VIOLATION_KEPT
+microsoft/msquic							333	TOO_BIG
+postgres/postgres							746	TOO_BIG
+networkupstools/nut	422	422	1120	1	49	11.6	23	VIOLATION_KEPT
+betaflight/betaflight							416	TOO_BIG
+raysan5/raylib							420	TOO_BIG
+espressif/esp-idf							433	TOO_BIG
+PipeWire/pipewire	974	974	5129	9	98	10.1	24	VIOLATION_KEPT
+qemu/qemu							679	TOO_BIG
+inspektor-gadget/inspektor-gadget	108	108	285	0	1	0.9	36	VIOLATION_KEPT
+spdk/spdk							287	TOO_BIG
+linux-test-project/ltp	4710	4712	6882	1	47	1.0	42	VIOLATION_KEPT
+universal-ctags/ctags	904	906	2384	0	25	2.8	25	VIOLATION_KEPT
+GaijinEntertainment/daScript	498	498	1708	1	59	11.8	160	VIOLATION_KEPT
+ClusterLabs/pacemaker	464	464	2001	3	9	1.9	28	VIOLATION_KEPT
+mpv-player/mpv	370	370	1859	0	6	1.6	21	VIOLATION_KEPT
+drawpile/Drawpile	1243	1243	3579	0	51	4.1	59	VIOLATION_KEPT
+mltframework/mlt	460	460	1129	0	26	5.7	12	VIOLATION_KEPT
+open-mpi/ompi	2397	2398	11249	9	62	2.6	49	VIOLATION_KEPT
+mruby/mruby	216	216	823	0	15	6.9	14	VIOLATION_KEPT
+pjsip/pjproject	884	885	3636	0	53	6.0	47	VIOLATION_KEPT
+leo-arch/clifm	122	122	524	0	4	3.3	24	VIOLATION_KEPT
+facebookincubator/katran	171	171	352	1	3	1.8	9	VIOLATION_KEPT
+sqlite/sqlite							540	TOO_BIG
+libretro/RetroArch							613	TOO_BIG
+arkime/arkime	138	138	138	0	22	15.9	16	VIOLATION_KEPT
+OSGeo/grass							567	TOO_BIG
+FDio/vpp							510	TOO_BIG
+aws/s2n-tls	1	1	0	0	0	0.0	0	CLEAN
+u-boot/u-boot							335	TOO_BIG
+coreboot/coreboot							257	TOO_BIG
+openzfs/zfs	914	914	4039	1	57	6.2	63	VIOLATION_KEPT
+iNavFlight/inav							684	TOO_BIG
+php/php-src							638	TOO_BIG
+torvalds/linux							6305	TOO_BIG
+GrahamDumpleton/mod_wsgi	1	1	0	0	0	0.0	0	CLEAN
+raspberrypi/linux							4998	TOO_BIG
+bluez/bluez	717	717	3243	0	74	10.3	21	VIOLATION_KEPT
+fluent/fluent-bit	1281	1283	3339	1	127	9.9	164	VIOLATION_KEPT
+pocl/pocl	108	108	44	0	1	0.9	30	VIOLATION_KEPT
+GNOME/glib	1070	1070	3992	1	54	5.0	47	VIOLATION_KEPT
+labwc/labwc	200	200	790	0	1	0.5	6	VIOLATION_KEPT
+HansKristian-Work/vkd3d-proton	105	105	193	1	12	11.4	41	VIOLATION_KEPT
+owntone/owntone-server	174	174	479	0	21	12.1	18	VIOLATION_KEPT
+FreeRDP/FreeRDP	128	130	53	0	6	4.7	49	VIOLATION_KEPT
+GNOME/gtk							758	TOO_BIG
+gpac/gpac	657	657	2122	0	52	7.9	49	VIOLATION_KEPT
+yandex/odyssey	332	332	1170	2	12	3.6	8	VIOLATION_KEPT
+coreutils/coreutils	218	218	357	0	2	0.9	9	VIOLATION_KEPT
+ValveSoftware/wine							708	TOO_BIG
+mcu-tools/mcuboot	198	202	264	0	3	1.5	10	VIOLATION_KEPT
+libvirt/libvirt							1105	TOO_BIG
+micropython/micropython	812	812	309	3	2	0.2	43	VIOLATION_KEPT
+samba-team/samba							411	TOO_BIG
+neomutt/neomutt	953	953	4328	0	24	2.5	43	VIOLATION_KEPT
+ipxe/ipxe	1806	1835	6194	2	27	1.5	33	VIOLATION_KEPT
+strongswan/strongswan	2221	2221	6539	9	57	2.6	51	VIOLATION_KEPT
+DPDK/dpdk	5017	5017	20479	14	356	7.1	144	VIOLATION_KEPT
+syslog-ng/syslog-ng	1313	1313	4178	0	14	1.1	22	VIOLATION_KEPT
+immortalwrt/immortalwrt							786	TOO_BIG
+git/git							308	TOO_BIG
+LibreDWG/libredwg	224	224	460	0	10	4.5	47	VIOLATION_KEPT
+rauc/rauc	77	77	231	0	1	1.3	5	VIOLATION_KEPT
+OP-TEE/optee_os	2194	2194	9633	1	82	3.7	39	VIOLATION_KEPT
+qmk/qmk_firmware							528	TOO_BIG
+freeciv/freeciv							1086	TOO_BIG
+vifm/vifm	439	439	2846	1	13	3.0	14	VIOLATION_KEPT
+bytecodealliance/wasm-micro-runtime	531	531	1081	1	68	12.8	23	VIOLATION_KEPT
+Expensify/Bedrock	101	101	232	0	1	1.0	26	VIOLATION_KEPT
+dovecot/core	2203	2204	11430	2	84	3.8	35	VIOLATION_KEPT
+linux-nvme/nvme-cli	306	306	868	0	21	6.9	17	VIOLATION_KEPT
+espressif/esp-iot-solution	1346	1346	1572	4	108	8.0	140	VIOLATION_KEPT
+NLnetLabs/unbound	50	50	41	0	8	16.0	16	VIOLATION_KEPT
+strace/strace	1112	1113	1187	0	10	0.9	22	VIOLATION_KEPT
+libfuse/libfuse	76	76	148	0	6	7.9	4	VIOLATION_KEPT
+openssl/openssl							344	TOO_BIG
+zlib-ng/zlib-ng	165	166	435	0	5	3.0	7	VIOLATION_KEPT
+Xilinx/linux-xlnx							3839	TOO_BIG
+OpenIDC/mod_auth_openidc	92	92	301	0	4	4.3	4	VIOLATION_KEPT
+vvaltchev/tilck	483	483	2230	3	11	2.3	11	VIOLATION_KEPT
+libarchive/libarchive	45	45	46	0	2	4.4	17	VIOLATION_KEPT
+openmv/openmv							723	TOO_BIG
+Provenance-Emu/Provenance							1844	TOO_BIG
+Gnucash/gnucash							648	TOO_BIG
+LouisBrunner/valgrind-macos	641	641	3609	1	97	15.1	67	VIOLATION_KEPT
+bkaradzic/bgfx							343	TOO_BIG
+FluidSynth/fluidsynth	159	159	348	0	9	5.7	9	VIOLATION_KEPT
+intel/media-driver	9	9	2	0	0	0.0	0	CLEAN
+profanity-im/profanity	180	180	840	0	21	11.7	6	VIOLATION_KEPT
+util-linux/util-linux							296	TOO_BIG
+axboe/fio	355	355	893	0	9	2.5	13	VIOLATION_KEPT
+linux-rdma/rdma-core	132	139	226	0	1	0.8	12	VIOLATION_KEPT
+netblue30/firejail	229	229	248	0	2	0.9	6	VIOLATION_KEPT
+rockowitz/ddcutil	381	381	2423	0	6	1.6	11	VIOLATION_KEPT
+bdwgc/bdwgc	10	10	1	0	0	0.0	0	CLEAN
+Klipper3d/klipper							242	TOO_BIG
+ntop/nDPI							259	TOO_BIG
+sudo-project/sudo							205	TOO_BIG
+managarm/mlibc	1416	970	2136	1	26	1.8	13	VIOLATION_KEPT
+containers/crun	108	108	310	0	3	2.8	4	VIOLATION_KEPT
+pi-hole/FTL	316	316	1272	0	12	3.8	28	VIOLATION_KEPT
+openocd-org/openocd	611	611	2219	1	35	5.7	19	VIOLATION_KEPT
+WireGuard/wireguard-linux							2959	TOO_BIG
+picolibc/picolibc	587	588	538	0	8	1.4	90	VIOLATION_KEPT
+ARM-software/arm-trusted-firmware	3973	3973	13565	4	166	4.2	66	VIOLATION_KEPT
+KallistiOS/KallistiOS	856	857	2913	5	34	4.0	37	VIOLATION_KEPT
+kernelslacker/trinity	850	850	4263	0	13	1.5	20	VIOLATION_KEPT
+unrealircd/unrealircd							300	TOO_BIG
+getsentry/sentry-native	137	137	578	0	10	7.3	10	VIOLATION_KEPT
+RTEMS/rtems	1391	1393	1920	0	54	3.9	265	VIOLATION_KEPT
+isc-projects/bind9							431	TOO_BIG
+cfengine/core	433	433	1867	1	15	3.5	14	VIOLATION_KEPT
+Rockbox/rockbox							222	TOO_BIG
+ovn-org/ovn	17	17	1	0	0	0.0	0	CLEAN
+area9innovation/flow9							2026	TOO_BIG
+rmyorston/busybox-w32	831	848	1087	0	11	1.3	18	VIOLATION_KEPT
+CESNET/UltraGrid							221	TOO_BIG
+apache/subversion							219	TOO_BIG
+facebook/openbmc	1771	1774	1690	4	179	10.1	67	VIOLATION_KEPT
+kdave/btrfs-progs	258	258	1407	0	9	3.5	14	VIOLATION_KEPT
+freebsd/pkg	51	51	124	1	2	3.9	115	VIOLATION_KEPT
+sonic-net/sonic-buildimage	2111	2084	2208	0	467	22.1	96	VIOLATION_KEPT
+openhpc/ohpc	5	5	0	0	0	0.0	0	CLEAN
+thesofproject/sof	1511	1511	4158	0	85	5.6	31	VIOLATION_KEPT
+kmscon/kmscon	6	6	2	0	0	0.0	0	CLEAN
+open-mpi/hwloc	103	103	264	1	15	14.6	8	VIOLATION_KEPT
+xen-project/xen	2032	2032	7638	6	65	3.2	43	VIOLATION_KEPT
+Blosc/c-blosc2	129	129	222	0	6	4.7	9	VIOLATION_KEPT
+petsc/petsc							342	TOO_BIG
+RTimothyEdwards/magic	548	548	4672	0	33	6.0	19	VIOLATION_KEPT
+ofiwg/libfabric	203	203	561	1	14	6.9	34	VIOLATION_KEPT
+sipwise/rtpengine	239	240	1001	3	11	4.6	19	VIOLATION_KEPT
+pkgconf/pkgconf	46	46	98	0	3	6.5	2	VIOLATION_KEPT
+plougher/squashfs-tools	99	99	293	0	14	14.1	4	VIOLATION_KEPT
+bacnet-stack/bacnet-stack	808	808	5429	1	83	10.3	40	VIOLATION_KEPT
+groonga/groonga	509	509	1411	0	36	7.1	50	VIOLATION_KEPT
+Hamlib/Hamlib	714	714	2416	0	41	5.7	21	VIOLATION_KEPT
+freetype/freetype	480	480	1681	1	31	6.5	13	VIOLATION_KEPT
+analogdevicesinc/libiio	102	102	259	0	7	6.9	6	VIOLATION_KEPT
+SSSD/sssd	795	795	2624	2	26	3.3	32	VIOLATION_KEPT
+Samsung/TizenRT							725	TOO_BIG
+daos-stack/daos	727	727	2665	3	96	13.2	47	VIOLATION_KEPT
+pmodels/mpich	1590	1590	2522	5	70	4.4	40	VIOLATION_KEPT
+libMesh/libmesh							208	TOO_BIG
+analogdevicesinc/linux							4317	TOO_BIG
+cyrusimap/cyrus-imapd	550	550	3234	2	11	2.0	33	VIOLATION_KEPT
+DragonFlyBSD/DragonFlyBSD							564	TOO_BIG
+tempesta-tech/tempesta	252	242	854	0	14	5.6	11	VIOLATION_KEPT
+gpg/gnupg	484	484	1890	0	34	7.0	40	VIOLATION_KEPT
+LINBIT/drbd	51	51	74	0	12	23.5	5	VIOLATION_KEPT
+gregkh/linux							4805	TOO_BIG
+openwrt/mt76	220	220	452	2	42	19.1	73	VIOLATION_KEPT
+navit-gps/navit	546	548	2468	0	29	5.3	40	VIOLATION_KEPT
+GNOME/libxml2	160	160	927	1	22	13.8	14	VIOLATION_KEPT
+monitoring-plugins/monitoring-plugins	434	434	599	0	16	3.7	11	VIOLATION_KEPT
+CCExtractor/ccextractor	139	139	482	0	4	2.9	44	VIOLATION_KEPT
+llnl/rose							499	TOO_BIG
+Seagate/openSeaChest	22	22	38	0	24	109.1	6	VIOLATION_KEPT
+OpenSmalltalk/opensmalltalk-vm							726	TOO_BIG
+hypre-space/hypre							231	TOO_BIG
+libguestfs/libguestfs							428	TOO_BIG
+apache/mynewt-core	2252	2252	5870	3	100	4.4	52	VIOLATION_KEPT
+espressif/esp-mqtt	29	29	46	2	2	6.9	3	VIOLATION_KEPT
+tianocore/edk2-platforms							289	TOO_BIG
+Xilinx/u-boot-xlnx							298	TOO_BIG
+losnoco/Cog							718	TOO_BIG
+c2lang/c2compiler	1	1	0	0	2	200.0	9	VIOLATION_KEPT
+koverstreet/bcachefs							2897	TOO_BIG
+mingw-w64/mingw-w64	2858	2858	7177	32	28	1.0	126	VIOLATION_KEPT
+beagleboard/linux							3778	TOO_BIG
+liudf0716/apfree-wifidog	72	72	330	0	4	5.6	10	VIOLATION_KEPT
+nrfconnect/sdk-zephyr							775	TOO_BIG
+vlang/vc							1763	TOO_BIG
+craigbarnes/dte	280	280	1496	1	1	0.4	5	VIOLATION_KEPT
+MrChromebox/coreboot							221	TOO_BIG
+jdolan/quetoo	557	557	1022	2	7	1.3	31	VIOLATION_KEPT
+LedgerHQ/app-ethereum	225	225	714	0	3	1.3	35	VIOLATION_KEPT
+cygwin/cygwin	3773	3775	5866	1	53	1.4	71	VIOLATION_KEPT
+ucscGenomeBrowser/kent							648	TOO_BIG
+barebox/barebox	5530	5530	13802	2	64	1.2	104	VIOLATION_KEPT
+ChibiOS/ChibiOS	470	474	630	0	26	5.5	445	VIOLATION_KEPT
+CUBRID/cubrid							298	TOO_BIG
+GNOME/mutter	1026	1026	3830	4	53	5.2	41	VIOLATION_KEPT
+clerkma/ptex-ng							439	TOO_BIG
+multipath-tcp/mptcp_net-next							3433	TOO_BIG
+Azure/azure-sdk-for-c	103	103	460	0	19	18.4	8	VIOLATION_KEPT
+wolfSSL/wolfssh	84	84	189	0	28	33.3	7	VIOLATION_KEPT
+pupnp/pupnp	57	57	70	0	0	0.0	0	CLEAN
+apache/nuttx-apps	1822	1822	3704	2	55	3.0	40	VIOLATION_KEPT
+drhsqlite/fossil-mirror							1086	TOO_BIG
+Netatalk/netatalk							204	TOO_BIG
+flux-framework/flux-core	983	983	3485	2	6	0.6	26	VIOLATION_KEPT
+greenbone/gvmd	293	293	983	0	17	5.8	13	VIOLATION_KEPT
+sciapp/gr	351	347	738	2	52	14.8	41	VIOLATION_KEPT
+TeX-Live/texlive-source							1072	TOO_BIG
+GNOME/epiphany	317	317	997	0	29	9.1	18	VIOLATION_KEPT
+sonyxperiadev/kernel							4075	TOO_BIG
+pantoniou/libfyaml	151	151	415	0	30	19.9	10	VIOLATION_KEPT
+drowe67/freedv-gui	393	393	776	0	22	5.6	60	VIOLATION_KEPT
+BlockstreamResearch/secp256k1-zkp	155	155	465	0	2	1.3	10	VIOLATION_KEPT
+linux-application-whitelisting/fapolicyd	91	91	307	0	9	9.9	3	VIOLATION_KEPT
+microsoft/mu_basecore							327	TOO_BIG
+coreutils/gnulib							475	TOO_BIG
+elogind/elogind	646	646	3688	5	10	1.5	18	VIOLATION_KEPT
+pybricks/pybricks-micropython	590	590	2138	1	11	1.9	19	VIOLATION_KEPT
+opnsense/src							2074	TOO_BIG
+xfce-mirror/thunar	251	251	806	0	28	11.2	32	VIOLATION_KEPT
+liblouis/liblouis	145	145	140	0	6	4.1	17	VIOLATION_KEPT
+mheily/libkqueue	52	52	70	0	5	9.6	3	VIOLATION_KEPT
+CTSRD-CHERI/cheribsd							2222	TOO_BIG
+xkbcommon/libxkbcommon	126	126	485	0	7	5.6	9	VIOLATION_KEPT
+libretro/beetle-psx-libretro	219	219	463	0	14	6.4	27	VIOLATION_KEPT
+storaged-project/udisks	156	156	693	0	7	4.5	5	VIOLATION_KEPT
+FujiNetWIFI/fujinet-firmware	1774	1785	3430	2	433	24.4	78	VIOLATION_KEPT
+FreeTDS/freetds	192	192	678	0	4	2.1	8	VIOLATION_KEPT
+ruby/openssl	54	54	53	0	5	9.3	3	VIOLATION_KEPT
+NetworkManager/NetworkManager							259	TOO_BIG
+PackageKit/PackageKit	221	221	550	0	13	5.9	13	VIOLATION_KEPT
+HermanChen/mpp	343	343	1133	1	28	8.2	21	VIOLATION_KEPT
+frank-w/BPI-Router-Linux							4675	TOO_BIG
+libressl/openbsd	564	564	836	0	40	7.1	48	VIOLATION_KEPT
+Mellanox/mstflint	35	35	37	0	8	22.9	38	VIOLATION_KEPT
+ceph/ceph-client							3424	TOO_BIG
+Xastir/Xastir	152	152	670	0	14	9.2	12	VIOLATION_KEPT
+aros-development-team/AROS							222	TOO_BIG
+ROCm/amdgpu							4015	TOO_BIG
+altera-fpga/linux-socfpga							3230	TOO_BIG
+espressif/openocd-esp32	662	662	2525	1	36	5.4	26	VIOLATION_KEPT
+GNOME/evolution							570	TOO_BIG
+nrfconnect/sdk-nrfxlib							665	TOO_BIG
+Neverball/neverball	188	188	853	0	6	3.2	45	VIOLATION_KEPT
+pgsql-jp/jpug-doc							731	TOO_BIG
+system76/coreboot							230	TOO_BIG
+OpenDataPlane/odp	985	976	2495	3	16	1.6	17	VIOLATION_KEPT
+ovis-hpc/ldms	91	91	75	0	12	13.2	15	VIOLATION_KEPT
+sandialabs/seacas							408	TOO_BIG
+PhoshMobi/phosh	482	482	968	0	23	4.8	11	VIOLATION_KEPT
+storaged-project/libblockdev	89	89	147	0	16	18.0	4	VIOLATION_KEPT
+brltty/brltty	734	734	2772	0	14	1.9	16	VIOLATION_KEPT
+GNOME/gdm	79	79	147	0	7	8.9	5	VIOLATION_KEPT
+OpenLI-NZ/openli	162	162	643	0	21	13.0	6	VIOLATION_KEPT
+erofs/erofs-utils	98	98	312	1	2	2.0	3	VIOLATION_KEPT
+kromenak/gengine	911	911	3397	1	15	1.6	41	VIOLATION_KEPT
+linux-surface/kernel							3848	TOO_BIG
+SELinuxProject/selinux-kernel							3059	TOO_BIG
+nss-dev/nss	1214	1215	4752	3	103	8.5	125	VIOLATION_KEPT
+gnutls/gnutls	582	582	2524	2	26	4.5	31	VIOLATION_KEPT
+error27/smatch	1469	1469	927	0	10	0.7	12	VIOLATION_KEPT
+kofemann/ms-nfs41-client	127	127	487	0	5	3.9	7	VIOLATION_KEPT
+FreshTomato-Project/freshtomato-arm							1239	TOO_BIG
+zfogg/ascii-chat							202	TOO_BIG
+GNOME/gnome-calendar	189	189	452	0	15	7.9	7	VIOLATION_KEPT
+jcmvbkbc/linux-xtensa							3610	TOO_BIG
+ROCm/ROCgdb							526	TOO_BIG
+aseprite/freetype2	480	480	1681	1	31	6.5	13	VIOLATION_KEPT
+sysprogs/openocd	634	634	2280	1	55	8.7	20	VIOLATION_KEPT
+libretro/libretro-prboom	213	213	1155	1	0	0.0	16	VIOLATION_KEPT
+xfce-mirror/xfce4-panel	134	134	333	0	6	4.5	9	VIOLATION_KEPT
+greenbone/gvm-libs	114	114	152	0	7	6.1	5	VIOLATION_KEPT
+brazilofmux/tinymux	461	460	1175	1	51	11.1	69	VIOLATION_KEPT
+quakeforge/quakeforge	1356	1356	7458	1	68	5.0	23	VIOLATION_KEPT
+GNOME/gnome-control-center							229	TOO_BIG
+OpenDataPlane/odp-dpdk	1168	1030	2592	2	38	3.3	18	VIOLATION_KEPT
+IOsonata/IOsonata							207	TOO_BIG
+k21971/EvilHack	514	514	1122	0	77	15.0	28	VIOLATION_KEPT
+shafferjohn/Prime95	210	210	401	0	85	40.5	63	VIOLATION_KEPT
+xfce-mirror/xfdesktop	76	76	176	0	3	3.9	9	VIOLATION_KEPT
+ni/linux							3145	TOO_BIG
+21cmfast/21cmFAST							205	TOO_BIG
+codepointerapp/codepointer	137	137	240	0	5	3.6	29	VIOLATION_KEPT
+GNOME/gegl	590	590	1256	2	43	7.3	45	VIOLATION_KEPT
+nrfconnect/sdk-mcuboot	212	214	298	0	19	9.0	10	VIOLATION_KEPT
+nunuhara/xsystem4	231	231	706	0	3	1.3	20	VIOLATION_KEPT
+CTSRD-CHERI/qemu							339	TOO_BIG
+digi-embedded/linux							2878	TOO_BIG
+GNOME/gnome-software	317	317	779	2	19	6.0	22	VIOLATION_KEPT
+heatd/Onyx	1799	1823	5747	4	42	2.3	24	VIOLATION_KEPT
+kvm-riscv/linux							2936	TOO_BIG
+frank-w/u-boot							406	TOO_BIG
+LineageOS/android_kernel_oneplus_sm8150							1489	TOO_BIG
+LuminariMUD/Luminari-Source	379	381	3452	1	49	12.9	42	VIOLATION_KEPT
+ibm-s390-linux/s390-tools	678	678	2121	1	53	7.8	14	VIOLATION_KEPT
+copperwater/xNetHack	544	544	1290	0	58	10.7	35	VIOLATION_KEPT
+ShimmerResearch/shimmer3-firmware	62	62	59	0	20	32.3	5	VIOLATION_KEPT
+schwabe/openvpn	263	263	1091	2	11	4.2	10	VIOLATION_KEPT
+zephyrproject-rtos/lvgl							401	TOO_BIG
+TinyMUSH/TinyMUSH	149	149	690	0	17	11.4	9	VIOLATION_KEPT
+bmwiedemann/openSUSE							2149	TOO_BIG
+kraj/glibc							242	TOO_BIG
+guillemj/dpkg	272	272	1372	0	2	0.7	30	VIOLATION_KEPT
+maurymarkowitz/OpenNEC	50	50	129	0	1	2.0	30	VIOLATION_KEPT
+UBCFormulaElectric/Consolidated-Firmware	1387	1397	2037	0	22	1.6	35	VIOLATION_KEPT
+SWI-Prolog/packages-xpce	21	22	0	0	0	0.0	0	CLEAN
+patchew-project/qemu							758	TOO_BIG
+WeblateOrg/siphashc	3	3	3	0	0	0.0	0	CLEAN
+zephyrproject-rtos/hal_nxp							400	TOO_BIG
+Intersec/lib-common	11	11	1	0	0	0.0	0	CLEAN
+olafhering/grub	1416	1426	7455	4	60	4.2	27	VIOLATION_KEPT
+openbgpd-portable/openbgpd-openbsd	226	226	198	0	12	5.3	8	VIOLATION_KEPT
+xfce-mirror/xfce4-settings	87	87	110	0	6	6.9	10	VIOLATION_KEPT
+intechstudio/grid-fw							928	TOO_BIG
+GNOME/evolution-data-server	893	893	2289	1	71	8.0	33	VIOLATION_KEPT
+sbates130272/linux-p2pmem							3237	TOO_BIG
+zephyrproject-rtos/trusted-firmware-m	3475	3475	8023	9	966	27.8	157	VIOLATION_KEPT
+Linux-Comedi/comedi	266	266	588	0	21	7.9	9	VIOLATION_KEPT
+thoni56/c-xrefactory	232	233	934	0	1	0.4	43	VIOLATION_KEPT
+jpirko/linux_mlxsw							3123	TOO_BIG
+nbd168/wireless							2833	TOO_BIG
+smfrench/smb3-kernel							3626	TOO_BIG
+greearb/hostap-ct	778	778	4038	0	69	8.9	30	VIOLATION_KEPT
+coreboot/depthcharge	1166	1166	3737	0	22	1.9	13	VIOLATION_KEPT
+arttttt/SmokeR24.1-kernel							810	TOO_BIG
+cx20/hello	482	482	15	0	84	17.4	31	VIOLATION_KEPT
+autotools-mirror/gettext	502	502	1518	0	16	3.2	38	VIOLATION_KEPT
+pop-os/linux-firmware							1435	TOO_BIG
+aryx/xix	417	417	832	0	21	5.0	11	VIOLATION_KEPT
+git-for-windows/msys2-runtime	3699	3701	5742	1	52	1.4	71	VIOLATION_KEPT
+LineageOS/android_kernel_xiaomi_msm8937							2065	TOO_BIG
+zephyrproject-rtos/mbedtls	121	121	311	0	12	9.9	17	VIOLATION_KEPT
+llnl/Silo	171	171	592	0	3	1.8	109	VIOLATION_KEPT
+xfce-mirror/libxfce4ui	80	80	92	0	5	6.2	5	VIOLATION_KEPT
+postgresql-cfbot/postgresql							593	TOO_BIG
+sjp38/linux							2951	TOO_BIG
+xfce-mirror/xfce4-power-manager	78	78	202	0	6	7.7	4	VIOLATION_KEPT
+m-ab-s/aom	851	851	3221	2	102	12.0	47	VIOLATION_KEPT
+AdaCore/qemu							442	TOO_BIG
+NovaRain/Fallout2_Unofficial_Patch							1559	TOO_BIG
+michaelpq/postgres							434	TOO_BIG
+nvt/veloxvm	1	1	0	0	0	0.0	0	CLEAN
+qemu/ipxe	1806	1835	6194	2	27	1.5	33	VIOLATION_KEPT
+openSUSE/systemd							273	TOO_BIG
+zephyrproject-rtos/zephyr-testing							781	TOO_BIG
+Starlink/ast	591	591	2064	2	18	3.0	31	VIOLATION_KEPT
+LineageOS/android_kernel_sony_sdm660							1794	TOO_BIG
+foss-for-synopsys-dwc-arc-processors/binutils-gdb							659	TOO_BIG
+maurossi/mesa							622	TOO_BIG
+xfce-mirror/xfce4-notifyd	28	28	48	0	1	3.6	3	VIOLATION_KEPT
+dcasota/photonos-scripts							208	TOO_BIG
+kraj/binutils-gdb							704	TOO_BIG
+aallamaa/alcove	49	49	37	0	3	6.1	8	VIOLATION_KEPT
+haaspors/rlib	308	308	1175	0	22	7.1	10	VIOLATION_KEPT
+hdeller/qemu-hppa							424	TOO_BIG
+andoma/mios	716	715	2701	0	11	1.5	7	VIOLATION_KEPT
+pexip/gstreamer							309	TOO_BIG
+alistair23/qemu							470	TOO_BIG
+spandruvada/linux-kernel							2963	TOO_BIG
+MIPS/glibc							276	TOO_BIG
+MIPS/binutils-gdb							589	TOO_BIG
+ender672/liboil	25	25	42	0	13	52.0	2	VIOLATION_KEPT
+tadryanom/AdrOS	461	461	827	0	5	1.1	6	VIOLATION_KEPT
+Pernosco/binutils-gdb							537	TOO_BIG
+TrenchBoot/linux							2781	TOO_BIG
+bsdjhb/gdb							543	TOO_BIG
+AlexanderTaeschner/gnuplot	227	227	999	0	6	2.6	12	VIOLATION_KEPT
+ilia-maslakov/mcdev	403	403	1897	1	23	5.7	21	VIOLATION_KEPT
+RTEMS/sourceware-mirror-binutils-gdb							570	TOO_BIG
+DrylandEcology/SOILWAT2	64	64	372	0	1	1.6	8	VIOLATION_KEPT
+djmdjm/openbsd-openssh-src	106	106	290	0	5	4.7	7	VIOLATION_KEPT
+ahjragaas/glibc							266	TOO_BIG
+Haldir65/AndroidRepo							227	TOO_BIG
+djmdjm/openssh-wip	106	106	290	0	5	4.7	7	VIOLATION_KEPT
+woodsts/linux-stable							3923	TOO_BIG
+foss-for-synopsys-dwc-arc-processors/newlib	3752	3754	5854	1	53	1.4	71	VIOLATION_KEPT
+joergroedel/linux-iommu							3031	TOO_BIG
+jeffmerkey/leaf-linux							3226	TOO_BIG
+centurysys/linux-kernel-MAE							3150	TOO_BIG
+PKRoma/linux							3368	TOO_BIG
+RTEMS/sourceware-mirror-newlib-cygwin	3773	3775	5866	1	53	1.4	71	VIOLATION_KEPT
+rodrigovivi/linux							2835	TOO_BIG
+MIPS/newlib	3773	3775	5866	1	53	1.4	71	VIOLATION_KEPT
+FireBurn/mesa							644	TOO_BIG
+vathpela/edk2							301	TOO_BIG
+llr-cta/calin	1029	1029	1408	1	82	8.0	56	VIOLATION_KEPT
+jeffmerkey/linux							3255	TOO_BIG
+simonsj/haproxy	619	619	3626	3	50	8.1	29	VIOLATION_KEPT
+stefanberger/libvirt-tpm							618	TOO_BIG
+pjungwir/postgresql							339	TOO_BIG
+T-J-Teru/binutils-gdb							555	TOO_BIG
+simark/binutils-gdb							566	TOO_BIG
+berrym/lush	391	391	1212	0	16	4.1	49	VIOLATION_KEPT
+kubernetes-sigs/security-profiles-operator	5	5	1	0	0	0.0	0	CLEAN
+rxrbln/t2sde	92	92	271	0	5	5.4	87	VIOLATION_KEPT
+HDFGroup/hdf5							802	TOO_BIG
+libsdl-org/SDL_mixer	203	203	90	0	5	2.5	17	VIOLATION_KEPT
+etlegacy/etlegacy	453	453	757	1	235	51.9	71	VIOLATION_KEPT
+mjagdis-imports/sdcc-svn	5676	5679	7484	5	187	3.3	277	VIOLATION_KEPT
+doldecomp/melee	2026	2026	18413	0	93	4.6	50	VIOLATION_KEPT
+surge-synthesizer/shortcircuit-xt	334	334	1212	2	16	4.8	38	VIOLATION_KEPT
+Telecominfraproject/wlan-ap							276	TOO_BIG
+sysprog21/rv32emu	50	50	104	0	14	28.0	10	VIOLATION_KEPT
+ArtifexSoftware/ghostpdl							275	TOO_BIG
+bernardladenthin/BitcoinAddressFinder	8	8	0	0	0	0.0	0	CLEAN
+OpenVisualCloud/Media-Transport-Library	305	305	623	0	25	8.2	18	VIOLATION_KEPT
+389ds/389-ds-base	680	680	1737	0	41	6.0	33	VIOLATION_KEPT
+falcosecurity/libs	260	261	347	0	12	4.6	32	VIOLATION_KEPT
+davea42/libdwarf-code	210	210	1148	0	5	2.4	28	VIOLATION_KEPT
+kernel-patches/bpf							2918	TOO_BIG
+SynchronetBBS/sbbs							281	TOO_BIG
+DMTF/libspdm	347	347	548	0	35	10.1	34	VIOLATION_KEPT
+MidnightBSD/src							1439	TOO_BIG
+Dasharo/coreboot							251	TOO_BIG
+ghostbsd/ghostbsd-src							3162	TOO_BIG
+lustre/lustre-release	731	729	2696	1	47	6.4	78	VIOLATION_KEPT
+starfive-tech/linux							3047	TOO_BIG
+facebook/OpenBIC							260	TOO_BIG
+SUSE/kernel							4338	TOO_BIG
+AFLplusplus/qemu-libafl-bridge							536	TOO_BIG
+LineageOS/android_kernel_oneplus_sm8250							1893	TOO_BIG
+truenas/linux							2959	TOO_BIG
+wtarreau/nolibc	42	42	23	0	1	2.4	1	VIOLATION_KEPT
+crdroidandroid/android_kernel_oneplus_sm8250							1895	TOO_BIG
+crdroidandroid/android_kernel_xiaomi_sm6150							1631	TOO_BIG
+chenhuacai/linux							2588	TOO_BIG
+LineageOS/android_kernel_oneplus_sm8350							1716	TOO_BIG
+LineageOS/android_kernel_xiaomi_sm6150							1320	TOO_BIG
+bluez/bluetooth-next							2739	TOO_BIG
+jbalcomb/ReMoM	381	388	2380	0	10	2.6	74	VIOLATION_KEPT
+droidian/phosh	450	450	932	0	22	4.9	9	VIOLATION_KEPT
+tiacsys/bridle	71	71	58	0	2	2.8	66	VIOLATION_KEPT
+LineageOS/android_kernel_xiaomi_mt6785							1562	TOO_BIG
+kutemeikito/android_kernel_xiaomi_ginkgo							1314	TOO_BIG
+qemu/edk2							318	TOO_BIG
+stdlib-js/ndarray							472	TOO_BIG
+lock042/siril							420	TOO_BIG
+flux-framework/flux-coral2	47	47	55	0	9	19.1	3	VIOLATION_KEPT
+apache/axis-axis2-c-core	672	672	2645	4	28	4.2	16	VIOLATION_KEPT
+LineageOS/android_kernel_xiaomi_sm6125							1249	TOO_BIG
+truenas/samba							321	TOO_BIG
+LineageOS/android_kernel_samsung_sm8250							1472	TOO_BIG
+freebsd/drm-kmod	877	881	2251	0	63	7.2	591	VIOLATION_KEPT
+LineageOS/android_kernel_google_redbull							1366	TOO_BIG
+intel/gdb							491	TOO_BIG
+arter97-mirror/caf_msm-5.4							2447	TOO_BIG
+LineageOS/android_kernel_samsung_gta4xl							1114	TOO_BIG
+virtuoso/clap	153	155	565	1	4	2.6	7	VIOLATION_KEPT
+Inkypen79/kernel_xiaomi_andromeda							1282	TOO_BIG
+nrfconnect/sdk-trusted-firmware-m	3255	3255	7480	8	602	18.5	146	VIOLATION_KEPT
+DerpFest-Devices/kernel_xiaomi_sm6150							1317	TOO_BIG
+LineageOS/android_kernel_lenovo_sm8150							1280	TOO_BIG
+proxmox/mirror_qemu							435	TOO_BIG
+SkrilaxCZ/l4t-kernel							3196	TOO_BIG
+ArbitraryFox/kernel_xiaomi_davinci							1338	TOO_BIG
+paulfloyd/freebsd_valgrind	633	633	3548	1	96	15.2	66	VIOLATION_KEPT
+stefanberger/linux-ima-namespaces							3137	TOO_BIG
+pop-os/mesa							458	TOO_BIG
+sailfishos-mirror/qemu							411	TOO_BIG
+openssh/openssh-portable-selfhosted	203	203	529	0	7	3.4	10	VIOLATION_KEPT
+damonitor/linux							2497	TOO_BIG
+ca2/operating_system-windows	2718	2744	2526	2	241	8.9	55	VIOLATION_KEPT
+sailfishos-mirror/bluez	717	717	3243	0	74	10.3	20	VIOLATION_KEPT
+arthenica/fontconfig	63	63	54	0	5	7.9	3	VIOLATION_KEPT
+sunjw/some-learning							4381	TOO_BIG
+delphix/linux-kernel-gcp							3889	TOO_BIG
+sailfishos/bluez5	718	718	3220	0	74	10.3	20	VIOLATION_KEPT
+delphix/linux-kernel-aws							3989	TOO_BIG
+MontaVista-OpenSourceTechnology/linux-mvista							3272	TOO_BIG
+arthenica/gnulib	2566	2566	2260	0	71	2.8	63	VIOLATION_KEPT
+xu1119/torvalds-linux-mirror							2620	TOO_BIG
+nubificus/qemu-vaccel							438	TOO_BIG
+PhoshMobi/phoc	174	174	466	4	10	5.7	4	VIOLATION_KEPT
+linuxppc/linux-ci							2850	TOO_BIG
+Gateworks/linux-venice							2743	TOO_BIG
+DerpFest-Devices/kernel_lenovo_sm8150							1262	TOO_BIG
+sailfishos-mirror/sqlite							269	TOO_BIG
+sailfishos-mirror/libpcap	28	28	4	0	3	10.7	6	VIOLATION_KEPT
+sailfishos-mirror/mesa							678	TOO_BIG
+FireSourcery/FireSourcery_Library	308	318	620	1	14	4.5	91	VIOLATION_KEPT
+sailfishos-mirror/openssh-portable	203	203	529	0	7	3.4	10	VIOLATION_KEPT
+sailfishos-mirror/firejail	229	229	248	0	2	0.9	6	VIOLATION_KEPT
+Andarix/simutrans							721	TOO_BIG
+delphix/linux-kernel-generic							3868	TOO_BIG
+sailfishos-mirror/curl	623	623	2437	1	28	4.5	40	VIOLATION_KEPT
+markjdb/freebsd							1984	TOO_BIG
+drfiemost/vice-emu							311	TOO_BIG
+gehelem/OST	228	228	574	1	8	3.5	6	VIOLATION_KEPT
+ahjragaas/busybox	745	745	877	0	10	1.3	15	VIOLATION_KEPT
+evadot/freebsd							1943	TOO_BIG
+Linux-On-Sdm6Series/kernel_asus_sdm660							1965	TOO_BIG
+davischw/frr	1375	1375	11121	3	90	6.5	67	VIOLATION_KEPT
+orioledb/orioledb	147	147	855	1	11	7.5	10	VIOLATION_KEPT
+TryQuiet/quiet							706	TOO_BIG
+istoreos/istoreos							281	TOO_BIG
+IvorySQL/IvorySQL							321	TOO_BIG
+sailfishos-mirror/ffmpeg	4288	4288	22348	0	90	2.1	111	VIOLATION_KEPT
+Xilinx/mlir-aie							1462	TOO_BIG
+shorepine/tulipcc							469	TOO_BIG
+a1ive/nwinfo	186	186	407	0	12	6.5	20	VIOLATION_KEPT
+cilium/tetragon	103	103	385	0	2	1.9	66	VIOLATION_KEPT
+babelfish-for-postgresql/postgresql_modified_for_babelfish							340	TOO_BIG
+duanery/perf-prof	515	516	1080	0	3	0.6	36	VIOLATION_KEPT
+LineageOS/android_kernel_xiaomi_sm8250							1735	TOO_BIG
+Xeeynamo/sotn-decomp	2054	2054	3472	0	60	2.9	38	VIOLATION_KEPT
+AsahiLinux/u-boot							333	TOO_BIG
+NVIDIA/edk2-nvidia	983	983	1746	1	51	5.2	23	VIOLATION_KEPT
+EmanuelCN/kernel_xiaomi_sm8250							1576	TOO_BIG
+raystef66/InfiniR_kernel_alioth							1528	TOO_BIG
+BobTheBuidler/dank_mids							1491	TOO_BIG
+KJ7LNW/xnec2c	192	192	536	1	8	4.2	11	VIOLATION_KEPT
+203-Systems/MatrixOS	563	564	932	1	23	4.1	36	VIOLATION_KEPT
+BobTheBuidler/ypricemagic	0	0	0	0	0		0	CLEAN
+heywoodlh/nixos-configs	1	1	0	0	0	0.0	0	CLEAN
+pantavisor/pantavisor	10	10	0	0	1	10.0	8	VIOLATION_KEPT
+Klipper3d/klipper-translations							289	TOO_BIG
+nanomq/NanoNNG	318	318	745	1	39	12.3	20	VIOLATION_KEPT
+libsdl-org/libtiff	87	87	134	0	12	13.8	9	VIOLATION_KEPT
+msdos03/openwrt-avanta							292	TOO_BIG
+LineageOS/android_kernel_samsung_exynos9820							1207	TOO_BIG
+Jason2866/Tasmota-build							277	TOO_BIG
+onera/Cassiopee							230	TOO_BIG
+BlazingRenderer/BRender	508	510	838	1	36	7.1	15	VIOLATION_KEPT
+LineageOS/android_kernel_motorola_sm8250							1842	TOO_BIG
+TF-Hafnium/hafnium	245	245	833	0	3	1.2	8	VIOLATION_KEPT
+lf-lang/reactor-c	154	154	399	2	2	1.3	4	VIOLATION_KEPT
+greenbone/gsad	67	67	151	0	5	7.5	3	VIOLATION_KEPT
+LineageOS/android_kernel_google_msm-4.14							1345	TOO_BIG
+crdroidandroid/android_kernel_oneplus_sm8350							1701	TOO_BIG
+ammarfaizi2/linux-block							6343	TOO_BIG
+crdroidandroid/android_kernel_xiaomi_sm8150							1374	TOO_BIG
+wolfSSL/wolfProvider	50	50	94	0	2	4.0	64	VIOLATION_KEPT
+Fraunhofer-AISEC/cmc	8	8	10	0	0	0.0	0	CLEAN
+Tiktodz/android_kernel_asus_sdm636							1003	TOO_BIG
+elf-audio/mzgl	439	439	736	1	15	3.4	29	VIOLATION_KEPT
+Inkypen79/kernel_xiaomi_odin							1962	TOO_BIG
+NVIDIA/edk2							321	TOO_BIG
+ioccc-src/mkiocccentry	126	128	421	2	10	7.9	12	VIOLATION_KEPT
+AspeedTech-BMC/zephyr							613	TOO_BIG
+msm8974-mainline/linux							2663	TOO_BIG
+open-enterprise-solutions/enterprise	1118	1125	2684	0	62	5.5	68	VIOLATION_KEPT
+Sarisan/WSL2-Sekoohaka-Kernel							2437	TOO_BIG
+Atom-X-Devs/android_kernel_xiaomi_sm7325							1898	TOO_BIG
+pix106/android_kernel_xiaomi_southwest-4.19							2009	TOO_BIG
+greenforce-project/kernel_xiaomi_citrus_sm6115							1479	TOO_BIG
+ArduPilot/ChibiOS.svn							209	TOO_BIG
+1582130940/android_kernel_xiaomi_sm8250							1939	TOO_BIG
+fpetrot/qemu-riscv128							510	TOO_BIG
+LineageOS/android_kernel_xiaomi_gauguin							1795	TOO_BIG
+waydroid/android_external_mesa3d							688	TOO_BIG
+vsfteam/vsf-all-in-one							395	TOO_BIG
+NVIDIA/edk2-platforms	1997	1997	2255	0	157	7.9	45	VIOLATION_KEPT
+nrfconnect/sdk-mbedtls	121	121	311	0	12	9.9	16	VIOLATION_KEPT
+baidxi/buildroot	375	375	638	2	367	97.9	64	VIOLATION_KEPT
+openharmony/kernel_linux_5.10							1976	TOO_BIG
+sunlightlinux/linux-sunlight							3187	TOO_BIG
+d1aznr/kernel_xiaomi_alioth							1464	TOO_BIG
+LineageOS/android_kernel_nvidia_kernel							3116	TOO_BIG
+KevinOConnor/klipper-dev	691	691	1180	1	37	5.4	222	VIOLATION_KEPT
+danascape/linux-oneplus-sm6350							1503	TOO_BIG
+kernel-patches/bpf-rc							2644	TOO_BIG
+sailfishos-mirror/valgrind	633	633	3548	1	96	15.2	66	VIOLATION_KEPT
+Rtoax/test-linux	3334	2654	3623	0	44	1.3	39	VIOLATION_KEPT
+atmark-techno/linux-5.10-at							1738	TOO_BIG
+VoltageOS-Devices/kernel_xiaomi_raphael							1417	TOO_BIG
+GustavoMends/kernel_xiaomi_alioth							1398	TOO_BIG
+iusmac/kernel_rova							1698	TOO_BIG
+chrisagrams/mscompress	41	41	49	0	3	7.3	15	VIOLATION_KEPT
+DangarStu/JACL	90	90	211	0	7	7.8	55	VIOLATION_KEPT
+petergeelhoed/tico	36	36	109	0	0	0.0	0	CLEAN
+TARKZiM/android_kernel_samsung_sm7225							1994	TOO_BIG
+crdroidandroid/android_kernel_xiaomi_sm6250							1762	TOO_BIG
+Tomoms/android_kernel_essential_msm8998							1383	TOO_BIG
+openharmony/third_party_musl	5271	5319	1801	0	140	2.7	61	VIOLATION_KEPT
+CalyxOS/kernel_fairphone_sm7225							1476	TOO_BIG
+ijc/devicetree-rebasing-v3	1190	1190	113	0	0	0.0	0	CLEAN
+hexagon-geo-surv/trusted-firmware-a	3973	3973	13565	4	166	4.2	65	VIOLATION_KEPT
+danielgustafsson/pgci							308	TOO_BIG
+wide-video/aom							207	TOO_BIG
+LineageOS/android_kernel_nubia_sm8150							1300	TOO_BIG
+abasty/minwifi-esp01	3	3	0	0	0	0.0	0	CLEAN
+LuBaolu/intel-iommu								CLONE_FAIL
+DanielXMoore/Civet	8	8	4	0	4	50.0	7	VIOLATION_KEPT
+apache/cloudberry							725	TOO_BIG
+open-telemetry/opentelemetry-go-instrumentation	30	30	95	0	3	10.0	12	VIOLATION_KEPT
+joypad-ai/joypad-os	516	516	1230	0	8	1.6	41	VIOLATION_KEPT
+ruby/prism	84	84	234	0	7	8.3	11	VIOLATION_KEPT
+pygame-community/pygame-ce	156	156	265	0	9	5.8	17	VIOLATION_KEPT
+PufferAI/PufferLib							462	TOO_BIG
+webserver-llc/angie	425	425	1240	5	38	8.9	14	VIOLATION_KEPT
+ZSWatch/ZSWatch							250	TOO_BIG
+inxware/ert-components	2161	2161	4771	9	108	5.0	332	VIOLATION_KEPT
+ashvardanian/NumKong	359	359	989	0	66	18.4	24	VIOLATION_KEPT
+streetpea/chiaki-ng	174	174	439	1	14	8.0	47	VIOLATION_KEPT
+bitaxeorg/ESP-Miner	143	143	344	0	10	7.0	6	VIOLATION_KEPT
+pgEdge/spock	74	74	226	0	4	5.4	5	VIOLATION_KEPT
+shorepine/amy	64	64	84	1	3	4.7	89	VIOLATION_KEPT
+lone-lang/lone	108	108	307	0	1	0.9	8	VIOLATION_KEPT
+cucumber/gherkin	168	168	380	0	2	1.2	8	VIOLATION_KEPT
+duckdb/duckdb-spatial	69	69	147	0	5	7.2	180	VIOLATION_KEPT
+fhoedemakers/pico-infonesPlus	189	189	221	0	13	6.9	51	VIOLATION_KEPT
+allyourcodebase/ffmpeg	4170	4170	21356	0	88	2.1	103	VIOLATION_KEPT
+facebook/bpfilter	107	107	471	0	2	1.9	18	VIOLATION_KEPT
+nxp-imx/linux-imx							3078	TOO_BIG
+icl-utk-edu/papi	565	569	1039	0	37	6.5	31	VIOLATION_KEPT
+RayforceDB/rayforce	3	3	1	0	0	0.0	0	CLEAN
+axoflow/axosyslog	1558	1558	5480	0	24	1.5	29	VIOLATION_KEPT
+tomato64/tomato64	345	349	539	1	12	3.5	15	VIOLATION_KEPT
+WATonomous/wato_monorepo							274	TOO_BIG
+pkgxdev/pantry	142	142	0	0	0	0.0	0	CLEAN
+HallofFamer/Lox2	99	99	338	2	2	2.0	4	VIOLATION_KEPT
+TF-RMM/tf-rmm	350	350	1236	0	5	1.4	10	VIOLATION_KEPT
+deepin-community/kernel							3033	TOO_BIG
+LineageOS/android_kernel_asus_sm8350		50875	171326	73			1408	VIOLATION_KEPT
+FlopKernel-Series/flop_trinket-mi_kernel							1562	TOO_BIG
+Mbed-TLS/TF-PSA-Crypto	231	231	955	0	8	3.5	21	VIOLATION_KEPT
+librempeg/librempeg	4652	4652	24250	0	93	2.0	121	VIOLATION_KEPT
+J-A-A-M/ukraine_alarm_map							229	TOO_BIG
+liudf0716/chawrt							295	TOO_BIG
+corepunch/openwarcraft3	271	271	376	2	8	3.0	13	VIOLATION_KEPT
+TexasInstruments/mcupsdk-core							461	TOO_BIG
+xiaomi-msm8998-devs/android_kernel_xiaomi_msm8998							1079	TOO_BIG
+LineageOS/android_kernel_motorola_sm6225							1521	TOO_BIG
+LineageOS/android_kernel_qcom_sm8150							1432	TOO_BIG
+muralivijay/kernel_xiaomi_spes							1666	TOO_BIG
+Danda420/kernel_xiaomi_sm8250							1436	TOO_BIG
+LineageOS/android_kernel_qcom_sm8350							1635	TOO_BIG
+nxp-auto-linux/linux							2790	TOO_BIG
+sorydima/REChain-							1869	TOO_BIG
+LineageOS/android_kernel_xiaomi_sm8350							1950	TOO_BIG
+nxp-qoriq/linux							2927	TOO_BIG
+riscv-non-isa/riscv-iopmp	1	1	0	0	0	0.0	0	CLEAN
+asvio/nbg7815-nss							277	TOO_BIG
+numpy/numpy-user-dtypes	77	77	114	0	10	13.0	3	VIOLATION_KEPT
+NVIDIA/linux-firmware							1237	TOO_BIG
+GainStrongService/mtk-openwrt-feeds							517	TOO_BIG
+alifsemi/alif_ml-embedded-evaluation-kit	110	110	95	0	2	1.8	16	VIOLATION_KEPT
+MFarabi619/MFarabi619							353	TOO_BIG
+sreeshankark/android_kernel_oneplus_avicii							2122	TOO_BIG
+keycard-tech/keycard-shell	251	251	521	1	28	11.2	180	VIOLATION_KEPT
+LineageOS/android_kernel_qcom_sdm660							1413	TOO_BIG
+kvm-x86/linux							2443	TOO_BIG
+rany2/openwrt							256	TOO_BIG
+CirrusLogic/linux-firmware							1638	TOO_BIG
+LineageOS/android_kernel_motorola_sm7325							2069	TOO_BIG
+LineageOS/android_kernel_sony_sm8250							1888	TOO_BIG
+LineageOS/android_kernel_fairphone_sm7225							1516	TOO_BIG
+crdroidandroid/android_kernel_xiaomi_surya							1801	TOO_BIG
+BobTheBuidler/eth-portfolio	0	0	0	0	0		0	CLEAN
+pascua28/android_kernel_samsung_sm8250							2052	TOO_BIG
+1582130940/android_kernel_xiaomi_sdm660							1860	TOO_BIG
+beagleboard/u-boot							303	TOO_BIG
+gta4xlve-dev/android_kernel_samsung_gta4xlve							1572	TOO_BIG
+Mi-Thorium/kernel_msm-4.19							1990	TOO_BIG
+LineageOS/android_kernel_oneplus_sm4350							1703	TOO_BIG
+icssw-org/MeshCom-Firmware	1750	1751	2802	5	68	3.9	320	VIOLATION_KEPT
+Rocky7842/android_kernel_xiaomi_sdm710							1575	TOO_BIG
+valibali/cluu	40	40	2	0	1	2.5	18	VIOLATION_KEPT
+medicalopenworld/IncuNest	276	276	248	12	4	1.4	190	VIOLATION_KEPT
+pjgowtham/android_kernel_oneplus_sm8450							2130	TOO_BIG
+LineageOS/android_kernel_samsung_sm7125							1567	TOO_BIG
+cea-hpc/mpc	939	945	2523	1	46	4.9	21	VIOLATION_KEPT
+openeuler-mirror/umdk	628	628	1814	0	26	4.1	31	VIOLATION_KEPT
+OmarAglan/Baa	156	156	270	0	2	1.3	7	VIOLATION_KEPT
+LineageOS/android_kernel_fxtec_sm6115							1911	TOO_BIG
+nxp-imx/imx-optee-os	2147	2147	9489	1	83	3.9	38	VIOLATION_KEPT
+samsungexynos7420/android_kernel_samsung_universal7420							712	TOO_BIG
+shihyu/jason_note							6525	TOO_BIG
+taedlar/neolith	194	194	756	0	4	2.1	8	VIOLATION_KEPT
+ExyHyperBrick/android_kernel_samsung_exynos9810							993	TOO_BIG
+LineageOS/android_kernel_sony_sm8350							1939	TOO_BIG
+QuartermindGames/ape							286	TOO_BIG
+xiaomi-mt6785-dev/android_kernel_xiaomi_mt6785							1966	TOO_BIG
+ringof/rx888-firmware	71	71	203	0	9	12.7	23	VIOLATION_KEPT
+Mellanox/nic-kernel							2430	TOO_BIG
+crdroidandroid/android_kernel_xiaomi_chime							1866	TOO_BIG
+raspberry-vanilla/android_external_ffmpeg							322	TOO_BIG
+arter97-mirror/caf_msm-5.15							2160	TOO_BIG
+sizeofvoid/libopeninput	8	8	7	0	0	0.0	0	CLEAN
+nxp-imx/imx-smw	322	322	1113	0	33	10.2	18	VIOLATION_KEPT
+Quicr/hactar							627	TOO_BIG
+oktetlabs/test-environment	1424	1424	7211	1	40	2.8	31	VIOLATION_KEPT
+openenergymonitor/emon32-fw	60	60	142	0	0	0.0	0	CLEAN
+PhoshMobi/phosh-mobile-settings	126	126	203	0	3	2.4	4	VIOLATION_KEPT
+ibmruntimes/openssl							367	TOO_BIG
+openSUSE/libvirt							711	TOO_BIG
+embeddedTS/linux-lts							2705	TOO_BIG
+canmeng12/packages	1469	1469	1157	6	507	34.5	149	VIOLATION_KEPT
+ChristianGaser/CAT-Surface	218	218	698	1	87	39.9	49	VIOLATION_KEPT
+PhoshMobi/stevia	79	79	118	1	3	3.8	3	VIOLATION_KEPT
+solids4foam/cardiacFoam	0	0	0	0	0		0	CLEAN
+herrnst/linux-asahi							4042	TOO_BIG
+ts-factory/test-environment	1424	1424	7211	1	40	2.8	31	VIOLATION_KEPT
+moto-sm7325/android_kernel_motorola_sm7325							2064	TOO_BIG
+LinuxSecurityModule/kernel							3406	TOO_BIG
+cijavel/co2-turtle	38	38	54	0	0	0.0	0	CLEAN
+jhnc-oss/glibc							253	TOO_BIG
+CodSpeedHQ/valgrind-codspeed	629	629	3533	1	87	13.8	596	VIOLATION_KEPT
+sailfishos-mirror/gdb							592	TOO_BIG
+sailfishos-mirror/ltp	4710	4712	6882	1	47	1.0	42	VIOLATION_KEPT
+katsuster/binutils-gdb							516	TOO_BIG
+hexsen929/openwrt_packages	34	34	47	0	3	8.8	12	VIOLATION_KEPT
+katsuster/glibc							256	TOO_BIG
+lmchale/linux							2914	TOO_BIG
+hexagon-geo-surv/barebox	5530	5530	13800	2	64	1.2	101	VIOLATION_KEPT
+mj22226/linux-firmware							1536	TOO_BIG
+sailfishos-mirror/hostap	780	780	4030	0	66	8.5	30	VIOLATION_KEPT
+katsuster/newlib-cygwin	3773	3775	5866	1	53	1.4	71	VIOLATION_KEPT
+flavioc/glibc							253	TOO_BIG
+mrdunk/rp2040_pio_stepper	43	43	69	0	0	0.0	0	CLEAN
+digi-embedded/optee_os	2389	2392	9904	1	95	4.0	47	VIOLATION_KEPT
+sailfishos-mirror/gnupg	484	484	1890	0	34	7.0	29	VIOLATION_KEPT
