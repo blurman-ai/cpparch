@@ -93,3 +93,42 @@ TEST_CASE("SF.9: mixed cycle (one unconditional edge) still reports violation", 
   Sf9NoCycles rule;
   REQUIRE(rule.check(g, {}).size() == 1);
 }
+
+TEST_CASE("SF.9: same-stem header + inline-impl split is not a cycle (#088)", "[rules][sf9]")
+{
+  // foo.h <-> foo-inl.h / foo.inl / foo.ipp / foo.hxx — one logical component split into
+  // interface + inline/template impl; the include loop is broken by the guard, not a cycle.
+  for (const char *impl : {"src/foo-inl.h", "src/foo.inl", "src/foo.ipp", "src/foo.hxx"})
+  {
+    DependencyGraph g;
+    const auto a = g.addNode("src/foo.h");
+    const auto b = g.addNode(impl);
+    g.addEdge(a, b); // unconditional
+    g.addEdge(b, a);
+    Sf9NoCycles rule;
+    INFO("impl file: " << impl);
+    REQUIRE(rule.check(g, {}).empty());
+  }
+}
+
+TEST_CASE("SF.9: same stem but both plain headers still reports (not an inline split)", "[rules][sf9]")
+{
+  DependencyGraph g;
+  const auto a = g.addNode("src/foo.h");
+  const auto b = g.addNode("src/foo.hpp"); // neither side is an inline/template impl
+  g.addEdge(a, b);
+  g.addEdge(b, a);
+  Sf9NoCycles rule;
+  REQUIRE(rule.check(g, {}).size() == 1);
+}
+
+TEST_CASE("SF.9: same-stem impl in a DIFFERENT directory still reports", "[rules][sf9]")
+{
+  DependencyGraph g;
+  const auto a = g.addNode("a/foo.h");
+  const auto b = g.addNode("b/foo.inl"); // not the local interface+impl idiom
+  g.addEdge(a, b);
+  g.addEdge(b, a);
+  Sf9NoCycles rule;
+  REQUIRE(rule.check(g, {}).size() == 1);
+}
