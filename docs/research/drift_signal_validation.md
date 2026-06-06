@@ -80,13 +80,20 @@ false-alarm. Новый цикл объективно плох (Lakos physical d
 
 Обычные линтеры этот класс не ловят — diff чистый, код компилируется.
 
-### 3. Bidirectional coupling — 15% сигнала, сейчас НЕ покрыто
+### 3. Bidirectional coupling — 15% сигнала, в основном НЕ покрыто
 
 294 события `A↔B` — настоящие layering-нарушения. Примеры из корпуса:
 `src/hal ↔ src/ui` (HAL — низкоуровневый leaf — не должен взаимно зависеть от UI),
 `Source/Game ↔ Source/Renderer` (игра и рендер сцепились), `core ↔ inspect`,
-`editor ↔ engine`, `src/hal ↔ {input,math,ui,display}`. Узкие правила (DRIFT.1/.2)
-их сейчас НЕ ловят — только cross-area проба. Кандидат на отдельное правило.
+`editor ↔ engine`, `src/hal ↔ {input,math,ui,display}`.
+
+**Важно — это НЕ то же, что цикл (DRIFT.2).** На уровне файлов `A↔B` = 2-node цикл и
+ловится SF.9/DRIFT.2. Но bidirectional здесь — **аггрегатный (area) уровень**: разные
+файлы в каждом модуле, циклического include нет. Проверка по корпусу: из **65 коммитов**
+с bidirectional area-парой лишь **9** имели реальный file-cycle (`grown_cycles>0` →
+домен DRIFT.2); остальные **56 (86%)** — area-coupling без цикла, **которое DRIFT.2 не
+видит**. Это Lakos «не-levelizable design» (модули нельзя собрать раздельно). Кандидат
+на отдельное узкое правило DRIFT.3 (задача #087), строго не перекрывающее DRIFT.2.
 
 ## Грань польза / бесполезность
 
