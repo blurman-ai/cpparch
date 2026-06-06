@@ -1,56 +1,46 @@
-# Backlog Review — 2026-05-29 (late)
+# Backlog review — 2026-06-05
 
-> Обновление к утреннему ревью. С тех пор закрыто 6 задач (#043, #044, #047, #048→fixture, #049, v1_maj_config_format), три переехали в `future/` после спайка #043, заведено 2 новые задачи (#048 drift methodology, #053 fast-backend line dup), одна стартовала (#051 config loader).
+Snapshot активной очереди. Источник: `new/` (16), `wip/` (13), `future/` (11) = **40 активных**, кросс-сверка с `completed/` (43). `pending/` не трогался.
 
-## TL;DR
+## Сводка
 
-- `wip/`: **1** (#051 config_loader_v1 — стартовала сегодня).
-- `new/`: **7** активных, заблокированных извне — нет.
-- **Быстрые победы**: #046 (color TTY decision, ≤2 ч), #048 drift methodology (≤1 ч doc + helper).
-- **Средние**: #029, #032, #045.
-- **Большая**: #053 (fast-backend line duplication — L, целится в v0.2).
-- **Под скоупом / unknown**: #041 (audit hardcoded strings — `Сложность: unknown`, перекрывается с config-format/loader). Подвешено с утреннего ревью, **решение надо принять сегодня-завтра** пока #051 в работе.
-
-**Коллизия номеров:** `new/048_maj_drift_clean_checkout_methodology.md` использует номер, уже занятый `completed/048_maj_fixture_libresprite_pr581.md`. Перенумеровать новую (например в #054).
-
----
-
-## Закрыто с прошлого ревью (за день)
-
-| Файл | Что закрыло |
-|------|-------------|
-| #039 SF.8 ObjC exclusion | перенесено в `completed/` ✅ |
-| #043 spike clang perf | завершён, `docs/dev/spike_clang_perf.md`. Подтвердил двух-бекендную схему (libclang ×1350 медленнее regex). |
-| #044 README sync | done |
-| #047 UTF-8 BOM | done |
-| #048 LibreSprite PR#581 fixture | done (номер занят) |
-| #049 SF.9 include guard false conditional | done |
-| `v1_maj_config_format_minimal_contract` | спека `docs/config_format.md` зафиксирована, перешла в completed |
-
-Переехали в `future/` после спайка #043:
-- #042 (clang semantic backend) — v0.2
-- #050 (SF.21 anon namespace) — v0.3
-- #052 (cross-TU duplication AST) — v0.2
-- #033 (AI drift dataset) — v0.2+, `Статус: in-progress`
+- **Протухших по дате нет.** Самый старый активный файл — 2026-05-28 (8 дней). Порог 30 дней не сработал ни на одном.
+- **3 задачи done-but-not-moved** сидят в `wip/`: #080, #081, #072_min — готовы, ждут только `git mv → completed/` (это работа `/fix-issue`, не этого скила).
+- **2 задачи mostly_done** (один шаг до закрытия): #041 (4/5 шагов), #061 (фикс применён, остался 1 чекбокс верификации).
+- **1 задача — отрицательный результат с неверным статусом**: #063 закрыта как тупик и передана в #070, но помечена «new».
+- **1 misfiled**: `new/071_fp_classification_rules.md` сам себя помечает `Статус: wip, Дата старта 2026-06-03` — физически лежит в `new/`.
+- **3 коллизии номеров**: 048, 071, 072 (детали ниже).
+- **Разблокирован кластер**: `v1_maj_config_format_minimal_contract` уже в `completed/` → корневой блокер AI-config-synthesis снят (#010 тоже разблокирован — его блокер #008 завершён).
+- **2 stub-задачи без анализа**: #062, #064.
 
 ---
 
-## WIP
+## Протухшие / требуют смены статуса
 
-| Файл | Стартовала | Скоуп |
-|------|------------|-------|
-| `wip/051_maj_config_loader_v1.md` | 2026-05-29 | YAML→`Config` struct + валидация + fixtures. Loader-only, без подключения к rule pipeline. По git-логу: phase 1 (rules dispatcher) и phase 2 закоммичены (`2893aed`, `574516d`, `f3377ce`). Активная работа. |
+Классической «протухи по дате» нет. Ниже — задачи, чей **статус не отражает реальность** (результат уже сделан / задача закрыта иначе):
+
+| Файл | Причина | Рекомендация |
+|------|---------|--------------|
+| `wip/080_manual_corpus_analysis_findings.md` | В шапке уже `Статус: completed`, «✅ Выполнено полностью», коммиты f29429a + b93729a | **Move to completed** (`/fix-issue`) |
+| `wip/081_maj_dup_scanner_misses_overexclusion.md` | Фикс влит — коммит f68035a в git log, 344 теста зелёные, все чекбоксы | **Move to completed** |
+| `wip/072_min_clone_type_classifier.md` | LD.10+LD.11 реализованы и проверены на фикстуре, «Следующие шаги: git mv wip → completed» | **Move to completed** |
+| `new/063_crt_diff_coincidental_precision.md` | Зафиксирован отрицательный результат (idiom-FP floor), поверхностный путь закрыт, решение передано в #070 | **Move to completed** как resolved/transferred — не actionable сам по себе |
+| `new/071_fp_classification_rules.md` | Сам себя помечает `wip` + `Дата старта 2026-06-03`, есть uncommitted изменения в src/tests | **Keep, но переместить new → wip** (рассинхрон папки и статуса) |
+| `wip/041_maj_audit_hardcoded_strings.md` | 4 из 5 шагов сделаны (phase-1 loader = completed/051); остался шаг 5 (kProjectExtensions/kHeaderExtensions) + мелкий дедуп | **Keep in WIP** — дожать шаг 5, ~quick_win |
+| `wip/061_maj_diff_rename_path_validation.md` | Фикс `-M` применён (main.cpp ~839, пересобран); остался 1 чекбокс верификации (iter2) | **Keep in WIP** — закрыть верификацией, затем completed |
 
 ---
 
-## Быстрые победы
+## Быстрые победы (actionable сейчас, < 1 дня)
 
-| Файл | Цель | Модуль | Оценка |
-|------|------|--------|--------|
-| `new/046_min_docs_color_tty_decision.md` | Track A (isatty + ANSI + NO_COLOR) или B (убрать из роадмапа). Одинаковая стоимость. | DOCS / REPORT | XS (≤2ч) |
-| `new/048_maj_drift_clean_checkout_methodology.md` | Доказана причина false positives на DRIFT.1 (dirty checkout). Нужен helper-скрипт `clean_checkout.sh` + параграф в методичке. | RESEARCH | S (≤1ч) |
+| Файл | Цель | Модуль |
+|------|------|--------|
+| `new/046_min_docs_color_tty_decision.md` | isatty+ANSI color в text reporter **или** убрать обещание из spec (XS, ≤2ч) | REPORT |
+| `new/048_maj_drift_clean_checkout_methodology.md` | Зафиксировать clean-checkout методологию + helper-скрипт (S, ≤1ч; скрипт уже написан в теле задачи — осталось положить в `scripts/`) | FIXTURES |
+| `wip/061_maj_diff_rename_path_validation.md` | Дожать верификацию rename-фикса (фикс уже в коде) | SCAN |
+| `wip/041_maj_audit_hardcoded_strings.md` | Шаг 5 — расширения файлов в Config | CONFIG |
 
-Обе — без инженерного риска, обе разблокируют дальнейшее: #046 закрывает doc/code drift, #048 делает воспроизводимыми все будущие drift-прогоны.
+> #064, #050, #072_min, #080, #081 формально «быстрые», но: #064 — stub без дизайна (см. ниже), #050 заблокирован #042, остальные три — уже done (см. протухшие).
 
 ---
 
@@ -58,25 +48,50 @@
 
 | Файл | Цель | Модуль | Сложность |
 |------|------|--------|-----------|
-| `new/029_maj_metric_regression_detection.md` | chain length / new god-headers / CCD-ACD-NCCD дельты в `RegressionReport` + git-интеграционные тесты. | GRAPH / DIFF | M |
-| `new/032_maj_conditional_include_cycles.md` | `#include` под `#ifdef` → `conditional` edge; SF.9 пропускает all-conditional циклы. Снимает 22 FP на spdlog. | SCAN / RULES | M |
-| `new/045_maj_docs_sync_roadmap_mvp_spec.md` | MVP.md переписать с нуля, выровнять spec v0.1/v0.2, ADR-001..003. После #044 имеет на что ссылаться. | DOCS | M (1–2 дня) |
+| `new/029_maj_metric_regression_detection.md` | Метрические регрессии (chain/god-headers/CCD) в RegressionReport | GRAPH | medium |
+| `new/032_maj_conditional_include_cycles.md` | Помечать `#ifdef`-include как conditional → убрать SF.9 FP-циклы (22 FP на spdlog) | SCAN | medium |
+| `new/045_maj_docs_sync_roadmap_mvp_spec.md` | Синхронизировать MVP/spec/ADR с фактическим v0.1/v0.2 скоупом | DOCS | medium |
+| `new/057_maj_lakos_fanout_coupling_checks.md` | Правило Lakos.GodComponentFanOut + edges/nodes/blast-radius метрики | RULES | medium (скрытая калибровка порога) |
+| `new/074_maj_ai_repo_discovery_roi_alignment.md` | Свести ROI/giant-skip между основным и resumable discovery-путём (experiments/) | SCAN | medium |
+| `new/077_maj_per_commit_graph_drift_export.md` | Скрипт per-commit экспорта include-графа (experiments/, research-only) | GRAPH | medium |
+| `new/071_fp_classification_rules.md` (статус wip) | Зафиксировать объективные TP/FP-правила дубликатов | SCAN | medium |
+| `future/010_maj_ai_rule_synthesis_contract.md` | Контракт AI-assisted rule synthesis (блокер #008 — снят) | RULES | medium |
+| `future/033_maj_ai_drift_dataset.md` | C++ репо с AI-коммитами как fixtures для DRIFT.1/2 (активно движется → кандидат в wip) | FIXTURES | medium |
+| `future/v1_maj_agent_config_authoring_rules.md` | Правила для агента, заполняющего `.archcheck.yml.draft` (блокер снят) | DOCS | medium |
+| `future/v1_maj_ai_config_iterative_loop.md` | Контракт итеративного цикла синтеза конфига | CONFIG | medium |
+| `future/v1_maj_ai_config_synthesis_eval_protocol.md` | Протокол Claude vs Codex для генерации конфига | DOCS | medium |
+| `future/005_maj_sarif_reporter_spec.md` | Маппинг violations → SARIF 2.1.0 (spec-only, self-contained) | REPORT | quick→medium |
 
 ---
 
-## Сложные
+## Сложные / заблокированные
 
-| Файл | Цель | Сложность | Замечание |
-|------|------|-----------|-----------|
-| `new/053_maj_fast_backend_line_duplication_pass.md` | Порт line-based Type-1 spike в `src/scan/` как off-by-default проход; cross-component reuse-edge сигнал + ratio. | L | Целится в v0.2, после спайка `experiments/line_duplication/`. Не блокирует ничего в v0.1. Связана с #052 (AST-слой) — два слоя одной темы. |
+| Файл | Блокер |
+|------|--------|
+| `new/073_maj_tech_debt_alignment_cleanup.md` | Umbrella-долг (10 пунктов); сам **блокирует** #075. Зависит от #045. Самая крупная в наборе (L) |
+| `new/075_crt_mvp_v1_trusted_diff_workflow.md` | Заблокирован P0-срезом #073 + #045. Critical, но порядок важен |
+| `new/067_maj_overnight_eye_verification.md` | Ночной cron-верификатор 138 реп; зависит от #060/#056/#054 + актуального CORPUS_CHECK_REPORT |
+| `new/078_maj_clone_cochange_harm_signal.md` | Co-change severity; ждёт стабильной базы пар (#056/#070/#071) + git-history infra (#054) |
+| `wip/053_maj_fast_backend_line_duplication_pass.md` | Спайк закрыт, порт в src/ не начат; **блокирует** #056. P0-B/C открыты |
+| `wip/056_maj_fast_backend_partial_duplication_pass.md` | Заблокирован #053 (plumbing). Спайк готов |
+| `wip/060_maj_checker_validation_hardening_loop.md` | iter1–4 + corpus round2 сделаны; ждёт встройки confirm-слоя #070 как гейта |
+| `wip/066_maj_airepo_remeasure_clonefail.md` | Живой фоновый перемер (7616/16028, round2 66/135). Resumable, ждёт догрузки |
+| `wip/070_maj_checker_fp_fix_proposals.md` | P0 (6 гардов) влиты; P1 отложен из MVP. Файл 288KB — содержит сырой корпус |
+| `wip/072_maj_port_056_duplication_into_archcheck.md` | Phase 1+2 done; остаток: FP-гарды (#070), reporters, fixtures, dogfood |
+| `wip/079_maj_corpus_run_graph_dup_ai_correlation.md` | Корпус 513 реп сделан; активный фоновый find_revived.py (≥1000 реп H2-2025) |
+| `future/042_maj_clang_semantic_backend.md` | Правильно в future/v0.2; **блокирует** #050, #052. Спайк #043 ✅ подтвердил архитектуру |
+| `future/050_min_sf21_anonymous_namespace.md` | Тривиален (~30 строк), но заблокирован #042. Закрывать как #042c |
+| `future/052_maj_cross_tu_duplication_detector.md` | Заблокирован #042; Stage 0 perf-gate критичен |
+| `future/v1_min_ai_config_synthesis_trial_spdlog.md` | Leaf AI-synthesis; ждёт authoring_rules + eval_protocol |
 
 ---
 
-## Без анализа / под вопросом
+## Без анализа (нужно исследование)
 
-| Файл | Что не хватает | Рекомендация |
-|------|----------------|--------------|
-| `new/041_maj_audit_hardcoded_strings.md` | `Сложность: unknown`. Висит с 2026-05-28. Перекрывается с #051 (config_loader_v1) и с `docs/config_format.md`. | Решить **сейчас**, пока #051 в работе: либо доскопить до «фаза 0: grep-таблица + классификация» и втянуть как input в #051 фазу 2, либо переложить в `future/`. Один параллельный поток на config, не два. |
+| Файл | Что не хватает |
+|------|----------------|
+| `new/062_maj_diff_fragment_boundary_align.md` | Stub: только цель (FP-segmentation ~15%) + одна идея. Нет плана, файлов, критерия приёмки. Сложность `unknown` |
+| `new/064_min_diff_vendor_exclude.md` | Stub: цель + один чекбокс, без дизайна. **Сначала проверить** — не покрыт ли уже path-guards из #069/#071 (P0.9 isGeneratedPath + third_party) |
 
 ---
 
@@ -84,42 +99,31 @@
 
 | Файлы | Предложение |
 |-------|-------------|
-| `new/053` (fast line dup) ↔ `future/052` (AST duplication) | Сознательная пара (cheap layer + precise layer). `Related:` в обе стороны прописан. Не дубль. |
-| `new/041` (audit strings) ↔ `wip/051` (config loader) ↔ `docs/config_format.md` | Скрытое пересечение: #041 хочет вынести дефолты в Config, #051 уже это делает по спеке. Линковать `Related:` и/или поглотить #041. |
-| `new/045` (docs sync) ↔ `completed/044` (README sync) | #044 закрыт, #045 опирается на него — связь корректна. |
+| #029 ↔ #057 | Оба трогают `computeGraphMetrics` / fan-in / GraphMetrics. #057 реализует, #029 потребляет. Прописать `Related:` и порядок (#057 → #029), чтобы не делать дважды |
+| #053 / #056 / #072_maj / #052 | Комплементарные слои дедупа (line / token / port / AST). **Не дубли** — но границы держать явными (док `duplication_architecture.md` уже это фиксирует) |
+| #010 + 4×`v1_*` (authoring/iterative/eval/spdlog) | Кластер AI-config-synthesis. Ортогонален, дублей нет. **Корневой блокер снят** (`config_format_minimal_contract` в completed) → кластер можно двигать |
+| #074 ↔ #066 | #074 чинит то, что #066 задокументировал как сделанное, но не внедрил. Уточнить границу |
+| #077 ↔ #076 (completed) | #077 даёт инструмент для валидации cross-area drift из #076. Прописать `Related:` |
+| #045 ↔ #044 (completed) | Оба про docs-sync; риск дивергенции формулировок. Координировать |
+| `new/071_fp_classification_rules` ↔ memory `fp_classification_rules` | Задача — источник memory-записи, уже синхронизированы. Не конфликт |
+| #071 (future, clone catalog) ↔ #052/#053/#056/#070 | Umbrella над всем duplication-кластером. LD.10/11/14/16 уже done. Реально новые — только LD.15 (git-blame), LD.17 (hotspots) |
 
 ---
 
-## Коллизии и гигиена
+## Гигиена нумерации (для владельца бэклога)
 
-- **#048 номер занят дважды.** `completed/048_maj_fixture_libresprite_pr581.md` (закрыта сегодня) и `new/048_maj_drift_clean_checkout_methodology.md`. Перенумеровать новую → **#054** (после #053). Это вопрос гигиены: `Related: #048` в любых других файлах станет двусмысленным.
-- **`new/033_maj_ai_drift_dataset.md`** — нет в `new/`, перенесена в `future/` со статусом `in-progress`. Если работа над ней активна — формально это `wip/`, не `future/`. Либо вернуть в `wip/`, либо статус поправить на `paused`/`new`.
+Коллизии номеров — `/create-task` присвоил один номер дважды:
+
+| Номер | Конфликт | Заметка |
+|-------|----------|---------|
+| **048** | `new/048_maj_drift_clean_checkout_methodology` ↔ `completed/048_maj_fixture_libresprite_pr581` | Разные задачи, один номер |
+| **071** | `new/071_fp_classification_rules` ↔ `future/071_min_clone_detection_opportunities` | Разные задачи, один номер |
+| **072** | `wip/072_maj_port_056_…` ↔ `wip/072_min_clone_type_classifier` | Обе живые в wip |
+
+> `008a–008h` — намеренная буквенная нарезка одной задачи, **не** коллизия.
 
 ---
 
-## Состояние future/ и pending/
+## TASK_TRACKER.md
 
-- `future/` — 9 задач: 005 SARIF, 010 AI rule synthesis, 033 AI drift dataset, 042 clang backend, 050 SF.21, 052 cross-TU dup, три `v1_*`. Все за горизонтом v0.1.
-- `pending/` — не трогаю (правило [[feedback_pending_folder]]).
-
----
-
-## Сводка
-
-- WIP: **1** (#051).
-- Активных в `new/`: **7**.
-- Quick win: **2** (#046, #048 drift methodology).
-- Средние: **3** (#029, #032, #045).
-- Большая: **1** (#053).
-- Под вопросом скоуп: **1** (#041).
-- Заблокировано внешне: **0**.
-- Закрыто с утра: **6** + 4 переезда в `future/`.
-
-## Рекомендуемый порядок ходов
-
-1. **5 мин гигиены** — перенумеровать `new/048` → `#054`; поправить статус `future/033` на `wip/` или `paused`.
-2. **Решить #041** — пока #051 в работе, либо втянуть фазу 0, либо в `future/`.
-3. **#048 drift methodology** — 1 час, разблокирует будущие drift-прогоны.
-4. **#046 color TTY** — 2 часа, закроет doc↔code drift.
-5. **Дождаться #051** — потом #029 / #032 / #045 в любом порядке.
-6. **#053** — после v0.1 ката, это v0.2-материал.
+Существует (`backlog/TASK_TRACKER.md`, дата 2026-06-02) — кураторский P0/P1/P2/OUT-срез под MVP v1, не простой чек-лист. **Этим скилом не правил** (свежий стратегический артефакт). Владельцу стоит отразить в нём done-but-not-moved (#080/#081/#072_min) при следующем апдейте.
