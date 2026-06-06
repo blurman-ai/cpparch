@@ -93,6 +93,27 @@
 
 ## Сделано
 
+### Сессия 2026-06-05 — attribution, агентная выборка, динамика constraint decay
+
+- ✅ **Commit-level AI-атрибуция** (`commit_attribution.py`): join drift-событий (sha) × тело
+  коммита. AI-коммиты **недо**представлены в дрейфе (cycle-births 0.66×, cross-area 0.45×),
+  частично size-конфаундер (человеческий коммит ×2.3 по added_edges). Причинный «AI→drift» мёртв
+  даже на commit-level.
+- ✅ **Consequences-first ranking** (`ranking_consequences.py`, `enrich_head.py`) — долг × AI% ×
+  команда × гард; god-headers/циклы/chain на HEAD.
+- ✅ **470 C++ реп с гарантией ИИ-коммитов** (`find_ai_repos.py`/measured → `ai_guaranteed_FINAL.tsv`)
+  + 1543 winner'а >300 коммитов. Эфемерный скан всех 470 (`ephemeral_scan.py`: clone shallow-since
+  → strip до C++/CMake → scan → KEEP, delete если >150MB) → `agentic_scan_470.tsv`.
+- ✅ **Отчёт с verbatim-КОДОМ** `experiments/AGENTIC_CODE_REPORT.md` — авторский долг (вендор
+  отфильтрован, `authored_debt.py`/`filtered_dup.py`): mako `__dep__.h` fan-in 123 + Raft-копипаст;
+  OTTO `OTTOColours.h` 94 + EQ-биндинги ×3; cajeta LLVM-init в 3 GPU-бэкендах; hpsx64/FreshVoxel.
+  Вендор-фильтр для dup **обязателен** (esys 768→15, T5ynth 93→3).
+- ✅ **Динамика constraint decay** (`time_dynamics.py`): mako cross-module coupling **11→39 (×3.5)**
+  за год; newton (человек) — плоско 1.5 года. **Длина коммит-сообщения = trailer-независимый
+  ИИ-детектор** (валидировано: bot ×6-7; mako 30→1090 симв в янв 2026 — совпало с coupling-jump).
+
+### Исходный корпусный прогон (2026-06-03)
+
 - ✅ **Полный корпусный прогон (343 → 317 C++ реп)** завершён:
   - Граф-дрифт per-commit на **всех 280k+ commits** (май 2025 → июнь 2026)
   - Дупликация на HEAD для всех 317 реп
@@ -112,15 +133,30 @@
 
 ## В работе
 
-1. **Анализ данных** — post-processing результатов:
-   - Spearman корреляция между AI% и graph_errors/dup_pairs
-   - Blame drill-down на топ-коррелированных репо (CnC_Generals 2538 pairs)
-   - Тренд-анализ по кварталам (опционально)
+1. **Статистическая выборка для H2-2025 decay** (`find_revived.py`, фоновый прогон):
+   - ищем **старые (2+ года) C++ репы с ростом плотности коммитов в май-ноя 2025** (агентная волна)
+   - метод без трейлеров: возраст (created<2023) + velocity-surge ≥2× окно/baseline
+   - эфемерный замер (blobless shallow-клон → помесячная плотность → delete), resumable, троттлинг-aware
+   - **цель ≥1000 реп** → затем на каждой Δ-длины-сообщения (переход на ИИ) × Δ-архитектуры (decay)
+     → корреляция «удлинение сообщений ↔ coupling/dup» на статистике
+2. **Чистая арка** — cajeta (2022 человек → май 2026 агент) прогнать по 2-летней динамике.
 
 ---
 
 ## Ключевые решения
 
+### Сессия 2026-06-05
+- **Сигнальная иерархия ИИ:** trailer > bot-авторство > AI% по сообщениям ≫ velocity-ramp (мусор —
+  ловит любой всплеск, топ-ramp дал AI%=0). **Длина коммит-сообщения** — trailer-независимый прокси,
+  ловит невидимый IDE-ИИ и снятые трейлеры.
+- **Гиганты с ревью/контрибуторами — выкинуть** (долг от размера, FP); **вендор для dup — обязательно
+  фильтровать** (иначе esys/T5ynth ложно «чемпионы копипаста»).
+- **2 года истории × размеченный ИИ почти не пересекаются** — агентность феномен 2025; старые репы =
+  человеческие или токенные bot-PR. cajeta (2022→2026) — редкое исключение, единственная чистая арка.
+- **Демо-тезис не «AI вызвал долг», а «вот агентный C++ без гарда + структурный долг, который тулза
+  достаёт»** — причинность не доказуема, специмены доказуемы.
+
+### Исходные
 - **Per-commit граф-дрифт: first-parent только** — 280k commits за ~4 часа вместо недель при full history
 - **Дупликация на HEAD + blame drill-down** — быстро находим текущее состояние, потом ловим виновника по требованию
 - **Bimodal распределение AI%** — не континуум, а два пика: "AI-native" (100%) и "AI-augmented" (50-90%)
@@ -130,10 +166,22 @@
 
 ## Изменённые файлы
 
-- **experiments/ai_repo_run/corpus_summary.tsv** — 317 реп × 9 колонок (сгенерирован, ~87 KB)
-  - Новые колонки: `graph_errors`, `dup_pairs` (заполнены из полного прогона per-commit)
-- **experiments/ai_repo_run/corpus_report.md** — топ-50 реп по AI% с новыми метриками (обновлён)
-- **experiments/CORPUS_FINDINGS.md** — обновлены выводы с граф-дрифт и дупликат-корреляциями
+### Сессия 2026-06-05 (новые, все в `experiments/`)
+- **Отчёты:** `AGENTIC_CODE_REPORT.md` (долг с verbatim-кодом), `CONSEQUENCES_RANKING.md`
+- **Скрипты** (`ai_repo_run/`): `commit_attribution.py`, `ranking_consequences.py`, `enrich_head.py`,
+  `ephemeral_scan.py`, `graph_metrics.py`, `authored_debt.py`, `filtered_dup.py`, `scan_deep9.py`,
+  `time_dynamics.py`, `find_ai_repos.py`, `agent_author_scan.py`, `changepoint_scan.py`,
+  `find_old_agentic.py`, `find_revived.py`
+- **Артефакты** (`ai_repo_run/`): `ai_guaranteed_FINAL.tsv` (470), `new_winners_clean.tsv` (1543),
+  `agentic_scan_470.tsv`, `agent_switch_ranked.tsv`, `agent_author_ranked.tsv`, `filtered_dup.txt`,
+  `dynamics_*.tsv`, `revived_*.tsv` (в работе)
+- KEEP-деревья: `~/oss/_agentic_corpus/` (стриппнутые до C++/CMake, для re-scan)
+- Коммитов нет (всё в experiments/, не закоммичено — ждёт явной команды)
+
+### Исходные (2026-06-03)
+- **experiments/ai_repo_run/corpus_summary.tsv** — 317 реп × 9 колонок
+- **experiments/ai_repo_run/corpus_report.md** — топ-50 реп по AI%
+- **experiments/CORPUS_FINDINGS.md** — выводы с граф-дрифт и дупликат-корреляциями
 
 ---
 
