@@ -1,0 +1,151 @@
+repo	lang	group	adoption	commits_before	commits_after	commits_ratio	lpc_before	lpc_after	lpc_ratio	fpc_before	fpc_after	fpc_ratio	cyc_before	cyc_after	dup_before	dup_after	size_mb
+tksuoran/erhe	cpp	agentic	2026-03-21	111	357	3.22	343.5	644.1	1.88	13.09	12.64	0.97	4	4	4.9	4.1	57
+derekbsnider/madc	cpp	agentic	2026-04-14	1	846	846.0	0	268.2		0	4.62			0		13.1	13
+Xilinx/mlir-air	cpp	agentic	2025-12-08	94	156	1.66	255.0	421.5	1.65	5.35	6.86	1.28	0	0	14.5	16.1	31
+sjg20/paperman	cpp	agentic	2025-11-08	0	41		0	0		0	0		0	0	6.2	5.2	13
+osamu620/OpenHTJ2K	cpp	agentic	2026-03-30	0	597		0	172.1		0	2.96		0	0	0.0	2.9	354
+Provenance-Emu/Provenance	cpp	agentic	TOO_BIG(1844MB)														
+OpenMagnetics/MKF	cpp	agentic	2026-03-09	237	532	2.24	11881.9	11020.3	0.93	8.51	8.96	1.05	0	0	15.2	7.3	223
+ender672/liboil	cpp	agentic	2026-03-27	0	317		0	142.2		0	1.85		0	0	0.0	52.0	2
+conradhuebler/curcuma	cpp	agentic	2025-07-16	17	30	1.76	1128.1	1633.7	1.45	7.78	15.41	1.98	1	1	16.9	9.9	52
+ciaranm/glasgow-constraint-solver	cpp	agentic	2026-04-26	39	456	11.69	159.3	132.4	0.83	7.67	4.17	0.54	0	0	3.6	3.9	8
+OpenMS/OpenMS	cpp	agentic	TOO_BIG(912MB)														
+LutzGross/esys-escript.github.io	cpp	agentic	TOO_BIG(840MB)														
+LoRaMesher/LoRaMesher	cpp	agentic	2025-06-30	63	126	2.0	1310.6	274.0	0.21	5.67	2.68	0.47	0	0	1.1	3.9	8
+jimhester/libvroom	cpp	agentic	2026-01-01	19	440	23.16	0	1092.8		0	5.03			0		21.2	18
+stillwater-sc/universal	cpp	agentic	2026-01-25	9	260	28.89	6089.7	950.3	0.16	54.33	10.25	0.19	4	4	3.4	2.3	806
+xord/all	cpp	agentic	2026-04-02	14	281	20.07	36.7	86.3	2.35	2.28	3.29	1.44	0	0	2.4	1.7	9
+duanery/perf-prof	cpp	agentic	2025-10-28	28	118	4.21	62.1	2635.1	42.43	3.04	2.62	0.86	0	0	0.8	0.6	47
+alphaonex86/CatchChallenger	cpp	agentic	2026-04-29	57	289	5.07	2269.1	1871.2	0.82	37.3	12.82	0.34	0	0	7.7	6.9	81
+Serial-Studio/Serial-Studio	cpp	agentic	TOO_BIG(321MB)														
+mrdunk/rp2040_pio_stepper	cpp	agentic	2026-04-11	0	296		122.8	94.2	0.77	3.25	2.93	0.9	0	0	2.7	0.0	3
+haaspors/rlib	cpp	agentic	2026-05-16	0	577		2688.2	389.2	0.14	12.48	2.92	0.23	0	0	7.4	7.1	19
+apache/axis-axis2-c-core	cpp	agentic	2025-12-10	19	218	11.47	4168.8	1928.6	0.46	50.42	5.11	0.1	4	4	5.0	4.2	55
+fernandotonon/QtMeshEditor	cpp	agentic	2025-06-27	2	4	2.0	3453.5	85.5	0.02	11.75	1.5	0.13	0	0	10.2	7.8	222
+medicalopenworld/IncuNest	cpp	agentic	2026-04-08	141	187	1.33	370.6	405.0	1.09	7.56	4.12	0.54	13	12	5.9	1.4	413
+CoolProp/CoolProp	cpp	agentic	2025-10-01	54	29	0.54	303.2	609.2	2.01	1.3	5.79	4.45	2	2	10.5	4.9	71
+aravindkrishnaswamy/RISE	cpp	agentic	2026-03-17	26	530	20.38	305.8	2759.2	9.02	10.0	13.37	1.34	6	6	4.5	5.0	376
+aallamaa/alcove	cpp	agentic	2026-04-23	0	396		0	336.8		0	2.88			0		6.1	9
+NeoGeographyToolkit/StereoPipeline	cpp	agentic	TOO_BIG(244MB)														
+numaes/protoCore	cpp	agentic	TOO_BIG(257MB)														
+zfogg/ascii-chat	cpp	agentic	TOO_BIG(202MB)														
+objeck/objeck-lang	cpp	agentic	TOO_BIG(3295MB)														
+OpenIDC/mod_auth_openidc	cpp	agentic	2026-05-11	8	250	31.25	10.7	120.6	11.27	2.33	3.08	1.32	0	0	4.8	4.3	5
+DangarStu/JACL	cpp	agentic	2026-03-28	0	423		167.0	404.1	2.42	6.0	3.35	0.56	0	0	41.0	7.8	102
+arttttt/SmokeR24.1-kernel	cpp	agentic	TOO_BIG(810MB)														
+battlesloth/AstrOs.ESP	cpp	agentic	2026-04-11	4	426	106.5	587.0	146.3	0.25	5.25	2.54	0.48	0	0	0.0	0.0	44
+seto77/ReciPro	cpp	agentic	TOO_BIG(627MB)														
+storaged-project/libblockdev	cpp	agentic	2025-12-03	25	45	1.8	52.2	36.5	0.7	2.26	1.86	0.82	0	0	14.6	18.0	6
+GregorGullwi/FlashCpp	cpp	agentic	2025-12-12	1244	738	0.59	226.5	902.6	3.98	3.23	6.43	1.99	0	4	13.6	20.7	47
+small-db/small-db	cpp	agentic	2026-02-08	51	82	1.61	899.6	227.3	0.25	7.12	5.1	0.72	0	0	0.0	0.0	20
+jdolan/quetoo	cpp	agentic	2026-02-15	283	827	2.92	182.7	149.9	0.82	4.31	3.77	0.87	3	2	1.2	1.3	54
+GaijinEntertainment/daScript	cpp	agentic	2026-03-05	554	1761	3.18	2287.7	3112.8	1.36	22.05	8.33	0.38	1	1	10.6	11.8	229
+LoveDaisy/ice_halo_sim	cpp	agentic	2026-02-10	20	858	42.9	759.6	133.5	0.18	3.9	3.46	0.89	0	0	7.7	3.7	53
+SynchronetBBS/sbbs	cpp	agentic	TOO_BIG(281MB)														
+RayforceDB/rayforce	cpp	agentic	2025-10-24	80	303	3.79	91.3	238.1	2.61	2.99	5.13	1.72	0	0	0.0	0.0	36
+fmidev/smartmet-plugin-wms	cpp	agentic	TOO_BIG(614MB)														
+MaximumTrainer/MaximumTrainer_Redux	cpp	agentic	2026-03-02	15	374	24.93	12129.7	305.8	0.03	58.6	5.28	0.09	0	0	9.3	6.9	111
+Intersec/lib-common	cpp	agentic	2025-10-07	68	69	1.01	93.6	84.3	0.9	3.11	2.97	0.95	0	0	0.0	0.0	23
+apache/thrift	cpp	agentic	2026-01-27	96	158	1.65	79.2	152.3	1.92	3.05	5.77	1.89	0	0	9.5	9.0	35
+pg83/std	cpp	agentic	2026-03-11	855	1040	1.22	79.9	81.5	1.02	2.82	2.35	0.83	0	0	3.5	3.4	5
+brazilofmux/tinymux	cpp	agentic	2025-04-02	56	12	0.21	8735.7	559.8	0.06	9.24	4.17	0.45	1	1	16.6	11.1	105
+rockowitz/ddcutil	cpp	agentic	2026-04-13	401	393	0.98	18.8	29.8	1.59	1.34	1.6	1.19	0	0	1.6	1.6	12
+openhpc/ohpc	cpp	agentic	2025-07-31	68	121	1.78	216.7	845.7	3.9	4.84	10.48	2.17	0	0	0.0	0.0	71
+storaged-project/udisks	cpp	agentic	2025-09-19	23	48	2.09	25.7	537.2	20.9	1.36	1.4	1.03	0	0	3.8	4.5	13
+DanielXMoore/Civet	cpp	agentic	2026-03-30	89	784	8.81	43.4	142.4	3.28	1.87	2.71	1.45	0	0		50.0	17
+arkime/arkime	cpp	agentic	2025-08-29	40	35	0.88	108.0	42.3	0.39	7.5	2.2	0.29	0	0	17.1	15.9	34
+Palpitate-xus/DBMS_C_plus_plus	cpp	agentic	2026-04-30	0	309		754.5	184.5	0.24	7.5	4.19	0.56	0	0	6.9	26.5	5
+alexwu1984/MiniEngine	cpp	agentic	TOO_BIG(294MB)														
+FastLED/FastLED	cpp	agentic	TOO_BIG(300MB)														
+cx20/hello	cpp	agentic	2026-03-28	450	216	0.48	959.9	381.4	0.4	10.25	11.27	1.1	0	0	30.8	17.4	69
+SciQLop/SciQLopPlots	cpp	agentic	2026-03-06	10	308	30.8	12.2	214.3	17.57	2.2	3.94	1.79	0	0	5.7	2.8	13
+djeada/Lightpad	cpp	agentic	2026-02-07	244	97	0.4	841.7	1215.6	1.44	6.62	14.93	2.26	0	0	6.5	5.0	9
+microsoft/CCF	cpp	agentic	2025-05-22	131	144	1.1	105.1	478.7	4.55	4.66	8.62	1.85	0	0			54
+Xilinx/mlir-aie	cpp	agentic	TOO_BIG(1462MB)														
+uksf/modpack	cpp	agentic	TOO_BIG(446MB)														
+mruby/mruby	cpp	agentic	2025-07-05	343	510	1.49	116.6	464.6	3.98	1.51	1.78	1.18	0	0	10.6	6.9	18
+pcornier/iigs_simulation	cpp	agentic	2025-08-27	57	95	1.67	2935.5	3711.9	1.26	3.42	3.08	0.9	0	0	7.2	8.6	23
+203-Systems/MatrixOS	cpp	agentic	2026-04-09	113	164	1.45	644.1	612.3	0.95	9.11	11.02	1.21	1	1	3.7	4.1	38
+qoretechnologies/qore	cpp	agentic	2025-12-26	98	904	9.22	207.7	4742.5	22.83	3.39	12.05	3.55	0	0	0.0	17.5	202
+northriv/KAME	cpp	agentic	2026-03-26	201	1023	5.09	93.0	158.3	1.7	2.5	2.89	1.16	0	0	5.4	6.1	27
+ObjectVision/GeoDMS	cpp	agentic	2026-04-14	240	186	0.78	168.1	1722.8	10.25	7.05	2.91	0.41	1	1	3.6	3.3	109
+dasch-swiss/sipi	cpp	agentic	TOO_BIG(488MB)														
+RediSearch/RediSearch	cpp	agentic	2025-03-31	120	187	1.56	384.5	344.0	0.89	8.45	8.75	1.04	1	1	0.9	1.1	61
+SWI-Prolog/packages-xpce	cpp	agentic	2026-04-19	144	138	0.96	98.9	104.4	1.06	6.76	2.91	0.43	0	0	0.0	0.0	26
+ModbusScope/ModbusScope	cpp	agentic	2026-03-18	60	365	6.08	39.6	155.5	3.93	2.7	4.37	1.62	0	0	0.0	1.0	203
+BobTheBuidler/dank_mids	cpp	agentic	TOO_BIG(1491MB)														
+shorepine/tulipcc	cpp	agentic	TOO_BIG(469MB)														
+Quicr/hactar	cpp	agentic	TOO_BIG(627MB)														
+msoos/cryptominisat	cpp	agentic	2026-03-11	49	323	6.59	41.3	59.6	1.44	3.19	2.46	0.77	0	0	133.3	416.7	8
+exapde/Exasim	cpp	agentic	TOO_BIG(766MB)														
+cvxpy/cvxpy	cpp	agentic	TOO_BIG(225MB)														
+strace/strace	cpp	agentic	2026-03-10	92	110	1.2	98.7	69.0	0.7	3.22	3.71	1.15	0	0	1.0	0.9	28
+spicelang/spice	cpp	agentic	2026-04-28	97	71	0.73	189.9	318.8	1.68	8.52	7.56	0.89	0	0	3.2	2.5	25
+solids4foam/cardiacFoam	cpp	agentic	2026-03-09	134	152	1.13	5205.6	89966.8	17.28	13.45	24.59	1.83	0	0			98
+category-labs/monad	cpp	agentic	2026-01-19	221	152	0.69	191.3	427.2	2.23	4.59	8.46	1.84	0	0	3.2	2.6	58
+MRPT/mrpt	cpp	agentic	TOO_BIG(306MB)														
+dismine/valentina	cpp	agentic	TOO_BIG(352MB)														
+lingo-db/lingo-db	cpp	agentic	2025-10-08	150	81	0.54	335.7	117.3	0.35	6.77	4.2	0.62	0	0	7.2	7.6	29
+ENZYME-APD/tapir-archicad-automation	cpp	agentic	2026-04-15	38	59	1.55	91.4	232.3	2.54	2.63	2.68	1.02	0	0	0.0	1.6	293
+doldecomp/melee	cpp	agentic	2025-12-26	60	312	5.2	820.0	616.8	0.75	11.19	12.09	1.08	0	0	3.4	4.6	84
+microsoft/WSL	cpp	agentic	2025-08-05	88	62	0.7	3049.0	120.8	0.04	13.22	2.77	0.21	6	8	3.1	2.1	79
+logicalclocks/rondb	cpp	agentic	TOO_BIG(1900MB)														
+eic/EICrecon	cpp	agentic	2025-08-28	86	73	0.85	187.1	69.2	0.37	8.12	3.38	0.42	0	0	1.8	3.7	19
+EXP-code/EXP	cpp	agentic	2025-04-22	61	108	1.77	45.7	132.8	2.91	1.61	1.73	1.07	0	0	16.0	15.3	22
+Z3Prover/z3	cpp	agentic	2025-06-20	199	246	1.24	226.7	253.7	1.12	5.02	2.79	0.56	0	0	4.0	3.5	55
+Cytnx-dev/Cytnx	cpp	agentic	TOO_BIG(333MB)														
+TimelordUK/node-sqlserver-v8	cpp	agentic	2025-06-14	300	146	0.49	684.3	91.7	0.13	6.92	2.43	0.35	0	0	0.8	0.8	7
+surge-synthesizer/shortcircuit-xt	cpp	agentic	2026-03-14	198	63	0.32	145.0	310.3	2.14	5.75	7.86	1.37	2	2	5.1	4.8	61
+project-gemmi/gemmi	cpp	agentic	2025-08-20	80	27	0.34	96.3	293.7	3.05	2.02	1.78	0.88	0	0	0.9	3.1	15
+parthenon-hpc-lab/parthenon	cpp	agentic	2026-04-07	96	53	0.55	46.9	206.8	4.41	3.18	6.2	1.95	0	0	2.5	2.4	21
+orioledb/orioledb	cpp	agentic	2025-11-26	134	117	0.87	122.7	277.2	2.26	3.75	5.04	1.34	1	1	6.9	7.5	34
+simulationcraft/simc	cpp	control	TOO_BIG(4915MB)														
+vygr/ChrysaLisp	cpp	control	TOO_BIG(273MB)														
+xtensor-stack/xsimd	cpp	control	2025-09-01	50	62	1.24	91.5	102.3	1.12	2.92	2.75	0.94	1	1	3.2	1.7	6
+EsotericSoftware/spine-runtimes	cpp	control	TOO_BIG(631MB)														
+doitsujin/dxvk	cpp	control	2025-09-01	185	272	1.47	78.4	145.8	1.86	2.47	2.71	1.1	1	1	4.9	4.6	14
+gammasoft71/xtd	cpp	control	TOO_BIG(2697MB)														
+rakshasa/rtorrent	cpp	control	2025-09-01	59	40	0.68	49.8	101.8	2.04	2.95	5.43	1.84	1	1	2.1	2.6	5
+FarGroup/FarManager	cpp	control	2025-09-01	158	160	1.01	284.7	109.2	0.38	5.21	3.7	0.71	15	15	4.5	4.5	93
+ossia/score	cpp	control	2025-09-01	229	280	1.22	80.4	130.3	1.62	3.24	3.67	1.13	0	0	2.5	2.8	116
+uxlfoundation/oneDNN	cpp	control	TOO_BIG(226MB)														
+JakubMelka/PDF4QT	cpp	control	2025-09-01	20	17	0.85	3723.1	626.3	0.17	4.75	6.19	1.3	0	0	0.0	0.0	43
+fmtlib/fmt	cpp	control	2025-09-01	59	123	2.08	33.3	28.9	0.87	1.6	1.44	0.9	0	0	0.0	0.0	7
+Sigil-Ebook/Sigil	cpp	control	TOO_BIG(237MB)														
+zealdocs/zeal	cpp	control	2025-09-01	12	38	3.17	66.1	35.4	0.54	2.79	3.19	1.14	0	0	1.2	0.0	7
+pqrs-org/Karabiner-Elements	cpp	control	2025-09-01	201	299	1.49	55.3	53.5	0.97	2.45	3.65	1.49	0	0	2.4	1.4	133
+fasiondog/hikyuu	cpp	control	TOO_BIG(219MB)														
+jpd002/Play-	cpp	control	2025-09-01	36	64	1.78	162.8	37.5	0.23	3.81	2.16	0.57	0	0	2.0	2.5	16
+huxingyi/dust3d	cpp	control	2025-09-01	0	0		0	0		0	0		0	0	5.9	16.9	11
+dosbox-staging/dosbox-staging	cpp	control	2025-09-01	592	394	0.67	206.0	459.0	2.23	9.66	4.11	0.43	0	0	4.4	4.3	58
+scummvm/scummvm	cpp	control	TOO_BIG(2375MB)														
+Martchus/syncthingtray	cpp	control	2025-09-01	213	180	0.85	126.6	254.6	2.01	2.72	3.17	1.17	0	0	0.6	1.2	28
+google-ai-edge/mediapipe	cpp	control	TOO_BIG(607MB)														
+stack-of-tasks/pinocchio	cpp	control	2025-09-01	263	362	1.38	241.1	183.1	0.76	2.02	2.72	1.35	14	113	2.7	1.8	37
+lballabio/QuantLib	cpp	control	2025-09-01	143	204	1.43	6107.1	147.7	0.02	52.95	3.35	0.06	0	0	1.6	1.6	57
+FirebirdSQL/firebird	cpp	control	TOO_BIG(312MB)														
+CalcProgrammer1/OpenRGB	cpp	control	2025-09-01	287	110	0.38	259.5	264.9	1.02	5.45	16.84	3.09	2	2	2.3	1.9	103
+lammps/lammps	cpp	control	TOO_BIG(864MB)														
+wesnoth/wesnoth	cpp	control	TOO_BIG(5015MB)														
+project64/project64	cpp	control	2025-09-01	14	8	0.57	439.6	161.8	0.37	7.64	4.88	0.64	5	5	7.4	8.5	86
+particle-iot/device-os	cpp	control	2025-09-01	24	18	0.75	12.1	74.9	6.19	1.96	2.78	1.42	3	4	4.1	4.3	30
+NatLabRockies/EnergyPlus	cpp	control	TOO_BIG(1195MB)														
+diasurgical/DevilutionX	cpp	control	2025-09-01	109	92	0.84	187.5	3351.4	17.87	6.24	6.61	1.06	0	0	1.1	0.8	52
+moneymanagerex/moneymanagerex	cpp	control	TOO_BIG(279MB)														
+stenzek/duckstation	cpp	control	2025-09-01	527	682	1.29	545.9	309.3	0.57	2.8	3.58	1.28	1	1	6.6	7.3	214
+OpenMW/openmw	cpp	control	2025-09-01	598	242	0.4	147.4	63.1	0.43	4.21	4.61	1.1	0	0	1.5	1.6	55
+GameTechDev/PresentMon	cpp	control	2025-09-01	111	177	1.59	99.1	190.0	1.92	5.05	4.04	0.8	0	0	2.0	2.8	104
+BinomialLLC/basis_universal	cpp	control	TOO_BIG(357MB)														
+pafuhana1213/KawaiiPhysics	cpp	control	2025-09-01	72	7	0.1	189.9	176.6	0.93	5.35	2.86	0.53	0	0	4.2	4.3	71
+liuliu/ccv	cpp	control	TOO_BIG(443MB)														
+kcat/openal-soft	cpp	control	2025-09-01	246	202	0.82	153.6	245.2	1.6	4.71	4.26	0.9	0	0	7.1	5.5	15
+crownengine/crown	cpp	control	TOO_BIG(223MB)														
+arvidn/libtorrent	cpp	control	2025-09-01	32	11	0.34	32.0	11.0	0.34	3.07	2.17	0.71	0	0	3.6	3.6	20
+ERGO-Code/HiGHS	cpp	control	2025-09-01	446	555	1.24	88.3	105.6	1.2	3.33	2.77	0.83	0	0	4.3	3.6	58
+solemnwarning/rehex	cpp	control	2025-09-01	69	14	0.2	163.6	31.5	0.19	3.53	1.62	0.46	1	1	4.5	4.4	22
+tumic0/GPXSee	cpp	control	2025-09-01	61	258	4.23	132.1	222.6	1.69	1.54	3.52	2.29	0	0	3.7	3.2	37
+windirstat/windirstat	cpp	control	2025-09-01	56	126	2.25	93.1	111.0	1.19	6.6	8.35	1.27	1	1	4.8	0.9	15
+monocasual/giada	cpp	control	2025-09-01	224	120	0.54	40.8	34.9	0.86	5.3	3.78	0.71	0	0	0.5	0.5	6
+OtterBrowser/otter-browser	cpp	control	2025-09-01	90	90	1.0	14.0	7.6	0.54	1.43	1.33	0.93	0	0	4.7	4.7	41
+godlikepanos/anki-3d-engine	cpp	control	TOO_BIG(1535MB)														
+LibrePCB/LibrePCB	cpp	control	2025-09-01	149	82	0.55	633.1	224.2	0.35	10.16	7.54	0.74	0	0	2.3	2.1	40
