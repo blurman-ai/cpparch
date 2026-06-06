@@ -1,8 +1,9 @@
 # [SCAN][DUPLICATION][BUILD] Вынести `fp_corpus_eval` из shipped `archcheck_core`
 
 **Дата создания:** 2026-06-05
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-05
+**Дата завершения:** 2026-06-05
+**Статус:** completed
 **Модуль:** SCAN/DUPLICATION + BUILD
 **Приоритет:** minor
 **Сложность:** S
@@ -42,7 +43,25 @@ alignment контрактов.
 
 ## Acceptance criteria
 
-- [ ] `archcheck_core` (shipped-lib) больше не содержит placeholder corpus-eval кода.
-- [ ] Тест `duplication_fp_corpus_eval_test` продолжает собираться и проходить (или
-      перемещён вместе с кодом).
-- [ ] Build зелёный; coverage-пороги держатся.
+- [x] `archcheck_core` (shipped-lib) больше не содержит placeholder corpus-eval кода.
+- [x] Тест `duplication_fp_corpus_eval_test` продолжает собираться и проходить.
+- [x] Build зелёный; coverage-пороги держатся.
+
+## Как сделано (2026-06-05)
+
+Выбран вариант 1 (test-only target), файлы оставлены на месте:
+
+- `src/CMakeLists.txt` — `scan/duplication/fp_corpus_eval.cpp` убран из списка
+  источников `archcheck_core`, на его месте — комментарий-пойнтер.
+- `tests/CMakeLists.txt` — `${CMAKE_SOURCE_DIR}/src/scan/duplication/fp_corpus_eval.cpp`
+  добавлен в источники `archcheck_tests` (компилируется прямо в тест-бинарь).
+- `include/archcheck/scan/duplication/fp_corpus_eval.h` — шапка помечена как
+  research/QA test-only harness (не часть shipped `archcheck_core`).
+
+**Проверка:** `ar t libarchcheck_core.a` — нет `fp_corpus_eval.o`; `nm` — нет
+corpus-символов в shipped-lib. Тест `duplication_fp_corpus_eval_test` собирается и
+проходит. Полный gate: clang-format/cppcheck/lizard чисто, build, 344/344, smoke,
+coverage 91.4/95.8/57.2 — PASS.
+
+**Заметка:** placeholder `evaluateAgainstCorpus` остался placeholder'ом — реальную
+корпус-метрику считать здесь не требовалось; если понадобится, это часть #083.
