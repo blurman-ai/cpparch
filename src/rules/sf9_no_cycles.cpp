@@ -1,6 +1,8 @@
 #include "archcheck/rules/sf9_no_cycles.h"
 
+#include <array>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -55,6 +57,61 @@ bool allEdgesConditional(const graph::DependencyGraph &g, graph::NodeId start, c
   return g.isConditionalEdge(path.back(), start);
 }
 
+bool endsWith(std::string_view s, std::string_view suf)
+{
+  return s.size() >= suf.size() && s.compare(s.size() - suf.size(), suf.size(), suf) == 0;
+}
+
+// Markers of an inline/template implementation file that legitimately pairs with a
+// same-stem header (foo.h + foo.inl / foo.ipp / foo.hxx / foo-inl.h ...).
+constexpr std::array<std::string_view, 10> kImplMarkers = {"-inl.h", "_inl.h", ".tmpl.h", ".impl.h", ".inl",
+                                                           ".ipp",   ".icc",   ".tcc",    ".tpp",    ".hxx"};
+
+bool isImplName(std::string_view name)
+{
+  for (std::string_view m : kImplMarkers)
+    if (endsWith(name, m))
+      return true;
+  return false;
+}
+
+std::string componentStem(std::string_view name)
+{
+  for (std::string_view m : kImplMarkers)
+    if (endsWith(name, m))
+      return std::string(name.substr(0, name.size() - m.size()));
+  for (std::string_view ext : {".hpp", ".hh", ".h"})
+    if (endsWith(name, ext))
+      return std::string(name.substr(0, name.size() - ext.size()));
+  return std::string(name);
+}
+
+std::string_view baseName(std::string_view path)
+{
+  const std::size_t s = path.rfind('/');
+  return s == std::string_view::npos ? path : path.substr(s + 1);
+}
+
+std::string_view dirName(std::string_view path)
+{
+  const std::size_t s = path.rfind('/');
+  return s == std::string_view::npos ? std::string_view{} : path.substr(0, s);
+}
+
+// foo.h <-> foo.inl (same dir + stem, one side an inline/template impl) is a single
+// component split, not an architectural cycle: the include loop is broken by the
+// guard. Only the strict 2-node form qualifies (#088).
+bool isInlineSplitScc(const graph::DependencyGraph &g, const std::vector<graph::NodeId> &scc)
+{
+  if (scc.size() != 2)
+    return false;
+  const std::string pa(g.pathOf(scc[0]));
+  const std::string pb(g.pathOf(scc[1]));
+  if (dirName(pa) != dirName(pb) || componentStem(baseName(pa)) != componentStem(baseName(pb)))
+    return false;
+  return isImplName(baseName(pa)) || isImplName(baseName(pb));
+}
+
 std::string buildCycleMessage(const graph::DependencyGraph &g, const std::vector<graph::NodeId> &path,
                               graph::NodeId start)
 {
@@ -79,6 +136,8 @@ ViolationList Sf9NoCycles::check(const graph::DependencyGraph &graph,
   for (const auto &scc : archcheck::graph::computeScc(graph))
   {
     if (scc.size() < 2)
+      continue;
+    if (isInlineSplitScc(graph, scc))
       continue;
     const std::unordered_set<graph::NodeId> members(scc.begin(), scc.end());
     const graph::NodeId start = scc.front();
