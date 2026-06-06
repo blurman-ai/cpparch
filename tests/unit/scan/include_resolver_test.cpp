@@ -173,6 +173,36 @@ TEST_CASE("resolve_include angle: system header suffix-matching own path -> Exte
   REQUIRE(r.resolution == Resolution::External);
 }
 
+TEST_CASE("resolve_include angle: standard C header is External despite project basename shadow",
+          "[scan][resolver][system]")
+{
+  // #088: PipeWire defs.h does `#include <string.h>` while the repo ships a
+  // local string.h elsewhere; suffix-matching invented a phantom defs.h<->string.h cycle.
+  const auto files = files_of({"src/a.cpp", "src/compat/string.h"});
+  const ProjectIndex index = buildProjectIndex(files);
+  const ResolvedInclude r = resolveInclude(angle("string.h"), "src/a.cpp", files, index);
+  REQUIRE(r.resolution == Resolution::External);
+}
+
+TEST_CASE("resolve_include angle: extensionless C++ header is External despite project shadow",
+          "[scan][resolver][system]")
+{
+  const auto files = files_of({"src/a.cpp", "vendor/vector"});
+  const ProjectIndex index = buildProjectIndex(files);
+  const ResolvedInclude r = resolveInclude(angle("vector"), "src/a.cpp", files, index);
+  REQUIRE(r.resolution == Resolution::External);
+}
+
+TEST_CASE("resolve_include angle: pathed header sharing a std basename still resolves to project",
+          "[scan][resolver][system]")
+{
+  const auto files = files_of({"src/a.cpp", "myproj/string.h"});
+  const ProjectIndex index = buildProjectIndex(files);
+  const ResolvedInclude r = resolveInclude(angle("myproj/string.h"), "src/a.cpp", files, index);
+  REQUIRE(r.resolution == Resolution::Project);
+  REQUIRE(r.target == NodeId{1});
+}
+
 TEST_CASE("resolve_include quote: token suffix-matching own path -> Unresolved, no self-edge", "[scan][resolver][self]")
 {
   const auto files = files_of({"a/widget.h"});

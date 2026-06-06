@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 
 namespace archcheck::scan
 {
@@ -29,6 +30,26 @@ bool is_mirror_dir_path(std::string_view path)
       return true;
   }
   return false;
+}
+
+// A standard system header (`<string.h>`, `<vector>`, …) must resolve as External
+// even when the project ships a file with the same basename (e.g. a local
+// compat/string.h). Otherwise suffix-matching invents a phantom edge / cycle
+// (#088: PipeWire defs.h <-> system <string.h>). Extensionless angle tokens are
+// C++/system headers (project headers carry an extension); a curated set covers
+// the standard C `*.h` family that most often collides with project basenames.
+bool is_system_header(std::string_view token)
+{
+  if (token.find('/') != std::string_view::npos)
+    return false; // <foo/bar.h> is a pathed (project or vendored) header, not bare system
+  if (token.find('.') == std::string_view::npos)
+    return true; // <vector>, <cstdint>, <memory> — extensionless => C++/system
+  static const std::unordered_set<std::string_view> kStdCHeaders = {
+      "assert.h",  "complex.h", "ctype.h",  "errno.h",  "fenv.h",   "float.h",       "inttypes.h", "iso646.h",
+      "limits.h",  "locale.h",  "math.h",   "setjmp.h", "signal.h", "stdalign.h",    "stdarg.h",   "stdatomic.h",
+      "stdbool.h", "stddef.h",  "stdint.h", "stdio.h",  "stdlib.h", "stdnoreturn.h", "string.h",   "tgmath.h",
+      "threads.h", "time.h",    "uchar.h",  "wchar.h",  "wctype.h"};
+  return kStdCHeaders.count(token) != 0;
 }
 
 std::string source_directory(std::string_view sourceFile)
@@ -115,6 +136,10 @@ ResolvedInclude resolve_quote(const IncludeDirective &d, std::string_view source
 ResolvedInclude resolve_angle(const IncludeDirective &d, std::string_view source, const std::vector<ProjectFile> &files,
                               const ProjectIndex &index)
 {
+  if (is_system_header(d.token))
+  {
+    return make_tagged(d, source, Resolution::External);
+  }
   if (const NodeId *hit = find_exact(index, d.token))
   {
     return make_project(d, source, *hit);
