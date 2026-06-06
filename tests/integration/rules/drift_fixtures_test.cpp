@@ -114,3 +114,32 @@ TEST_CASE("drift fixture: real_world/libresprite_pr581 — DRIFT.1 fires on tool
   REQUIRE(v[0].ruleId == "DRIFT.1");
   REQUIRE(v[0].message.find("app/ui/toolbar.cpp -> app/pref/preferences.h") != std::string::npos);
 }
+
+namespace
+{
+std::size_t count_rule(const ViolationList &v, std::string_view id)
+{
+  return static_cast<std::size_t>(std::count_if(v.begin(), v.end(), [&](const auto &x) { return x.ruleId == id; }));
+}
+} // namespace
+
+TEST_CASE("drift fixture: bidirectional/fail_new_coupling — DRIFT.3 fires on core<->ui", "[drift][fixtures]")
+{
+  const auto v = run_drift_check("drift_bidirectional/fail_new_coupling");
+  REQUIRE(count_rule(v, "DRIFT.3") == 1);
+  const auto it = std::find_if(v.begin(), v.end(), [](const auto &x) { return x.ruleId == "DRIFT.3"; });
+  REQUIRE(it != v.end());
+  REQUIRE(it->message.find("'core' <-> 'ui'") != std::string::npos);
+}
+
+TEST_CASE("drift fixture: bidirectional/pass_one_directional — DRIFT.3 silent (one-way)", "[drift][fixtures]")
+{
+  REQUIRE(count_rule(run_drift_check("drift_bidirectional/pass_one_directional"), "DRIFT.3") == 0);
+}
+
+TEST_CASE("drift fixture: bidirectional/pass_file_cycle — DRIFT.3 defers to DRIFT.2", "[drift][fixtures]")
+{
+  const auto v = run_drift_check("drift_bidirectional/pass_file_cycle");
+  REQUIRE(count_rule(v, "DRIFT.3") == 0); // direct two-file cycle is not DRIFT.3's job
+  REQUIRE(count_rule(v, "DRIFT.2") >= 1); // ... it belongs to DRIFT.2
+}

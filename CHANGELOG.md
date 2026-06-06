@@ -14,6 +14,7 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 - **Lakos.GodHeader rule** — fan-in threshold (default 50). (#037)
 - **Lakos.ChainLength rule** — include chain length (default 10).
 - **DRIFT.1 / DRIFT.2 rules** — shortcut edges and cycle growth against a saved graph baseline. (#009, #040)
+- **DRIFT.3 rule** — new bidirectional module coupling: fires when two modules (areas) become mutually dependent (A→B and B→A through different files) without having been mutual in the baseline, i.e. a non-levelizable aggregate-level coupling that no file-level cycle (DRIFT.2/SF.9) catches. Backed by corpus validation ([docs/research/drift_signal_validation.md](docs/research/drift_signal_validation.md)) and a live run on a real repo. (#087)
 - **Baseline modes** — `--baseline`, `--save-baseline`, `--save-graph-baseline`, `--drift-baseline`.
 - **PR diff mode** — `--diff <revspec>` reports structural graph regressions (added/removed edges, grown cycles, new god-headers, chain-length growth, new cross-area dependencies) between two git refs. (#076)
 - **JSON reporter** and stabilised exit-code contract (`0` ok / `1` violations / `2` config error / `3` internal error).

@@ -111,8 +111,10 @@ archcheck сейчас на правильной стороне грани. Бе
 
 1. **DRIFT.2 (циклы) → default blocking-gate** — частота 0.05% и объективность
    созрели для жёсткого гейта. (задача #086)
-2. **DRIFT.3 (bidirectional coupling)** — добавить как узкое правило: 15% реального
-   сигнала, сейчас не покрыто. (задача #087)
+2. **DRIFT.3 (bidirectional coupling)** — ✅ **реализован** (#087): узкое правило,
+   ловит мутуальную связь модулей `A↔B` (через разные файлы, без file-cycle), которой
+   не было в baseline; не перекрывает DRIFT.2. Провалидирован на `danielraffel/pulp`
+   @ `705f86e` (`core ↔ inspect`). Сейчас advisory; gate-вопрос отдельно.
 3. **Cross-area raw — НЕ гейтить**, держать advisory/research (как duplication
    после #082). Перед любым «area»-правилом — чинить area-detection (renames,
    build/output-dirs, `src↔include` дают половину шума).

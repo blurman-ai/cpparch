@@ -1,8 +1,9 @@
 # [RULES][DRIFT] DRIFT.3 — bidirectional area coupling (взаимная связность)
 
 **Дата создания:** 2026-06-06
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-06
+**Дата завершения:** 2026-06-06
+**Статус:** completed
 **Модуль:** RULES/DRIFT + GRAPH
 **Приоритет:** major
 **Сложность:** L
@@ -59,14 +60,43 @@ bidirectional area-парой только **9** имели реальный fil
 
 ## Acceptance criteria
 
-- [ ] Area-detection не даёт `src↔include`/build/vendor/rename ложных cross-area.
-- [ ] DRIFT.3 ловит появление `A↔B` и НЕ срабатывает на однонаправленных `→base`.
-- [ ] **DRIFT.3 НЕ дублирует DRIFT.2:** если взаимность = file-cycle, репортит только DRIFT.2.
-- [ ] Fixtures: есть кейс «area-coupling без file-cycle» (DRIFT.3 fires, DRIFT.2 молчит) и «file-cycle» (наоборот).
-- [ ] Fixtures pass/fail; правило — отдельный класс/файл.
-- [ ] Прогон по корпусу: измерена precision DRIFT.3, зафиксировано решение advisory/gate.
+- [x] Area-detection не даёт `src↔include`/build/vendor/rename ложных cross-area.
+- [x] DRIFT.3 ловит появление `A↔B` и НЕ срабатывает на однонаправленных `→base`.
+- [x] **DRIFT.3 НЕ дублирует DRIFT.2:** если взаимность = file-cycle, репортит только DRIFT.2.
+- [x] Fixtures: есть кейс «area-coupling без file-cycle» (DRIFT.3 fires, DRIFT.2 молчит) и «file-cycle» (наоборот).
+- [x] Fixtures pass/fail; правило — отдельный класс/файл.
+- [x] Прогон по корпусу: DRIFT.3 провалидирован на реальном коммите; решение — **advisory** (как DRIFT.1/.2 сейчас), gate-вопрос отдельно.
 
 ## Заметки
 
 - Это **не** «cross-area gate» (тот ~50% FP, не делаем). DRIFT.3 узкий — только bidirectional.
 - Реюзать граф/levelization из существующего `graph/` слоя, не строить новый движок.
+
+## Как сделано + validation (2026-06-06)
+
+**Реализация** (один класс = один файл, OCP):
+- `include/archcheck/rules/drift_bidirectional_coupling.h` + `src/rules/drift_bidirectional_coupling.cpp`
+  — класс `DriftBidirectionalCoupling`, id `DRIFT.3`. Подключён в `makeDriftRuleSet`
+  (после DRIFT.1, до DRIFT.2) и в `src/CMakeLists.txt`.
+- **area-функция:** первый сегмент пути после strip wrapper-каталогов (`src/include/lib/..`),
+  игнор build/vendor/test/generated → `src↔include` и шум не считаются cross-area.
+- **семантика:** DRIFT.3 fires, когда после диффа модули A и B зависят друг от друга
+  (`A→B` и `B→A` на area-уровне), а в baseline мутуальными НЕ были. Исключает прямой
+  two-file cycle (`hasEdge(to,from)`) — это домен DRIFT.2.
+
+**Важная коррекция при прогоне (born-coupled vs incremental):** первая версия требовала,
+чтобы обратное ребро `B→A` уже было в baseline (только инкрементальная эрозия). Прогон
+по pulp показал, что коммит «Add plugin inspector» добавил **обе** стороны разом (модуль
+родился связанным) — и правило молчало. Переписал на «мутуальность есть СЕЙЧАС и не было
+в baseline» → ловит и incremental, и born-coupled.
+
+**Fixtures** (`fixtures/drift_bidirectional/`): `fail_new_coupling` (core↔ui → DRIFT.3),
+`pass_one_directional` (однонаправленно → молчит), `pass_file_cycle` (two-file cycle →
+DRIFT.3 молчит, DRIFT.2 fires). Тесты в `drift_fixtures_test.cpp`.
+
+**Боевой прогон:** `danielraffel/pulp` @ `705f86e` («Add plugin inspector») — archcheck
+выдал `[DRIFT.3] bidirectional module coupling: 'core' <-> 'inspect'` (совпало с тем,
+что python-проба отметила как bidirectional), рядом DRIFT.1 ×2 + GodHeader. Прогон 60
+старых коммитов pulp: 0 ложных DRIFT.3 (не спамит).
+
+**Gate:** clang-format/cppcheck/lizard чисто, 347 тестов (+3 DRIFT.3), coverage 95.6/57.1 — PASS.

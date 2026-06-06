@@ -1,0 +1,8 @@
+format_version: "1"
+nodes:
+  - "core/base.h"
+  - "core/engine.h"
+  - "ui/theme.h"
+  - "ui/panel.h"
+edges:
+  - [3, 0]

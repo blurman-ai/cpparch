@@ -1,5 +1,6 @@
 #include "archcheck/rules/rule_set.h"
 
+#include "archcheck/rules/drift_bidirectional_coupling.h"
 #include "archcheck/rules/drift_no_cycle_growth.h"
 #include "archcheck/rules/drift_no_shortcut_edge.h"
 #include "archcheck/rules/lakos_chain_length.h"
@@ -26,6 +27,7 @@ std::vector<std::unique_ptr<IRule>> makeDriftRuleSet(graph::DependencyGraph base
 {
   std::vector<std::unique_ptr<IRule>> rules;
   rules.push_back(std::make_unique<DriftNoShortcutEdge>(baseline));
+  rules.push_back(std::make_unique<DriftBidirectionalCoupling>(baseline));
   rules.push_back(std::make_unique<DriftNoCycleGrowth>(std::move(baseline)));
   return rules;
 }
