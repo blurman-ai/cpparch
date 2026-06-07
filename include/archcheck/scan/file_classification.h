@@ -113,10 +113,22 @@ inline constexpr std::array<std::string_view, 14> kVendoredDirNames = {
     "extern",     "deps",     "dependencies", "submodules", "submodule", "nodemodules", "contrib",
 };
 
+// Well-known multi-file libraries vendored straight into the tree under their own
+// directory (src/qhull/, source/Irrlicht/jpeglib/, src/agg/, ...) rather than a
+// third_party/ wrapper — so the container-name list above misses them, and they
+// are not single-file libs either. Curated like kVendoredStems: distinctive,
+// rarely-an-author's-own-module names confirmed vendored in the #056 corpus scan.
+// Matched as a directory segment (normalized: lowercased, '_'/'-'/space removed).
+inline constexpr std::array<std::string_view, 14> kVendoredLibDirs = {
+    "jpeglib", "libjpeg", "libpng",     "zlib", "bzip2",    "qhull", "hidapi",
+    "libigl",  "agg",     "glulibtess", "mcut", "freetype", "glfw",  "glew",
+};
+
 inline bool isVendoredDirName(std::string_view name)
 {
   const std::string norm = normalizeDirSegment(name);
-  return std::find(kVendoredDirNames.begin(), kVendoredDirNames.end(), norm) != kVendoredDirNames.end();
+  return std::find(kVendoredDirNames.begin(), kVendoredDirNames.end(), norm) != kVendoredDirNames.end() ||
+         std::find(kVendoredLibDirs.begin(), kVendoredLibDirs.end(), norm) != kVendoredLibDirs.end();
 }
 
 // True if any *directory* segment of a repo-relative POSIX path is vendored

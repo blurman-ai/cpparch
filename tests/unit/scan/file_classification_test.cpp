@@ -99,6 +99,19 @@ TEST_CASE("pathHasVendoredDir tests directory segments only", "[scan][vendor]")
   REQUIRE_FALSE(pathHasVendoredDir("vendor.cpp")); // file named like a dir, not a segment
 }
 
+TEST_CASE("vendored dir name: in-tree bundled libraries (not under third_party/)", "[scan][vendor]")
+{
+  // Multi-file libs dropped under their own dir, no third_party/ wrapper.
+  for (const auto *n : {"qhull", "jpeglib", "agg", "hidapi", "libigl", "glu-libtess", "bzip2", "libpng"})
+  {
+    REQUIRE(isVendoredDirName(n));
+  }
+  REQUIRE(pathHasVendoredDir("src/qhull/src/libqhull/rboxlib.c"));
+  REQUIRE(pathHasVendoredDir("source/Irrlicht/jpeglib/jdhuff.c"));
+  REQUIRE(pathHasVendoredDir("src/agg/agg_renderer_base.h"));
+  REQUIRE_FALSE(pathHasVendoredDir("src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp")); // authored stays in
+}
+
 TEST_CASE("baseName extracts the final path segment", "[scan][vendor]")
 {
   REQUIRE(baseName("a/b/c.cpp") == "c.cpp");
