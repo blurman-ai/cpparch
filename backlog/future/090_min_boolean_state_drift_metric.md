@@ -1,18 +1,34 @@
-# [RULES] Implement implicit_state_machine_growth Rule (v0.2)
+# [RULES] boolean_state_accumulation — drift-метрика (deferred v0.3+)
 
 **Дата создания:** 2026-06-07
-**Дата старта:** 2026-06-07
-**Статус:** wip
-**Модуль:** RULES / IMPLEMENTATION
-**Приоритет:** critical
-**Сложность:** M
-**Блокирует:** v0.2 release
-**Заблокирован:** —
-**Related:** #089 (boolean_state_drift — research phase complete; verdict: YES)
+**Статус:** future
+**Целевой релиз:** v0.3+ (после #042)
+**Модуль:** RULES / DRIFT
+**Приоритет:** minor
+**Блокирует:** —
+**Заблокирован:** #042 (semantic backend — гейт взаимозависимости)
+**Related:** #089 (research, вердикт MAYBE), #042, #086/#087 (drift-семейство)
+
+> **Переосмыслено по итогам research #089.** Исходный план «статическое правило `implicit_state_machine_growth` (5+ bool + state-имена)» ОТМЕНЁН: эмпирика на 790 репо показала, что нейминг-детект бесполезен (единственный флаг — FP), а статический счётчик — 78% шум. Рабочий сигнал — только **per-struct накопление по git-истории**. См. дизайн: `docs/research/boolean_state_metric_design.md`.
 
 ## Цель
 
-Реализовать Rule 1 из research #089: `implicit_state_machine_growth`. Детектировать классы/структы с 5+ bool-полями, соответствующих state-pattern (started/running/paused/failed/etc.), как признак неявной state machine, нуждающейся в рефакторинге.
+Реализовать (если будет запрос) drift-метрику `boolean_state_accumulation`: структура набрала bool-поля через ≥4 разных коммита, поля взаимозависимы → растущая неявная FSM. НЕ статический линтер; history-метрика рядом с #086/#087.
+
+## Почему deferred
+
+- Полная форма требует **#042** (гейт взаимозависимости: отделить illegal-state-риск от ортогонального bloat — Channel/MethodState).
+- Требует diff/историю (не single-shot scan).
+- **YAGNI** — никто из пользователей не просил; для archcheck пограничный кандидат (риск нарушить «не линтер»).
+- Прототип уже есть: `experiments/boolean_state/perstruct_drift.py` (0% грубых FP на верификации).
+
+## План (когда/если делать) — из metric_design.md
+
+- [ ] Гейт 1: depth-0 парсинг полей (без сигнатур/локальных).
+- [ ] Гейт 2: per-struct атрибуция + git blame.
+- [ ] Гейт 3: проверка полноты истории (shallow → lower-bound).
+- [ ] Гейт 4: взаимозависимость через #042 (config-bag/bloat vs implicit FSM).
+- [ ] Пороги: nfields≥5, drift_commits≥4.
 
 ## Контекст
 
