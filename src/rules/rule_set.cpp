@@ -3,7 +3,6 @@
 #include "archcheck/rules/drift_bidirectional_coupling.h"
 #include "archcheck/rules/drift_no_cycle_growth.h"
 #include "archcheck/rules/drift_no_shortcut_edge.h"
-#include "archcheck/rules/implicit_state_machine_growth.h"
 #include "archcheck/rules/lakos_chain_length.h"
 #include "archcheck/rules/lakos_god_headers.h"
 #include "archcheck/rules/sf7_using_namespace.h"
@@ -21,7 +20,6 @@ std::vector<std::unique_ptr<IRule>> makeDefaultRuleSet(const config::Config &con
   rules.push_back(std::make_unique<Sf8IncludeGuard>());
   rules.push_back(std::make_unique<LakosGodHeaders>(config.thresholds.godHeaderFanIn));
   rules.push_back(std::make_unique<LakosChainLength>(config.thresholds.chainLength));
-  rules.push_back(std::make_unique<ImplicitStateMachineGrowth>());
   return rules;
 }
 
