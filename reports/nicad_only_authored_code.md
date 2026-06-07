@@ -9,14 +9,11 @@ archcheck for the reason noted per group. functions/blocks twins of one clone me
 
 ## LibreSprite (7 distinct)
 
-### algo.cpp — size 3, sim 75, 55 lines
+### algo.cpp — size 3, sim 76, 54 lines
 _why archcheck missed: implementation (just under archcheck similarity/joint-floor threshold)_
 
-**[`src/doc/algo.cpp:461-534`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L461-L534)**
+**[`src/doc/algo.cpp:464-534`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L464-L534)**
 ```cpp
-void algo_spline(double x0, double y0, double x1, double y1,
-                 double x2, double y2, double x3, double y3,
-                 void *data, AlgoLine proc)
 {
   int npts;
   int out_x1, out_x2;
@@ -84,87 +81,13 @@ void algo_spline(double x0, double y0, double x1, double y1,
 
     proc(out_x1, out_y1, out_x2, out_y2, data);
 
+    out_x1 = out_x2;
+    out_y1 = out_y2;
+  }
     /* ... truncated ... */
 ```
-**[`src/doc/algo.cpp:614-690`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L614-L690)**
+**[`src/doc/algo.cpp:539-612`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L539-L612)**
 ```cpp
-double algo_spline_get_tan(double x0, double y0, double x1, double y1,
-                           double x2, double y2, double x3, double y3,
-                           double in_x)
-{
-  double out_x, old_x, old_dx, old_dy;
-  int npts;
-
-  /* Derivatives of x(t) and y(t). */
-  double x, dx, ddx, dddx;
-  double dy, ddy, dddy;
-  int i;
-
-  /* Temp variables used in the setup. */
-  double dt, dt2, dt3;
-  double xdt2_term, xdt3_term;
-  double ydt2_term, ydt3_term;
-
-#define MAX_POINTS   64
-#undef DIST
-#define DIST(x, y) (sqrt ((x) * (x) + (y) * (y)))
-  npts = (int) (sqrt (DIST(x1-x0, y1-y0) +
-                      DIST(x2-x1, y2-y1) +
-                      DIST(x3-x2, y3-y2)) * 1.2);
-  if (npts > MAX_POINTS)
-    npts = MAX_POINTS;
-  else if (npts < 4)
-    npts = 4;
-
-  dt = 1.0 / (npts-1);
-  dt2 = (dt * dt);
-  dt3 = (dt2 * dt);
-
-  xdt2_term = 3 * (x2 - 2*x1 + x0);
-  ydt2_term = 3 * (y2 - 2*y1 + y0);
-  xdt3_term = x3 + 3 * (-x2 + x1) - x0;
-  ydt3_term = y3 + 3 * (-y2 + y1) - y0;
-
-  xdt2_term = dt2 * xdt2_term;
-  ydt2_term = dt2 * ydt2_term;
-  xdt3_term = dt3 * xdt3_term;
-  ydt3_term = dt3 * ydt3_term;
-
-  dddx = 6*xdt3_term;
-  dddy = 6*ydt3_term;
-  ddx = -6*xdt3_term + 2*xdt2_term;
-  ddy = -6*ydt3_term + 2*ydt2_term;
-  dx = xdt3_term - xdt2_term + 3 * dt * (x1 - x0);
-  dy = ydt3_term - ydt2_term + dt * 3 * (y1 - y0);
-  x = x0;
-
-  out_x = x0;
-
-  old_x = x0;
-  old_dx = dx;
-  old_dy = dy;
-
-  x += .5;
-  for (i=1; i<npts; i++) {
-    ddx += dddx;
-    ddy += dddy;
-    dx += ddx;
-    dy += ddy;
-    x += dx;
-
-    out_x = x;
-    if (out_x > in_x) {
-      dx = old_dx + (dx-old_dx) * (in_x-old_x) / (out_x-old_x);
-      dy = old_dy + (dy-old_dy) * (in_x-old_x) / (out_x-old_x);
-      break;
-    }
-    /* ... truncated ... */
-```
-**[`src/doc/algo.cpp:536-612`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L536-L612)**
-```cpp
-double algo_spline_get_y(double x0, double y0, double x1, double y1,
-                         double x2, double y2, double x3, double y3,
-                         double in_x)
 {
   int npts;
   double out_x, old_x;
@@ -232,6 +155,83 @@ double algo_spline_get_y(double x0, double y0, double x1, double y1,
     if (out_x > in_x) {
       out_y = old_y + (out_y-old_y) * (in_x-old_x) / (out_x-old_x);
       break;
+    }
+    old_x = out_x;
+    old_y = out_y;
+    /* ... truncated ... */
+```
+**[`src/doc/algo.cpp:617-690`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L617-L690)**
+```cpp
+{
+  double out_x, old_x, old_dx, old_dy;
+  int npts;
+
+  /* Derivatives of x(t) and y(t). */
+  double x, dx, ddx, dddx;
+  double dy, ddy, dddy;
+  int i;
+
+  /* Temp variables used in the setup. */
+  double dt, dt2, dt3;
+  double xdt2_term, xdt3_term;
+  double ydt2_term, ydt3_term;
+
+#define MAX_POINTS   64
+#undef DIST
+#define DIST(x, y) (sqrt ((x) * (x) + (y) * (y)))
+  npts = (int) (sqrt (DIST(x1-x0, y1-y0) +
+                      DIST(x2-x1, y2-y1) +
+                      DIST(x3-x2, y3-y2)) * 1.2);
+  if (npts > MAX_POINTS)
+    npts = MAX_POINTS;
+  else if (npts < 4)
+    npts = 4;
+
+  dt = 1.0 / (npts-1);
+  dt2 = (dt * dt);
+  dt3 = (dt2 * dt);
+
+  xdt2_term = 3 * (x2 - 2*x1 + x0);
+  ydt2_term = 3 * (y2 - 2*y1 + y0);
+  xdt3_term = x3 + 3 * (-x2 + x1) - x0;
+  ydt3_term = y3 + 3 * (-y2 + y1) - y0;
+
+  xdt2_term = dt2 * xdt2_term;
+  ydt2_term = dt2 * ydt2_term;
+  xdt3_term = dt3 * xdt3_term;
+  ydt3_term = dt3 * ydt3_term;
+
+  dddx = 6*xdt3_term;
+  dddy = 6*ydt3_term;
+  ddx = -6*xdt3_term + 2*xdt2_term;
+  ddy = -6*ydt3_term + 2*ydt2_term;
+  dx = xdt3_term - xdt2_term + 3 * dt * (x1 - x0);
+  dy = ydt3_term - ydt2_term + dt * 3 * (y1 - y0);
+  x = x0;
+
+  out_x = x0;
+
+  old_x = x0;
+  old_dx = dx;
+  old_dy = dy;
+
+  x += .5;
+  for (i=1; i<npts; i++) {
+    ddx += dddx;
+    ddy += dddy;
+    dx += ddx;
+    dy += ddy;
+    x += dx;
+
+    out_x = x;
+    if (out_x > in_x) {
+      dx = old_dx + (dx-old_dx) * (in_x-old_x) / (out_x-old_x);
+      dy = old_dy + (dy-old_dy) * (in_x-old_x) / (out_x-old_x);
+      break;
+    }
+    old_x = out_x;
+    old_dx = dx;
+    old_dy = dy;
     /* ... truncated ... */
 ```
 
@@ -637,13 +637,11 @@ namespace cmd {
 } // namespace app
 ```
 
-### autocrop.cpp — size 2, sim 93, 16 lines
+### autocrop.cpp — size 2, sim 100, 15 lines
 _why archcheck missed: implementation (just under archcheck similarity/joint-floor threshold)_
 
-**[`src/app/util/autocrop.cpp:21-64`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/app/util/autocrop.cpp#L21-L64)**
+**[`src/app/util/autocrop.cpp:23-64`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/app/util/autocrop.cpp#L23-L64)**
 ```cpp
-bool get_shrink_rect(int *x1, int *y1, int *x2, int *y2,
-                     Image *image, color_t refpixel)
 {
 #define SHRINK_SIDE(u_begin, u_op, u_final, u_add,              \
                     v_begin, v_op, v_final, v_add, U, V, var)   \
@@ -687,10 +685,8 @@ bool get_shrink_rect(int *x1, int *y1, int *x2, int *y2,
 #undef SHRINK_SIDE
 }
 ```
-**[`src/app/util/autocrop.cpp:66-109`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/app/util/autocrop.cpp#L66-L109)**
+**[`src/app/util/autocrop.cpp:68-109`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/app/util/autocrop.cpp#L68-L109)**
 ```cpp
-bool get_shrink_rect2(int *x1, int *y1, int *x2, int *y2,
-                      Image *image, Image *refimage)
 {
 #define SHRINK_SIDE(u_begin, u_op, u_final, u_add,              \
                     v_begin, v_op, v_final, v_add, U, V, var)   \

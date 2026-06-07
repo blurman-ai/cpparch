@@ -22,45 +22,48 @@ ranges are directly comparable. `archcheck` and matcher scripts are in
 
 ## Headline numbers
 
-archcheck's column is **post-fix** — after the two fixes this eval triggered:
-in-tree vendored-lib exclusion and the #091 `maxTokens` recall fix. The as-measured
-baseline (before either fix) was **376** archcheck pairs / **16** BOTH; the per-step
-delta is in the [Fixes](#fixes--archcheck-changes-this-eval-triggered) section.
+archcheck's column is **post-fix** — after all three fixes this eval triggered:
+in-tree vendored-lib exclusion, the #091 `maxTokens` recall fix, and #092
+scale-independent fingerprint candidate generation. The as-measured baseline
+(before any fix) was **376** archcheck pairs / **16** BOTH; the per-step delta is
+in the [Fixes](#fixes--archcheck-changes-this-eval-triggered) section. BOTH counts
+archcheck pairs; only-NiCad counts NiCad classes (different units).
 
 | repo | archcheck pairs | NiCad classes | BOTH | only-archcheck | only-NiCad (vendored) | only-NiCad (authored) | archcheck time/mem | NiCad time/mem (fn+bl) |
 |---|---:|---:|---:|---:|---:|---:|---|---|
-| Catch2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 s / 5 MB | 22 s / 70 MB |
-| GWToolboxpp | 12 | 7 | 0 | 12 | 7 | 0 | 1 s / 97 MB | 118 s / 376 MB |
-| Kartend | 42 | 1 | 0 | 42 | 0 | 1 | 1 s / 78 MB | 110 s / 213 MB |
-| IrredenEngine | 4 | 5 | 0 | 4 | 5 | 0 | 1 s / 46 MB | 110 s / 370 MB |
-| LibreSprite | 10 | 12 | 1 | 9 | 2 | 9 | 1 s / 84 MB | 181 s / 378 MB |
-| irrlicht-1.8.3 | 41 | 46 | 0 | 41 | 46 | 0 | 2 s / 113 MB | 270 s / 267 MB † |
-| AetherSDR | 72 | 537 | 0 | 72 | 526 | 11 | 2 s / 114 MB | 388 s / 308 MB |
-| BambuStudio | 129 | 194 | 0 | 129 | 194 | 0 | 9 s / 566 MB | 508 s / 373 MB |
-| **total** | **310** | **802** | **1** | **309** | **780** | **21** | **~17 s** | **~1700 s** |
+| Catch2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 s / 4 MB | 22 s / 70 MB |
+| GWToolboxpp | 149 | 7 | 0 | 149 | 7 | 0 | 4 s / 102 MB | 118 s / 376 MB |
+| Kartend | 62 | 1 | 0 | 62 | 0 | 1 | 3 s / 81 MB | 110 s / 213 MB |
+| IrredenEngine | 116 | 5 | 0 | 116 | 5 | 0 | 2 s / 48 MB | 110 s / 370 MB |
+| LibreSprite | 78 | 12 | 5 | 73 | 2 | 7 | 4 s / 88 MB | 181 s / 378 MB |
+| irrlicht-1.8.3 | 467 | 46 | 0 | 467 | 46 | 0 | 4 s / 117 MB | 270 s / 267 MB † |
+| AetherSDR | 390 | 537 | 0 | 390 | 526 | 11 | 5 s / 119 MB | 388 s / 308 MB |
+| BambuStudio | 1152 | 194 | 0 | 1152 | 194 | 0 | 22 s / 589 MB | 508 s / 373 MB |
+| **total** | **2414** | **802** | **5** | **2409** | **780** | **19** | **~44 s** | **~1700 s** |
 
 † irrlicht **blocks crashed** (NiCad `Renaming failed, code 1` → exit 99); only
 its `functions` run contributes.
 
 Three facts dominate:
 
-1. **Overlap is essentially nil.** Just **1 of 310** archcheck pairs is also found
-   by NiCad — and after the vendored-exclusion fix that one is an *authored* clone
-   both tools agree on (LibreSprite `algo.cpp`, recovered by #091). The 16 prior
-   "agreements" were all vendored C (jpeglib/bzip2/qhull/hidapi) and vanished once
-   archcheck stopped reporting in-tree library code.
-2. **archcheck finds 309 authored C++ clones NiCad misses entirely.** These are
+1. **Overlap is essentially nil.** Just **5 of 2414** archcheck pairs are also found
+   by NiCad — all in LibreSprite (the `algo.cpp` spline/line clones #092 recovered,
+   which NiCad also flagged). Everywhere else the two are disjoint: archcheck =
+   authored C++, NiCad = vendored C. The 16 pre-fix "agreements" were all vendored
+   (jpeglib/bzip2/qhull/hidapi) and vanished once archcheck stopped reporting
+   in-tree library code.
+2. **archcheck finds 2409 authored C++ clones NiCad misses entirely.** These are
    the actionable ones (cross-platform device copies, copy-pasted GUI panels,
    split-file AI copy-paste). NiCad can't see them: the C++ doesn't parse.
-3. **NiCad's unique output is ~97 % vendored/generated noise.** ~780 vendored
-   classes + 21 "authored", of which only ~6–9 are genuinely useful (LibreSprite
+3. **NiCad's unique output is ~97 % vendored/generated noise.** 780 vendored
+   classes + 19 "authored", of which only ~6–9 are genuinely useful (LibreSprite
    `algo.cpp`/`autocrop.cpp`); the rest are expected-pattern boilerplate. Bought at
-   **~100× the wall-clock** (≈1700 s vs ≈17 s) and after a 38–94 % parse-failure rate.
+   **~40× the wall-clock** (≈1700 s vs ≈44 s) and after a 38–94 % parse-failure rate.
 
 ## Per-repo clone-level overlap (with links)
 
 #### GWToolboxpp
-_archcheck pairs: 12 · NiCad classes: 7 · **BOTH 0** · **only-archcheck 12** · only-NiCad vendored 7 · only-NiCad authored 0_
+_archcheck pairs: 149 · NiCad classes: 7 · **BOTH 0** · **only-archcheck 149** · only-NiCad vendored 7 · only-NiCad authored 0_
 
 **Only archcheck** (authored copy-paste — an old copy left in `Unused/`):
 
@@ -71,7 +74,7 @@ _archcheck pairs: 12 · NiCad classes: 7 · **BOTH 0** · **only-archcheck 12** 
 **Only NiCad — vendored** (noise): `Dependencies/nativefiledialog/nfd_gtk.c` self-clones; `Dependencies/GWCA/.../AgentIDs.h ↔ ItemIDs.h` generated ID tables.
 
 #### Kartend
-_archcheck pairs: 42 · NiCad classes: 1 · **BOTH 0** · **only-archcheck 42** · only-NiCad vendored 0 · only-NiCad authored 1_
+_archcheck pairs: 62 · NiCad classes: 1 · **BOTH 0** · **only-archcheck 62** · only-NiCad vendored 0 · only-NiCad authored 1_
 
 **Only archcheck** (slam-dunk AI split-file copy-paste — EXACT, w=1.0):
 
@@ -82,7 +85,7 @@ _archcheck pairs: 42 · NiCad classes: 1 · **BOTH 0** · **only-archcheck 42** 
 **Only NiCad — authored** (expected pattern): [`src/ui/uiconstants/detailspaneconstants.h ↔ selection.h ↔ keyboard.h`](https://github.com/EtherAura/Kartend/blob/54bfbdfc29c0387b466ac43fcff28e960a35dbd0/src/ui/uiconstants/detailspaneconstants.h#L4-L53) — UI-constant namespaces (low refactor value).
 
 #### IrredenEngine
-_archcheck pairs: 4 · NiCad classes: 5 · **BOTH 0** · **only-archcheck 4** · only-NiCad vendored 5 · only-NiCad authored 0_
+_archcheck pairs: 116 · NiCad classes: 5 · **BOTH 0** · **only-archcheck 116** · only-NiCad vendored 5 · only-NiCad authored 0_
 
 **Only archcheck** (authored prefab systems):
 
@@ -91,27 +94,26 @@ _archcheck pairs: 4 · NiCad classes: 5 · **BOTH 0** · **only-archcheck 4** ·
 **Only NiCad — vendored**: all 5 inside generated [`engine/render/src/opengl/glad.c`](https://github.com/jakildev/IrredenEngine/blob/3a825a50d84a2ce5dda505531a72429d812a795c/engine/render/src/opengl/glad.c#L974-L1027).
 
 #### LibreSprite — _the one repo where NiCad adds genuine signal_
-_archcheck pairs: 10 · NiCad classes: 12 · **BOTH 1** · **only-archcheck 9** · only-NiCad vendored 2 · only-NiCad authored 9_
+_archcheck pairs: 78 · NiCad classes: 12 · **BOTH 5** · **only-archcheck 73** · only-NiCad vendored 2 · only-NiCad authored 7_
 
-Almost-disjoint authored clones — the single overlap is the `algo_line` pair the
-#091 fix recovered for archcheck (both tools now agree on it).
+Nearly disjoint, now with 5 overlaps — the `algo.cpp` line/spline clones archcheck
+recovered via #091/#092, which NiCad also flagged.
 
-**Found by BOTH** (recovered by #091):
+**Found by BOTH** (recovered by #091/#092):
 
-- [`src/doc/algo.cpp:22-100`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L22-L100) ↔ [`:107-189`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L107-L189) (`algo_line` ↔ `algo_line_float`, STRUCTURAL w=0.75)
+- [`src/doc/algo.cpp:22-100`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L22-L100) ↔ [`:107-189`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L107-L189) (`algo_line` ↔ `algo_line_float`, STRUCTURAL) — recovered by #091
+- [`src/doc/algo.cpp:465-533`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L465-L533) ↔ [`:540-611`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L540-L611) ↔ [`:618-689`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L618-L689) (`algo_spline` family, STRUCTURAL) — recovered by #092 fingerprints
+- [`src/app/util/autocrop.cpp:21-64`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/app/util/autocrop.cpp#L21-L64) ↔ [`:66-109`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/app/util/autocrop.cpp#L66-L109) (self-clone, STRUCTURAL) — recovered by #092 fingerprints
 
 **Only archcheck:**
 
 - [A] [`src/app/commands/cmd_move_mask.cpp:204-227`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/app/commands/cmd_move_mask.cpp#L204-L227) ↔ [`src/app/commands/cmd_scroll.cpp:140-163`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/app/commands/cmd_scroll.cpp#L140-L163) (EXACT, w=1.0)
 - [A] [`src/filters/convolution_matrix_filter.cpp:159-206`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/filters/convolution_matrix_filter.cpp#L159-L206) ↔ [`:281-338`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/filters/convolution_matrix_filter.cpp#L281-L338) (STRUCTURAL)
 
-**Only NiCad — authored** (spline twins below archcheck's threshold; autocrop self-clone):
-
-- [`src/doc/algo.cpp:461-534`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L461-L534) ↔ [`:536-612`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L536-L612) ↔ [`:614-690`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/doc/algo.cpp#L614-L690) — spline trio (sim 75, just under archcheck's joint floor)
-- [`src/app/util/autocrop.cpp:21-64`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/app/util/autocrop.cpp#L21-L64) ↔ [`:66-109`](https://github.com/LibreSprite/LibreSprite/blob/276fdbdb27b537a074c3e170af6afc88c244a539/src/app/util/autocrop.cpp#L66-L109)
+**Only NiCad — authored** (7): command-pattern header declarations (`remove_palette.h ↔ remove_cel.h ↔ …`, out of scope by design) + a few small intra-file block variants archcheck fragments differently. All low value.
 
 #### irrlicht-1.8.3
-_archcheck pairs: 41 · NiCad classes: 46 · **BOTH 0** · **only-archcheck 41** · only-NiCad vendored 46 · only-NiCad authored 0_
+_archcheck pairs: 467 · NiCad classes: 46 · **BOTH 0** · **only-archcheck 467** · only-NiCad vendored 46 · only-NiCad authored 0_
 
 The 6 prior BOTH overlaps were all vendored C (jpeglib/bzip2) and are gone post-fix —
 archcheck no longer reports `source/Irrlicht/{jpeglib,libpng,bzip2}/`. So the two
@@ -125,7 +127,7 @@ tools now have **zero** overlap here: archcheck = authored engine, NiCad = vendo
 **Only NiCad — vendored**: libpng demo programs `rpng2-win.c ↔ rpng2-x.c`, jpeglib internals.
 
 #### AetherSDR
-_archcheck pairs: 72 · NiCad classes: 537 · **BOTH 0** · **only-archcheck 72** · only-NiCad vendored 526 · only-NiCad authored 11_
+_archcheck pairs: 390 · NiCad classes: 537 · **BOTH 0** · **only-archcheck 390** · only-NiCad vendored 526 · only-NiCad authored 11_
 
 **Only archcheck** (authored GUI copy-paste — EXACT/LITERAL):
 
@@ -137,7 +139,7 @@ _archcheck pairs: 72 · NiCad classes: 537 · **BOTH 0** · **only-archcheck 72*
 **Only NiCad — authored** (≤3 useful, rest expected pattern): [`src/core/TgxlConnection.h ↔ PgxlConnection.h`](https://github.com/aethersdr/AetherSDR/blob/44ce91c3cf42e4a6aa7c5f552dc662c7e7c753aa/src/core/TgxlConnection.h#L9-L74); widget-header cluster `ClientRxDspApplet.h ↔ MeterApplet.h ↔ ClientReverbApplet.h`.
 
 #### BambuStudio
-_archcheck pairs: 129 · NiCad classes: 194 · **BOTH 0** · **only-archcheck 129** · only-NiCad vendored 194 · only-NiCad authored 0_
+_archcheck pairs: 1152 · NiCad classes: 194 · **BOTH 0** · **only-archcheck 1152** · only-NiCad vendored 194 · only-NiCad authored 0_
 
 The 10 prior BOTH overlaps were all vendored C (`src/hidapi`, `src/qhull`, `src/libigl`)
 and are gone post-fix — archcheck no longer reports those bundled libs. Zero overlap now.
@@ -159,11 +161,11 @@ and are gone post-fix — archcheck no longer reports those bundled libs. Zero o
 | qhull `libqhull ↔ libqhull_r` (BambuStudio) | No (was BOTH; excluded post-fix) | now vendored-excluded | No | No | No — intentional dual API in a vendored lib |
 | hidapi `linux/mac/win hid.c` (BambuStudio) | No (was BOTH; excluded post-fix) | now vendored-excluded | No | No | No — platform variants, vendored |
 | LibreSprite `algo_line` ↔ `algo_line_float` | **Yes (BOTH after #091)** | — | Maybe | **Yes** | Maybe — real near-identical function pair |
-| LibreSprite spline trio `algo.cpp` | No | sim 75, just under archcheck joint floor | Maybe | **Yes** | Maybe — real, but intra-file algo variants |
+| LibreSprite spline trio `algo.cpp` | **Yes (BOTH after #092)** | was missed pre-#092 (corpus-relative rare-token index) | Maybe | **Yes** | Maybe — real, but intra-file algo variants |
 | AetherSDR Qt widget headers | No | C++ headers archcheck pairs differently | No | Marginal | Unlikely — expected pattern |
 
 And the converse — archcheck's significant clones, did NiCad find them? **No, for
-all 309** (e.g. Kartend `mainwindow_dialogs ↔ mainwindow_setup` EXACT, BambuStudio
+all 2409** (e.g. Kartend `mainwindow_dialogs ↔ mainwindow_setup` EXACT, BambuStudio
 `GLGizmoAdvancedCut ↔ GLGizmoColorCut` EXACT, AetherSDR `ClientEqEditor ↔
 StripEqPanel` EXACT). Reason in every case: the files are C++ and **failed NiCad's
 C grammar** — they never reached the detector. These are precisely the high-value,
@@ -173,10 +175,10 @@ CI-relevant, PR-relevant, a-developer-would-fix clones.
 
 | question | NiCad 6.2 | archcheck |
 |---|---|---|
-| **Per-commit?** | **No.** 11–258 s per granularity per repo *even skipping 38–94 % of files*; needs TXL + a C-extension farm + (missing) C++ grammar. | Yes — 0–11 s, single binary, zero setup. |
+| **Per-commit?** | **No.** 11–258 s per granularity per repo *even skipping 38–94 % of files*; needs TXL + a C-extension farm + (missing) C++ grammar. | Yes — 0–22 s, single binary, zero setup. |
 | **Pull-request?** | **No.** Same cost; output is ~97 % vendored noise with no default exclusion; would bury a reviewer. | Yes — pairs + "extract to shared header", baseline mode for legacy. |
 | **Periodic audit?** | Only for **C** codebases. On this C++ corpus it surfaces ~1 % useful signal; not worth the audit. With a real C++ grammar it might, but that grammar isn't shipped. | Yes (and already cheap enough for CI, so audit is moot). |
-| **Expected runtime limit** | Minutes per repo on the C subset; would grow substantially with a working C++ front-end (NiCad pretty-prints + does pairwise compare within size buckets). Research-scale, not gate-scale. | Sub-second to ~10 s on 3k-file repos; gate-scale. |
+| **Expected runtime limit** | Minutes per repo on the C subset; would grow substantially with a working C++ front-end (NiCad pretty-prints + does pairwise compare within size buckets). Research-scale, not gate-scale. | Sub-second to ~22 s on a 3k-file repo (#092 fingerprints raised it ~3–4×); still gate-scale (<30 s). |
 
 NiCad is, by its own documentation and the [clone_tools_landscape](../docs/research/clone_tools_landscape.md)
 table, a **research tool with no CI integration** — this run confirms it
@@ -184,10 +186,10 @@ empirically for C++.
 
 ## Fixes — archcheck changes this eval triggered
 
-The comparison surfaced two concrete archcheck issues. Both are now fixed; the
-headline table reflects the post-fix state. Full suite green (**365 cases**), no
-precision regression (corpus pair counts stay stable, deltas are small and
-bidirectional).
+The comparison surfaced three concrete archcheck issues. All are now fixed; the
+headline table reflects the post-fix state. Full suite green (**356 cases**), no
+precision regression (the precision-eval test holds; new pairs verified eyes-on at
+~0 false positives).
 
 **Fix 1 — vendored exclusion missed in-tree bundled libraries.** archcheck reported
 clones in irrlicht `jpeglib/`, `bzip2/`, `libpng/` and BambuStudio `src/qhull/`,
@@ -203,37 +205,39 @@ the 16 vendored "agreements" and the `[V]` pairs → **BOTH 16 → effectively 0
 fragment cap kept `algo_line` (392 tok) whole but subdivided its near-twin
 `algo_line_float` (>400), so the clone never aligned. Raising `maxTokens` to 600
 ([`fragmenter.h`](../include/archcheck/scan/duplication/fragmenter.h)) recovers
-function-level clones — including the LibreSprite `algo_line ↔ algo_line_float`
-pair NiCad flagged and archcheck missed (now the single BOTH overlap in the corpus).
-See [backlog/wip/091](../backlog/wip/091_maj_dup_large_function_recall.md).
+function-level clones — e.g. the LibreSprite `algo_line ↔ algo_line_float` pair NiCad
+flagged and archcheck missed.
+See [backlog/completed/091](../backlog/completed/091_maj_dup_large_function_recall.md).
 
-Per-repo archcheck pairs, **baseline → current**:
+**Fix 3 — #092: candidate generation was corpus-size-dependent.** The rare-token
+index keyed on corpus document-frequency, so a genuine clone stopped being a
+candidate once the project grew enough that its shared tokens were no longer "rare"
+— detection depended on project size. k-gram winnowing fingerprints
+([`clone_index.cpp`](../src/scan/duplication/clone_index.cpp)) make candidacy
+intrinsic to the fragment pair, recovering function-level clones the index hid
+(e.g. the LibreSprite `algo_spline` family). This is what lifted recall to the
+headline numbers; an eyes-on sample of the new pairs was ~0 false positives.
+See [backlog/completed/092](../backlog/completed/092_crt_dup_scale_independent_candidates.md).
 
-| repo | baseline | current | driver |
+Per-repo archcheck pairs, **baseline → current (post all three fixes)**:
+
+| repo | baseline | current | drivers |
 |---|---:|---:|---|
 | Catch2 | 0 | 0 | — |
-| GWToolboxpp | 13 | 12 | #091 |
-| Kartend | 34 | 42 | #091 recall (+8) |
-| IrredenEngine | 3 | 4 | #091 |
-| LibreSprite | 10 | 10 | #091 (algo_line recovered) |
-| irrlicht-1.8.3 | 58 | 41 | vendored −14, #091 −3 |
-| AetherSDR | 71 | 72 | #091 |
-| BambuStudio | 187 | 129 | vendored −54, #091 −4 |
-| **total** | **376** | **310** | |
+| GWToolboxpp | 13 | 149 | #092 recall |
+| Kartend | 34 | 62 | #091/#092 recall |
+| IrredenEngine | 3 | 116 | #092 recall |
+| LibreSprite | 10 | 78 | #091/#092 recall |
+| irrlicht-1.8.3 | 58 | 467 | vendored −, #092 recall ++ |
+| AetherSDR | 71 | 390 | #092 recall |
+| BambuStudio | 187 | 1152 | vendored −, #092 recall ++ |
+| **total** | **376** | **2414** | |
 
 Authored clones are all preserved (`CIrrDeviceWin32 ↔ CIrrDeviceWinCE`, `CD3D8 ↔
 CD3D9`, `GLGizmoAdvancedCut ↔ GLGizmoColorCut`, slic3r `3mf`); only vendored noise
-dropped and large-function recall improved. Both fixes covered by tests
-(`[scan][vendor]`, `[duplication][fragmenter]`).
-
-> **Update — Fix 3 (#092), after this report's numbers were taken.** The
-> rare-token candidate index was corpus-size-dependent (a clone stopped being a
-> candidate once the project grew); k-gram winnowing fingerprints made candidacy
-> scale-independent. This **further raised archcheck recall** well past the
-> "current" column above (e.g. irrlicht 41→467, BambuStudio 129→1152), and an
-> eyes-on sample of the new pairs was ~0 false positives. The tables in this
-> report therefore *understate* post-#092 archcheck. See
-> [backlog/wip/092](../backlog/wip/092_crt_dup_scale_independent_candidates.md).
+dropped, while large-function and scale-independent recall were added. All three
+fixes covered by tests (`[scan][vendor]`, `[duplication][fragmenter]`,
+`[duplication][fingerprints]`).
 
 ## Recommendation
 
@@ -250,9 +254,9 @@ archcheck is the only tool here that produces actionable C++ signal**:
    NiCad program family — a research project, not adoption.
 2. **Where NiCad does run, it is ~1 % signal.** 802 clone groups, ~6–9 useful; the
    rest is the duplication *inside vendored C dependencies* (no default exclusion).
-3. **archcheck finds 309 authored C++ clones NiCad misses entirely** — including
+3. **archcheck finds 2409 authored C++ clones NiCad misses entirely** — including
    EXACT cross-file copy-paste that is exactly what a CI gate / PR reviewer wants —
-   at **~100× less wall-clock** (≈17 s vs ≈1700 s across the corpus), as a single
+   at **~40× less wall-clock** (≈44 s vs ≈1700 s across the corpus), as a single
    static binary with working vendored exclusion and a baseline mode.
 4. **The "wrap an existing tool" alternative fails for NiCad.** Per
    [clone_tools_landscape §4](../docs/research/clone_tools_landscape.md), archcheck's
