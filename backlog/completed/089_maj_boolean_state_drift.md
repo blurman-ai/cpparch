@@ -5,7 +5,7 @@
 **Дата завершения:** 2026-06-07
 **Статус:** done
 
-> **ФИНАЛЬНЫЙ ВЕРДИКТ: MAYBE** — дрейф булей реален (~21% агентских репо, нижняя граница из-за shallow-клонов), но измерим только как **per-struct накопление по git-истории**, не статикой/именами. «Невозможные состояния» — риск лишь при взаимозависимости полей (не универсально: Channel/MethodState ортогональны). Для archcheck — НЕ дефолтное правило (нарушает «не линтер» + нет authority + YAGNI). Если делать — drift-метрика рядом с #086/#087, требует #042. Полный путь: `docs/research/boolean_state_*.md` (research, broad_scan, usage_verdicts, history_drift, eyecheck, perstruct_drift, drift_limits, metric_design). C++/Python прототипы — `experiments/boolean_state/` (отдельный проект, вне `src/`).
+> **ФИНАЛЬНЫЙ ВЕРДИКТ: MAYBE** — дрейф булей реален (~21% агентских репо, нижняя граница из-за shallow-клонов), но измерим только как **per-struct накопление по git-истории**, не статикой/именами. «Невозможные состояния» — риск лишь при взаимозависимости полей (не универсально: Channel/MethodState ортогональны). Для archcheck — НЕ дефолтное правило (нарушает «не линтер» + нет authority + YAGNI). Если делать — drift-метрика рядом с #086/#087, на **fast-бэкенде** (git blame + regex; #042 НЕ нужен для диффа — AST по коммитам нереально, лишь опц. буст гейта взаимозависимости на текущем срезе). Реальный блокер — спрос, не техника. Полный путь: `docs/research/boolean_state_*.md` (research, broad_scan, usage_verdicts, history_drift, eyecheck, perstruct_drift, drift_limits, metric_design). C++/Python прототипы — `experiments/boolean_state/` (отдельный проект, вне `src/`).
 **Модуль:** RESEARCH / RULES
 **Приоритет:** major
 **Сложность:** unknown
