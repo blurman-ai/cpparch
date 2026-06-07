@@ -64,7 +64,13 @@ Rule 1 параметры:
 
 ## Сделано
 
-- (пусто)
+- **Rule implementation (C++20):** `src/rules/implicit_state_machine_growth.h/cpp` — struct extraction, bool-field counting, state-pattern matching
+- **Threshold logic:** min_bool_fields=5, state_pattern_ratio=0.6 (60%) — tuned from corpus study (#089)
+- **Heuristics:** state-pattern matching (started/running/paused/failed/active/ready/connected), config-pattern exclusion (enable_*/use_*/verbose/debug), exclude-list (*Options/*Config/Chord*/FlatC*)
+- **Fixtures:** 4 test cases (pass + fail variants) → all correctly classified
+- **Unit tests:** 5 test cases (Catch2) → all passed ✓
+- **Integration:** registered in rule_set, added to CMakeLists, dogfood check pending
+- **Documentation:** rule message with field names, ratios, suggestion to use State Pattern
 
 ## В работе
 
@@ -72,11 +78,10 @@ Rule 1 параметры:
 
 ## Следующие шаги
 
-1. Create rule skeleton: `src/rules/boolean_state_detector.h`
-2. Implement struct extraction & bool-field scanning
-3. Add naming heuristics (state vs config patterns)
-4. Write fixtures
-5. Testing & validation
+1. Dogfood: verify archcheck itself passes the rule (should pass, no 5+ bool structs found)
+2. v0.3: implement Rules 2-3 (semantic backend #042 dependent)
+3. Baseline integration: track boolean-field growth over time as drift metric
+4. User feedback: gather ground truth from real projects
 
 ## Ключевые решения
 
