@@ -1,8 +1,8 @@
 # [RULES] Implement implicit_state_machine_growth Rule (v0.2)
 
 **Дата создания:** 2026-06-07
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-07
+**Статус:** wip
 **Модуль:** RULES / IMPLEMENTATION
 **Приоритет:** critical
 **Сложность:** M
