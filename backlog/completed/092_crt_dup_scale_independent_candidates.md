@@ -2,7 +2,8 @@
 
 **Дата создания:** 2026-06-07
 **Дата старта:** 2026-06-07
-**Статус:** wip
+**Статус:** completed
+**Дата завершения:** 2026-06-07
 **Модуль:** SCAN (duplication)
 **Приоритет:** critical (корректность детектора)
 **Related:** #091 (large-function fragmentation), #056 (token dedup), [duplication_architecture.md §3.3](../../docs/duplication_architecture.md)
