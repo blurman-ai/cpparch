@@ -38,6 +38,7 @@ private:
   static bool isStatePatternName(std::string_view name);
   static bool isConfigPatternName(std::string_view name);
   static bool shouldExclude(std::string_view structName);
+  static std::string describe(const BoolStruct &s);
 
   // Scan source file for struct/class definitions and count bool fields
   std::vector<BoolStruct> scanSourceFile(std::string_view path, const std::string &source) const;
