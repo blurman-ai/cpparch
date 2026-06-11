@@ -7,12 +7,14 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "archcheck/git/git_exec.h"
 #include "archcheck/scan/file_classification.h"
 
 namespace archcheck::git
@@ -20,6 +22,9 @@ namespace archcheck::git
 
 namespace
 {
+
+// S4: upper bound on blob size to prevent OOM on adversarial git objects.
+constexpr std::size_t kMaxBlobSizeBytes = 64ULL * 1024 * 1024; // 64 MiB
 
 bool pathHasExcludedSegment(const std::string &posixPath)
 {
@@ -35,81 +40,6 @@ bool pathHasExcludedSegment(const std::string &posixPath)
     start = slash + 1;
   }
   return false;
-}
-
-// One-shot helper for `git ls-tree`. Mirrors the fork/exec pattern in
-// git_state.cpp but is intentionally local: GitObjectFileSource is the
-// only caller and we want to keep its translation unit self-contained.
-struct OneShot
-{
-  int exitCode = -1;
-  std::string out;
-};
-
-void drain(int fd, std::string &sink)
-{
-  std::array<char, 4096> buf{};
-  for (;;)
-  {
-    const ssize_t n = ::read(fd, buf.data(), buf.size());
-    if (n <= 0)
-      break;
-    sink.append(buf.data(), static_cast<std::size_t>(n)); // LCOV_EXCL_BR_LINE
-  }
-}
-
-// LCOV_EXCL_START — child-process code; runs after fork(), not visible to gcov in parent
-[[noreturn]] void execGitChild(const std::vector<std::string> &args, const std::filesystem::path &cwd, int outFd)
-{
-  ::dup2(outFd, STDOUT_FILENO);
-  if (!cwd.empty() && ::chdir(cwd.c_str()) != 0)
-    _exit(127);
-  std::vector<char *> argv;
-  argv.reserve(args.size() + 2);
-  argv.push_back(const_cast<char *>("git"));
-  for (const auto &a : args)
-    argv.push_back(const_cast<char *>(a.c_str()));
-  argv.push_back(nullptr);
-  ::execvp("git", argv.data());
-  _exit(127);
-}
-// LCOV_EXCL_STOP
-
-void parentCollect(int outRead, int outWrite, pid_t pid, OneShot &r)
-{
-  ::close(outWrite);
-  drain(outRead, r.out);
-  ::close(outRead);
-  int status = 0;
-  ::waitpid(pid, &status, 0);
-  r.exitCode =
-      WIFEXITED(status) ? WEXITSTATUS(status) : -1; // LCOV_EXCL_BR_LINE — false branch requires signal-killed child
-}
-
-OneShot runGitOneShot(const std::vector<std::string> &args, const std::filesystem::path &cwd)
-{
-  OneShot r;
-  std::array<int, 2> outPipe{};
-  if (::pipe(outPipe.data()) != 0)
-    return r; // LCOV_EXCL_LINE — OS-level failure
-  const pid_t pid = ::fork();
-  if (pid < 0)
-  {
-    // LCOV_EXCL_START — OS-level failure
-    ::close(outPipe[0]);
-    ::close(outPipe[1]);
-    return r;
-    // LCOV_EXCL_STOP
-  }
-  if (pid == 0) // LCOV_EXCL_BR_LINE — branch taken only in child process
-  {
-    // LCOV_EXCL_START — child-side of fork
-    ::close(outPipe[0]);
-    execGitChild(args, cwd, outPipe[1]);
-    // LCOV_EXCL_STOP
-  }
-  parentCollect(outPipe[0], outPipe[1], pid, r);
-  return r;
 }
 
 } // namespace
@@ -132,7 +62,17 @@ namespace
   ::dup2(childStdout, STDOUT_FILENO);
   if (!cwd.empty() && ::chdir(cwd.c_str()) != 0)
     _exit(127);
-  char *const argv[] = {const_cast<char *>("git"), const_cast<char *>("cat-file"), const_cast<char *>("--batch"),
+  // S6: disable system config, hooks, fsmonitor, and pager.
+  ::setenv("GIT_CONFIG_NOSYSTEM", "1", 1);
+  char *const argv[] = {const_cast<char *>("git"),
+                        const_cast<char *>("-c"),
+                        const_cast<char *>("core.hooksPath=/dev/null"),
+                        const_cast<char *>("-c"),
+                        const_cast<char *>("core.fsmonitor="),
+                        const_cast<char *>("-c"),
+                        const_cast<char *>("core.pager=cat"),
+                        const_cast<char *>("cat-file"),
+                        const_cast<char *>("--batch"),
                         nullptr};
   ::execvp("git", argv);
   _exit(127);
@@ -189,7 +129,8 @@ void GitObjectFileSource::closeChild()
 std::vector<scan::ProjectFile> GitObjectFileSource::list()
 {
   std::vector<scan::ProjectFile> out;
-  const auto run = runGitOneShot({"ls-tree", "-r", "--name-only", ref_}, repoRoot_);
+  // S6: runGit applies hardening flags and GIT_CONFIG_NOSYSTEM automatically.
+  const auto run = runGit({"ls-tree", "-r", "--name-only", ref_}, repoRoot_);
   if (run.exitCode != 0)
     return out;
   std::istringstream iss(run.out);
@@ -238,6 +179,23 @@ bool GitObjectFileSource::readExact(std::string &out, std::size_t n)
   return true;
 }
 
+// Parse the `git cat-file --batch` header line for a blob object.
+// Returns the blob size on success, or 0 if the header is not a blob.
+std::size_t GitObjectFileSource::parseBlobSize(const std::string &header)
+{
+  // Header form: "<sha> <type> <size>" (blob) or "<obj> missing" / "<obj> ambiguous".
+  const auto sp1 = header.find(' ');
+  if (sp1 == std::string::npos)
+    return 0;
+  const auto sp2 = header.find(' ', sp1 + 1);
+  if (sp2 == std::string::npos)
+    return 0;
+  const std::string_view type = std::string_view{header}.substr(sp1 + 1, sp2 - sp1 - 1);
+  if (type != "blob")
+    return 0;
+  return static_cast<std::size_t>(std::strtoull(header.data() + sp2 + 1, nullptr, 10));
+}
+
 std::string GitObjectFileSource::read(const std::string &repoRelativePath)
 {
   if (pid_ <= 0)
@@ -248,17 +206,18 @@ std::string GitObjectFileSource::read(const std::string &repoRelativePath)
   std::string header;
   if (!readLine(header))
     return {};
-  // Header form: "<sha> <type> <size>" (blob) or "<obj> missing" / "<obj> ambiguous".
-  const auto sp1 = header.find(' ');
-  if (sp1 == std::string::npos)
+  const std::size_t size = parseBlobSize(header);
+  if (size == 0)
     return {};
-  const auto sp2 = header.find(' ', sp1 + 1);
-  if (sp2 == std::string::npos)
+  if (size > kMaxBlobSizeBytes)
+  {
+    std::cerr << "archcheck: skipping oversized git blob (> 64 MiB): " << repoRelativePath << '\n';
+    std::string discard;
+    readExact(discard, size); // drain to keep --batch protocol in sync
+    char trailer = 0;
+    [[maybe_unused]] auto skip = ::read(stdoutFd_, &trailer, 1);
     return {};
-  const std::string_view type = std::string_view{header}.substr(sp1 + 1, sp2 - sp1 - 1);
-  if (type != "blob")
-    return {};
-  const std::size_t size = static_cast<std::size_t>(std::strtoull(header.data() + sp2 + 1, nullptr, 10));
+  }
   std::string content;
   if (!readExact(content, size))
     return {};

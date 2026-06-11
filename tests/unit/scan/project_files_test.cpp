@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "archcheck/scan/disk_file_source.h"
 #include "archcheck/scan/file_source.h"
 #include "archcheck/scan/project_files.h"
 
@@ -143,6 +144,47 @@ TEST_CASE("discover_files survives a self-referential directory symlink (#081)",
   REQUIRE(contains(paths, "sub/nested.h"));
 }
 
+TEST_CASE("discover_files rejects file symlink pointing outside root (S3)", "[scan][project_files][security]")
+{
+  auto tree = make_tree("symfile");
+  touch(tree.root / "real.cpp");
+  // Create a real file outside the tree to be the symlink target.
+  auto outside = make_tree("symfile_outside");
+  touch(outside.root / "secret.h");
+  const auto target = outside.root / "secret.h";
+  std::error_code ec;
+  std::filesystem::create_symlink(target, tree.root / "evil.h", ec);
+  if (ec)
+  {
+    SUCCEED("filesystem does not support symlinks here");
+    return;
+  }
+  const auto paths = paths_of(discoverFiles(tree.root));
+  // evil.h must NOT appear — it points outside the root.
+  REQUIRE(!contains(paths, "evil.h"));
+  REQUIRE(contains(paths, "real.cpp"));
+}
+
+TEST_CASE("discover_files accepts file symlink pointing inside root (S3)", "[scan][project_files][security]")
+{
+  auto tree = make_tree("symfile_in");
+  touch(tree.root / "real.cpp");
+  touch(tree.root / "actual.h");
+  std::error_code ec;
+  // Symlink inside the same tree — this is acceptable.
+  std::filesystem::create_symlink(tree.root / "actual.h", tree.root / "alias.h", ec);
+  if (ec)
+  {
+    SUCCEED("filesystem does not support symlinks here");
+    return;
+  }
+  const auto paths = paths_of(discoverFiles(tree.root));
+  // Both the real file and the in-tree symlink are accepted.
+  REQUIRE(contains(paths, "real.cpp"));
+  REQUIRE(contains(paths, "actual.h"));
+  REQUIRE(contains(paths, "alias.h"));
+}
+
 TEST_CASE("discover_files returns POSIX-normalized repo-relative paths", "[scan][project_files]")
 {
   auto tree = make_tree("posix");
@@ -260,4 +302,29 @@ TEST_CASE("collect_non_vendored_sources: drops unit-test code (#070)", "[scan][t
 
   REQUIRE(out.size() == 1);
   REQUIRE(out[0].first == "src/app/foo.cpp");
+}
+
+TEST_CASE("DiskFileSource::read skips oversized files (S4)", "[scan][disk_file_source][security]")
+{
+  auto tree = make_tree("s4_oversize");
+  const auto big = tree.root / "huge.h";
+  // Create a sparse file of 65 MiB via seekp — stays on disk as sparse,
+  // file_size() reports the logical size without reading all bytes.
+  {
+    std::ofstream f(big, std::ios::binary);
+    f.seekp(static_cast<std::streamoff>(65LL * 1024 * 1024 - 1));
+    f.put('\0');
+  }
+  // Small file that must still be readable.
+  const auto small = tree.root / "small.h";
+  {
+    std::ofstream f(small);
+    f << "// ok\n";
+  }
+
+  archcheck::scan::DiskFileSource src(tree.root);
+  // Oversized file returns empty without throwing.
+  REQUIRE(src.read("huge.h").empty());
+  // Small file is unaffected.
+  REQUIRE(src.read("small.h") == "// ok\n");
 }

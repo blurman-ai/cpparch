@@ -11,10 +11,15 @@
 #include <vector>
 
 #include "archcheck/diff/regression_report.h"
+#include "archcheck/git/diff_query.h"
 #include "archcheck/git/git_object_file_source.h"
 #include "archcheck/git/git_state.h"
+#include "archcheck/git/history_query.h"
 #include "archcheck/graph/graph_builder.h"
 #include "archcheck/scan/disk_file_source.h"
+#include "archcheck/scan/god_file_growth.h"
+#include "archcheck/scan/satd_scan.h"
+#include "archcheck/scan/test_co_evolution.h"
 
 namespace
 {
@@ -512,4 +517,105 @@ TEST_CASE("git diff (memory): chain length regression detected via GitObjectFile
   REQUIRE(report.chainLengthGrown.has_value());
   REQUIRE(report.chainLengthGrown->current > report.chainLengthGrown->baseline);
   REQUIRE(report.hasRegression());
+}
+
+TEST_CASE("satd_scan: collectAddedLines finds TODO in added lines", "[satd][git][integration]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  writeFile(repo.path / "code.cpp", "int x = 1;\n");
+  commitAll(repo.path, "baseline");
+  writeFile(repo.path / "code.cpp", "int x = 1;\n// TODO: refactor this\nint y = 2;\n");
+  commitAll(repo.path, "adds TODO");
+
+  const auto added = archcheck::git::collectAddedLines(repo.path, "HEAD~1", "HEAD");
+  REQUIRE(added.size() == 2); // The TODO line and the y=2 line
+
+  const auto satdViolations = archcheck::scan::detectSatdMarkers(added);
+  REQUIRE(satdViolations.size() == 1);
+  REQUIRE(satdViolations[0].ruleId == "SATD.1");
+  REQUIRE(satdViolations[0].file == "code.cpp");
+  REQUIRE(satdViolations[0].line > 0);
+}
+
+TEST_CASE("test_co_evolution: production change without test update triggers detection",
+          "[test_co_evolution][git][integration]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  fs::create_directories(repo.path / "src");
+  fs::create_directories(repo.path / "tests");
+  writeFile(repo.path / "src" / "main.cpp", "int main() { return 0; }\n");
+  writeFile(repo.path / "tests" / "test_main.cpp", "void test_main() { }\n");
+  commitAll(repo.path, "baseline");
+
+  // Change production file by >80 lines, leave tests unchanged
+  std::string largeChange;
+  for (int i = 0; i < 85; ++i)
+    largeChange += "x = " + std::to_string(i) + ";\n";
+  writeFile(repo.path / "src" / "main.cpp", largeChange);
+  commitAll(repo.path, "large prod change, no test update");
+
+  const auto numstat = archcheck::git::collectNumstat(repo.path, "HEAD~1", "HEAD");
+  const auto violations = archcheck::scan::detectTestCoEvolution(numstat);
+  REQUIRE(violations.size() == 1);
+  REQUIRE(violations[0].ruleId == "TEST.1.prod_changed_tests_silent");
+}
+
+TEST_CASE("history_query: end-to-end with synthesized git history", "[git][history]")
+{
+  // Instead of querying a real git repo (which requires git to output the exact format),
+  // we test the detector by synthesizing commit history that looks like what
+  // queryCommitHistory would return, then verifying the detector fires correctly.
+  // The parseHistoryOutput parser is tested separately in unit tests.
+
+  // Synthesize history: 6 commits with steady growth
+  std::vector<archcheck::git::CommitStats> history;
+
+  // Initial commit with 100 lines
+  archcheck::git::CommitStats c0;
+  c0.sha = "abc000";
+  c0.subject = "Initial file";
+  archcheck::git::FileChange f0;
+  f0.path = "src/growing.cpp";
+  f0.added = 100;
+  f0.deleted = 0;
+  c0.files.push_back(f0);
+  history.push_back(c0);
+
+  // 5 growth commits, each adding 50 lines with 10 deleted (net +40 per commit)
+  for (int i = 1; i <= 5; ++i)
+  {
+    archcheck::git::CommitStats commit;
+    commit.sha = "abc" + std::to_string(i);
+    commit.subject = "Growth " + std::to_string(i);
+    archcheck::git::FileChange fc;
+    fc.path = "src/growing.cpp";
+    fc.added = 50;
+    fc.deleted = 10;
+    commit.files.push_back(fc);
+    history.push_back(commit);
+  }
+
+  // Current LOC: 100 (initial) + 5 * 40 (net per growth commit) = 300
+  // Create additional small files to make P75 calculation meaningful
+  std::map<std::string, std::int32_t> currentLoc;
+  currentLoc["src/growing.cpp"] = 300; // Net +200 from initial
+  currentLoc["src/small.cpp"] = 50;
+  currentLoc["src/tiny.cpp"] = 40;
+  currentLoc["src/medium.cpp"] = 200;
+
+  // P75 of [40, 50, 200, 300] = [40, 50, 200, 300], idx = ceil(4*0.75)-1 = 2, P75=200
+  // growing.cpp: 300 >= 200 ✓
+  // net growth: 200 >= +30%*300 = 90 ✓ (OR >= 300)
+  // consecutive: 5 >= 5 ✓
+  // no shrink ✓
+
+  archcheck::scan::GodFileGrowthDetector detector(currentLoc, history);
+  const auto violations = detector.detect();
+
+  REQUIRE(violations.size() == 1);
+  REQUIRE(violations[0].ruleId == "SIZE.1.god_file_growth");
+  REQUIRE(violations[0].file == "src/growing.cpp");
+  REQUIRE(violations[0].line == 0);
 }

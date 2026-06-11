@@ -39,12 +39,18 @@ add_executable(archcheck_tests
    unit/scan/project_files_test.cpp
    unit/scan/include_resolver_test.cpp
    unit/scan/file_classification_test.cpp
+   unit/scan/satd_scan_test.cpp
+   unit/scan/test_co_evolution_test.cpp
+   unit/scan/god_file_growth_test.cpp
+   unit/scan/defect_attractor_test.cpp
    unit/graph/dependency_graph_test.cpp
    unit/graph/algorithms_test.cpp
    unit/graph/diff_test.cpp
    unit/graph/baseline_test.cpp
    unit/git/git_state_test.cpp
    unit/git/git_object_file_source_test.cpp
+   unit/git/diff_query_test.cpp
+   unit/git/history_query_test.cpp
    unit/diff/regression_report_test.cpp
    unit/report/json_escape_test.cpp
    unit/report/violation_baseline_test.cpp

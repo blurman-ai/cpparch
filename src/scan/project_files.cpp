@@ -46,6 +46,35 @@ bool should_skip_dir(const std::filesystem::directory_entry &entry)
   return entry.is_symlink(ec) || isExcludedDirName(entry.path().filename().string());
 }
 
+// True when a file entry is a symlink whose resolved target escapes root.
+// Security: prevents reading /etc/passwd via evil.h -> /etc/passwd.
+bool symlink_escapes_root(const std::filesystem::directory_entry &entry, const std::filesystem::path &root)
+{
+  std::error_code ec;
+  if (!entry.is_symlink(ec) || ec)
+  {
+    return false;
+  }
+  const auto target = std::filesystem::weakly_canonical(entry.path(), ec);
+  if (ec)
+  {
+    return true; // unresolvable → treat as escaping
+  }
+  const auto canon_root = std::filesystem::weakly_canonical(root, ec);
+  if (ec)
+  {
+    return false;
+  }
+  const auto rel = std::filesystem::relative(target, canon_root, ec);
+  if (ec)
+  {
+    return true;
+  }
+  // relative() returns a path starting with ".." when target is outside root.
+  const std::string first = rel.begin() != rel.end() ? rel.begin()->string() : "";
+  return first == "..";
+}
+
 } // namespace
 
 std::vector<ProjectFile> discoverFiles(const std::filesystem::path &root)
@@ -64,10 +93,14 @@ std::vector<ProjectFile> discoverFiles(const std::filesystem::path &root)
     {
       it.disable_recursion_pending();
     }
-    else if (entry.is_regular_file(item_ec) && has_project_extension(entry.path()))
+    else if (entry.is_regular_file(item_ec) && !symlink_escapes_root(entry, root) &&
+             has_project_extension(entry.path()))
     {
-      const auto rel = std::filesystem::relative(entry.path(), root, item_ec);
-      if (!item_ec)
+      // GCC8-COMPAT: std::filesystem::relative() follows symlinks on GCC 8,
+      // returning the canonical target path instead of the entry name.
+      // lexically_relative() is purely lexical and preserves symlink names.
+      const auto rel = entry.path().lexically_relative(root);
+      if (!rel.empty() && rel.begin()->string() != "..")
       {
         out.push_back(ProjectFile{to_posix(rel)});
       }

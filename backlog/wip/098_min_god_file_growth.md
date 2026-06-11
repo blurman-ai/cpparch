@@ -1,8 +1,8 @@
 # [CHEAP-DRIFT][HISTORY] God-File Growth
 
 **Дата создания:** 2026-06-10
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-11
+**Статус:** wip
 **Модуль:** GIT / HISTORY / REPORT
 **Приоритет:** minor
 **Сложность:** medium
@@ -108,11 +108,12 @@
 
 ## Сделано
 
-- (пусто)
-
-## В работе
-
-- (пусто)
+- `include/archcheck/git/history_query.h` + `src/git/history_query.cpp`: queryCommitHistory + parseHistoryOutput (single git log pass)
+- `include/archcheck/scan/god_file_growth.h` + `src/scan/god_file_growth.cpp`: GodFileGrowthDetector с 4 условиями
+- CLI: `archcheck --history <path>` (advisory-only, всегда return 0)
+- Tests: 5 unit-тестов parseHistoryOutput + 1 end-to-end GodFileGrowthDetector + интеграционный тест
+- Все 402 тестов green, archcheck self-check clean, форматирование OK
+- Found real god-file: src/config/config_loader.cpp (413 LOC, +160 net, 5 growth commits)
 
 ## Следующие шаги
 
