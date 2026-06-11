@@ -91,8 +91,18 @@ jobs:
         run: |
           ./build/debug/src/archcheck --version
           ./build/debug/src/archcheck --help
-          # exit 2 on unknown argument:
-          ./build/debug/src/archcheck unknown || test $? -eq 2
+          # exit 2 on unknown flag (assert the exact code — `cmd || test` is vacuous on exit 0):
+          rc=0; ./build/debug/src/archcheck --no-such-flag || rc=$?
+          test "$rc" -eq 2
+          # exit 2 on nonexistent path:
+          rc=0; ./build/debug/src/archcheck no_such_dir_xyz || rc=$?
+          test "$rc" -eq 2
+
+      - name: Dogfood (archcheck on its own sources)
+        run: |
+          ./build/debug/src/archcheck src
+          ./build/debug/src/archcheck include
+          ./build/debug/src/archcheck tests
 
   static-analysis:
     name: Static analysis (cppcheck + lizard + clang-tidy strict)
