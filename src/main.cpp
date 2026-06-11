@@ -554,6 +554,14 @@ int dispatch_format(int argc, char *argv[])
   return run_check(root, format);
 }
 
+bool requireDirectory(const std::filesystem::path &path)
+{
+  if (std::filesystem::is_directory(path))
+    return true;
+  std::cerr << "archcheck: not a directory: " << path.string() << '\n';
+  return false;
+}
+
 int dispatch_with_path(std::string_view arg, int argc, char *argv[])
 {
   if (argc < 3)
@@ -561,6 +569,8 @@ int dispatch_with_path(std::string_view arg, int argc, char *argv[])
     std::cerr << "archcheck: " << arg << " requires <path>\n";
     return 2;
   }
+  if (!requireDirectory(argv[2]))
+    return 2;
   if (arg == "--scan")
     return run_scan(argv[2]);
   if (arg == "--duplication")
@@ -603,7 +613,10 @@ int dispatch(int argc, char *argv[])
   if (arg == "--config")
     return dispatch_config(argc, argv);
   if (!arg.empty() && arg[0] != '-')
-    return run_check(std::filesystem::path{argv[1]}, OutputFormat::Text);
+  {
+    const std::filesystem::path root{argv[1]};
+    return requireDirectory(root) ? run_check(root, OutputFormat::Text) : 2;
+  }
   std::cerr << "archcheck: unknown argument '" << arg << "'\n";
   print_help();
   return 2;
@@ -613,7 +626,20 @@ int dispatch(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-  if (argc < 2)
-    return run_check(std::filesystem::current_path(), OutputFormat::Text);
-  return dispatch(argc, argv);
+  try
+  {
+    if (argc < 2)
+      return run_check(std::filesystem::current_path(), OutputFormat::Text);
+    return dispatch(argc, argv);
+  }
+  catch (const std::exception &e)
+  {
+    std::cerr << "archcheck: internal error: " << e.what() << '\n';
+    return 3;
+  }
+  catch (...)
+  {
+    std::cerr << "archcheck: internal error\n";
+    return 3;
+  }
 }
