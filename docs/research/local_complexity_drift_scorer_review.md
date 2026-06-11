@@ -141,3 +141,23 @@ python3 $P --old-file /tmp/lcd_test/c_old.cpp --new-file /tmp/lcd_test/c_new.cpp
 Связанное: corpus-отчёт прототипа (`local_complexity_drift_corpus_report.md`) уже рекомендует
 `revise` — это ревью конкретизирует, **что именно** ревизить; примеры ручной разметки
 (`local_complexity_drift_examples.md`, 6/6 TP) останутся TP и на cognitive-шкале.
+
+## Resolution (2026-06-11, v2-скорер)
+
+Все семь дефектов закрыты переписыванием `scan_commit.py` на токенный сканер Sonar
+Cognitive Complexity (дизайн — [cognitive_complexity_delta_design.md](cognitive_complexity_delta_design.md) §4/§6).
+Проверено на репро-парах `review_repros/`:
+
+- **D1** (плоский switch): `a` теперь 0→1, finding нет (был 0→19).
+- **D2** (rvalue-`&&`): `b` дельта 0 — `&&`, приклеенный к токену (`Item&&`, `auto&&`), не логический.
+- **D3** (выровненные продолжения): `d` дельта 0 — отступы убраны из score целиком.
+- **D4** (do-while): `e` 0→1 (был 3) — хвостовой `while` не считается.
+- **D5** (абсолютный порог на size-метрике): score теперь cognitive — линейный код = 0 by
+  construction; пороги — иерархия LCX.1 `crossed_25` / LCX.2 `grew_when_already_above` / LCX.3 `Δ>=5`.
+- **D6** (TEST_F): блэклист символов `TEST*/BENCHMARK` + суффикс-фильтр `*tests`-каталогов →
+  0 TEST-находок в корпусе (было 2 в топ-20).
+- **D7** (перегрузки): арность верхнего уровня в ключе матчинга → low-confidence упал 43→21.
+
+Контроль: `f` (рефорсат условия) 2→2, дельта 0 — многострочная серия `&&` теперь считается
+один раз (lastOp-стек по глубине скобок). Synthetic suite 13/13, 6/6 ручных TP сохранились
+после корпусного перепрогона (`local_complexity_drift_corpus_report.md`).

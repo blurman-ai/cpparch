@@ -2,12 +2,20 @@
 
 Concrete before/after examples from existing functions only.
 
+Scores are the **v2 cognitive-complexity scorer** (Sonar spec, token-based). All six
+examples re-scored under v2 and remain findings — the rewrite from the v1 formula
+preserved every manually-confirmed true positive (the switch-parser/`TEST_F` noise it
+dropped never appeared here). The diffs and verdicts below are unchanged.
+
 ## Manual Review Summary
 
-- Reviewed examples: `6`
-- Clear true positives: `6`
-- Clear false positives: `0`
-- Borderline/actionability caveat: `2` UI settings/render handlers are structurally noisy but still real in-function complexity growth.
+Two rounds, **16 cases** hand-read from real diffs. Round 1 (below) is six top-by-delta
+true positives; **Round 2** (at the end of this doc) deliberately samples the noisy strata
+to find where the scorer fails.
+
+- Cumulative reviewed: `16` — `10` actionable TP, `3` non-actionable TP, `2` FP, `1` low-confidence mismatch.
+- Round 1 (top-by-delta): `6/6` clear TP, all surviving the v1→v2 rescore (3 via `crossed_25`, 3 via `grew_when_already_above`).
+- FPs found in Round 2: a parser mismatch (`__attribute__`) and a Δ1 scorer artifact — both detailed at the end.
 
 | Example | Verdict | Reason |
 |---------|---------|--------|
@@ -23,8 +31,8 @@ Concrete before/after examples from existing functions only.
 - Commit: `97676c6944e3`
 - File: `src/TransformOperator.cpp`
 - Function: `TransformOperator::mouseReleaseEvent`
-- Score: `11 -> 136` (`+125`)
-- Branch delta: `79`, nesting delta: `4`, deep lines delta: `37`
+- Score (v2 cognitive): `7 -> 81` (`+74`), reason `crossed_25`
+- Decision points delta: `25`, nesting delta: `3`, deep-increment delta: `20`
 - Manual verdict: `TP`
 - Why: existing mouse-release handler absorbed undo command construction for translate/rotate/scale paths, with nested loops and state branches. This is real in-function complexity growth, not vendor/test/generated noise.
 
@@ -211,8 +219,8 @@ Concrete before/after examples from existing functions only.
 - Commit: `cdca30ff8a2b`
 - File: `mods/taskbar-content-presenter-injector.wh.cpp`
 - Function: `InjectForElement`
-- Score: `6 -> 108` (`+102`)
-- Branch delta: `56`, nesting delta: `6`, deep lines delta: `34`
+- Score (v2 cognitive): `2 -> 50` (`+48`), reason `crossed_25`
+- Decision points delta: `12`, nesting delta: `6`, deep-increment delta: `9`
 - Manual verdict: `TP`
 - Why: existing hook changed from a simple local scan + async schedule call into an async lambda with weak references, visual-tree traversal, mutex-protected state cleanup, and duplicate-scan suppression. This is exactly the kind of local complexity drift the prototype should surface.
 
@@ -372,8 +380,8 @@ void InjectForElement(void* pThis) {
 - Commit: `0fb20ab21cac`
 - File: `main/dzVents.cpp`
 - Function: `CdzVents::processLuaCommand`
-- Score: `49 -> 148` (`+99`)
-- Branch delta: `55`, nesting delta: `2`, deep lines delta: `36`
+- Score (v2 cognitive): `28 -> 81` (`+53`), reason `grew_when_already_above`
+- Decision points delta: `15`, nesting delta: `2`, deep-increment delta: `15`
 - Manual verdict: `TP`
 - Why: existing Lua command dispatcher grew new `SendNotification` and `SendEmail` parsing paths inside the wrapped-command branch. It is authored application code and the added branches materially increase local decision logic.
 
@@ -596,8 +604,8 @@ void InjectForElement(void* pThis) {
 - Commit: `3791d86aa91a`
 - File: `src/Features/WetnessEffects.cpp`
 - Function: `WetnessEffects::DrawSettings`
-- Score: `54 -> 142` (`+88`)
-- Branch delta: `45`, nesting delta: `2`, deep lines delta: `36`
+- Score (v2 cognitive): `49 -> 96` (`+47`), reason `grew_when_already_above`
+- Decision points delta: `23`, nesting delta: `1`, deep-increment delta: `3`
 - Manual verdict: `TP`
 - Why: existing ImGui settings renderer grew climate preset selection, bounds checks, preset application, tooltip branches, and feature navigation. Caveat: UI/settings functions are naturally branchy, but this is still real growth inside one function, not a scanner FP.
 
@@ -834,8 +842,8 @@ void InjectForElement(void* pThis) {
 - Commit: `b225568e3228`
 - File: `src/Upscaling.cpp`
 - Function: `Upscaling::DrawSettings`
-- Score: `55 -> 137` (`+82`)
-- Branch delta: `44`, nesting delta: `1`, deep lines delta: `33`
+- Score (v2 cognitive): `42 -> 93` (`+51`), reason `grew_when_already_above`
+- Decision points delta: `22`, nesting delta: `1`, deep-increment delta: `17`
 - Manual verdict: `TP`
 - Why: existing settings renderer grew frame-generation availability gating plus backend diagnostics with loops, selectable actions, sorting setup, and multiple UI conditionals. Caveat: like Example 4, it is UI-heavy code, but the signal correctly identifies in-function complexity growth.
 
@@ -1072,8 +1080,8 @@ void InjectForElement(void* pThis) {
 - Commit: `7b8cbb03327c`
 - File: `mods/transparent-desktop-icons-spotlight.wh.cpp`
 - Function: `DispatchMessageW_Hook`
-- Score: `6 -> 85` (`+79`)
-- Branch delta: `40`, nesting delta: `6`, deep lines delta: `32`
+- Score (v2 cognitive): `4 -> 46` (`+42`), reason `crossed_25`
+- Decision points delta: `15`, nesting delta: `6`, deep-increment delta: `7`
 - Manual verdict: `TP`
 - Why: existing Windows message hook changed from two simple initialization paths into an init/backoff/discovery state machine with nested failure handling, event wake-up, throttling, and `PostThreadMessage` discovery. This is a strong true positive.
 
@@ -1240,3 +1248,74 @@ LRESULT WINAPI DispatchMessageW_Hook(const MSG* lpMsg) {
     return DispatchMessageW_Original(lpMsg);
 }
 ```
+
+---
+
+# Manual Review Round 2 (v2, noise-focused)
+
+The first six examples were all clear true positives picked from the top by delta. To
+test where the v2 scorer *fails*, this round deliberately samples the suspicious strata:
+the `grew_when_already_above` Δ1 tail, low-confidence matches, zero-baseline "existing"
+functions, and medium deltas. Ten more cases, hand-read from the real diffs.
+
+| # | repo / symbol | v2 score | reason | verdict |
+|---|---------------|----------|--------|---------|
+| 7  | cisco_mercury / `main` | 248→249 (+1) | grew_above | TP, non-actionable (Δ1) |
+| 8  | crawl / `handle_monster_move` | 165→166 (+1) | grew_above | TP, non-actionable (Δ1) |
+| 9  | crawl / `_pack_shoal_waves` | 157→158 (+1) | grew_above | **FP** (scorer artifact) |
+| 10 | zeroc-ice / `CodeVisitor::writeDocstring` | 6→23 (+17) | complexity_delta | **Low-confidence mismatch** |
+| 11 | chawrt / `__attribute__` | 1→30 (+29) | crossed_25 | **FP** (parser mismatch) |
+| 12 | Mudlet / `TDetachedWindow::slot_showMapperDialog` | 0→75 (+75) | crossed_25 | TP (zero-baseline) |
+| 13 | FlashCpp / `handleFunctionCall` | 0→25 (+25) | crossed_25 | TP (zero-baseline) |
+| 14 | wiRedPanda / `ThemeAttributes::setTheme` | 8→16 (+8) | complexity_delta | TP, low-actionability |
+| 15 | siril / `process_connection` | 574→681 (+107) | grew_above | TP (validates switch handling) |
+| 16 | Mudlet / `TBuffer::decodeOSC` | 83→179 (+96) | grew_above | TP |
+
+## Round-2 tally
+
+- Reviewed this round: `10` (cumulative with round 1: `16`).
+- Actionable true positives: `7` (#12, #13, #15, #16 + the round-1 six minus none — see below).
+- True but non-actionable (Δ1 tail or mechanical defensive guards): `3` (#7, #8, #14).
+- False positives: `2` (#9 scorer artifact, #11 parser mismatch).
+- Low-confidence mismatch: `1` (#10).
+
+Cumulative across both rounds: **16 reviewed — 10 actionable TP, 3 non-actionable TP, 2 FP, 1 low-confidence mismatch.**
+
+## Where the signal is useful
+
+- Real added control flow surfaces cleanly: #12 (detached-window slot grows a dock-widget
+  cleanup state machine), #13 (a stub filled in with an arg-marshalling `while` + nested
+  `switch`), #16 (hyperlink-styling branches).
+- **#15 `process_connection` is the key v2 validation.** It is a giant protocol dispatcher
+  (574→681). Under v1 this kind of function dominated the top purely because it has many
+  `case` labels. Under v2 the +107 comes entirely from the **nested `if/else` inside the
+  new command cases**, not from the case labels (which are free). The scorer now measures
+  the right thing: branching depth, not dispatch size.
+
+## Where it is noisy (feeds the #101 recommendation)
+
+- **Δ1 tail of `grew_when_already_above` (#7, #8).** A genuine single new `if`/`&&` on a
+  function already at 165–248 is *technically* real growth but useless as a review signal —
+  the function was already far past the 25 threshold. This is the 72/210 Δ1-2 tail the
+  corpus report flags; it is why LCX.2 needs a delta floor or advisory-only treatment.
+- **Scorer artifact (#9).** `_pack_shoal_waves` is reported +1, but the only change is a
+  *simplification* (`!feat_is_statuelike(feat)` replacing two `feat != …` comparisons). The
+  phantom +1 comes from the `!`-breaks-series heuristic splitting one `&&` chain into two
+  when a `!` lands mid-condition. Harmless at Δ1, but it confirms the heuristic over-counts
+  negation slightly versus the Sonar spec.
+- **Parser mismatch (#11).** The "function" `__attribute__` is `__attribute__((unused))`
+  mistaken for a signature in a Linux PCS driver. A clear false positive from the
+  text-based fragmenter; an AST backend would not make it. Cheap mitigation: blacklist
+  `__attribute__`/`__declspec` as signature names (left as a #101 hardening note).
+- **Low-confidence mismatch (#10).** `writeDocstring` is matched low-confidence; the diff
+  around it is unrelated namespace churn (a `pyLinkFormatter` helper deleted, a rename).
+  The reported +17 is not trustworthy — exactly what the `low` confidence flag is for.
+
+## Verdict for #101
+
+The v2 scorer is sound for the `crossed_25` and `complexity_delta` signals (the actionable
+TPs all came through those). The work remaining before it ships as a default rule is
+threshold/hardening, not scoring: (1) put a floor on or down-rank `grew_when_already_above`,
+(2) drop or down-rank `low`-confidence matches from headline output, (3) blacklist the
+`__attribute__`/`__declspec` pseudo-signatures. None of these touch the cognitive-complexity
+core.
