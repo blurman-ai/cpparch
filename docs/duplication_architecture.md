@@ -259,11 +259,17 @@ detect (#053/#056 recall) → confirm (#070 precision) → ДЕЙСТВИЕ
   selective normalization, excludes, diff-mode #054. Плюс перенесённый из #053
   отсев data-блобов: raw-string-литералы (`R"(...)"`) схлопываются в `lit`,
   мёртвые `#if 0`/`#if false` блоки выкидываются в лексере.
-- **В `src/scan/`** — пока НЕТ. Перенос ждёт стабилизации общего duplication
-  plumbing (corpus/excludes/baseline/CLI umbrella).
-- **Не реализовано:** классификатор RENAMED/EDITED-CONST (спец в #056 §P3b),
-  полноценный data-heavy guard для числовых таблиц (raw-string/dead-`#if` уже
-  есть), LLM-confirm-слой, fingerprint-fallback recall.
+- **В `src/scan/duplication/`** — токеновый детектор перенесён (#072) и подключён
+  к CLI (`--duplication`, advisory, всегда exit 0): нормализация, фрагментация,
+  rare-token индекс + winnowing fingerprints (#092 закрыл fingerprint-recall),
+  скоринг (weighted/plain Jaccard, lineOverlap, token-LCS), P0/P1 precision-фильтры
+  (включая data-table guard P1.1), классификатор.
+- **Шкала классификатора в коде иная, чем в §3.6:** шипнуто
+  EXACT/RENAMED/LITERAL/MIXED/STRUCTURAL (`clone_classifier.h`); соответствие:
+  VERBATIM≈EXACT, RENAMED≈RENAMED, EDITED-CONST≈LITERAL,
+  EDITED-LOGIC/EXPANDED≈MIXED/STRUCTURAL.
+- **Не реализовано:** LLM-confirm-слой, P1.3 header-impl gate,
+  baseline/gate-режим для дублей (§7 «commit/baseline = gate» — пока только план).
 
 ## 12. Карта задач и артефактов
 

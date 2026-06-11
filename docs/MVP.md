@@ -23,11 +23,11 @@ MVP must:
 
 ## Core Features
 
-### 1. compile_commands.json support
+### 1. Source discovery (revised by the two-backend ADR)
 
-- Read compilation database
-- Resolve include paths
-- Process translation units
+- v0.1 (shipped): fast preprocessor backend — walks the source tree, **no `compile_commands.json` required** (decision #006/#043, see architecture-spec §Двух-бекендная схема)
+- v0.2 (planned): read `compile_commands.json` + libclang for semantic rules
+- Resolve include paths against the project tree
 
 ---
 
@@ -142,7 +142,7 @@ Modules:
 
 ## Implementation Order
 
-1. compile_commands reader
+1. fast preprocessor scanner (originally "compile_commands reader" — superseded by the two-backend ADR; compile_commands moves to v0.2)
 2. include graph
 3. cycle detection
 4. module mapping
@@ -163,6 +163,12 @@ MVP is done if:
 - outputs correct file locations
 - runs in CI
 - has fixtures for all rules
+
+**Status (2026-06-11):** cycles ✅ (SF.9, fixtures + corpus-validated) · file locations ✅
+(`file:line`) · CI ✅ (GitHub Actions) · fixtures ✅ (all 8 shipped rules).
+**Open: "enforces 1 dependency rule"** — `modules:`/`rules:` are parsed and validated but not
+enforced (`--config` is validate-only + thresholds; enforcement is v0.2, tasks #045/#073).
+MVP is therefore **not** complete until this criterion is closed or explicitly rescoped.
 
 ---
 

@@ -31,7 +31,7 @@ Linters don’t check architecture.
   - **Lakos.GodHeader** — fan-in ≤ 50 incoming includes
   - **Lakos.ChainLength** — include-chain depth ≤ 10
 - Reports violations as `file:line: [rule] message`, exit non-zero on failure
-- Tracks architectural drift between revisions: `--save-graph-baseline` once, then `--drift-baseline` in CI catches new cycles (DRIFT.2) and short-circuit edges (DRIFT.1)
+- Tracks architectural drift between revisions: `--save-graph-baseline` once, then `--drift-baseline` in CI catches new cycles (DRIFT.2) and short-circuit edges (DRIFT.1), and reports new mutual module coupling (DRIFT.3, advisory)
 - Diff mode (`--diff <revspec>`) compares the include graph between two git refs and reports structural regressions — added/removed edges, grown cycles, new god-headers, chain-length growth — useful for PR checks on legacy projects
 
 ---
@@ -58,6 +58,16 @@ archcheck --drift-baseline      graph.json src/
 
 # Report only what changed in a git range
 archcheck --diff main..feature src/
+
+# Validate .archcheck.yml and apply threshold overrides
+archcheck --config .archcheck.yml src/
+
+# Advisory duplication report (report-only, never gates)
+archcheck --duplication src/
+
+# Quick previews: scanner stats / include-graph stats
+archcheck --scan src/
+archcheck --graph src/
 ```
 
 ### Example output
@@ -106,7 +116,7 @@ archcheck checks architecture only.
 
 The original pitch promised module-mapping with YAML-declared dependency rules. This is real, just deferred — see [docs/architecture-spec.md](docs/architecture-spec.md) and the ADR trail in `backlog/completed/`.
 
-- **YAML config rules** (`.archcheck.yml` with `modules:` and `forbid:` / `allow:`) — v0.2
+- **YAML module-rule enforcement** — the `.archcheck.yml` v1 schema (`modules:` + `rules:` with `layers` / `independence` / `forbidden`, see [docs/config_format.md](docs/config_format.md)) is already parsed, validated and auto-discovered, and `thresholds:` overrides already apply; *enforcement* of module rules lands v0.2
 - **`archcheck init`** scaffolding command — v0.2
 - **`--with-clang`** semantic backend (libclang) — unlocks SF.21 and the remaining SF.* rules — v0.2
 - **SARIF** output — when semantic rules ship
@@ -118,7 +128,7 @@ The defaults that ship today were chosen precisely so a YAML config is not requi
 
 ## Status
 
-v0.1 in active development. MVP functionally complete (all default rules + drift + diff), polish and docs in progress.
+v0.1 in active development. Shipped: five default rules, baselines, drift gate (DRIFT.1/2 gating + DRIFT.3 advisory), PR diff mode, advisory duplication report. Not yet shipped: enforcement of YAML module rules (parsed but not enforced — v0.2), SARIF, semantic backend. One MVP acceptance criterion ("enforces 1 dependency rule") is still open — see [docs/MVP.md](docs/MVP.md).
 
 ---
 
