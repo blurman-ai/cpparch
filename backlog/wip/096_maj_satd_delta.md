@@ -1,8 +1,8 @@
 # [CHEAP-DRIFT][DIFF] SATD Delta
 
 **Дата создания:** 2026-06-10
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-11
+**Статус:** wip
 **Модуль:** GIT / DIFF / REPORT
 **Приоритет:** major
 **Сложность:** small
@@ -125,18 +125,39 @@
 
 ## Сделано
 
-- (пусто)
+1. Вынести `runGit()` из anon namespace git_state.cpp в общий хелпер:
+   - `include/archcheck/git/git_exec.h` + `src/git/git_exec.cpp` (82 строк)
+   - Обновлена git_state.cpp, чтобы использовать общий хелпер
+2. Создать `include/archcheck/git/diff_query.h` + `src/git/diff_query.cpp`:
+   - `collectAddedLines()` — парсинг unified diff --unified=0
+   - `collectNumstat()` — парсинг git diff --numstat
+   - Поддержка обоих режимов: a..b и a..WORKTREE
+3. Создать SATD-детектор:
+   - `include/archcheck/scan/satd_scan.h` + `src/scan/satd_scan.cpp` (156 строк)
+   - `detectSatdMarkers()` реализует SATD.1 (любой маркер) и SATD.2 (FIXME/HACK без issue-id)
+   - Поддержка всех регулярных маркеров из спеки
+   - Маркер ловится только в комментариях (// или /* */)
+   - Один violation на строку, усечение до 120 символов
+4. Интеграция в src/main.cpp:
+   - Добавлено собирание added lines через `collectAddedLines()`
+   - Добавлен вызов `detectSatdMarkers()` в `runDiffFullPath()`
+   - SATD-блок печатается после structural report (advisory-only, не гейтит)
+5. Фикстуры в fixtures/satd_delta/:
+   - pass/: hack_with_issue.diff, context_only.diff, dirty_in_code.diff
+   - fail/: todo_added.diff, fixme_without_issue.diff, hack_without_issue.diff, temporary_marker.diff, workaround_marker.diff
+6. Тесты:
+   - tests/unit/git/diff_query_test.cpp (2 базовых теста, 21 строка)
+   - tests/unit/scan/satd_scan_test.cpp (22 теста, 184 строки)
+   - tests/integration/diff/git_diff_test.cpp (добавлен 1 интеграционный тест)
+   - Все 381 тест проходят
 
 ## В работе
 
-- (пусто)
+- (нет)
 
 ## Следующие шаги
 
-1. Выделить чтение added lines из текущего diff pipeline.
-2. Реализовать marker detector и optional issue-id check.
-3. Добавить diff fixtures.
-4. Убедиться, что текстовый и JSON output не расходятся по semantics.
+- Готово к ревью и мерджу
 
 ## Ключевые решения
 

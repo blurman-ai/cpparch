@@ -1,8 +1,8 @@
 # [CHEAP-DRIFT][DIFF] Test Co-Evolution Signal
 
 **Дата создания:** 2026-06-10
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-11
+**Статус:** wip
 **Модуль:** GIT / DIFF / REPORT
 **Приоритет:** major
 **Сложность:** small
@@ -108,7 +108,53 @@
 
 ## Сделано
 
-- (пусто)
+**Детектор test_co_evolution:**
+- `include/archcheck/scan/test_co_evolution.h` — заголовок детектора (публичный интерфейс)
+- `src/scan/test_co_evolution.cpp` — реализация:
+  - `aggregateChurn()` — разделение path по bucket-ам (production/test/other), подсчёт churn
+  - `shouldReportCoEvolution()` — проверка двух порогов (strict: 80 строк + 0 тестов, soft: 200 строк + <5% тестов)
+  - `detectTestCoEvolution()` — публичная функция с выходом ViolationList (0 или 1 элемент)
+  - Используются существующие функции: `hasProjectExtension()`, `pathHasTestDir()`, `isTestBasename()`, `pathHasVendoredDir()`, `isVendoredFile()`
+
+**Интеграция в main.cpp:**
+- Добавлен include `#include "archcheck/scan/test_co_evolution.h"`
+- Вызов после SATD-блока в `runDiffFullPath()`: `archcheck::git::collectNumstat()` → `detectTestCoEvolution()` → вывод (advisory)
+- Формат вывода аналогичен SATD: "test co-evolution (advisory):" + список нарушений
+
+**Фикстуры в `fixtures/test_co_evolution/`:**
+- `pass/with_tests.numstat` — production 80 строк + tests 25 строк (no finding)
+- `fail/prod_without_tests.numstat` — production 100 строк + tests 0 (finding по strict threshold)
+- `pass/docs_only.numstat` — только .md файлы (no finding, no project extension)
+- `pass/generated_or_vendor_ignored.numstat` — vendor + rename-only (no finding)
+
+**Unit-тесты в `tests/unit/scan/test_co_evolution_test.cpp`:**
+- Парсер для .numstat формата (сырые tab-separated lines)
+- 9 тестов, покрывающих:
+  - strict threshold: prod 100 + tests 0 → finding
+  - insufficient tests: prod 100 + tests 20 → no finding
+  - docs-only: no finding
+  - rename-only: no finding, не считаются в churn
+  - soft threshold: prod 250 + tests 5 (2%) → finding
+  - vendor exclusion: vendor files не считаются prod
+  - смешанный случай: vendor + prod + tests
+  - boundary case: ровно на 5% ratio → no finding (< not <=)
+
+**Интеграционный тест в `tests/integration/diff/git_diff_test.cpp`:**
+- `test_co_evolution: production change without test update triggers detection`
+  - git repo с src/main.cpp + tests/test_main.cpp
+  - baseline commit, затем изменение 85 строк в prod без изменения тестов
+  - проверка наличия TEST.1.prod_changed_tests_silent в выводе
+
+**CMakeLists.txt:**
+- `src/CMakeLists.txt`: добавлен `scan/test_co_evolution.cpp` в target `archcheck_core`
+- `tests/CMakeLists.txt`: добавлен `unit/scan/test_co_evolution_test.cpp` в target `archcheck_tests`
+
+**Качество кода:**
+- clang-format: отформатировано (120 columns, Allman braces, 2 spaces)
+- cppcheck: OK (без warning/error)
+- lizard: 12 CCN, 23 NLOC (в пределах лимитов 15/30)
+- Все 390 unit+integration тестов пройдены
+- Самопроверка archcheck: src/, include/, tests/ дают 0 нарушений (SF.7/8/9/21, cycles, god-headers, chain-length)
 
 ## В работе
 

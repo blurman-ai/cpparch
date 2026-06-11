@@ -1,0 +1,6 @@
+diff --git a/src/example.cpp b/src/example.cpp
+index 1234567..abcdefg 100644
+--- a/src/example.cpp
++++ b/src/example.cpp
+@@ -1,0 +2 @@
++  // FIXME: this needs to be handled

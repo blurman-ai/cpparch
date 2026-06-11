@@ -12,8 +12,10 @@
 
 #include "archcheck/config/config_loader.h"
 #include "archcheck/diff/regression_report.h"
+#include "archcheck/git/diff_query.h"
 #include "archcheck/git/git_object_file_source.h"
 #include "archcheck/git/git_state.h"
+#include "archcheck/git/history_query.h"
 #include "archcheck/graph/algorithms.h"
 #include "archcheck/graph/baseline.h"
 #include "archcheck/graph/dependency_graph.h"
@@ -22,10 +24,14 @@
 #include "archcheck/report/text_reporter.h"
 #include "archcheck/report/violation_baseline.h"
 #include "archcheck/rules/rule_set.h"
+#include "archcheck/scan/defect_attractor.h"
 #include "archcheck/scan/disk_file_source.h"
 #include "archcheck/scan/duplication/duplication_scanner.h"
+#include "archcheck/scan/god_file_growth.h"
 #include "archcheck/scan/include_scanner.h"
 #include "archcheck/scan/project_files.h"
+#include "archcheck/scan/satd_scan.h"
+#include "archcheck/scan/test_co_evolution.h"
 #include "archcheck/version.h"
 
 namespace
@@ -52,6 +58,8 @@ void print_help()
             << "  archcheck --scan  <path>                     (preview: discover + scan #includes)\n"
             << "  archcheck --graph <path>                     (preview: build dependency graph + SCC stats)\n"
             << "  archcheck --duplication <path>               (report duplicate code; advisory, does not gate CI)\n"
+            << "  archcheck --history <path>                   (history analytics: god-file growth; advisory, does not "
+               "gate CI)\n"
             << "  archcheck --diff  [--diff-mode=disk|memory] <revspec> [path]\n"
             << "                                               (regression vs git ref; revspec = 'a..b' or '<ref>')\n"
             << "\n"
@@ -224,8 +232,18 @@ int run_save_graph_baseline(const std::filesystem::path &root, const std::filesy
   return 0;
 }
 
+// S4: upper bound on individual source file size to prevent OOM.
+static constexpr std::size_t kMainMaxFileSizeBytes = 64ULL * 1024 * 1024; // 64 MiB
+
 std::string read_file(const std::filesystem::path &p)
 {
+  std::error_code ec;
+  const auto sz = std::filesystem::file_size(p, ec);
+  if (!ec && sz > kMainMaxFileSizeBytes)
+  {
+    std::cerr << "archcheck: skipping oversized file (> 64 MiB): " << p.string() << '\n';
+    return {};
+  }
   std::ifstream f(p, std::ios::binary);
   return std::string{std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
 }
@@ -319,6 +337,45 @@ int run_duplication(const std::filesystem::path &root)
   return 0;
 }
 
+static std::map<std::string, std::int32_t> buildLocMap(const std::filesystem::path &root)
+{
+  archcheck::scan::DiskFileSource diskSrc(root);
+  const auto sources = archcheck::scan::collectNonVendoredSources(diskSrc);
+  std::map<std::string, std::int32_t> locMap;
+  for (const auto &[path, content] : sources)
+  {
+    locMap[path] = static_cast<std::int32_t>(std::count(content.begin(), content.end(), '\n'));
+  }
+  return locMap;
+}
+
+int run_history(const std::filesystem::path &root)
+{
+  const auto locMap = buildLocMap(root);
+  const auto history = archcheck::git::queryCommitHistory(root, 200);
+
+  const archcheck::scan::GodFileGrowthDetector detector(locMap, history);
+  const auto godFileViolations = detector.detect();
+  std::cout << "queried " << history.size() << " commits, found " << godFileViolations.size()
+            << " god-file growth candidate(s)\n";
+  for (const auto &v : godFileViolations)
+  {
+    std::cout << v.file << ": [" << v.ruleId << "] " << v.message << '\n';
+  }
+
+  const archcheck::scan::DefectAttractorDetector defectDetector(history);
+  const auto defectViolations = defectDetector.detect();
+  if (!defectViolations.empty())
+  {
+    std::cout << "\ndefect attractors (advisory): " << defectViolations.size() << " file(s)\n";
+    for (const auto &v : defectViolations)
+    {
+      std::cout << v.file << ": [" << v.ruleId << "] " << v.message << '\n';
+    }
+  }
+  return 0;
+}
+
 std::optional<archcheck::git::Worktree> materialize_or_report(const std::filesystem::path &repoRoot,
                                                               const std::string &ref, const char *role)
 {
@@ -386,6 +443,29 @@ archcheck::graph::GraphBuildResult buildSideDisk(const std::filesystem::path &re
   return archcheck::graph::buildGraphForPath(tree->path());
 }
 
+// Advisory-only signals over the changed lines (SATD markers, test
+// co-evolution): reported after the structural diff, never gating.
+void printDiffAdvisories(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed)
+{
+  const auto addedLines = archcheck::git::collectAddedLines(repoRoot, parsed.baseline, parsed.current);
+  const auto satdViolations = archcheck::scan::detectSatdMarkers(addedLines);
+  if (!satdViolations.empty())
+  {
+    std::cout << "\nself-admitted technical debt (advisory):\n";
+    for (const auto &v : satdViolations)
+      std::cout << "  " << v.file << ":" << v.line << ": " << v.ruleId << " — " << v.message << '\n';
+  }
+
+  const auto numstatEntries = archcheck::git::collectNumstat(repoRoot, parsed.baseline, parsed.current);
+  const auto testCoEvolViolations = archcheck::scan::detectTestCoEvolution(numstatEntries);
+  if (!testCoEvolViolations.empty())
+  {
+    std::cout << "\ntest co-evolution (advisory):\n";
+    for (const auto &v : testCoEvolViolations)
+      std::cout << "  " << v.ruleId << ": " << v.message << '\n';
+  }
+}
+
 int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed, DiffMode mode)
 {
   bool okBase = false, okCurr = false;
@@ -403,6 +483,7 @@ int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git:
             << "baseline_nodes: " << baseline.graph.nodeCount() << '\n'
             << "current_nodes:  " << current.graph.nodeCount() << '\n';
   archcheck::diff::writeTextReport(report, std::cout);
+  printDiffAdvisories(repoRoot, parsed);
   return report.hasRegression() ? 1 : 0;
 }
 
@@ -575,6 +656,8 @@ int dispatch_with_path(std::string_view arg, int argc, char *argv[])
     return run_scan(argv[2]);
   if (arg == "--duplication")
     return run_duplication(argv[2]);
+  if (arg == "--history")
+    return run_history(argv[2]);
   return run_graph(argv[2]);
 }
 
@@ -593,6 +676,12 @@ bool dispatchBuiltins(std::string_view arg)
   return false;
 }
 
+// Modes taking a single <path> argument, dispatched through dispatch_with_path.
+bool isPathPreviewMode(std::string_view arg)
+{
+  return arg == "--scan" || arg == "--graph" || arg == "--duplication" || arg == "--history";
+}
+
 int dispatch(int argc, char *argv[])
 {
   const std::string_view arg{argv[1]};
@@ -604,7 +693,7 @@ int dispatch(int argc, char *argv[])
     return dispatch_drift_baseline(argc, argv);
   if (arg == "--save-graph-baseline")
     return dispatch_save_graph_baseline(argc, argv);
-  if (arg == "--scan" || arg == "--graph" || arg == "--duplication")
+  if (isPathPreviewMode(arg))
     return dispatch_with_path(arg, argc, argv);
   if (arg == "--diff")
     return dispatch_diff(argc, argv);

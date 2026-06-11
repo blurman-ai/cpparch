@@ -4,6 +4,10 @@ add_library(archcheck_core STATIC
    scan/project_files.cpp
    scan/include_resolver.cpp
    scan/disk_file_source.cpp
+   scan/satd_scan.cpp
+   scan/test_co_evolution.cpp
+   scan/god_file_growth.cpp
+   scan/defect_attractor.cpp
    scan/duplication/token_normalizer.cpp
    scan/duplication/fragmenter.cpp
    scan/duplication/similarity.cpp
@@ -18,8 +22,11 @@ add_library(archcheck_core STATIC
    graph/diff.cpp
    graph/baseline.cpp
    graph/graph_builder.cpp
+   git/git_exec.cpp
    git/git_state.cpp
    git/git_object_file_source.cpp
+   git/diff_query.cpp
+   git/history_query.cpp
    diff/regression_report.cpp
    report/json_reporter.cpp
    report/text_reporter.cpp

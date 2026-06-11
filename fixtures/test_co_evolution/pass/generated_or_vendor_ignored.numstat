@@ -1,0 +1,3 @@
+0	0	src/old_name.cpp => src/new_name.cpp
+100	50	src/vendor/sqlite3.cpp
+20	10	third_party/jsoncpp/json.cpp
