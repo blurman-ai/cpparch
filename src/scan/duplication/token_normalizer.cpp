@@ -429,7 +429,9 @@ std::vector<Token> lex(const std::string &source, bool keepCalls)
       continue;
     }
     atLineStart = false;
+    const std::size_t tokenStart = i;
     consumeToken(source, i, line, out, keepCalls);
+    out.back().off = static_cast<int>(tokenStart);
   }
 
   return out;

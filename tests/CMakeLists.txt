@@ -43,6 +43,9 @@ add_executable(archcheck_tests
    unit/scan/test_co_evolution_test.cpp
    unit/scan/god_file_growth_test.cpp
    unit/scan/defect_attractor_test.cpp
+   unit/scan/function_body_scan_test.cpp
+   unit/scan/local_complexity_metrics_test.cpp
+   unit/scan/local_complexity_drift_test.cpp
    unit/graph/dependency_graph_test.cpp
    unit/graph/algorithms_test.cpp
    unit/graph/diff_test.cpp
