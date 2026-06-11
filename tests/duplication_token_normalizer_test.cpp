@@ -79,3 +79,24 @@ TEST_CASE("Token normalizer: keepCalls=false normalizes all identifiers", "[dupl
   }
   REQUIRE(!foundCall);
 }
+
+// A stray single quote swallows text up to the next quote, possibly lines away.
+// The pre-unification char path did not advance `line` across that run, shifting
+// the line numbers of every later token (and file:line is the product contract).
+// tryConsumeQuoted counts raw newlines for both quote kinds; this pins it.
+TEST_CASE("Token normalizer: newline inside a quoted run keeps later line numbers", "[duplication]")
+{
+  const std::string src = "int a;\n' x\ny '\nint b;\n";
+  const auto tokens = lex(src, true);
+
+  bool checked = false;
+  for (const auto &t : tokens)
+  {
+    if (t.sym == "id" && t.raw == "b")
+    {
+      REQUIRE(t.line == 4);
+      checked = true;
+    }
+  }
+  REQUIRE(checked);
+}

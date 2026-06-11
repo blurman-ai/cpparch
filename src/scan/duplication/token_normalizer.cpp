@@ -223,16 +223,18 @@ bool tryConsumeRawString(const std::string &source, std::size_t &i, int &line, s
   return true;
 }
 
-bool tryConsumeString(const std::string &source, std::size_t &i, int &line, std::vector<Token> &out)
+// Shared scan for string and char literals: skip escaped pairs until the closing
+// delimiter, emit one "lit" token anchored at the opening line.
+bool tryConsumeQuoted(const std::string &source, std::size_t &i, int &line, char delim, std::vector<Token> &out)
 {
-  if (i >= source.size() || source[i] != '"')
+  if (i >= source.size() || source[i] != delim)
   {
     return false;
   }
   const std::size_t litStart = i;
   const int startLine = line;
   ++i;
-  while (i < source.size() && source[i] != '"')
+  while (i < source.size() && source[i] != delim)
   {
     if (source[i] == '\\' && i + 1 < source.size())
     {
@@ -250,31 +252,6 @@ bool tryConsumeString(const std::string &source, std::size_t &i, int &line, std:
     ++i;
   }
   out.push_back({"lit", startLine, source.substr(litStart, i - litStart)});
-  return true;
-}
-
-bool tryConsumeChar(const std::string &source, std::size_t &i, int &line, std::vector<Token> &out)
-{
-  if (i >= source.size() || source[i] != '\'')
-  {
-    return false;
-  }
-  const std::size_t litStart = i;
-  ++i;
-  while (i < source.size() && source[i] != '\'')
-  {
-    if (source[i] == '\\' && i + 1 < source.size())
-    {
-      i += 2;
-      continue;
-    }
-    ++i;
-  }
-  if (i < source.size())
-  {
-    ++i;
-  }
-  out.push_back({"lit", line, source.substr(litStart, i - litStart)});
   return true;
 }
 
@@ -355,17 +332,17 @@ bool tryConsumeOperator(const std::string &source, std::size_t &i, int line, std
   return false;
 }
 
-void consumeToken(const std::string &source, std::size_t &i, int line, std::vector<Token> &out, bool keepCalls)
+void consumeToken(const std::string &source, std::size_t &i, int &line, std::vector<Token> &out, bool keepCalls)
 {
   if (tryConsumeRawString(source, i, line, out))
   {
     return;
   }
-  if (tryConsumeString(source, i, line, out))
+  if (tryConsumeQuoted(source, i, line, '"', out))
   {
     return;
   }
-  if (tryConsumeChar(source, i, line, out))
+  if (tryConsumeQuoted(source, i, line, '\'', out))
   {
     return;
   }

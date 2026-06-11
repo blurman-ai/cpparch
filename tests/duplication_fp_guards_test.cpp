@@ -273,81 +273,54 @@ TEST_CASE("P0.2: git rename/move suppress — whole-file clones pass through", "
   }
 }
 
-TEST_CASE("P0.4: function-boundary anchor — distant same-file pairs pass", "[duplication][fp-guards]")
+// The most common copy-paste pattern: a function duplicated DIRECTLY below the
+// original (one blank line gap), then tweaked. The former P0.4 "function-boundary
+// anchor" suppressed exactly this true positive: it assumed fragments could straddle
+// adjacent function boundaries, but brace-anchored fragments (fragmenter.cpp) always
+// lie within one function, so the guard only ever killed real clones (verified on the
+// monit corpus: same clone reported at an 8-line gap, suppressed at a 1-line gap).
+// P0.4 removed 2026-06-11; this fixture pins the recovered recall.
+namespace
 {
-  const std::string source = R"(
-void func1() {
-  a=1; b=2; c=3; d=4; e=5; f=6; g=7; h=8; i=9; j=10; k=11; l=12;
+const std::string kAdjacentCopyPasteSource = R"(
+void load_widget_first(int n) {
+  widget_open(n); widget_seek(n); widget_load(n); widget_decode(n);
+  widget_apply(n); widget_commit(n); widget_close(n);
 }
 
+void load_widget_second(int n) {
+  widget_open(n); widget_seek(n); widget_load(n); widget_decode(n);
+  widget_apply(n); widget_commit(n); widget_close(n);
+}
 
-// Long comment separator
-// Multiple lines
-// To ensure distance
-
-
-void func2() {
-  a=1; b=2; c=3; d=4; e=5; f=6; g=7; h=8; i=9; j=10; k=11; l=12;
+void unrelated_helper(int n) {
+  other_setup(n); other_run(n); other_teardown(n);
+  a=1; b=2; c=3; d=4; e=5; f=6;
 }
 )";
+} // namespace
+
+TEST_CASE("Same-file copy-paste pasted directly below the original is reported", "[duplication][fp-guards]")
+{
+  const std::string &source = kAdjacentCopyPasteSource;
 
   ScannerOptions opts;
   opts.fragmentOpts.minTokens = 5;
-  opts.simThreshold = 0.5;
+  opts.simThreshold = 0.6;
 
   const auto result = scanForDuplication({{"test.cpp", source}}, opts);
 
-  // P0.4 should allow pairs between well-separated functions
-  // (If fragments are found, they should not be adjacent function boundaries)
+  bool reported = false;
   for (const auto &pair : result.pairs)
   {
     const auto &fa = result.fragments[pair.a];
     const auto &fb = result.fragments[pair.b];
-
-    if (fa.file == fb.file)
+    if (fa.startLine != fb.startLine && fa.file == fb.file)
     {
-      // Pairs should pass — they're not at function boundaries
-      // Either they're in different parts of functions or far enough apart
-      REQUIRE(true); // Just ensure guards don't crash; actual filtering is done by P0.4
+      reported = true;
     }
   }
-}
-
-TEST_CASE("P0.4: function-boundary anchor — close adjacent tail+head rejected", "[duplication][fp-guards]")
-{
-  // Simulated case: two fragments very close (likely end of func1 + start of func2)
-  std::vector<Fragment> fragments;
-
-  Fragment f1;
-  f1.file = "test.cpp";
-  f1.startLine = 1;
-  f1.endLine = 10; // Ends at line 10
-
-  Fragment f2;
-  f2.file = "test.cpp";
-  f2.startLine = 12; // Starts at line 12 (only 2 lines apart)
-  f2.endLine = 20;
-
-  fragments = {f1, f2};
-
-  std::vector<Pair> pairs;
-  Pair p;
-  p.a = 0;
-  p.b = 1;
-  p.weighted = 0.9;
-  p.line = 0.8;
-  pairs.push_back(p);
-
-  // P0.4 heuristic: if they're within 5 lines and adjacent, skip
-  // f1.endLine (10) + 5 = 15, f2.startLine (12) < 15 → close, should be filtered
-  // But our implementation checks: if lineDist <= 5, then check if separated >= 5
-  // Here: lineDist = |1 - 20| = 19 (not <= 5) and lineDist2 = |12 - 10| = 2 (is <= 5)
-  // Then checks: (10 + 5 < 12) = false, (12 + 5 < 1) = false
-  // So would skip this pair (boundary crossing)
-
-  REQUIRE(pairs.size() == 1);
-  // After P0.4, this pair should be filtered if detected as boundary crossing
-  // (Our test validates the heuristic is applied)
+  REQUIRE(reported);
 }
 
 TEST_CASE("P0.1+P0.3+P0.6+P0.4: all guards work together", "[duplication][fp-guards]")

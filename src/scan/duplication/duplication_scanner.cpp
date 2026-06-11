@@ -356,50 +356,13 @@ std::size_t phase8WholeFileSuppress(std::vector<Pair> &candidates, const std::ve
   return wholeFile.size();
 }
 
-// P0.4: function-boundary anchor — don't let windows straddle function boundaries
-// If one fragment is in the last 3 lines of a function and the other in the first 3 lines
-// of the next function, it's likely tail+head of adjacent methods, not a real clone.
-void phase9FunctionBoundaryAnchor(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
-{
-  std::vector<Pair> filtered;
-
-  for (const auto &p : candidates)
-  {
-    const Fragment &fa = allFragments[p.a];
-    const Fragment &fb = allFragments[p.b];
-
-    // Different files: keep (can't determine function boundaries without parsing)
-    if (fa.file != fb.file)
-    {
-      filtered.push_back(p);
-      continue;
-    }
-
-    // Same file: check if one is at function tail and other at function head
-    // Heuristic: if fragments are within 5 lines of each other AND in adjacent positions,
-    // they're likely end of one function + start of next → skip
-    int lineDist = std::abs(static_cast<int>(fa.startLine) - static_cast<int>(fb.endLine));
-    int lineDist2 = std::abs(static_cast<int>(fb.startLine) - static_cast<int>(fa.endLine));
-
-    // If one fragment ends and another starts within small distance, likely boundary crossing
-    if (lineDist <= 5 || lineDist2 <= 5)
-    {
-      // One likely at tail, other at head of adjacent function
-      if ((fa.endLine + 5 < fb.startLine) || (fb.endLine + 5 < fa.startLine))
-      {
-        // They're separated by at least 5 lines, not a boundary crossing
-        filtered.push_back(p);
-      }
-      // else: skip (boundary crossing)
-    }
-    else
-    {
-      // Not close enough to be function boundary crossing
-      filtered.push_back(p);
-    }
-  }
-  candidates = std::move(filtered);
-}
+// NOTE: the function-boundary anchor (P0.4) that once lived here was REMOVED
+// (2026-06-11). It assumed fragments could straddle adjacent function boundaries
+// (tail of one + head of the next), but brace-anchored fragments (fragmenter.cpp)
+// always lie within a single function, so the guard never matched its target FP and
+// instead suppressed the most common true positive: a function copy-pasted directly
+// below the original (≤5-line gap). Regression fixture: duplication_fp_guards_test.cpp
+// "Same-file copy-paste pasted directly below the original is reported".
 
 // Tag each surviving pair with its clone type (Type-1 EXACT … Type-3 STRUCTURAL).
 // Informational only — does not gate; the type rides along to the reporter.
@@ -428,7 +391,6 @@ void applyCandidateFilters(std::vector<Pair> &candidates, const std::vector<Frag
   {
     result.wholeFileClones = phase8WholeFileSuppress(candidates, allFragments);
   }
-  phase9FunctionBoundaryAnchor(candidates, allFragments);
   // P0.7-P0.9: path-based suppression of intentional/generated duplication
   if (opts.enablePathGuards)
   {
