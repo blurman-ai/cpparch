@@ -2,7 +2,8 @@
 
 **Дата создания:** 2026-05-28
 **Дата старта:** 2026-05-30
-**Статус:** wip
+**Дата завершения:** 2026-06-11
+**Статус:** completed
 **Модуль:** RULES, CONFIG
 **Приоритет:** major
 **Сложность:** M-L (рефактор дефолтов в Config + walkup + merge; override порогов через YAML = расширение формата phase 2)
@@ -79,6 +80,32 @@ Hardcoded Config defaults  →  merge  ←  .archcheck.yml (если есть)
 
 - (пусто)
 
+## Выполнено (2026-06-11)
+
+### Инкремент A — документация дефолтов ✅
+
+- README.md: добавлена подсекция «Default thresholds» с таблицей из 4 строк (значения копированы из docs/config_format.md §«Where defaults live»)
+- src/main.cpp: help-текст дополнен строкой о дефолтах chain_length=10, god_header_fan_in=50, override через thresholds: в .archcheck.yml
+- DoD A:
+  - Значения в README побайтово совпадают с docs/config_format.md ✅
+  - `archcheck --help | grep -c "chain_length"` = 1 ✅
+  - Build (Debug) успешен ✅
+  - Все тесты: 411/411 ✅
+
+### Инкремент B — дедуп литералов 10/50 ✅
+
+- include/archcheck/rules/lakos_chain_length.h: добавлен `#include "archcheck/config/config.h"`, дефолт конструктора заменён на `config::Thresholds{}.chainLength`, `kDefaultThreshold` удалён
+- include/archcheck/rules/lakos_god_headers.h: добавлен `#include "archcheck/config/config.h"`, дефолт конструктора заменён на `config::Thresholds{}.godHeaderFanIn`, `kDefaultThreshold` удалён
+- tests/unit/rules/lakos_chain_length_test.cpp: добавлен include config.h, CHECK(LakosChainLength::kDefaultThreshold == 10) заменён на CHECK(archcheck::config::Thresholds{}.chainLength == 10)
+- tests/unit/rules/lakos_god_headers_test.cpp: добавлен include config.h, CHECK(LakosGodHeaders::kDefaultThreshold == 50) заменён на CHECK(archcheck::config::Thresholds{}.godHeaderFanIn == 50)
+- DoD B:
+  - grep -rn "kDefaultThreshold" = 0 строк ✅
+  - Все тесты: 411/411 ✅
+  - Lizard: 0 новых warnings ✅
+  - Dogfood: 0 нарушений на src/, include/, tests/ ✅
+  - Инкремент A: 12 insertions (+) в README.md и src/main.cpp ✅ ≤50
+  - Инкремент B: 11 insertions (+), 8 deletions (-) в rule-заголовках и тестах ✅ ≤50
+
 ## Следующие шаги
 
 > ⚠️ **Scope:** override порогов через YAML = блок `thresholds:`, а это **v1 phase 2** по `docs/config_format.md`. Phase-1 loader (#051) знает только `version`/`modules`/`rules`. Эта задача добавляет `thresholds:` (additive/MINOR, `version: 1` сохраняется) + рефактор дефолтов + walkup.
@@ -87,8 +114,48 @@ Hardcoded Config defaults  →  merge  ←  .archcheck.yml (если есть)
 2. ✅ Передать `Config` в правила (`makeDefaultRuleSet(const Config&)`); плумбинг через `run_check`; `dispatch_config` больше не выбрасывает конфиг.
 3. ✅ Парсинг блока `thresholds:` в loader + merge поверх дефолтов; `docs/config_format.md` обновлён; фикстуры + тесты; end-to-end override работает.
 4. ✅ Walkup-поиск `.archcheck.yml` от CWD до FS-root (`findConfig`); `--config` отключает; zero-config override работает.
-5. Вынести `kProjectExtensions`/`kHeaderExtensions` (scan) в `Config` + override (расширения файлов — третий вид DEFAULT из инвентаря, пока не тронут). Документировать дефолты в README + `--help`.
-6. (follow-up) Дедуп литералов `10/50`: убрать `kDefaultThreshold` из правил или сослать на `Config` без инверсии зависимости; обновить тесты, пинящие `kDefaultThreshold`.
+5. ⚠️ **Сужен решением 2026-06-11**: YAML-override расширений НЕ делаем. Основания: (а) дедуп констант уже выполнен — `kProjectExtensions`/`kHeaderExtensions` живут в одном месте `include/archcheck/scan/file_classification.h` (комментарий «Task #041» там же); (б) override расширений отсутствует во ВСЕХ фазах `docs/config_format.md` §«What is not in v1 phase 1» — добавление нового top-level ключа без пользовательского запроса нарушает YAGNI. Остаток шага 5 = только документация дефолтов (инкремент A ниже).
+6. Дедуп литералов `10/50` (инкремент B ниже).
+
+## План для Haiku (2026-06-11) — два инкремента, закрывают задачу целиком
+
+Перед стартом ОБЯЗАН прочитать целиком: эту задачу, [docs/dev/haiku_task_guide.md](../../docs/dev/haiku_task_guide.md) §2, [docs/code_quality.md](../../docs/code_quality.md).
+
+### Инкремент A — документация дефолтов (README + `--help`)
+
+Факты (проверены 2026-06-11): пример `--config` в `README.md:62-63`; help-текст в `src/main.cpp` (~строки 50-70, функция печати usage); канонические значения дефолтов — таблица `docs/config_format.md` §«Where defaults live» (chain length 10, god-header fan-in 50, project/header extensions).
+
+1. В `README.md` рядом с примером `--config` (после строки ~63) добавить подсекцию «Default thresholds» — таблица из 4 строк, **значения скопировать из `docs/config_format.md`**, не по памяти. Упомянуть: override через блок `thresholds:` в `.archcheck.yml`.
+2. В help-текст `src/main.cpp` добавить 1–2 строки: дефолты `chain_length=10`, `god_header_fan_in=50`, override через `thresholds:` в `.archcheck.yml`.
+
+DoD инкремента A:
+- значения в README побайтово совпадают с `docs/config_format.md` (10, 50, списки расширений);
+- `~/projects/cpparch/build/debug/src/archcheck --help | grep -c "chain_length"` ≥ 1;
+- build + все тесты зелёные.
+
+### Инкремент B — дедуп литералов 10/50 (бывший шаг 6)
+
+Факты (проверены 2026-06-11): `kDefaultThreshold = 10` в `include/archcheck/rules/lakos_chain_length.h:11`, `= 50` в `include/archcheck/rules/lakos_god_headers.h:14`; те же числа — в `config::Thresholds` (`include/archcheck/config/config.h`). Тесты пинят константу: `tests/unit/rules/lakos_chain_length_test.cpp:45`, `tests/unit/rules/lakos_god_headers_test.cpp:42`.
+
+1. В оба rule-заголовка добавить `#include "archcheck/config/config.h"`; дефолт конструктора заменить на `config::Thresholds{}.chainLength` (соотв. `.godHeaderFanIn`); `kDefaultThreshold` удалить. Направление зависимости rules→config корректно (rules уже получают `Config` через `makeDefaultRuleSet(const Config&)`).
+2. **Разрешённая правка ожиданий тестов** (и только она): `CHECK(LakosChainLength::kDefaultThreshold == 10)` → `CHECK(archcheck::config::Thresholds{}.chainLength == 10)`; аналогично для 50. Числа 10/50 НЕ меняются — меняется только источник. Никакие другие ожидания НЕ трогать.
+
+DoD инкремента B:
+- `grep -rn "kDefaultThreshold" include/ src/ tests/` → 0 строк;
+- все тесты зелёные; lizard 0 warnings; dogfood 0 нарушений;
+- каждый инкремент влезает в ≤50 строк диффа.
+
+После A+B задача закрывается целиком (`/fix-issue`).
+
+### Не делать
+
+- НЕ заводить YAML-ключ для расширений (решение выше).
+- НЕ трогать `file_classification.h`, loader, `discoverFiles`.
+- НЕ коммитить без явной команды.
+
+### Эскалация (когда остановиться и передать старшей модели)
+
+Остановись, запиши сюда «Заблокировано: <что/почему/что пробовал>» и доложи, если: include config.h в rule-заголовок даёт циклическую зависимость или ломает сборку после 2 попыток; падает любой тест, кроме двух явно разрешённых к правке; нужен файл вне перечисленных. Дальше — Sonnet, затем Opus.
 
 ## Ключевые решения
 

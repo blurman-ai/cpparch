@@ -75,6 +75,7 @@ From [docs/MVP.md](docs/MVP.md): *"If feature cannot be tested with fixtures —
 - [docs/research/constraint_decay.md](docs/research/constraint_decay.md) — первопричина проекта: пересказ статьи Dente et al. (EURECOM, 2026) о constraint decay и разбор HN-дискуссии. Читать, когда нужно вспомнить *зачем*.
 - [docs/dev/coverage_constraints.md](docs/dev/coverage_constraints.md) — почему branch coverage застрял на ~63% и что с этим делать: ограничение lcov 1.13 на Astra Linux 1.7 (GCC 8.x не размечает throw-arcs так, чтобы lcov их убирал). Branches-порог намеренно оставлен на 40%.
 - [docs/duplication_architecture.md](docs/duplication_architecture.md) — единый источник истины по подсистеме поиска дубликатов: комплементарные слои (#053 line / #056 token / #052 AST / #059 precision / #054 usage), конвейер токенового прохода, selective normalization, метрики и их семантика, классы FP, режимы, границы. Читать перед работой над любым duplication-слоем.
+- [docs/dev/haiku_task_guide.md](docs/dev/haiku_task_guide.md) — двусторонний контракт для задач, исполняемых Haiku: чек-лист постановщика (Haiku-ready задача) и правила исполнителя (на что смотреть / что не делать никогда). Читать обоим: и тому, кто пишет задачу в `backlog/`, и Haiku перед стартом.
 
 ## Working principles from the spec
 
