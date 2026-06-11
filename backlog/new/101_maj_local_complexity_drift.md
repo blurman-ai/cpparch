@@ -39,6 +39,38 @@
   спека, валидация, токенная реализуемость и дизайн дельта-сигналов:
   [docs/research/cognitive_complexity_delta_design.md](~/projects/cpparch/docs/research/cognitive_complexity_delta_design.md).
 
+### Валидация и хэндофф из #102 (2026-06-11, прототип завершён)
+
+Прототип (#102, completed) реализовал **ровно этот scoring model** в Python
+(`experiments/local_complexity_drift/scan_commit.py`) и прогнал его по корпусу.
+То есть для v1 алгоритм — не теоретический, а проверенный; ниже — что он показал и
+какие продуктовые решения остались открытыми для C++-реализации.
+
+**Что подтверждено (можно опереться, не переоткрывать):**
+- Токенный cognitive-скорер + LCX-иерархия работают: корпус 100 реп, 1612 коммитов,
+  **403 находки** (старая дефектная формула давала 524, раздутые switch-парсерами).
+- «Definition of done» по корпусу из этой задачи **уже выполнен прототипом**:
+  switch-парсеры и `TEST_F`-тела ушли из топа, **6/6 ручных TP сохранились**.
+- Все 6 репро-дефектов (`review_repros/`) и synthetic 13/13 зелёные на v2-скорере.
+- Ручной разбор 16 кейсов: 10 actionable TP, 3 non-actionable TP, 2 FP, 1 low-conf.
+  Отчёты: [corpus_report](~/projects/cpparch/docs/research/local_complexity_drift_corpus_report.md),
+  [examples](~/projects/cpparch/docs/research/local_complexity_drift_examples.md) (round 2 — где шумит).
+
+**Открытые решения для v1 (их закрывает эта задача, не прототип):**
+1. **`LCX.2 grew_when_already_above` шумит на Δ1-2.** В корпусе это 210/403 находок,
+   из них **72 — Δ1-2** (функция была score 200, выросла до 201 — формально рост,
+   для ревью бесполезно; кейсы #7/#8 examples-дока). Решение: дать `LCX.2` **порог-пол
+   Δ≥K**, либо репортить его **advisory-only отдельно** от `LCX.1`/`LCX.3`.
+   По умолчанию рекомендую: в gating-вывод — только `LCX.1 crossed_25` и
+   `LCX.3 delta_ge_k`; `LCX.2` — advisory строкой. (Рекомендация, финальное — за владельцем.)
+2. **Псевдо-сигнатуры.** Текстовый фрагментатор принимает `__attribute__((unused))`
+   / `__declspec(...)` перед функцией за имя функции (корпусный FP: символ
+   `__attribute__`, score 1→30). Блэклист — в `function_body_scan` (Шаг 2).
+3. `low`-confidence уже не даёт `LCX.1/2` (Шаг 4) — этого достаточно; дополнительно
+   стоит держать их вне headline-вывода (down-rank в репорте).
+4. K=5 и порог 25 — оставить дефолтами из дизайн-дока; «второй срез» для калибровки
+   без ground truth информативен слабо, лучше калибровать на реальных прогонах.
+
 ## План выполнения
 
 ### Detection contract
@@ -211,6 +243,9 @@ Unit-кейс на это — в тест-матрице.
 затем `{`; исключить control-слова перед `(`; `paramArity` = top-level запятые + 1
 (0 для `()` и `(void)`); конец тела — matching brace. Конструкторы: после `)` может
 идти `: init-list` до `{` — пропускать до `{` на той же глубине.
+**Блэклист имён** (иначе corpus-FP, #102): `__attribute__`, `__declspec` — это
+атрибут-спецификаторы перед сигнатурой (`__attribute__((unused)) static int f(){…}`),
+а не имена функций; их `(…){` не должен распознаваться как тело.
 
 **Шаг 3 — ядро `computeCognitiveComplexity(bodyRange, funcName)`** —
 однопроходный, два стека (полная семантика в дизайн-доке §1/§4):
@@ -272,7 +307,8 @@ scorer_review обязательны как регрессии — их baseline
 | braceless `for(...) if(...) x;` | if = **+2** |
 
 `function_body_scan_test`: free function, inline-метод, `Cls::method` out-of-class,
-`operator()`, перегрузки (различены arity), конструктор с init-list, шаблонная функция.
+`operator()`, перегрузки (различены arity), конструктор с init-list, шаблонная функция,
+`__attribute__((unused)) static int f(){}` → распознан как `f`, НЕ `__attribute__`.
 `local_complexity_drift_test`: матчинг по arity, rename → new (без finding),
 TEST_F-блэклист, low-confidence без LCX.1/2.
 
@@ -351,6 +387,7 @@ corpus re-run #102: switch-парсеры и TEST_F ушли из топа, 6/6 
 | Не тянуть через `IRule` | Нужен old/new diff compare, а текущий `IRule` snapshot-only |
 | Overlap с #099 закрывать консолидацией, не параллельной реализацией | Иначе будет два почти одинаковых complexity-сигнала с разной семантикой |
 | Предпочесть отдельный diff-report writer, а не ломать snapshot `Violation` вслепую | Текущий `--diff` уже живёт вне normal reporter path |
+| `LCX.2` — advisory-only (или порог-пол Δ≥K), вне gating-вывода | Корпус #102: 72/210 находок `LCX.2` — Δ1-2 на уже-огромных функциях, бесполезны для ревью |
 
 ## Планируемые файлы
 
