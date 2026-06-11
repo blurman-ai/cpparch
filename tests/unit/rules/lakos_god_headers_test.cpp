@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "archcheck/config/config.h"
 #include "archcheck/graph/dependency_graph.h"
 #include "archcheck/rules/lakos_god_headers.h"
 
@@ -39,7 +40,7 @@ TEST_CASE("Lakos.GodHeader: fan-in exceeds threshold → violation", "[rules][la
 
 TEST_CASE("Lakos.GodHeader: default threshold is 50", "[rules][lakos][god]")
 {
-  CHECK(LakosGodHeaders::kDefaultThreshold == 50);
+  CHECK(archcheck::config::Thresholds{}.godHeaderFanIn == 50);
 }
 
 TEST_CASE("Lakos.GodHeader: known PCH names are excluded", "[rules][lakos][god]")

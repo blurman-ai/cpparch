@@ -62,6 +62,17 @@ archcheck --diff main..feature src/
 # Validate .archcheck.yml and apply threshold overrides
 archcheck --config .archcheck.yml src/
 
+### Default thresholds
+
+These thresholds apply automatically without a config file. Override any via the `thresholds:` block in `.archcheck.yml`:
+
+| Threshold | Default value | Rule / subsystem |
+|-----------|---------------|------------------|
+| include chain length | `10` | `Lakos.ChainLength` |
+| god-header fan-in | `50` | `Lakos.GodHeader` |
+| project source extensions | `.c .cc .cpp .cxx .h .hh .hpp .hxx .ipp .tpp .inl .inc` | scan |
+| header extensions | `.h .hh .hpp .hxx .ipp .tpp .inl .inc` | scan |
+
 # Advisory duplication report (report-only, never gates)
 archcheck --duplication src/
 

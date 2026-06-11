@@ -1,5 +1,6 @@
 #pragma once
 
+#include "archcheck/config/config.h"
 #include "archcheck/rules/i_rule.h"
 
 namespace archcheck::rules
@@ -8,9 +9,7 @@ namespace archcheck::rules
 class LakosChainLength final : public IRule
 {
 public:
-  static constexpr std::size_t kDefaultThreshold = 10;
-
-  explicit LakosChainLength(std::size_t threshold = kDefaultThreshold) : threshold_(threshold) {}
+  explicit LakosChainLength(std::size_t threshold = config::Thresholds{}.chainLength) : threshold_(threshold) {}
 
   ViolationList check(const graph::DependencyGraph &graph,
                       const std::function<std::string(std::string_view)> &readFile) const override;

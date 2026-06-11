@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "archcheck/config/config.h"
 #include "archcheck/rules/i_rule.h"
 
 namespace archcheck::rules
@@ -11,9 +12,7 @@ namespace archcheck::rules
 class LakosGodHeaders final : public IRule
 {
 public:
-  static constexpr std::size_t kDefaultThreshold = 50;
-
-  explicit LakosGodHeaders(std::size_t threshold = kDefaultThreshold,
+  explicit LakosGodHeaders(std::size_t threshold = config::Thresholds{}.godHeaderFanIn,
                            std::unordered_set<std::string> extraExcludes = {})
       : threshold_(threshold), extraExcludes_(std::move(extraExcludes))
   {

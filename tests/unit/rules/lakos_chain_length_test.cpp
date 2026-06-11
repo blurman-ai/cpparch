@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "archcheck/config/config.h"
 #include "archcheck/graph/dependency_graph.h"
 #include "archcheck/rules/lakos_chain_length.h"
 
@@ -42,5 +43,5 @@ TEST_CASE("Lakos.ChainLength: empty graph — no violations", "[rules][lakos][ch
 
 TEST_CASE("Lakos.ChainLength: default threshold is 10", "[rules][lakos][chain]")
 {
-  CHECK(LakosChainLength::kDefaultThreshold == 10);
+  CHECK(archcheck::config::Thresholds{}.chainLength == 10);
 }
