@@ -138,6 +138,13 @@ TEST_CASE("config loader: rejects forbidden from/to overlap", "[config][fail]")
                       ContainsSubstring("both 'from' and 'to'"));
 }
 
+TEST_CASE("config loader: malformed YAML raises ConfigError, not abort", "[config][fail]")
+{
+  // ryml's default error handler abort()s the process; the loader must install
+  // its own handler and translate the failure into the exit-2 ConfigError path.
+  REQUIRE_THROWS_AS(archcheck::config::load(fixture("fail", "fail_malformed_yaml")), archcheck::config::ConfigError);
+}
+
 TEST_CASE("config loader: rejects empty layers list", "[config][fail]")
 {
   REQUIRE_THROWS_WITH(archcheck::config::load(fixture("fail", "fail_empty_layers")),

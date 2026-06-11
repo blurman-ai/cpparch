@@ -20,6 +20,27 @@ ConfigError::ConfigError(std::string file, int line, int column, const std::stri
 namespace
 {
 
+// ryml's default error handler calls abort(), which would kill the process on
+// a malformed .archcheck.yml instead of honouring the exit-code contract (2).
+// Same pattern as graph/baseline.cpp: install a throwing handler for the whole
+// parse+walk, restore the defaults on scope exit, translate into ConfigError.
+struct RymlParseException
+{
+  std::string message;
+};
+
+[[noreturn]] void on_ryml_error(const char *msg, std::size_t msg_len, ryml::Location /*loc*/, void * /*user_data*/)
+{
+  throw RymlParseException{std::string{msg, msg_len}};
+}
+
+struct RymlErrorGuard
+{
+  ryml::Callbacks defaults = ryml::get_callbacks();
+  RymlErrorGuard() { ryml::set_callbacks(ryml::Callbacks(nullptr, nullptr, nullptr, &on_ryml_error)); }
+  ~RymlErrorGuard() { ryml::set_callbacks(defaults); }
+};
+
 struct LoaderCtx
 {
   const ryml::Parser *parser;
@@ -341,20 +362,28 @@ void validate_top_keys(const ryml::ConstNodeRef &root, const LoaderCtx &ctx)
 Config load(const std::filesystem::path &path)
 {
   std::string source = read_file(path);
-  ryml::EventHandlerTree evt_handler;
-  ryml::Parser parser(&evt_handler, ryml::ParserOptions().locations(true));
-  ryml::Tree tree = ryml::parse_in_arena(&parser, ryml::to_csubstr(path.string()), ryml::to_csubstr(source));
-  const ryml::ConstNodeRef root = tree.crootref();
-  const LoaderCtx ctx{&parser, path.string()};
+  const RymlErrorGuard guard;
+  try
+  {
+    ryml::EventHandlerTree evt_handler;
+    ryml::Parser parser(&evt_handler, ryml::ParserOptions().locations(true));
+    ryml::Tree tree = ryml::parse_in_arena(&parser, ryml::to_csubstr(path.string()), ryml::to_csubstr(source));
+    const ryml::ConstNodeRef root = tree.crootref();
+    const LoaderCtx ctx{&parser, path.string()};
 
-  Config config;
-  config.version = parse_version(root, ctx);
-  validate_top_keys(root, ctx);
-  parse_modules(root, ctx, config);
-  parse_rules(root, ctx, config);
-  parse_thresholds(root, ctx, config);
-  cross_validate(config, ctx);
-  return config;
+    Config config;
+    config.version = parse_version(root, ctx);
+    validate_top_keys(root, ctx);
+    parse_modules(root, ctx, config);
+    parse_rules(root, ctx, config);
+    parse_thresholds(root, ctx, config);
+    cross_validate(config, ctx);
+    return config;
+  }
+  catch (const RymlParseException &e)
+  {
+    throw ConfigError(path.string(), 0, 0, "YAML error: " + e.message);
+  }
 }
 
 std::optional<std::filesystem::path> findConfig(const std::filesystem::path &start)
