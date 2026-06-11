@@ -54,6 +54,7 @@ add_executable(archcheck_tests
    unit/diff/regression_report_test.cpp
    unit/report/json_escape_test.cpp
    unit/report/violation_baseline_test.cpp
+   unit/report/text_reporter_test.cpp
    integration/scan/scanner_fixtures_test.cpp
    integration/graph/end_to_end_test.cpp
    integration/graph/vendor_exclude_test.cpp

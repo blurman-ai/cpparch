@@ -1,5 +1,8 @@
+#include <unistd.h>
+
 #include <algorithm>
 #include <cstddef>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -124,6 +127,16 @@ int tryLoadAndFilter(archcheck::rules::ViolationList &all, const std::filesystem
   }
 }
 
+// stdout colorization: on only for an interactive TTY with NO_COLOR unset
+// (https://no-color.org). Piped/redirected output stays plain for CI logs.
+bool textReportUseColor()
+{
+  const char *noColor = std::getenv("NO_COLOR");
+  if (noColor != nullptr && noColor[0] != '\0')
+    return false;
+  return ::isatty(fileno(stdout)) != 0;
+}
+
 int applyBaselineAndReport(archcheck::rules::ViolationList all, OutputFormat fmt, const BaselineOpts &baseline)
 {
   if (baseline.mode == BaselineMode::Save)
@@ -141,7 +154,7 @@ int applyBaselineAndReport(archcheck::rules::ViolationList all, OutputFormat fmt
   if (fmt == OutputFormat::Json)
     archcheck::report::writeJsonReport(all, std::cout);
   else
-    archcheck::report::writeTextReport(all, std::cout);
+    archcheck::report::writeTextReport(all, std::cout, textReportUseColor());
 
   if (suppressed > 0 && fmt == OutputFormat::Text)
     std::cout << "suppressed: " << suppressed << " known violation(s) (run without --baseline to see all)\n";
