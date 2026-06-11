@@ -10,7 +10,7 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 - **Scale-independent duplication candidate generation** — k-gram winnowing fingerprints (MOSS-style) added alongside the rare-token index. The rare-token index keyed on corpus document-frequency, so a genuine clone pair stopped being a candidate once the project grew enough that its shared tokens were no longer "rare" — detection depended on project size. Fingerprints are intrinsic to each fragment's token run, so a clone is a candidate at any corpus size; over-frequent fingerprints (boilerplate idioms) are dropped to bound cost. Recovers function-level clones the index was hiding (verified eyes-on, ~0 added false positives). (#092)
 
-- **SF.7 rule** — single-statement-per-line with block-comment stripping and brace-depth tracking. (#034, #035, #038)
+- **SF.7 rule** — no `using namespace` at global scope in headers, with block-comment stripping and brace-depth tracking. (#034, #035, #038)
 - **SF.8 rule** — header self-sufficiency, with Objective-C exclusion and scan-limit handling. (#034, #039)
 - **SF.9 rule** — no cyclic dependencies among headers.
 - **Lakos.GodHeader rule** — fan-in threshold (default 50). (#037)
@@ -24,7 +24,7 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 - **Fast preprocessor backend** — runs without `compile_commands.json` and without libclang; default for v0.1.
 - **PR sticky-comment CI integration** — single auto-updating PR comment with violations. (#025)
 - **Two-backend design confirmed** via libclang perf spike — fast backend stays default, `--with-clang` opt-in lands v0.2. (#043)
-- **Config loader v1 — phase 1+2** — parses `version` / `modules` / `rules` (with `layers` / `independence` / `forbidden` types), rejects unknown top-level keys, validates module existence and disjoint sets. (#051, in progress)
+- **Config loader v1 — phase 1+2** — parses `version` / `modules` / `rules` (with `layers` / `independence` / `forbidden` types), rejects unknown top-level keys, validates module existence and disjoint sets. Module rules are parsed and validated but not yet enforced (enforcement — v0.2). (#051)
 - **Config thresholds override** — `thresholds:` block parsed and threaded into the default rule set, enabling per-project override of god-header fan-in and chain-length limits. (#041)
 - **Config format v1 (phase 1) specification** — `docs/config_format.md` defines `.archcheck.yml` v1: three top-level keys (`version` / `modules` / `rules`), three typed rule contracts (`layers`, `independence`, `forbidden`), four reference examples (tiny / layered / legacy / mixed), explicit phase-1/phase-2 scope table, and a SemVer contract for the schema itself (independent of binary version). Resolves the allowlist-vs-forbidden open question by rule type — `layers`/`independence` give implicit-allowlist strictness, `forbidden` stays as explicit blocklist for legacy adoption and surgical overrides. Loader implementation tracked separately as #051.
 - **Static-analysis CI job** — parallel to build, runs cppcheck + lizard as gates (fail the build on findings) and clang-tidy strict as a warning-only baseline. Thresholds match `docs/code_quality.md` (CCN ≤ 15, function ≤ 30 lines, ≤ 5 args). Reports uploaded as 14-day artifact. (#001)
@@ -49,6 +49,7 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 ### Changed
 
 - **God-header threshold raised** 30 → 50 to cut noise on real-world headers without hiding actual hubs. (#037)
+- **`.clang-format` rebased on LLVM style** — indent migrated 3 → 2 spaces (the #004 entry below describes the original 3-space setup).
 - **README rewritten** to match the shipped v0.1 CLI surface. (#044)
 - **Product name locked to `archcheck`.** README, spec, and all internal docs now use `archcheck` consistently (previously split between `cpparch` and `archcheck`). Name availability verified on GitHub, PyPI, crates.io, Homebrew, and npm — all clear. Local working directory remains `cpparch` for tool-path stability. (#003)
 - **Architecture spec refactored to v2.1** (#006):
@@ -62,6 +63,15 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Fixed
 
+- **Malformed `.archcheck.yml` crashed with SIGABRT instead of exit 2** — ryml's abort()ing default error handler is now replaced with a throwing one for the whole config parse (same pattern as graph-baseline loading); malformed YAML reports `file:0:0: YAML error: …` and honours the exit-code contract.
+- **Stack overflow on pathologically deep include chains** — SCC depth computation (runs inside the default Lakos.ChainLength rule) rewritten from native recursion to an explicit-stack DFS; guarded by a 200k-node regression test.
+- **Nonexistent path silently passed with exit 0** — `archcheck <path>` and `--scan` / `--graph` / `--duplication` now exit 2 with `not a directory` instead of reporting "No violations found." on a missing directory.
+- **Exit code 3 was unreachable** — `main` now has a top-level catch translating unhandled exceptions (including `bad_alloc`) into the documented internal-error code 3 instead of `std::terminate`.
+- **CI smoke assertion was vacuous and dogfood was missing** — the smoke step now asserts exact exit codes (the old `cmd || test $? -eq 2` passed on any code), and a new CI step runs archcheck on its own `src/`, `include/`, `tests/` as a gate.
+- **SF.9 false cycles on header + inline-impl pairs** — a two-node SCC formed by `x.h` ↔ `x-inl.h` / `.ipp` / `.tcc` (same directory, same stem) is recognised as an intentional inline split, not a cycle. (#088)
+- **System `<...>` includes shadowed by project files** — angle-bracket system headers now resolve as External instead of matching a same-named project file, removing phantom edges and cycles. (#088)
+- **Duplication recall on large functions** — fragmenter token cap raised 400 → 600 so large-function clones are no longer silently skipped. (#091)
+- **In-tree bundled libraries classified as vendored** — bundled third-party sources inside the project tree are excluded from authored-code signals.
 - **SF.9 silent on `#ifndef`-guarded cycles** — scanner now recognises `#ifndef`/`#define`/`#endif` include guards as unconditional includes. (#049)
 - **UTF-8 BOM not stripped** at file start, causing scanner to miss the first directive. (#047)
 - **Ambiguous includes resolved against mirror dirs** — skip well-known mirror trees (`copies/`, `upgrade/`, etc.) when picking a target. (#036)
@@ -70,4 +80,4 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 - **Relative include paths with `../` not resolved** — scanner now normalises `..`/`.` segments so relative includes resolve to the correct target instead of being dropped.
 - **Duplication scanner over-excluded files** — the test/vendor exclusion no longer removes legitimate files from the duplication scan. (#081)
 
-[Unreleased]: https://github.com/blurman-ai/archcheck/commits/master
+[Unreleased]: https://github.com/blurman-ai/cpparch/commits/master

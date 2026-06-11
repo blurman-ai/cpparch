@@ -1,6 +1,14 @@
 # archcheck — Architecture rules for C++
 
-> Версия документа: 2.1. Изменения от 2.0:
+> Версия документа: 2.2. Изменения от 2.1 (точечная синхронизация с шипнутым кодом, 2026-06-11):
+>
+> - Имена флагов graph-baseline приведены к фактическим: `--drift-baseline` / `--save-graph-baseline`.
+> - Drift-волна перенумерована: ID `DRIFT.3` занят шипнутым bidirectional module coupling (#087), волна стала `DRIFT.4`–`DRIFT.9`.
+> - Roadmap: DRIFT.1/2/3 отмечены как шипнутые в v0.1 (#086/#087); enforcement YAML-модульных правил перенесён в v0.2 (#045/#073); `--output`/`--metrics` помечены v0.2+.
+> - §«Высокоуровневая структура кода» перерисована под фактический `src/` (плоский `rules/`, `diff/`, `git/`, `scan/duplication/`); «статическая таблица» регистрации заменена фактической фабрикой `rule_set.cpp`.
+> - Аудитория: убрано «без compile_commands.json парсить C++ невозможно» (противоречило собственной двух-бекендной схеме).
+>
+> Изменения 2.1 от 2.0:
 >
 > - Headline переориентирован: «модульные границы и циклы зависимостей в CI» — ядро; Lakos / Core Guidelines / Martin понижены до «в дополнение, цитируемые источники» (#006).
 > - AI-guardrail (EURECOM constraint decay paper) поднят в `## TL;DR` как третий абзац (#006).
@@ -114,7 +122,7 @@ C++ community консервативнее джавовского. "Clean archit
 ### Чего НЕ целевая аудитория
 
 - Embedded команды под жёсткие сертификации (MISRA, CERT) — для них есть PVS-Studio, Coverity. Они платят за каталог чужих правил, а не за DSL для своих.
-- Команды без CMake/Bazel/любой системы, генерирующей `compile_commands.json` — без него парсить C++ корректно невозможно.
+- Команды, которым нужен именно семантический (AST) анализ, но негде взять `compile_commands.json` — libclang-бэкенду (v0.2) он необходим. Include-уровень это не ограничивает: fast backend работает на любом проекте без build-системы (см. §Двух-бекендная схема).
 
 ---
 
@@ -184,7 +192,7 @@ C++ community консервативнее джавовского. "Clean archit
 - **Component Dependency (CD)** для каждого компонента — число компонентов, от которых он зависит транзитивно.
 - **In-degree / Out-degree** — для каждого компонента.
 - **Средняя связность `edges/nodes`** — среднее число прямых зависимостей на компонент. Дешёвый детектор «тихого дрейфа»: связность может утроиться без единого цикла и при низком копипасте (эмпирика — прогон #054 §7.3: stellar-core 1.9→6.3, FastLED 1.3→4.8). Планируется в отчёт (#057). **Нормируем именно на узлы, не на KLOC**: per-KLOC мешает объём кода в структурную метрику (раздутый LOC без новых рёбер ложно «улучшает» показатель), а `edges/nodes` чисто структурна.
-- **Max blast radius** — `max_n |reachableFrom(n)|`, наибольшее число компонент, затрагиваемых изменением одного. Уже вычисляется внутри CCD; планируется удержать и печатать (#057). Абсолютная версия drift-правила `DRIFT.4 blast_radius_growth`.
+- **Max blast radius** — `max_n |reachableFrom(n)|`, наибольшее число компонент, затрагиваемых изменением одного. Уже вычисляется внутри CCD; планируется удержать и печатать (#057). Абсолютная версия drift-правила `DRIFT.5 blast_radius_growth`.
 
 #### Правила
 
@@ -309,7 +317,7 @@ DRIFT парно работает с `repo-inferred rules`: synthesis форма
 DRIFT не заменяет обычный baseline нарушений — они отвечают на разные вопросы:
 
 - `--baseline` замораживает нарушения правил (`SF.*`, `Lakos`, custom): «появились ли новые нарушения известных правил?»
-- `--graph-baseline` хранит снимок графа зависимостей: «ухудшилась ли сама структура графа, даже если ни одно из других правил не сработало?»
+- Graph-baseline (`--save-graph-baseline` / `--drift-baseline`) хранит снимок графа зависимостей: «ухудшилась ли сама структура графа, даже если ни одно из других правил не сработало?»
 
 #### Первый прототип
 
@@ -364,27 +372,31 @@ connected component.
 Следующие drift-правила признаются перспективными, но не входят в первый
 прототип:
 
-- `DRIFT.3 public_surface_growth`
-- `DRIFT.4 blast_radius_growth`
-- `DRIFT.5 hub_reinforcement`
-- `DRIFT.6 boundary_bypass_of_existing_entrypoint`
-- `DRIFT.7 scattered_new_boundary_access`
-- `DRIFT.8 hotspot_inflow`
+> **Нумерация уточнена:** ID `DRIFT.3` занят шипнутым правилом
+> *bidirectional module coupling* (#087, advisory; см. CHANGELOG) — волна
+> перенумерована, имена правил не менялись.
+
+- `DRIFT.4 public_surface_growth`
+- `DRIFT.5 blast_radius_growth`
+- `DRIFT.6 hub_reinforcement`
+- `DRIFT.7 boundary_bypass_of_existing_entrypoint`
+- `DRIFT.8 scattered_new_boundary_access`
+- `DRIFT.9 hotspot_inflow`
 
 Причины переноса:
 
-- `DRIFT.3`, `DRIFT.6`, `DRIFT.7` требуют repo inference;
-- `DRIFT.4`, `DRIFT.5` требуют настройки порогов и сначала должны жить как
+- `DRIFT.4`, `DRIFT.7`, `DRIFT.8` требуют repo inference;
+- `DRIFT.5`, `DRIFT.6` требуют настройки порогов и сначала должны жить как
   `report-only`;
-- `DRIFT.8` требует git history и должен быть opt-in
+- `DRIFT.9` требует git history и должен быть opt-in
   (`--with-git-history` или аналог).
 
 #### Graph baseline
 
 Для `DRIFT.*` ядро должно опираться на отдельный baseline графа:
 
-- `--graph-baseline <file>` — загрузить baseline graph;
-- `--write-graph-baseline <file>` — записать baseline graph.
+- `--drift-baseline <file>` — загрузить baseline graph и включить DRIFT-правила (шипнутое имя флага);
+- `--save-graph-baseline <file>` — записать baseline graph (шипнутое имя флага).
 
 Git-based режим допустим как удобный adapter поверх этого механизма, но не как
 единственная семантика:
@@ -447,8 +459,8 @@ archcheck --config .archcheck.yml
 # Семантические правила (SF.2/5/10/11, правила из C/I) — нужен libclang.
 archcheck --config .archcheck.yml --with-clang --compile-commands build/compile_commands.json
 
-# JSON-вывод для CI.
-archcheck --format json --output report.json
+# JSON-вывод для CI (в stdout; --output — v0.2+).
+archcheck --format json
 
 # SARIF для GitHub Code Scanning (v0.2+).
 archcheck --format sarif --output sarif.json
@@ -456,7 +468,7 @@ archcheck --format sarif --output sarif.json
 # Заморозить текущие нарушения как baseline (day-one feature).
 archcheck --baseline .archcheck-baseline.json
 
-# Только метрики, без жёстких правил.
+# Только метрики, без жёстких правил (v0.2+; сейчас метрики печатает --diff отчёт).
 archcheck --metrics
 ```
 
@@ -531,29 +543,36 @@ Trade-off: семантические правила Уровня 1 (SF.2, SF.5,
 src/
   main.cpp                   # entry point, CLI parsing
   config/
-    config_loader.h/.cpp     # YAML -> internal Config
-    config.h                 # Config struct
-  graph/
-    component_graph.h/.cpp   # DAG, cycle detection, levelization
-    metrics.h/.cpp           # CCD, ACD, NCCD calculation
+    config_loader.cpp        # YAML -> internal Config (+валидация v1-схемы)
   scan/
-    include_scanner.h/.cpp   # fast preprocessor-only backend
-    clang_scanner.h/.cpp     # libclang-based semantic backend
-  rules/
-    core_guidelines/         # SF.* rules, one file per rule
-    lakos/                   # cycles, god-headers, depth
-    martin/                  # I, A, D (optional)
-    custom/                  # user-defined pattern rules
+    include_scanner.cpp      # fast preprocessor-only backend (v0.1, default)
+    include_resolver.cpp     # резолв директив против дерева проекта
+    project_files.cpp        # обход дерева, vendor/test-фильтры
+    duplication/             # токеновый клон-детектор (advisory --duplication)
+    clang_scanner            # libclang-based semantic backend — план v0.2
+  graph/
+    dependency_graph.cpp     # граф, SCC/циклы (в спеке v2.0 звался component_graph)
+    algorithms.cpp           # levelization, CCD/ACD/NCCD (в спеке — metrics)
+    baseline.cpp             # graph baseline (детерминированный YAML-снимок)
+    diff.cpp                 # added/removed edges, grown SCC
+  rules/                     # плоский каталог, один файл = одно правило
+                             # (группировка core_guidelines/lakos/martin/custom
+                             #  не материализовалась — см. CLAUDE.md)
   report/
-    text_reporter.h/.cpp
-    json_reporter.h/.cpp
-    sarif_reporter.h/.cpp
+    text_reporter.cpp
+    json_reporter.cpp
+    sarif_reporter           # план v0.2
+  diff/
+    regression_report.cpp    # --diff: структурные регрессии между git-ревизиями
+  git/
+    git_state.cpp            # fork/exec git, worktree
+    git_object_file_source.cpp
 tests/
   integration/               # сэмпл-проекты с известными нарушениями
   unit/
 ```
 
-Одно правило = один класс, реализующий интерфейс `IRule`. Регистрация через статическую таблицу. SOLID: добавление правила = новый файл, ничего существующего не правится (OCP).
+Одно правило = один класс, реализующий интерфейс `IRule`. Регистрация — фабрика `makeDefaultRuleSet`/`makeDriftRuleSet` в `rules/rule_set.cpp`: добавление правила = новая пара файлов + одна строка фабрики; существующие rule-файлы не правятся.
 
 ---
 
@@ -600,7 +619,7 @@ tests/
 **Cover-story:** запуск на чужом проекте, без `compile_commands.json` и libclang, даёт сразу полезный результат за 10 минут.
 
 - **Fast backend** (preprocessor-only) — единственный.
-- YAML-конфиг: `forbidden_deps` / `allowed_deps` между модулями (по path-glob).
+- YAML-конфиг: парсинг и валидация v1-схемы (`layers`/`independence`/`forbidden`) шипнуты; **enforcement модульных правил перенесён в v0.2** (#045/#073) — `--config` пока validate-only + `thresholds:`.
 - **Core правила:**
   - Циклы зависимостей (SF.9).
   - God-headers (Lakos): in-degree > threshold (default 50).
@@ -631,7 +650,7 @@ tests/
 - **SF.21** — anonymous namespace в `.h`, default-ON (preview в v0.2 через `--with-clang`; перенос с v0.1 — не относится к physical-design / drift, см. [`backlog/future/050`](../backlog/future/050_min_sf21_anonymous_namespace.md)).
 - **Bloomberg BDE:** no-inter-component-friendship, external-linkage-declared-in-header.
 - Прочие: forward-decl-of-std, deep-nested-namespace.
-- **DRIFT.1 + DRIFT.2** — первый прототип drift-regression rules. Только `intrinsic`, только file-level, warning по умолчанию (см. §«Drift-regression rules»).
+- ~~**DRIFT.1 + DRIFT.2** — первый прототип drift-regression rules~~ — **уже шипнуты в v0.1** вместе с advisory DRIFT.3 (bidirectional coupling): `--drift-baseline` работает как regression gate, валят прогон только DRIFT.1/2 (#086, #087). Пункт оставлен как след исходного плана.
 - **AI-assisted rule synthesis contract** — `archcheck synthesize` subcommand, heuristic mode + wrapper-prompt mode, output `.archcheck.yml.draft` с provenance-комментариями. Реализация имплементируется отдельной задачей после фиксации контракта (#010).
 
 ### v0.4 — Martin metrics + distribution polish (3–4 недели)

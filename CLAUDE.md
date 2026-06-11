@@ -12,7 +12,7 @@ Product name is locked to `archcheck` (binary `archcheck`); availability on GitH
 
 ## What this tool is
 
-CI-first CLI that enforces architectural invariants on C++ projects. Reads `compile_commands.json`, builds the include/AST dependency graph, applies YAML-declared module rules plus a set of authority-backed default rules, reports violations as `file:line:column`, exits non-zero on violations.
+CI-first CLI that enforces architectural invariants on C++ projects. Scans sources with a fast preprocessor pass (no `compile_commands.json` required — the libclang backend that reads it is v0.2), builds the include dependency graph, applies a set of authority-backed default rules (YAML module rules are parsed and validated; enforcement lands v0.2), reports violations as `file:line`, exits non-zero on violations.
 
 Positioning is deliberately **not** "ArchUnit for C++". It is "Lakos physical design + C++ Core Guidelines SF.* checks in CI" — speaking the native dialect of the C++ community. Every default rule carries attribution (Core Guidelines, Lakos, Martin) so users cannot dismiss it as opinion. Preserve this framing in docs, error messages, and marketing copy.
 
@@ -37,12 +37,13 @@ Pipeline modules (planned layout under `src/`):
 - `config/` — YAML loader → internal `Config` struct
 - `scan/` — two backends: `include_scanner` (fast, preprocessor-only, no `compile_commands.json` needed) and `clang_scanner` (libclang, for semantic rules)
 - `graph/` — component DAG, cycle detection, levelization, CCD/ACD/NCCD metrics
-- `rules/` — one rule per class implementing `IRule`, grouped by source: `core_guidelines/` (SF.*), `lakos/`, `martin/`, `custom/`
-- `report/` — `text_reporter`, `json_reporter`, `sarif_reporter`
+- `rules/` — one rule per class implementing `IRule`; фактический каталог плоский (`src/rules/*.cpp`), группировка по источникам (core_guidelines/lakos/martin) не материализовалась
+- `report/` — `text_reporter`, `json_reporter` (`sarif_reporter` — план)
+- фактически сверх плана уже есть: `diff/` (regression report для `--diff`), `git/` (fork/exec git, чтение блобов), `scan/duplication/` (токеновый клон-детектор, advisory)
 
 **Two-backend split is a deliberate design choice** — most useful default rules (SF.7/8/9/21, cycles, god-headers, chain length) are include-only and shouldn't pay the libclang cost. Don't collapse the backends without explicit discussion. The final decision is flagged in the spec as "deferred to a v0.1 spike."
 
-**One rule = one class = one file.** Registration via static table. Adding a rule must not touch existing rule files (OCP). Don't refactor toward a "generic rule engine" that violates this.
+**One rule = one class = one file.** Регистрация — фабрика в `src/rules/rule_set.cpp` (`makeDefaultRuleSet` / `makeDriftRuleSet`): новое правило = новая пара файлов + одна строка в фабрике, существующие rule-файлы не трогаются. Don't refactor toward a "generic rule engine" that violates this.
 
 ## Tech stack (planned)
 
@@ -57,15 +58,9 @@ Pipeline modules (planned layout under `src/`):
 - `2` — config / parsing error
 - `3` — internal error
 
-## Default rules (MVP target subset)
+## Default rules
 
-v0.1 ships only a conservative subset to avoid the "5000 violations on first run" failure mode:
-
-- Core Guidelines: **SF.7, SF.8, SF.9, SF.21**
-- Lakos: cycles, include chain length (default threshold 10), god-headers (default fan-in 50), CCD/ACD/NCCD in report
-- `--baseline` mode from day one, so legacy projects can adopt without rewriting
-
-Remaining SF.* rules (SF.2, SF.4, SF.5, SF.10, SF.11) and Martin metrics (Ce/Ca/I/A/D) are v0.2/v0.3.
+Defaults are deliberately a conservative subset to avoid the "5000 violations on first run" failure mode, and `--baseline` exists from day one so legacy projects can adopt without rewriting. The shipped rule list and thresholds live in [CHANGELOG.md](CHANGELOG.md) (authoritative) and `archcheck --help`; the staged rule roadmap lives in [docs/architecture-spec.md](docs/architecture-spec.md) §Roadmap. Don't restate either list here — it drifts.
 
 ## Fixtures are mandatory
 
@@ -73,7 +68,7 @@ From [docs/MVP.md](docs/MVP.md): *"If feature cannot be tested with fixtures —
 
 ## Design docs — read these before non-trivial work
 
-- [docs/architecture-spec.md](docs/architecture-spec.md) — full spec v2.0, ~530 lines, **in Russian**. Authoritative source for rule lists, rule attribution, roadmap (v0.1 → v0.5), risks, target audience, and the rationale behind every architectural choice. When in doubt about scope or framing, this doc wins over README.
+- [docs/architecture-spec.md](docs/architecture-spec.md) — full spec v2.2, ~760 lines, **in Russian**. Authoritative source for rule lists, rule attribution, roadmap (v0.1 → v0.5), risks, target audience, and the rationale behind every architectural choice. When in doubt about scope or framing, this doc wins over README.
 - [docs/MVP.md](docs/MVP.md) — MVP scope and acceptance criteria. Shorter, English. Use this to decide whether something belongs in v0.1.
 - [README.md](README.md) — public-facing pitch; example config and CLI shape live here.
 - [docs/research/constraint_decay.md](docs/research/constraint_decay.md) — первопричина проекта: пересказ статьи Dente et al. (EURECOM, 2026) о constraint decay и разбор HN-дискуссии. Читать, когда нужно вспомнить *зачем*.
@@ -96,7 +91,7 @@ From [docs/MVP.md](docs/MVP.md): *"If feature cannot be tested with fixtures —
 - [docs/code_quality.md](docs/code_quality.md) — anti-AI-slop правила, пороги (functions ≤ 30, classes ≤ 300, ≤ 50 новых строк на коммит, ≤ 2 новых файла, 0 абстракций без запроса), forbidden patterns, self-check перед коммитом.
 - [docs/dev/git_workflow.md](docs/dev/git_workflow.md) — git-процесс: GitHub Flow, Conventional Commits, SemVer 2.0, Keep a Changelog, аннотированные `vX.Y.Z` теги.
 
-Archcheck — сам инструмент проверки архитектуры, поэтому **dogfooding обязателен**: код archcheck обязан проходить archcheck в CI (no cycles, SF.7/8/11/21, etc.). Любой merge ломающий собственные правила — недопустим.
+Archcheck — сам инструмент проверки архитектуры, поэтому **dogfooding обязателен**: код archcheck обязан проходить собственные правила. Самопроверочного гейта в CI пока нет (там smoke + diff-режим в PR-workflow; добавление self-check шага — открытая задача), поэтому прогоняй `./build/debug/src/archcheck` из корня локально: `src/`, `include/`, `tests/` должны давать 0 нарушений. Любой merge, ломающий собственные правила, — недопустим.
 
 ## Tasks & workflow
 
