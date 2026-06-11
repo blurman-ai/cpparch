@@ -210,22 +210,45 @@ std::vector<std::unordered_set<std::size_t>> buildCondensation(std::size_t nSccs
   return condEdges;
 }
 
+void resolveDepthFrom(std::size_t root, const std::vector<std::unordered_set<std::size_t>> &condEdges,
+                      std::vector<std::size_t> &depth, std::vector<bool> &done)
+{
+  std::vector<std::size_t> stack{root};
+  while (!stack.empty())
+  {
+    const std::size_t u = stack.back();
+    if (done[u])
+    {
+      stack.pop_back();
+      continue;
+    }
+    bool ready = true;
+    for (const std::size_t v : condEdges[u])
+      if (!done[v])
+      {
+        stack.push_back(v);
+        ready = false;
+      }
+    if (!ready)
+      continue;
+    for (const std::size_t v : condEdges[u])
+      depth[u] = std::max(depth[u], depth[v] + 1);
+    done[u] = true;
+    stack.pop_back();
+  }
+}
+
 std::vector<std::size_t> computeSccDepths(const std::vector<std::unordered_set<std::size_t>> &condEdges)
 {
+  // Iterative post-order: depth of the condensation equals the longest include
+  // chain, and this runs inside the default Lakos.ChainLength rule — recursion
+  // here overflows the native stack on adversarially deep chains.
   const std::size_t nSccs = condEdges.size();
   std::vector<std::size_t> depth(nSccs, 0);
   std::vector<bool> done(nSccs, false);
-  std::function<std::size_t(std::size_t)> dfs = [&](std::size_t u) -> std::size_t
-  {
-    if (done[u])
-      return depth[u];
-    done[u] = true;
-    for (const std::size_t v : condEdges[u])
-      depth[u] = std::max(depth[u], dfs(v) + 1);
-    return depth[u];
-  };
-  for (std::size_t i = 0; i < nSccs; ++i)
-    dfs(i);
+  for (std::size_t root = 0; root < nSccs; ++root)
+    if (!done[root])
+      resolveDepthFrom(root, condEdges, depth, done);
   return depth;
 }
 

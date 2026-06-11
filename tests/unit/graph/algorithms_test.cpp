@@ -1,5 +1,8 @@
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
+#include <cstddef>
+#include <string>
+#include <vector>
 
 #include "archcheck/graph/algorithms.h"
 #include "archcheck/graph/dependency_graph.h"
@@ -164,4 +167,21 @@ TEST_CASE("hasPath respects edge direction", "[graph][algorithms][path]")
   const NodeId b = g.addNode("b.h");
   g.addEdge(a, b);
   REQUIRE_FALSE(hasPath(g, b, a));
+}
+
+TEST_CASE("include depths survive a pathologically deep chain", "[graph][algorithms][depth]")
+{
+  // Regression: depth computation runs inside the default Lakos.ChainLength
+  // rule; with native recursion a 200k-header linear chain overflowed the stack.
+  DependencyGraph g;
+  constexpr std::size_t n = 200'000;
+  std::vector<NodeId> ids;
+  ids.reserve(n);
+  for (std::size_t i = 0; i < n; ++i)
+    ids.push_back(g.addNode("h" + std::to_string(i) + ".h"));
+  for (std::size_t i = 0; i + 1 < n; ++i)
+    g.addEdge(ids[i], ids[i + 1]);
+  const auto depths = archcheck::graph::computeIncludeDepths(g);
+  REQUIRE(depths[ids.front().value] == n - 1);
+  REQUIRE(depths[ids.back().value] == 0);
 }
