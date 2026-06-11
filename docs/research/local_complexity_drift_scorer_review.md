@@ -120,6 +120,9 @@ Sonar — per-function порог 15).
 
 ## Репро
 
+Файлы пар сохранены в репо: `experiments/local_complexity_drift/review_repros/`
+(`/tmp/lcd_test/` — volatile, команды ниже работают и с in-repo копиями).
+
 ```bash
 P=experiments/local_complexity_drift/scan_commit.py
 # D1: плоский 8-case switch: 0 -> 19, FINDING zero_to_complex (Sonar: 1)

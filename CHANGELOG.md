@@ -8,6 +8,49 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 
+- **SATD delta advisory in `--diff`** — added lines of a diff are scanned for self-admitted
+  technical debt markers in comments: `SATD.1` (TODO/FIXME/HACK/XXX/TEMP, plus
+  temporary/workaround/quick fix/dirty) and `SATD.2` (FIXME/HACK without an issue id).
+  Reported after the structural diff, never gates. Shared `git_exec` (fork/exec git helper,
+  extracted from git_state) and `diff_query` (added-lines / numstat parsers) land as
+  reusable infrastructure. (#096)
+- **Test co-evolution advisory in `--diff`** — `TEST.1.prod_changed_tests_silent` flags a
+  diff with significant production churn and silent tests (prod ≥ 80 lines with tests = 0,
+  or prod ≥ 200 with test/prod ratio < 5%). Advisory-only. (#097)
+- **`--history <path>` advisory mode** — repository-history analytics over one
+  `git log --numstat` pass (shared `history_query` parser): `SIZE.1.god_file_growth`
+  flags files that are already large (≥ P75), grew ≥ +30% or +300 lines, in ≥ 5
+  consecutive growing commits with no meaningful shrink (#098); `HIST.1.defect_attractor`
+  flags production files in the top decile of fix-like commits (≥ 5 touches), skipping
+  merges and mechanical (>30-file) commits. Always exits 0. (#100)
+- **decision records** — `docs/decisions/` (ADR-001 config-rules→v0.2, ADR-002 SF.21→v0.2,
+  ADR-003 fast-backend-default), surfacing deferral decisions previously buried in
+  `backlog/completed/`. `docs/MVP.md` rewritten around zero-config acceptance criteria. (#045)
+
+### Security
+
+- **Hardened against untrusted repositories** (CI threat model): file-tree walk no longer
+  follows symlinks pointing outside the scan root (S3); file and git-blob reads are capped
+  at 64 MiB and skipped with a diagnostic instead of risking OOM (S4); `jsonEscape` now
+  emits RFC 8259-valid output for all control characters and invalid UTF-8 (S5); all child
+  `git` invocations run with `GIT_CONFIG_NOSYSTEM=1`, `core.hooksPath=/dev/null`,
+  `core.fsmonitor=`, `core.pager=cat` and `--no-ext-diff`, so a malicious `.git/config`
+  or hook cannot execute commands (S6). (#105)
+
+### Changed
+
+- **`git` execution unified** — the fork/exec git helper is shared across `git_state` and
+  `git_object_file_source` via `git/git_exec` (removes ~50 lines of duplication). (#096, #105)
+
+### Removed
+
+- **Dead code surfaced by the 2026-06 audit** (~330 lines, 14 test cases): the unused
+  `diffTokens`/`DiffOp` LCS machinery in the clone classifier; test-only graph helpers
+  `reverseReachableFrom`/`hasPath`; the placeholder `evaluateAgainstCorpus` (always
+  precision 1.0); and several write-only/unread fields and accessors
+  (`MetricThresholds::chainLengthLimit`, `Pair::sharedRare`, `BaselineLoadError::line`,
+  `ConfigError` file/line/column accessors, `Worktree::valid()`, `DiskFileSource::root()`). (#104)
+
 - **Scale-independent duplication candidate generation** — k-gram winnowing fingerprints (MOSS-style) added alongside the rare-token index. The rare-token index keyed on corpus document-frequency, so a genuine clone pair stopped being a candidate once the project grew enough that its shared tokens were no longer "rare" — detection depended on project size. Fingerprints are intrinsic to each fragment's token run, so a clone is a candidate at any corpus size; over-frequent fingerprints (boilerplate idioms) are dropped to bound cost. Recovers function-level clones the index was hiding (verified eyes-on, ~0 added false positives). (#092)
 
 - **SF.7 rule** — no `using namespace` at global scope in headers, with block-comment stripping and brace-depth tracking. (#034, #035, #038)

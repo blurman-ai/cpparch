@@ -167,18 +167,20 @@ Synthetic suite здесь важна не меньше, чем реальный
 
 ### Сама метрика
 
-Базироваться на shape, уже описанном в #101, чтобы прототип не ушёл в нерелевантную сторону:
+**v1-формула (`branchScore + deepLinesCount + floor(indentComplexitySum / 20)`) реализована,
+прогнана по корпусу и признана дефектной** — внешнее ревью 2026-06-11 с живыми репро
+([docs/research/local_complexity_drift_scorer_review.md](~/projects/cpparch/docs/research/local_complexity_drift_scorer_review.md)).
+Не использовать её и не «чинить локально».
 
-- branch/control tokens;
-- brace nesting;
-- deep lines;
-- indent accumulation.
+v2-формула обязана повторять «Scoring model» из #101 (cognitive-style, источник —
+[docs/research/cognitive_complexity_delta_design.md](~/projects/cpparch/docs/research/cognitive_complexity_delta_design.md) §4–§6):
 
-V1 формула может остаться простой:
+- score = только структурные инкременты (`+1 + control-вложенность`) и flat-инкременты;
+- `case`/`default` НЕ считаются; `else`/`else if` = +1; серия `&&`/`||` = +1; do-while = один счёт;
+- вложенность = control-nesting (классифицированные скобки), не brace-depth и не отступы;
+- `deep_lines` / indent-аккумуляция — только диагностические поля в выводе, в score не входят.
 
-- `localComplexityScore = branchScore + deepLinesCount + floor(indentComplexitySum / 20)`
-
-Здесь цель не Sonar-совместимость, а стабильный proxy, который потом можно перенести в `archcheck`.
+Цель по-прежнему не байт-в-байт Sonar-совместимость, а стабильный proxy, переносимый в `archcheck` (#101).
 
 ### Технический подход
 
@@ -386,14 +388,43 @@ V1 формула может остаться простой:
 5. **Выровнять scorer со спекой #101 и ревью**: убрать `case`/`default` из CONTROL_RE;
    control-nesting вместо brace-depth; серия `&&`/`||` = +1; фильтр rvalue-`&&`;
    do-while один счёт; `else` +1; indent-компоненту — вон из score (оставить
-   диагностикой); относительные пороги вместо `delta>=5`; тест-фильтр `*tests`-суффиксов
+   диагностикой); пороги — иерархия из #101 «Scoring model» (LCX.1 `crossed_25` /
+   LCX.2 `grew_when_already_above` / LCX.3 `delta >= K`, K=5, сравнение нестрогое:
+   ровно 5 — триггер), **НЕ нормировать на размер диффа** и не оставлять одинокий
+   `delta>=5`; тест-фильтр `*tests`-суффиксов
    + блэклист символов TEST_F/TEST/TEST_P/TYPED_TEST/BENCHMARK + арность в ключе матчинга.
    Точная целевая семантика и токенные эвристики — в дизайн-доке
    [docs/research/cognitive_complexity_delta_design.md](~/projects/cpparch/docs/research/cognitive_complexity_delta_design.md)
    (§4 таблица реализуемости, §5 сигналы, §6 ядро ~200-300 строк).
-   Контроль: репро-кейсы из ревью (`/tmp/lcd_test/`) + synthetic suite + 6/6 TP должны сохраниться.
-6. Перегнать corpus-прогон после фиксов и сравнить топ (ожидание: switch-парсеры и
-   TEST_F уйдут из топа) — затем обновить recommendation для #101:
+   Контроль: репро-кейсы из ревью (скопированы из volatile `/tmp/lcd_test/` в
+   [experiments/local_complexity_drift/review_repros/](~/projects/cpparch/experiments/local_complexity_drift/review_repros/))
+   + synthetic suite + 6/6 TP должны сохраниться. Ожидания по парам review_repros
+   (old→new, v2-скорер):
+
+   | Пара | Дефект | Ожидание v2 |
+   |------|--------|-------------|
+   | `a_old/a_new` | D1: плоский 8-case switch | score 1, finding НЕТ (v1 давал 0→19) |
+   | `b_old/b_new` | D2: rvalue-`&&` | дельта 0, finding НЕТ |
+   | `d_old/d_new` | D3: выровненные продолжения аргументов | дельта 0, finding НЕТ |
+   | `e_old/e_new` | D4: do-while | score 1 (v1 давал 3) |
+   | `f_old/f_new` | контроль: рефорсат условия | дельта 0 (v1: 4→4 — сохранить) |
+   | `c_old/c_new` | контроль: init-list data-table | score 0 (сохранить) |
+6. **Обновить ожидания synthetic suite под v2** — три кейса в
+   `generate_synthetic_cases.py` (и перегенерить `synthetic_cases/manifest.json`):
+   - `switch_case_explosion`: `must_trigger` → **`must_not_trigger`** — расширение
+     плоского switch новыми case — это в точности дефект D1, cognitive-дельта = 0.
+     НЕ «чинить» скорер обратно, чтобы кейс снова триггерился: ожидание было
+     ошибочным, рост через вложенность покрывают `flat_to_nested_if` и
+     `loop_inside_loop`;
+   - `else_if_chain_growth`: остаётся `must_trigger`, но через LCX.3 на границе
+     (1 → 6, Δ = 5 = K) — полезный кейс на нестрогое сравнение `>=`;
+   - остальные ожидания не меняются; suite после фиксов обязан проходить 13/13
+     с новыми ожиданиями.
+7. Перегнать corpus-прогон после фиксов той же командой, что и v1-прогон
+   (для сравнимости результатов):
+   `python3 experiments/local_complexity_drift/run_sample.py --max-repos 100 --max-commits 20 --max-files-per-commit 30 --max-file-bytes 300000 --reset-output`
+   Сравнить топ с v1 (ожидание: switch-парсеры и TEST_F уйдут из топа, 6/6 TP из
+   examples-дока сохранятся) — затем обновить recommendation для #101:
    `ship / revise / drop`.
 
 ## Ключевые решения
