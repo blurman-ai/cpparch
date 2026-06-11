@@ -26,6 +26,13 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 - **decision records** — `docs/decisions/` (ADR-001 config-rules→v0.2, ADR-002 SF.21→v0.2,
   ADR-003 fast-backend-default), surfacing deferral decisions previously buried in
   `backlog/completed/`. `docs/MVP.md` rewritten around zero-config acceptance criteria. (#045)
+- **Local complexity drift advisory in `--diff`** — per-function Sonar Cognitive Complexity
+  (Campbell 2018, token-level, no AST) compared between baseline and current versions of
+  the changed C/C++ files. `DRIFT.LOCAL_COMPLEXITY` reports a function that crossed the
+  absolute threshold 25 (Sonar C-family / clang-tidy default), grew by ≥ 3 while already
+  above it, or grew by ≥ 5 in one diff; volume is not complexity — adding flat statements
+  scores 0. Formula validated on a 100-repo corpus (#102: 13/13 synthetic, 6/6 manual TP).
+  Advisory-only, never gates. (#101)
 
 ### Security
 
