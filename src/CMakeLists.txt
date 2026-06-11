@@ -66,6 +66,12 @@ target_compile_definitions(archcheck_core PUBLIC
    ARCHCHECK_VERSION_PATCH=${PROJECT_VERSION_PATCH}
 )
 
-# CLI entry point.
-add_executable(archcheck main.cpp)
+# CLI entry point: thin dispatch in main.cpp + application command units in cli/.
+add_executable(archcheck
+   main.cpp
+   cli/check_command.cpp
+   cli/diff_command.cpp
+   cli/preview_commands.cpp
+)
+target_include_directories(archcheck PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(archcheck PRIVATE archcheck::core)
