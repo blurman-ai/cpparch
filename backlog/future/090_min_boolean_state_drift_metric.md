@@ -80,6 +80,14 @@ Rule 1 параметры:
 
 ## Сделано
 
+> **Историческая секция — кода ниже в репо НЕТ.** Описанная реализация существовала и была
+> **намеренно откачена** коммитом `4268a39` «revert(rules): убрать implicit_state_machine_growth
+> из основного archcheck» после переосмысления по итогам #089 (статический нейминг-детект —
+> 78% шум; рабочий сигнал только history-based, см. шапку файла). Утреннее бэклог-ревью
+> 2026-06-11 ошибочно сочло секцию галлюцинацией — нет, это след реального revert-цикла.
+> План выше (гейты 1–4) — актуальная замена; чекбоксы «Fixtures» внизу тоже относятся
+> к откаченной версии.
+
 - **Rule implementation (C++20):** `src/rules/implicit_state_machine_growth.h/cpp` — struct extraction, bool-field counting, state-pattern matching
 - **Threshold logic:** min_bool_fields=5, state_pattern_ratio=0.6 (60%) — tuned from corpus study (#089)
 - **Heuristics:** state-pattern matching (started/running/paused/failed/active/ready/connected), config-pattern exclusion (enable_*/use_*/verbose/debug), exclude-list (*Options/*Config/Chord*/FlatC*)

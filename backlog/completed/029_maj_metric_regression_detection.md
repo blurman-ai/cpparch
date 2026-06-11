@@ -1,8 +1,8 @@
 # [GRAPH][DIFF] Metric regression detection in RegressionReport
 
 **Дата создания:** 2026-05-28
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-05-28
+**Статус:** completed
 **Модуль:** GRAPH / DIFF
 **Приоритет:** major
 **Сложность:** medium
@@ -115,19 +115,15 @@
 
 ## Сделано
 
-- (пусто)
-
-## В работе
-
-- (пусто)
+- **2026-05-28** — весь план реализован коммитом `c480e39` (тем же коммитом, что создал этот файл; секция «Сделано» тогда не была заполнена — файл задачи ошибочно остался в `new/` со статусом `new` до бэклог-ревью 2026-06-11):
+  - `computeFanIn` O(E) + `GraphMetrics` (maxChainLength / maxFanIn / CCD / ACD / NCCD) + `computeGraphMetrics` в `graph/algorithms`;
+  - `MetricDelta`, `MetricThresholds` (chainLengthLimit=10, godHeaderFanIn=30), поля `chainLengthGrown` / `newGodHeaders` / `nccdDelta` в `RegressionReport`, `hasRegression()` расширен;
+  - `writeTextReport` выводит chain_length / god_headers / nccd только при регрессии;
+  - unit-тесты (+160 строк `regression_report_test.cpp`) и 4 git-интеграционных теста (+93 строки `git_diff_test.cpp`), coverage gate пройден (lines 95.9%).
 
 ## Следующие шаги
 
-1. Реализовать `computeFanIn` + `computeGraphMetrics` в `algorithms.h/.cpp`.
-2. Расширить `RegressionReport` и `buildRegressionReport`.
-3. Покрыть unit-тестами.
-4. Добавить 4 git-интеграционных теста.
-5. Обновить `writeTextReport`.
+- Закрыто. Опциональные fixture-проекты (`fixtures/chain_length/`, `fixtures/god_header/`) не создавались — сценарии покрыты программными git-тестами, отдельные фикстуры не понадобились.
 
 ## Ключевые решения
 
@@ -149,3 +145,16 @@
 | `src/report/text_reporter.cpp` | Новые строки вывода |
 | `tests/unit/diff/regression_report_test.cpp` | +5 unit-тестов |
 | `tests/integration/diff/git_diff_test.cpp` | +4 git-интеграционных теста |
+
+## Как работает
+
+`buildRegressionReport` считает `computeGraphMetrics` для baseline и current графов и заполняет три
+опциональных поля: `chainLengthGrown` (рост max include depth), `newGodHeaders` (узлы, впервые
+пересёкшие fan-in порог 30), `nccdDelta` (рост Normalized ACD — ловит уплотнение графа без единого
+большого ребра). Пороги — `MetricThresholds` со значениями по умолчанию, zero-config сохранён.
+
+## Итог
+
+**Статус:** completed
+**Дата завершения:** 2026-05-28 (фактическая, коммит `c480e39`); файл закрыт 2026-06-11 по итогам бэклог-ревью.
+**Причина задержки закрытия:** реализация и файл задачи попали в один коммит, чекбоксы и статус не были обновлены — задача 2 недели выглядела неначатой. Дублей работы не возникло, но #057 и TASK_TRACKER ссылались на неё как на несделанную.
