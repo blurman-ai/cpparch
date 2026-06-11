@@ -23,6 +23,7 @@ add_executable(archcheck_tests
    duplication_clone_index_test.cpp
    duplication_fingerprint_test.cpp
    duplication_renamed_recall_test.cpp
+   duplication_pmd_normalization_test.cpp
    duplication_fp_guards_test.cpp
    duplication_path_guards_test.cpp
    # Research/QA precision-evaluation harness — test-only, deliberately NOT in
