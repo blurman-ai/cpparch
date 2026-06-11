@@ -7,6 +7,6 @@
 namespace archcheck::report
 {
 
-void writeTextReport(const rules::ViolationList &violations, std::ostream &out);
+void writeTextReport(const rules::ViolationList &violations, std::ostream &out, bool useColor = false);
 
 } // namespace archcheck::report
