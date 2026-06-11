@@ -70,6 +70,7 @@ From [docs/MVP.md](docs/MVP.md): *"If feature cannot be tested with fixtures —
 
 - [docs/architecture-spec.md](docs/architecture-spec.md) — full spec v2.2, ~760 lines, **in Russian**. Authoritative source for rule lists, rule attribution, roadmap (v0.1 → v0.5), risks, target audience, and the rationale behind every architectural choice. When in doubt about scope or framing, this doc wins over README.
 - [docs/MVP.md](docs/MVP.md) — MVP scope and acceptance criteria. Shorter, English. Use this to decide whether something belongs in v0.1.
+- [docs/decisions/](docs/decisions/) — ADR: принятые deferral-решения (config→v0.2, SF.21→v0.2, fast backend default). Сверяйся сюда ПЕРЕД тем, как объявить отсутствующую фичу «гэпом» — возможно, это решение, а не долг.
 - [README.md](README.md) — public-facing pitch; example config and CLI shape live here.
 - [docs/research/constraint_decay.md](docs/research/constraint_decay.md) — первопричина проекта: пересказ статьи Dente et al. (EURECOM, 2026) о constraint decay и разбор HN-дискуссии. Читать, когда нужно вспомнить *зачем*.
 - [docs/dev/coverage_constraints.md](docs/dev/coverage_constraints.md) — почему branch coverage застрял на ~63% и что с этим делать: ограничение lcov 1.13 на Astra Linux 1.7 (GCC 8.x не размечает throw-arcs так, чтобы lcov их убирал). Branches-порог намеренно оставлен на 40%.

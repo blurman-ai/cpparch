@@ -128,7 +128,7 @@ The defaults that ship today were chosen precisely so a YAML config is not requi
 
 ## Status
 
-v0.1 in active development. Shipped: five default rules, baselines, drift gate (DRIFT.1/2 gating + DRIFT.3 advisory), PR diff mode, advisory duplication report. Not yet shipped: enforcement of YAML module rules (parsed but not enforced — v0.2), SARIF, semantic backend. One MVP acceptance criterion ("enforces 1 dependency rule") is still open — see [docs/MVP.md](docs/MVP.md).
+v0.1 in active development. Shipped: five default rules, baselines, drift gate (DRIFT.1/2 gating + DRIFT.3 advisory), PR diff mode, advisory duplication report. Module-rule enforcement from YAML is the **v0.2** headline by design ([ADR-001](docs/decisions/001-config-rules-deferred-to-v0.2.md) — zero-config first); SARIF and the semantic backend are also v0.2. MVP acceptance criteria: [docs/MVP.md](docs/MVP.md) — the single open release item is security hardening on untrusted repos (#105).
 
 ---
 

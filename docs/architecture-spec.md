@@ -422,7 +422,7 @@ Git-based режим допустим как удобный adapter поверх
 
 ## Анализ по конфигу
 
-**Ядро конфига — `modules` + `rules` (`layers` / `independence` / `forbidden`).** Это то, ради чего пользователь ставит archcheck. Дефолтные правила (SF.*, Lakos-метрики) включены, но не headline — их можно отключить блоком `defaults` (phase 2).
+**Ядро конфига — `modules` + `rules` (`layers` / `independence` / `forbidden`).** Это headline-фича **v0.2** ([ADR-001](decisions/001-config-rules-deferred-to-v0.2.md)): в v0.1 пользователь ставит archcheck ради zero-config ценности (циклы, god-headers, цепочки, drift-гейт) — без единой строки YAML; конфиг-контракт добавляет к ней объявленные границы модулей, когда команда к этому готова. Дефолтные правила (SF.*, Lakos-метрики) включены всегда; их можно будет отключить блоком `defaults` (phase 2).
 
 ### Формат
 
