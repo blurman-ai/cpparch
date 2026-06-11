@@ -17,3 +17,6 @@
 Данные уже скачаны: `experiments/clone_oracle_validation/{downloads,bellon,nicad,pmd}`.
 Методология и вся история — в `backlog/completed/107_*.md` и
 `experiments/clone_oracle_validation/FINDINGS.md`.
+
+4. (из #071) Триаж-ширина: прогнать `experiments/triage_dup_commits.py` на vmecpp и
+   corpus-репах — подтвердить 0-FP за пределами LibreSprite.
