@@ -10,6 +10,7 @@
 #include <system_error>
 #include <vector>
 
+#include "archcheck/config/config.h"
 #include "archcheck/diff/regression_report.h"
 #include "archcheck/git/diff_query.h"
 #include "archcheck/git/git_object_file_source.h"
@@ -479,6 +480,11 @@ TEST_CASE("git diff: PR creates god-header → newGodHeaders non-empty", "[diff]
   REQUIRE(report.newGodHeaders.size() == 1);
   REQUIRE(report.newGodHeaders[0] == "hub.h");
   REQUIRE(report.hasRegression());
+}
+
+TEST_CASE("god-header threshold default is one contract for check and --diff", "[diff][config][metrics]")
+{
+  REQUIRE(archcheck::diff::MetricThresholds{}.godHeaderFanIn == archcheck::config::Config{}.thresholds.godHeaderFanIn);
 }
 
 TEST_CASE("git diff: PR increases NCCD → nccdDelta detected", "[diff][git][integration][metrics]")

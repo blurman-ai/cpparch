@@ -409,4 +409,10 @@ std::optional<std::filesystem::path> findConfig(const std::filesystem::path &sta
   }
 }
 
+Config discover(const std::filesystem::path &root)
+{
+  const auto found = findConfig(root);
+  return found ? load(*found) : Config{};
+}
+
 } // namespace archcheck::config

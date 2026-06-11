@@ -83,6 +83,21 @@ TEST_CASE("config loader: findConfig returns nullopt when no config up the tree"
   REQUIRE_FALSE(archcheck::config::findConfig(std::filesystem::temp_directory_path()).has_value());
 }
 
+TEST_CASE("config loader: discover loads the walkup-found config", "[config][pass]")
+{
+  const std::filesystem::path deep =
+      std::filesystem::path(ARCHCHECK_FIXTURES_DIR) / "config" / "discovery" / "nested" / "deep";
+  const auto cfg = archcheck::config::discover(deep);
+  REQUIRE(cfg.thresholds.chainLength == 3);
+}
+
+TEST_CASE("config loader: discover falls back to embedded defaults", "[config][pass]")
+{
+  const auto cfg = archcheck::config::discover(std::filesystem::temp_directory_path());
+  REQUIRE(cfg.thresholds.chainLength == 10);
+  REQUIRE(cfg.thresholds.godHeaderFanIn == 50);
+}
+
 using Catch::Matchers::ContainsSubstring;
 
 TEST_CASE("config loader: rejects unknown top-level key", "[config][fail]")

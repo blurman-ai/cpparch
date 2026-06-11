@@ -22,4 +22,9 @@ Config load(const std::filesystem::path &path);
 // .archcheck.yml found, or nullopt if none exists up the tree.
 std::optional<std::filesystem::path> findConfig(const std::filesystem::path &start);
 
+// Discovery policy shared by all CLI modes: walkup from the analyzed root
+// (not the process CWD), embedded defaults if no file is found.
+// Throws ConfigError on a malformed file.
+Config discover(const std::filesystem::path &root);
+
 } // namespace archcheck::config

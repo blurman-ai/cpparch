@@ -48,7 +48,9 @@ struct NewCrossAreaDependency
 
 struct MetricThresholds
 {
-  std::size_t godHeaderFanIn = 30;
+  // Must match config::Thresholds::godHeaderFanIn (config.h) — `check` and
+  // `--diff` share one contract; equality is pinned by a test.
+  std::size_t godHeaderFanIn = 50;
 };
 
 // Aggregate result of comparing two dependency graphs. All NodeIds are

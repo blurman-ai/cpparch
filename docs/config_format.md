@@ -298,7 +298,7 @@ These are compiled into the binary; **no `.archcheck.yml` is required** for a us
 
 If `--config <path>` is given, that exact file is loaded and discovery is **skipped**.
 
-Otherwise archcheck walks **up** from the current working directory to the filesystem root and loads the **first** `.archcheck.yml` it finds. First-found wins; the search stops there — it does not continue past it and does not merge a chain. This matches `.clang-format` / eslint behaviour and lets archcheck run from any subdirectory of a project.
+Otherwise archcheck walks **up** from the **analyzed root** (the path argument; defaults to the current working directory) to the filesystem root and loads the **first** `.archcheck.yml` it finds. First-found wins; the search stops there — it does not continue past it and does not merge a chain. This matches `.clang-format` / eslint behaviour, lets archcheck run from any subdirectory of a project, and makes `archcheck /path/to/project` pick up that project's config regardless of where the process is started (CI, monorepo, external runner). Precedence: `--config` > discovered-near-root > embedded defaults.
 
 If no file is found anywhere up the tree, the embedded defaults are used unchanged.
 
