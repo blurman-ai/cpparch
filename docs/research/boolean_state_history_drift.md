@@ -1,105 +1,55 @@
 # Boolean-State DRIFT по истории коммитов (агентские репо)
 
-**Репо:** 73 агентских (локально склонированных). Скан `git log -p` по заголовкам, добавленные `+ bool field;` (не параметры).
+**Репо:** 185 агентских (локально склонированных).
 
-## Что считается дрейфом
+**Коммитов, добавивших bool в заголовки:** 5514; из них **3655** — в УЖЕ существующие файлы (= дрейф, рост структур во времени).
 
-**Дрейф ≠ один коммит, вываливший 100 булей** (это «написали класс» = фича). **Дрейф = инкрементальное накопление**: в один и тот же заголовок булы капают по 1-2 за раз, в РАЗНЫХ коммитах, разными авторами, месяцами/годами (boiling-frog, constraint decay — см. `docs/research/constraint_decay.md`).
+**Сигнал дрейфа:** один коммит добавляет несколько bool-полей в существующий заголовок.
 
-**Метрика:** число РАЗНЫХ коммитов, добавивших bool в один файл (после вычета переформатирований, вендора, генерёнки), и временной размах.
+## Топ-40 коммитов по приросту bool в существующих заголовках
 
-**Отфильтрованный шум:** clang-format/crlf-коммиты (перетрогивают старые строки), вендор (SDL/ImGui/ESPAsync), генерёнка (`.pb.h`), разовые feature-дампы.
-
-**Найдено:** 219 файлов с ≥3 разными коммитами, добавлявшими булы по чуть-чуть.
-
-## Топ-30 дрейфующих заголовков (по числу коммитов-добавлений)
-
-| Коммитов | из них по 1-2 | всего +bool | дней | репо | файл |
+| +bool | repo | commit | date | файлы:поля | subject |
 |---|---|---|---|---|---|
-| **39** | 35 | 49 | 707 (2024-06-22→2026-05-30) | mod-playerbots_mod-playerbots | [PlayerbotAIConfig.h](file://~/oss/mod-playerbots_mod-playerbots/src/PlayerbotAIConfig.h)<br><sub>src/PlayerbotAIConfig.h</sub> |
-| **35** | 33 | 53 | 457 (2025-02-19→2026-05-22) | couchbase_kv_engine | [settings.h](file://~/oss/couchbase_kv_engine/daemon/settings.h)<br><sub>daemon/settings.h</sub> |
-| **32** | 19 | 215 | 570 (2024-10-30→2026-05-23) | dalathegreat_Battery-Emulator | [datalayer_extended.h](file://~/oss/dalathegreat_Battery-Emulator/Software/src/datalayer/datalayer_extended.h)<br><sub>Software/src/datalayer/datalayer_extended.h</sub> |
-| **32** | 29 | 46 | 495 (2024-09-05→2026-01-13) | dalathegreat_Battery-Emulator | [datalayer.h](file://~/oss/dalathegreat_Battery-Emulator/Software/src/datalayer/datalayer.h)<br><sub>Software/src/datalayer/datalayer.h</sub> |
-| **26** | 23 | 41 | 706 (2024-06-27→2026-06-03) | getsentry_sentry-unreal | [SentrySettings.h](file://~/oss/getsentry_sentry-unreal/plugin-dev/Source/Sentry/Public/SentrySettings.h)<br><sub>plugin-dev/Source/Sentry/Public/SentrySettings.h</sub> |
-| **25** | 21 | 36 | 716 (2024-06-15→2026-06-01) | MOLAorg_mola_lidar_odometry | [LidarOdometry.h](file://~/oss/MOLAorg_mola_lidar_odometry/module/include/mola_lidar_odometry/LidarOdometry.h)<br><sub>module/include/mola_lidar_odometry/LidarOdometry.h</sub> |
-| **23** | 22 | 26 | 234 (2025-07-24→2026-03-15) | godot42x_ya | [App.h](file://~/oss/godot42x_ya/Engine/Source/Core/App/App.h)<br><sub>Engine/Source/Core/App/App.h</sub> |
-| **19** | 13 | 47 | 711 (2024-06-14→2026-05-26) | masc-ucsc_hhds | [tree.hpp](file://~/oss/masc-ucsc_hhds/hhds/tree.hpp)<br><sub>hhds/tree.hpp</sub> |
-| **17** | 12 | 51 | 116 (2026-01-30→2026-05-26) | ggml-org_ggml | [ggml-webgpu-shader-lib.hpp](file://~/oss/ggml-org_ggml/src/ggml-webgpu/ggml-webgpu-shader-lib.hpp)<br><sub>src/ggml-webgpu/ggml-webgpu-shader-lib.hpp</sub> |
-| **17** | 12 | 51 | 116 (2026-01-30→2026-05-26) | ggml-org_whisper.cpp | [ggml-webgpu-shader-lib.hpp](file://~/oss/ggml-org_whisper.cpp/ggml/src/ggml-webgpu/ggml-webgpu-shader-lib.hpp)<br><sub>ggml/src/ggml-webgpu/ggml-webgpu-shader-lib.hpp</sub> |
-| **16** | 16 | 17 | 564 (2024-10-04→2026-04-21) | cloudflare_workerd | [setup.h](file://~/oss/cloudflare_workerd/src/workerd/jsg/setup.h)<br><sub>src/workerd/jsg/setup.h</sub> |
-| **16** | 14 | 23 | 214 (2025-10-09→2026-05-11) | ThomasGhione_chess_engine | [engine.hpp](file://~/oss/ThomasGhione_chess_engine/engine/engine.hpp)<br><sub>engine/engine.hpp</sub> |
-| **14** | 11 | 33 | 365 (2025-05-26→2026-05-26) | masc-ucsc_hhds | [graph.hpp](file://~/oss/masc-ucsc_hhds/hhds/graph.hpp)<br><sub>hhds/graph.hpp</sub> |
-| **13** | 11 | 19 | 651 (2024-05-22→2026-03-04) | oneapi-src_unified-runtime | [ur_print.hpp](file://~/oss/oneapi-src_unified-runtime/include/ur_print.hpp)<br><sub>include/ur_print.hpp</sub> |
-| **12** | 8 | 28 | 397 (2025-04-05→2026-05-07) | godot42x_ya | [Render.h](file://~/oss/godot42x_ya/Engine/Source/Render/Render.h)<br><sub>Engine/Source/Render/Render.h</sub> |
-| **11** | 9 | 20 | 28 (2026-03-27→2026-04-24) | mne-tools_mne-cpp | [channelrhiview.h](file://~/oss/mne-tools_mne-cpp/src/libraries/disp/viewers/helpers/channelrhiview.h)<br><sub>src/libraries/disp/viewers/helpers/channelrhiview.h</sub> |
-| **9** | 9 | 10 | 625 (2024-06-08→2026-02-23) | netxms_netxms | [nms_objects.h](file://~/oss/netxms_netxms/src/server/include/nms_objects.h)<br><sub>src/server/include/nms_objects.h</sub> |
-| **9** | 9 | 9 | 578 (2024-10-18→2026-05-19) | carbon-language_carbon-lang | [compile_subcommand.h](file://~/oss/carbon-language_carbon-lang/toolchain/driver/compile_subcommand.h)<br><sub>toolchain/driver/compile_subcommand.h</sub> |
-| **9** | 9 | 11 | 421 (2024-11-20→2026-01-15) | oneapi-src_unified-runtime | [platform.hpp](file://~/oss/oneapi-src_unified-runtime/source/adapters/level_zero/platform.hpp)<br><sub>source/adapters/level_zero/platform.hpp</sub> |
-| **9** | 7 | 19 | 36 (2026-03-16→2026-04-21) | godot42x_ya | [DeferredRenderPipeline.h](file://~/oss/godot42x_ya/Engine/Source/Runtime/App/DeferredRender/DeferredRenderPipeline.h)<br><sub>Engine/Source/Runtime/App/DeferredRender/DeferredRenderPipeline.h</sub> |
-| **8** | 7 | 10 | 621 (2024-09-11→2026-05-25) | jwmcglynn_donner | [ImageComparisonTestFixture.h](file://~/oss/jwmcglynn_donner/donner/svg/renderer/tests/ImageComparisonTestFixture.h)<br><sub>donner/svg/renderer/tests/ImageComparisonTestFixture.h</sub> |
-| **8** | 8 | 11 | 558 (2024-11-04→2026-05-16) | esbmc_esbmc | [python_annotation.h](file://~/oss/esbmc_esbmc/src/python-frontend/python_annotation.h)<br><sub>src/python-frontend/python_annotation.h</sub> |
-| **8** | 6 | 16 | 524 (2024-12-21→2026-05-29) | gwdevhub_GWToolboxpp | [ToolboxUIElement.h](file://~/oss/gwdevhub_GWToolboxpp/GWToolboxdll/ToolboxUIElement.h)<br><sub>GWToolboxdll/ToolboxUIElement.h</sub> |
-| **8** | 8 | 11 | 520 (2024-06-26→2025-11-28) | MeshInspector_MeshLib | [MRUIStyle.h](file://~/oss/MeshInspector_MeshLib/source/MRViewer/MRUIStyle.h)<br><sub>source/MRViewer/MRUIStyle.h</sub> |
-| **8** | 7 | 11 | 441 (2025-02-18→2026-05-05) | esbmc_esbmc | [solidity_convert.h](file://~/oss/esbmc_esbmc/src/solidity-frontend/solidity_convert.h)<br><sub>src/solidity-frontend/solidity_convert.h</sub> |
-| **7** | 5 | 13 | 558 (2024-10-04→2026-04-15) | official-pikafish_Pikafish | [search.h](file://~/oss/official-pikafish_Pikafish/src/search.h)<br><sub>src/search.h</sub> |
-| **7** | 5 | 15 | 545 (2024-09-21→2026-03-20) | casadi_casadi | [fmu_impl.hpp](file://~/oss/casadi_casadi/casadi/core/fmu_impl.hpp)<br><sub>casadi/core/fmu_impl.hpp</sub> |
-| **7** | 6 | 17 | 514 (2024-08-19→2026-01-15) | colmap_colmap | [bundle_adjustment.h](file://~/oss/colmap_colmap/src/colmap/estimators/bundle_adjustment.h)<br><sub>src/colmap/estimators/bundle_adjustment.h</sub> |
-| **7** | 7 | 7 | 507 (2024-10-17→2026-03-08) | MeshInspector_MeshLib | [MRSurfaceManipulationWidget.h](file://~/oss/MeshInspector_MeshLib/source/MRViewer/MRSurfaceManipulationWidget.h)<br><sub>source/MRViewer/MRSurfaceManipulationWidget.h</sub> |
-| **7** | 7 | 7 | 421 (2024-10-29→2025-12-24) | mod-playerbots_mod-playerbots | [RandomPlayerbotMgr.h](file://~/oss/mod-playerbots_mod-playerbots/src/RandomPlayerbotMgr.h)<br><sub>src/RandomPlayerbotMgr.h</sub> |
+| **191** | yaap_frameworks_native | `44605ebd5f` | 2025-05-22 | `vkjson.h`: reported, reported, reported, reported, reported, reported | CodeGen(vk_parser): Output files from vk_parser.py and vkjso |
+| **191** | GrapheneOS_platform_frameworks_native | `44605ebd5f` | 2025-05-22 | `vkjson.h`: reported, reported, reported, reported, reported, reported | CodeGen(vk_parser): Output files from vk_parser.py and vkjso |
+| **130** | protocolbuffers_protobuf | `6c36ed514f` | 2025-06-20 | `php-upb.h`: default_val, ret, default_val, ret, default_val, ret; `ruby-upb.h`: default_val, ret, default_val, ret, default_val, ret | Auto-generate files after cl/773742919 |
+| **113** | drsnuggles8_OloEngineBase | `1fcce84cd2` | 2025-12-19 | `EditorLayer.h`: m_PrimaryCamera, m_ViewportFocused, m_ViewportHovered, m_ShowPhysicsColliders, m_ShowShaderDebugger, m_ShowGPUResourceInspector; `AnimatedMeshComponents.h`: m_Visible, m_Blending; `AudioSource.h`: PlayOnAwake, Looping, Spatialization, m_Spatialization | Code cleanup by clang format |
+| **100** | apple_foundationdb | `228719bbc5` | 2026-04-18 | `Knobs.h`: ALLOW_DANGEROUS_KNOBS, ENABLE_VERSION_VECTOR, ENABLE_VERSION_VECTOR_TLOG_UNICAST, ENABLE_VERSION_VECTOR_REPLY_RECOVERY, ENABLE_VERSION_VECTOR_HA_OPTIMIZATION, PEEK_USING_STREAMING | Consolidate server knobs header files |
+| **91** | Mudlet_Mudlet | `5cb5251f46` | 2025-09-25 | `Host.h`: mAlertOnNewData, mAllowToSendCommand, mAutoClearCommandLineAfterSend, mHighlightHistory, mBlockScriptCompile, mBlockStopWatchCreation; `TMxpNodeBuilder.h`: mIsEndTag, mIsEmptyTag, mIsInsideTag, mIsInsideAttr, mReadingAttrValue, mIsInsideSequence; `TScript.h`: exportItem, mModuleMasterFolder, mNeedsToBeCompiled, mModuleMember | Infrastructure: move initializers to header classes (#8267) |
+| **65** | lagadic_visp | `1a3bbc6ab5` | 2026-03-19 | `catch_amalgamated.hpp`: first, m_isNegated, listTests, listTags, listReporters, listListeners | Update Catch2 building to version 3.13.0 |
+| **61** | lagadic_visp | `ed73c097ee` | 2026-02-17 | `catch_amalgamated.hpp`: first, m_isNegated, listTests, listTags, listReporters, listListeners | Fix typo overriden -> overridden |
+| **60** | mixxxdj_mixxx | `2144bf9075` | 2025-12-12 | `rekordbox_anlz.h`: n_len_comment, n_comment, n_color_code, n_color_red, n_color_green, n_color_blue; `rekordbox_pdb.h`: f_name, f_name, f_ofs_name_far, n_ofs_name_far, f_length, f_heap_pos | chore: update kaitai files, runtime and fix missing tracks |
+| **53** | ROCm_clr | `bb3a2f0460` | 2025-08-20 | `amd_hip_unsafe_atomics.h`: done, done; `amd_hip_vector_types.h`: isTrue; `hip_internal.hpp`: isDrv, null_, originStream_, isActive_, isSetDeviceCalled | SWDEV-470698 - fix formatting, add format check workflow  (# |
+| **47** | TheochemUI_eOn | `9aefa0d79b` | 2026-02-15 | `Parameters.h`: quiet, writeLog, checkpoint, removeNetForce, LAMMPSLogging, EMTRasmussen | chore(params): finally rewrite into structs |
+| **46** | f4exb_sdrangel | `63348eeee1` | 2026-01-28 | `SWGAaroniaRTSAOutputSettings.h`: m_title_isSet; `SWGAaroniaRTSASettings.h`: m_title_isSet; `SWGAirspyHFSettings.h`: m_title_isSet | Make device title editable in the basic device settings. Fix |
+| **35** | zeek_zeek | `942450c293` | 2022-10-06 | `doctest.h`: m_skip, m_no_breaks, m_no_output, m_may_fail, m_should_fail, m_failed | src/3rdparty: Update doctest to 2.4.9 and sqlite to 3.39.4 |
+| **34** | Samsung_ONE | `c9ad387104` | 2025-10-02 | `flatc.h`: annotate_include_vector_contents, any_generator, print_make_rules, raw_binary, schema_binary, grpc_enabled; `flexbuffers.h`: kq, check_alignment_; `idl.h`: cpp_minify_enums, emit_min_max_enum_values, swift_implementation_only, gen_json_coders, keep_prefix, warnings_as_errors | [micro] update schema_generated.h and flatbuffer (#16154) |
+| **33** | zeek_zeek | `7567f2b9fc` | 2026-03-30 | `doctest.h`: flipped, m_failed, m_threw, m_threw_as, isContains, m_passed | Update doctest to 2.5.0 |
+| **33** | cisco_mercury | `4eba19c6c9` | 2026-04-20 | `doctest.h`: flipped, m_failed, m_threw, m_threw_as, isContains, m_passed | Upgraded doctest and minor nits |
+| **31** | yaap_frameworks_native | `c88c4d44b7` | 2025-06-11 | `vkjson.h`: reported, reported, reported, reported, reported, reported | Regenerate native framework vulkan files for new header |
+| **31** | GrapheneOS_platform_frameworks_native | `c88c4d44b7` | 2025-06-11 | `vkjson.h`: reported, reported, reported, reported, reported, reported | Regenerate native framework vulkan files for new header |
+| **30** | FastLED_FastLED | `e6abac6aa8` | 2026-02-21 | `beat.h`: mTempoChanged; `buildup.h`: mFireBuildupStart, mFireBuildupPeak, mFireBuildupEnd, mFireBuildupProgress, mFireBuildup; `chord.h`: mFireChordChange, mFireChordEnd, mFireChord | refactor audio so that it has partial values for how much th |
+| **30** | eranif_codelite | `9a8f143438` | 2026-03-08 | `confcallgraph.h`: m_boxHideParams, m_boxStripParams, m_boxHideNamespaces; `dotwriter.h`: m_writedotfileFlag, dwhideparams, dwstripparams, dwhidenamespaces; `gprofparser.h`: lineheader, primaryline, isdot, iscycle, islom, isplus | Clang format (#3861) |
+| **29** | drsnuggles8_OloEngineBase | `a7ceac97cc` | 2025-09-25 | `ADEnvelope.h`: m_PrevTriggerState, triggerState; `AREnvelope.h`: m_CurrentCompleted; `DelayedTrigger.h`: triggerEdge, resetEdge | Refactor audio node classes to use ValueView for real-time p |
+| **29** | psryland_rylogic-code | `c35d29c4e3` | 2025-10-09 | `fbx.h`: load_external_files, ignore_missing_external_files, skip_skin_vertices, skip_mesh_parts, clean_skin_weights, use_blender_pbr_material | WIP ufbx |
+| **29** | f4exb_sdrangel | `1975c1748c` | 2025-06-04 | `adsbdemodgui.h`: m_autopilot, m_vnavMode, m_altHoldMode, m_approachMode, m_lnavMode, m_nicSupplementA; `adsbdemodsettings.h`: m_manualQNH, m_displayCoverage, m_displayChart, m_displayOrientation, m_displayRadius | Add additional demod stats. Add analysis of Mode S frames in |
+| **28** | SynchronetBBS_sbbs | `7dc04e00a3` | 2025-10-14 | `quests.h`: Active, Known; `structs.h`: Initialized, InterBBS, Initialized, InterBBS, Local, LocalIBBS | Start of Clans overhaul... |
+| **27** | zeek_zeek | `3297de477b` | 2023-10-30 | `binpac_buffer.h`: message_complete_, chunked_, eof_, have_pending_request_; `pac_attr.h`: delete_expr_; `pac_context.h`: flow_buffer_added_ | binpac: Reformat C++ code in Spicy style |
+| **27** | GenieTim_pylimer-tools | `d790884fd7` | 2025-05-06 | `NormalModeAnalyzer.h`: isEigenvaluesComputed, isEigenvectorsComputed; `UniverseSequence.h`: isInitialized, modeDataFiles; `DPDSimulator.h`: allowRelocationInNetwork, assumeBoxLargeEnough, doDeformation, is2D, shiftOneAtATime, shiftPossibilityEmpty | Fix some minor memory leaks |
+| **26** | eranif_codelite | `813a2bd23b` | 2026-03-14 | `qmakeplugindata.h`: m_enabled; `wxSerialize.h`: m_healthInsurance, m_newDataLoss, m_opened, m_partialMode, m_writeMode, m_haveBoundary; `SpellCheckerSettings.h`: m_scanStrings, m_scanCPP, m_scanC, m_scanD1, m_scanD2, m_caseSensitiveUserDictionary | Clang format (#3867) |
+| **26** | Mudlet_Mudlet | `c4ad7e43e0` | 2025-10-17 | `TBuffer.h`: hasForegroundColor, hasBackgroundColor, isBold, isItalic, isStrikeOut, isOverlined | Add: Enhanced OSC 8 Hyperlink Styling with CSS-Style Decorat |
+| **25** | Serial-Studio_Serial-Studio | `69da1f8b27` | 2026-04-29 | `Export.h`: m_persistSettings; `JsCodeEditor.h`: m_readingCode; `OutputCodeEditor.h`: m_readingCode | chore: normalize line endings to LF + minor QML/source touch |
+| **25** | drsnuggles8_OloEngineBase | `d89bb46d38` | 2026-05-20 | `Future.h`: m_HasResult; `SoundGraphSound.h`: m_Looping, m_SpatializationEnabled; `TaskTrace.h`: m_IsActive, m_IsActive, m_ZoneActive | Code review fixes: docs drift, cross-binding completeness, c |
+| **23** | sorbet_sorbet | `5e667b08f4` | 2026-06-04 | `Trees.h`: isPrivateOk, isRewriterSynthesized, hasBlock; `CFG.h`: isLoopHeader, wasJumpDestination; `FoundDefinitions.h`: isSelfMethod, isRewriterSynthesized, isAttrBestEffortUIOnly, discardDef, genericPropGetter | Use bitfield initializers (#10336) |
+| **22** | SynchronetBBS_sbbs | `a8576f2c96` | 2026-04-01 | `deucessh-kex.h`: client; `libcrux_mlkem768_sha3.h`: sponge, sponge, uu____0, uu____2, done, done; `ssh-internal.h`: has_frozen, open, close_sent, close_received, eof_sent, eof_received | Run through clang-format |
+| **21** | TheHPXProject_hpx | `a69e634719` | 2026-02-12 | `find_last_if_not_tests.hpp`: caught_exception, caught_exception, caught_exception, returned_from_algorithm, caught_bad_alloc, caught_bad_alloc; `find_last_if_tests.hpp`: caught_exception, caught_exception, caught_exception, returned_from_algorithm, caught_bad_alloc, caught_bad_alloc; `find_last_tests.hpp`: caught_exception, caught_exception, caught_exception, returned_from_algorithm, caught_bad_alloc, caught_bad_alloc | Address review comments: simplify signatures, fix docs, add  |
+| **19** | openharmony_communication_dsoftbus | `965dd3357f` | 2026-02-25 | `auth_interface_struct.h`: isForceJoin, isFastAuth; `auth_session_fsm_struct.h`: isServer, isServer, isConnectServer, isNodeInfoReceived, isCloseAckReceived, isAuthFinished | lnn code sync |
+| **18** | FastLED_FastLED | `95c49a7b55` | 2026-01-23 | `fstream.h`: mGood, mEof, mFail, mGood, mEof, mFail | chore: automated commit (input failed) |
+| **18** | babelfish-for-postgresql_postgresql_modified_for_babelfish | `4f30849e21` | 2025-02-10 | `plannodes.h`: hasReturning, hasModifyingCTE, canSetTag, transientPlan, dependsOnRole, parallelModeNeeded | Reformat node comments in plannodes.h |
+| **18** | dalihub_dali-toolkit | `a6a4bdcd68` | 2025-09-12 | `accessibility-highlight-overlay.h`: mHasOverlayActor; `gltf-loader.h`: doubleSided, normalized; `scene3d-view-impl.h`: mUseIBL | Updating to clang-format-21 |
+| **17** | qt_qtdeclarative | `61d8f8fdf3` | 2024-12-11 | `qquickrectangleshape_p_p.h`: explicitTopLeftRadius, explicitTopRightRadius, explicitBottomLeftRadius, explicitBottomRightRadius, drawTop, drawRight | Merge BorderShape API into RectangleShape |
+| **17** | isc-projects_bind9 | `2893e128a7` | 2026-03-19 | `zone_p.h`: deleteit, fullsign, done, done, seen_nsec, delete_nsec | Move zone set/get properties to own source file |
+| **17** | scp-fs2open_fs2open.github.com | `da58556787` | 2025-06-11 | `ATNConfigSet.h`: hasSemanticContext, dipsIntoOuterContext, _readonly; `ATNDeserializationOptions.h`: _readOnly, _verifyATN, _generateRuleBypassTransitions; `ATNState.h`: epsilonOnlyTransitions | Library updates, Win2022 CI, CMake 4 Compat (#6766) |
 
-## Флагман: `PlayerbotAIConfig.h` (mod-playerbots)
-
-**39 коммитов** за **707 дней** (2024-06 → 2026-05) добавили 49 bool-флагов — почти все по одному, каждый под свою фичу. Никто не виноват по отдельности; структура распухла капля за каплей. Это и есть измеримый дрейф:
-
-| Дата | Добавлено | (фича) |
-|---|---|---|
-| 2024-06-22 | `disableDeathKnightLogin` | |
-| 2024-06-27 | `randomBotFixedLevel` | |
-| 2024-07-05 | `sayWhenCollectingItems` | |
-| 2024-07-10 | `botRepairWhenSummon` | |
-| 2024-07-11 | `allowSummonInCombat,allowSummonWhenMasterIsDead,al` | |
-| 2024-07-12 | `reviveBotWhenSummoned` | |
-| 2024-07-27 | `randomBotTalk,randomBotEmote` | |
-| 2024-07-28 | `randomBotGuildTalk` | |
-| 2024-08-01 | `enableBroadcasts,enableGreet,randomBotSayWithoutMa` | |
-| 2024-08-05 | `fastReactInBG` | |
-| 2024-08-14 | `dynamicReactDelay` | |
-| 2024-08-19 | `applyInstanceStrategies` | |
-| 2024-09-04 | `twoRoundsGearInit` | |
-| 2024-10-03 | `botActiveAloneAutoScale` | |
-| 2024-10-09 | `botActiveAloneSmartScale` | |
-| 2024-11-30 | `enableNewRpgStrategy` | |
-| 2024-12-06 | `dropObsoleteQuests` | |
-| 2024-12-15 | `BotActiveAloneForceWhenInMap` | |
-| 2024-12-15 | `BotActiveAloneForceWhenInZone,BotActiveAloneForceW` | |
-| 2024-12-18 | `BotActiveAloneForceWhenInGuild` | |
-| 2024-12-19 | `BotActiveAloneForceWhenInGuild` | |
-| 2025-02-09 | `limitTalentsExpansion` | |
-| 2025-03-01 | `enablePeriodicOnlineOffline` | |
-| 2025-03-28 | `enableRandomBotTrading` | |
-| 2025-05-24 | `disabledWithoutRealPlayer` | |
-| 2025-05-24 | `keepAltsInGroup` | |
-| 2025-06-11 | `EnableICCBuffs` | |
-| 2025-07-05 | `incrementalGearInit` | |
-| 2025-07-27 | `restrictHealerDPS` | |
-| 2025-08-03 | `randomBotLogoutOutsideLoginRange` | |
-| 2025-09-06 | `enableWeightTeleToCityBankers` | |
-| 2025-12-27 | `enableFishingWithMaster` | |
-| 2026-02-23 | `allowLearnTrainerSpells` | |
-| 2026-03-20 | `lootGreedRollLevel,lootRollRecipe,lootRollDisencha` | |
-| 2026-04-24 | `preferClassArmorType,preferredSpecWeapons` | |
-| 2026-05-09 | `enableAutoTradeOnItemMention` | |
-| 2026-05-30 | `botSendMailEnabled` | |
-| 2026-05-30 | `equipAndSpecPersistence` | |
-| 2026-05-30 | `resetInstanceIdForAltBots` | |
-
-## Вывод
-
-Это **самый сильный и честный результат всего исследования** и он переопределяет вердикт #089:
-
-- Статический счётчик «5+ bool» — шум (78% конфиги).
-- Один коммит с кучей булей — фича, не дрейф.
-- **Инкрементальное накопление булей в один заголовок через много коммитов во времени — реальный, измеримый сигнал дрейфа.** Он temporal, name-independent, дёшево считается из git (число коммитов-добавлений на файл) и прямо отвечает первопричине проекта (constraint decay).
-
-Для archcheck это укладывается в его суть лучше статической проверки: это **drift-метрика во времени** (как cycles/coupling drift #086/#087), а не линтер-проверка одного среза. Кандидат-правило: «заголовок X накопил N bool-полей за M коммитов — рассмотрите enum/State».
+*(полный список — bool_history.csv)*
 
