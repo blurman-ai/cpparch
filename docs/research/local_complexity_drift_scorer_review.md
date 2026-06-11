@@ -111,7 +111,8 @@ Sonar — per-function порог 15).
    хотя бы серию, не каждый оператор).
 4. Финдинг: `delta_percent >= X` при `delta >= Y` и `new_score >= Z` (относительный рост
    с минимальным абсолютом и полом), плюс отдельный `zero_to_complex` с порогом по
-   cognitive-шкале (например, ≥15 — порог Sonar).
+   cognitive-шкале (25 — default Sonar C-family и clang-tidy). Полный дизайн сигналов —
+   [cognitive_complexity_delta_design.md](cognitive_complexity_delta_design.md).
 5. D6/D7 фиксы фильтра тестов и ключа символа.
 6. Перевалидировать на тех же 1614 коммитах: ожидание — топ перестанет состоять из
    switch-парсеров и TEST_F, а 6/6 TP ручной разметки (examples-док) сохранятся —
