@@ -449,3 +449,17 @@ corpus re-run #102: switch-парсеры и TEST_F ушли из топа, 6/6 
 | `tests/unit/scan/` | metrics/body-scan/drift unit tests |
 | `tests/integration/diff/git_diff_test.cpp` | real git baseline/current scenarios |
 | `fixtures/local_complexity_drift/` | `pass/` and `fail_*` fixtures |
+
+## Итог
+**Статус:** completed — v1 реализации задышала целиком:
+- **Как работает:** токенный сканер Sonar Cognitive Complexity (v2-скорер из #102,
+  D1–D7 закрыты) → `function_body_scan` (границы функций) → per-function метрики →
+  baseline/current сравнение по changed files → advisory-вывод в `--diff`
+  (иерархия LCX.1 crossed_25 / LCX.2 grew_when_already_above / LCX.3 Δ≥K).
+- **Коммиты:** e80b628 (engine), 7938d9c (CLI advisory в --diff), 95aaa62
+  (фикстуры `fixtures/local_complexity_drift/{pass,fail_growth,fail_new_complex}`),
+  643c69c (checkpoint). 72 LCX-теста в сюите, вся сюита 461/461 зелёная.
+- **Не блокирующие хвосты** (зафиксированы выше): clang-tidy прогон; подтверждение
+  K=5 на втором срезе корпуса (— #102); решение по #099 (file-level fallback или
+  закрыть как absorbed) — после обкатки на реальных диффах.
+**Дата завершения:** 2026-06-11
