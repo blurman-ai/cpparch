@@ -30,6 +30,35 @@ TEST_CASE("SF.8: ifndef guard → no violation", "[rules][sf8]")
   REQUIRE(rule.check(g, makeReadFile("#ifndef A_H\n#define A_H\nclass Foo {};\n#endif\n")).empty());
 }
 
+TEST_CASE("SF.8: lone #ifndef without matching #define is not a guard", "[rules][sf8]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  Sf8IncludeGuard rule;
+  const auto v = rule.check(g, makeReadFile("#ifndef NDEBUG\n#include <cassert>\n#endif\nclass Foo {};\n"));
+  REQUIRE(v.size() == 1);
+  CHECK(v[0].ruleId == "SF.8");
+}
+
+TEST_CASE("SF.8: #define of a different macro does not close the guard", "[rules][sf8]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  Sf8IncludeGuard rule;
+  REQUIRE(rule.check(g, makeReadFile("#ifndef A_H\n#define OTHER_MACRO 1\n#endif\n")).size() == 1);
+}
+
+TEST_CASE("SF.8: guard pair with comment line between → no violation", "[rules][sf8]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  Sf8IncludeGuard rule;
+  REQUIRE(rule.check(g, makeReadFile("#ifndef A_H\n// guard\n#define A_H\n#endif\n")).empty());
+}
+
 TEST_CASE("SF.8: missing guard → violation on line 1", "[rules][sf8]")
 {
   DependencyGraph g;

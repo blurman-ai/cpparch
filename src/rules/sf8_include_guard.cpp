@@ -1,7 +1,10 @@
 #include "archcheck/rules/sf8_include_guard.h"
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "archcheck/scan/project_files.h"
 
@@ -21,7 +24,22 @@ bool hasPragmaOnce(std::string_view line)
   return p != std::string_view::npos && line.find("once", p) != std::string_view::npos;
 }
 
-bool hasIfndefGuard(std::string_view line) { return line.find("#ifndef") != std::string_view::npos; }
+bool isIdentChar(char c) { return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_'; }
+
+// Macro name following `directive` on `line`; empty if the directive is absent.
+std::string_view directiveArg(std::string_view line, std::string_view directive)
+{
+  const auto p = line.find(directive);
+  if (p == std::string_view::npos)
+    return {};
+  std::size_t b = p + directive.size();
+  while (b < line.size() && (line[b] == ' ' || line[b] == '\t'))
+    ++b;
+  std::size_t e = b;
+  while (e < line.size() && isIdentChar(line[e]))
+    ++e;
+  return line.substr(b, e - b);
+}
 
 // Objective-C files use #import and @interface — not C++ headers, skip SF.8.
 bool isObjcFile(const std::string &source)
@@ -51,8 +69,26 @@ bool isObjcFile(const std::string &source)
 // An include guard would contradict their purpose; skip SF.8 for them.
 bool isIncFile(std::string_view path) { return std::filesystem::path(path).extension() == ".inc"; }
 
+// Records an `#ifndef NAME` into `pending`; true when `line` is a `#define`
+// matching a pending name — i.e. the pair completes a real include guard.
+bool closesGuardPair(std::string_view line, std::vector<std::string_view> &pending)
+{
+  const auto name = directiveArg(line, "#ifndef");
+  if (!name.empty())
+  {
+    pending.push_back(name);
+    return false;
+  }
+  const auto defined = directiveArg(line, "#define");
+  return !defined.empty() && std::find(pending.begin(), pending.end(), defined) != pending.end();
+}
+
+// A real include guard is the pair `#ifndef NAME` + later `#define NAME` of
+// the same macro. A lone `#ifndef` (e.g. an NDEBUG tweak) has no guard
+// semantics and must not satisfy SF.8.
 bool hasIncludeGuard(const std::string &source)
 {
+  std::vector<std::string_view> pending; // #ifndef names awaiting their #define
   int seen = 0;
   std::size_t start = 0;
   while (start <= source.size() && seen < kScanLines)
@@ -63,7 +99,7 @@ bool hasIncludeGuard(const std::string &source)
     if (!line.empty())
     {
       ++seen;
-      if (hasPragmaOnce(line) || hasIfndefGuard(line))
+      if (hasPragmaOnce(line) || closesGuardPair(line, pending))
         return true;
     }
     if (end == std::string::npos)
