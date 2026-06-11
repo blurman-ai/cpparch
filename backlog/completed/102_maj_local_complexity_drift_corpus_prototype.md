@@ -2,7 +2,8 @@
 
 **Дата создания:** 2026-06-10
 **Дата старта:** 2026-06-10
-**Статус:** wip
+**Дата завершения:** 2026-06-11
+**Статус:** completed
 **Модуль:** EXPERIMENTS / CORPUS / DIFF / RESEARCH
 **Приоритет:** major
 **Сложность:** large
@@ -360,72 +361,88 @@ v2-формула обязана повторять «Scoring model» из #101 
 - Зафиксирован первичный вывод для #101:
   `revise`, не `ship` as-is.
 
-## В работе
+### v2-скорер (2026-06-11) — ревью отработано
 
-- Расширение ручного разбора за пределы первых 6 concrete before/after examples.
-- Отдельная классификация `existing function grew`:
-  true complexity growth / parser mismatch / test-only / generated-like path.
-- Дополнительное подавление edge-case test/generated путей вроде `EngineTests`, если ручной разбор подтвердит шум.
-- **Внешнее ревью скорера получено (2026-06-11)** — дефекты с живыми репро:
-  [docs/research/local_complexity_drift_scorer_review.md](/home/localadm/projects/cpparch/docs/research/local_complexity_drift_scorer_review.md).
-  Главное: плоский 8-case switch даёт 0→19 (Sonar cognitive: 1) — `case`/`default`
-  считает прототип, хотя **спека #101 их в списке токенов не имеет** (расхождение
-  прототип↔спека); `&&` rvalue-ссылок считается ветвлением; выровненные продолжения
-  строк дают фальшивую глубину (`deep_lines` на плоском коде; табы дают 0);
-  do-while стоит 2–3 балла; `else` не считается; абсолютный порог `delta>=5`
-  на метрике, растущей с размером (477/524 находок). Второе расхождение со спекой:
-  brace-depth вместо control-nesting.
+- **Переписан `scan_commit.py` на токенный сканер Sonar Cognitive Complexity**
+  (дизайн — [cognitive_complexity_delta_design.md](/home/localadm/projects/cpparch/docs/research/cognitive_complexity_delta_design.md) §4/§6):
+  brace-стек с классификацией control/non-control, lastOp-стек серий `&&`/`||` по
+  глубине скобок, do-while-спарка, `else`/`else if` hybrid, лямбда-nesting, braceless-тела.
+  Построчный разбор v1 заменён целиком — серия `&&`, разбитая по строкам, теперь
+  считается один раз (это и был корень FP на рефорсате условий).
+- **Все 7 дефектов ревью закрыты**, проверено на `review_repros/` (a 0→1, b Δ0, c 0,
+  d Δ0, e 0→1, f 2→2). Resolution-секция дописана в
+  [scorer_review.md](/home/localadm/projects/cpparch/docs/research/local_complexity_drift_scorer_review.md).
+- **D6/D7**: блэклист тест-символов `TEST*/BENCHMARK` в `signature_symbol`, суффикс-фильтр
+  `*tests`-каталогов, арность верхнего уровня в ключе матчинга (`(symbol, arity)`).
+  Эффект: TEST-находок в корпусе 0 (было 2 в топ-20), low-confidence 43→21.
+- **`finding_reason` → иерархия LCX**: `crossed_25` (LCX.1) / `grew_when_already_above`
+  (LCX.2) / `complexity_delta` Δ>=5 (LCX.3, нестрогое). Без нормировки на размер диффа.
+- **Synthetic suite 13/13** под v2; `switch_case_explosion` переразмечен в
+  `must_not_trigger` (это дефект D1, cognitive-дельта 0), `else_if_chain_growth`
+  триггерится на границе Δ=5=K.
+- **Корпус перепрогнан** той же командой: 1612 коммитов, **403 находки** (v1: 524).
+  Reasons: `grew_when_already_above`=210, `complexity_delta`=127, `crossed_25`=66.
+  Топ — настоящий рост сложности на здравой шкале; switch-парсеры и TEST_F ушли.
+  **6/6 ручных TP сохранились** (3× crossed_25, 3× grew_when_already_above).
+- Отчёты перегенерированы: corpus_report (v2 числа + сравнение с v1), examples-док
+  (скоры переведены на v2-шкалу + пометка про 6/6 survival), analyze_results.py
+  (noise-notes и recommendation под v2).
+- **Рекомендация для #101 уточнена**: `revise`, leaning `ship` для ядра скорера —
+  метрика готова к переносу (authority-backed, 13/13, D1-D7 закрыты, 6/6 TP), но перед
+  дефолт-правилом нужен порог-пол на LCX.2 (Δ1-2 хвост на уже-огромных функциях,
+  72/210, неактионабелен) и подтверждение K=5 на втором срезе корпуса.
 
-## Следующие шаги
+### Ручной разбор round-2 (2026-06-11) — закрыт порог 10-20 кейсов
 
-1. Расширить ручной разбор до 10-20 before/after examples из
-   [docs/research/local_complexity_drift_examples.md](/home/localadm/projects/cpparch/docs/research/local_complexity_drift_examples.md).
-2. Разметить каждый пример:
-   true complexity growth / parser mismatch / test-only / generated-like path.
-3. Добавить buckets в `analyze_results.py`:
-   high-confidence existing growth / low-confidence match / zero-baseline existing growth.
-4. При необходимости расширить test/generated suppression, но отдельно от shipped vendor rules.
-5. **Выровнять scorer со спекой #101 и ревью**: убрать `case`/`default` из CONTROL_RE;
-   control-nesting вместо brace-depth; серия `&&`/`||` = +1; фильтр rvalue-`&&`;
-   do-while один счёт; `else` +1; indent-компоненту — вон из score (оставить
-   диагностикой); пороги — иерархия из #101 «Scoring model» (LCX.1 `crossed_25` /
-   LCX.2 `grew_when_already_above` / LCX.3 `delta >= K`, K=5, сравнение нестрогое:
-   ровно 5 — триггер), **НЕ нормировать на размер диффа** и не оставлять одинокий
-   `delta>=5`; тест-фильтр `*tests`-суффиксов
-   + блэклист символов TEST_F/TEST/TEST_P/TYPED_TEST/BENCHMARK + арность в ключе матчинга.
-   Точная целевая семантика и токенные эвристики — в дизайн-доке
-   [docs/research/cognitive_complexity_delta_design.md](/home/localadm/projects/cpparch/docs/research/cognitive_complexity_delta_design.md)
-   (§4 таблица реализуемости, §5 сигналы, §6 ядро ~200-300 строк).
-   Контроль: репро-кейсы из ревью (скопированы из volatile `/tmp/lcd_test/` в
-   [experiments/local_complexity_drift/review_repros/](/home/localadm/projects/cpparch/experiments/local_complexity_drift/review_repros/))
-   + synthetic suite + 6/6 TP должны сохраниться. Ожидания по парам review_repros
-   (old→new, v2-скорер):
+- Разобран **второй раунд из 10 кейсов**, намеренно из шумовых страт (не топ-TP):
+  Δ1-хвост `grew_when_already_above`, low-confidence матчи, zero-baseline функции,
+  средние дельты. Итого по двум раундам — **16 кейсов** с разметкой
+  ([examples.md](/home/localadm/projects/cpparch/docs/research/local_complexity_drift_examples.md),
+  секция «Manual Review Round 2»).
+- Итог: `10` actionable TP, `3` non-actionable TP (Δ1-хвост / механические guard'ы),
+  `2` FP, `1` low-confidence путаница.
+- **Найдены 2 настоящих FP**: `__attribute__((unused))` принят за сигнатуру функции
+  (parser mismatch текстового фрагментатора); `_pack_shoal_waves` Δ1 — фантомный +1 от
+  эвристики «`!` рвёт серию» при упрощении условия. Оба — Δ-малые либо очевидно ложные.
+- **Ключевая валидация v2**: `process_connection` 574→681 — рост целиком из вложенных
+  `if/else` внутри новых `case`, а НЕ из числа case-меток (в v1 такие switch-диспетчеры
+  доминировали в топе по числу меток). v2 меряет глубину ветвления, не размер диспетчера.
+- Добавлены triage-buckets в `analyze_results.py`:
+  `high_confidence_existing_growth`=354 / `zero_baseline_existing_growth`=28 /
+  `low_confidence_match`=21.
 
-   | Пара | Дефект | Ожидание v2 |
-   |------|--------|-------------|
-   | `a_old/a_new` | D1: плоский 8-case switch | score 1, finding НЕТ (v1 давал 0→19) |
-   | `b_old/b_new` | D2: rvalue-`&&` | дельта 0, finding НЕТ |
-   | `d_old/d_new` | D3: выровненные продолжения аргументов | дельта 0, finding НЕТ |
-   | `e_old/e_new` | D4: do-while | score 1 (v1 давал 3) |
-   | `f_old/f_new` | контроль: рефорсат условия | дельта 0 (v1: 4→4 — сохранить) |
-   | `c_old/c_new` | контроль: init-list data-table | score 0 (сохранить) |
-6. **Обновить ожидания synthetic suite под v2** — три кейса в
-   `generate_synthetic_cases.py` (и перегенерить `synthetic_cases/manifest.json`):
-   - `switch_case_explosion`: `must_trigger` → **`must_not_trigger`** — расширение
-     плоского switch новыми case — это в точности дефект D1, cognitive-дельта = 0.
-     НЕ «чинить» скорер обратно, чтобы кейс снова триггерился: ожидание было
-     ошибочным, рост через вложенность покрывают `flat_to_nested_if` и
-     `loop_inside_loop`;
-   - `else_if_chain_growth`: остаётся `must_trigger`, но через LCX.3 на границе
-     (1 → 6, Δ = 5 = K) — полезный кейс на нестрогое сравнение `>=`;
-   - остальные ожидания не меняются; suite после фиксов обязан проходить 13/13
-     с новыми ожиданиями.
-7. Перегнать corpus-прогон после фиксов той же командой, что и v1-прогон
-   (для сравнимости результатов):
-   `python3 experiments/local_complexity_drift/run_sample.py --max-repos 100 --max-commits 20 --max-files-per-commit 30 --max-file-bytes 300000 --reset-output`
-   Сравнить топ с v1 (ожидание: switch-парсеры и TEST_F уйдут из топа, 6/6 TP из
-   examples-дока сохранятся) — затем обновить recommendation для #101:
-   `ship / revise / drop`.
+## Как работает
+
+**Прототип** (`experiments/local_complexity_drift/`, вне shipped runtime, в `.gitignore`)
+считает commit-level рост локальной сложности и валидирует метрику до переноса в #101.
+
+- **Скорер** (`scan_commit.py`, v2): токенный сканер **Sonar Cognitive Complexity**
+  (Campbell 2018) — линейный код = 0 by construction. Single-pass по токенам очищенного
+  тела функции:
+  - structural (`if`/`for`/`while`/`switch`/`catch`/`?:`) = `+1 + nesting`;
+  - hybrid (`else`/`else if`) = `+1` без nesting-бонуса, но поднимает вложенность;
+  - fundamental (`goto`/`co_await`, каждая серия `&&`/`||`) = `+1`;
+  - `case`/`default` бесплатны, `switch` = +1 один раз; do-while = один счёт;
+  - вложенность — классифицированный brace-стек (control vs class/namespace/init/lambda),
+    не brace-depth и не отступы; серии логических операторов — lastOp-стек по глубине `(`;
+  - rvalue-`&&` (`Type&&`) отсеивается по «приклеенности» к токену; `!=`/`==`/`<=`/`>=`
+    токенизируются цельно, чтобы `!=` не выглядел как логическое НЕ.
+- **Матчинг функций**: ключ `(symbol, arity)` — перегрузки одного имени не путаются;
+  тест-символы `TEST*/BENCHMARK` и `*tests`-каталоги отфильтрованы; неоднозначные —
+  `low_confidence`.
+- **Сигналы** (`finding_reason`, иерархия LCX): `crossed_25` (пересёк порог 25) /
+  `grew_when_already_above` (рост уже выше 25) / `complexity_delta` (Δ≥5, нестрого).
+  Без нормировки на размер диффа.
+- **Пайплайн**: `select_sample.py` → детерминированный `sample_100.tsv` из drift-positive
+  pool; `run_sample.py` → resumable batch по 100 репам (git show old/new, vendor/test
+  фильтры, лимиты); `analyze_results.py` → агрегаты + corpus_report.
+- **Validation-лесенка**: `generate_synthetic_cases.py`/`run_synthetic.py` (13 типовых
+  drift-пар, гейт перед корпусом) → `review_repros/` (6 репро дефектов из внешнего ревью) →
+  корпус 100 реп → двухраундовый ручной разбор 16 кейсов.
+
+**Решение для #101**: `revise`, leaning `ship`. Ядро (cognitive complexity) готово; до
+дефолт-правила — пороговая работа, не скоринговая: пол/down-rank на `grew_when_already_above`,
+down-rank `low`-confidence из headline, блэклист `__attribute__`/`__declspec`.
 
 ## Ключевые решения
 
