@@ -32,6 +32,7 @@
 #include "archcheck/scan/duplication/duplication_scanner.h"
 #include "archcheck/scan/god_file_growth.h"
 #include "archcheck/scan/include_scanner.h"
+#include "archcheck/scan/local_complexity_drift.h"
 #include "archcheck/scan/project_files.h"
 #include "archcheck/scan/satd_scan.h"
 #include "archcheck/scan/test_co_evolution.h"
@@ -458,6 +459,40 @@ archcheck::graph::GraphBuildResult buildSideDisk(const std::filesystem::path &re
   return archcheck::graph::buildGraphForPath(tree->path());
 }
 
+void printComplexityResult(const archcheck::scan::ComplexityDriftResult &drift)
+{
+  if (drift.violations.empty() && drift.negativeDelta == 0)
+    return;
+  std::cout << "\nlocal complexity drift (advisory):\n";
+  for (const auto &v : drift.violations)
+    std::cout << "  " << v.file << ":" << v.line << ": " << v.ruleId << " — " << v.message << '\n';
+  std::cout << "  net complexity delta: +" << drift.positiveDelta;
+  if (drift.negativeDelta < 0)
+    std::cout << " (improvements: " << drift.negativeDelta << ")";
+  std::cout << '\n';
+}
+
+// Local complexity drift (#101): per-function cognitive complexity compared
+// between baseline and current versions of the changed C/C++ files.
+void printComplexityAdvisory(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed)
+{
+  const auto changed = archcheck::git::changedCppFiles(repoRoot, parsed.baseline, parsed.current);
+  if (!changed || changed->empty())
+    return;
+  archcheck::git::GitObjectFileSource oldSource(repoRoot, parsed.baseline);
+  if (!oldSource.valid())
+    return;
+  if (parsed.current == archcheck::git::kWorktreeRef)
+  {
+    archcheck::scan::DiskFileSource newSource(repoRoot);
+    printComplexityResult(archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed));
+    return;
+  }
+  archcheck::git::GitObjectFileSource newSource(repoRoot, parsed.current);
+  if (newSource.valid())
+    printComplexityResult(archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed));
+}
+
 // Advisory-only signals over the changed lines (SATD markers, test
 // co-evolution): reported after the structural diff, never gating.
 void printDiffAdvisories(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed)
@@ -479,6 +514,8 @@ void printDiffAdvisories(const std::filesystem::path &repoRoot, const archcheck:
     for (const auto &v : testCoEvolViolations)
       std::cout << "  " << v.ruleId << ": " << v.message << '\n';
   }
+
+  printComplexityAdvisory(repoRoot, parsed);
 }
 
 int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed, DiffMode mode)

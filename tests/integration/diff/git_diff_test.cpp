@@ -18,6 +18,7 @@
 #include "archcheck/graph/graph_builder.h"
 #include "archcheck/scan/disk_file_source.h"
 #include "archcheck/scan/god_file_growth.h"
+#include "archcheck/scan/local_complexity_drift.h"
 #include "archcheck/scan/satd_scan.h"
 #include "archcheck/scan/test_co_evolution.h"
 
@@ -618,4 +619,55 @@ TEST_CASE("history_query: end-to-end with synthesized git history", "[git][histo
   REQUIRE(violations[0].ruleId == "SIZE.1.god_file_growth");
   REQUIRE(violations[0].file == "src/growing.cpp");
   REQUIRE(violations[0].line == 0);
+}
+
+namespace
+{
+
+// Read both sides of `base..head` through the object DB and run the local
+// complexity comparison over the changed C/C++ files (#101).
+archcheck::scan::ComplexityDriftResult complexityDrift(const fs::path &repo, const std::string &baseRef,
+                                                       const std::string &headRef)
+{
+  const auto changed = archcheck::git::changedCppFiles(repo, baseRef, headRef);
+  REQUIRE(changed.has_value());
+  archcheck::git::GitObjectFileSource oldSource(repo, baseRef);
+  archcheck::git::GitObjectFileSource newSource(repo, headRef);
+  REQUIRE(oldSource.valid());
+  REQUIRE(newSource.valid());
+  return archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed);
+}
+
+} // namespace
+
+TEST_CASE("git diff: local complexity growth in a changed function is reported", "[diff][git][integration]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  writeFile(repo.path / "logic.cpp", "int pick(int a)\n{\n  if (a > 0) return 1;\n  return 0;\n}\n");
+  commitAll(repo.path, "base");
+  writeFile(repo.path / "logic.cpp", "int pick(int a)\n{\n  if (a > 0) {\n    if (a > 1) {\n      if (a > 2) {\n"
+                                     "        if (a > 3) { return 4; }\n      }\n    }\n  }\n  return 0;\n}\n");
+  commitAll(repo.path, "growth");
+
+  const auto drift = complexityDrift(repo.path, "HEAD~1", "HEAD");
+  REQUIRE(drift.violations.size() == 1);
+  REQUIRE(drift.violations[0].ruleId == "DRIFT.LOCAL_COMPLEXITY");
+  REQUIRE(drift.violations[0].file == "logic.cpp");
+  REQUIRE(drift.violations[0].message.find("'pick'") != std::string::npos);
+  REQUIRE(drift.violations[0].message.find("from 1 to 10") != std::string::npos);
+}
+
+TEST_CASE("git diff: harmless change produces no complexity finding", "[diff][git][integration]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  writeFile(repo.path / "logic.cpp", "void act()\n{\n  run();\n}\n");
+  commitAll(repo.path, "base");
+  writeFile(repo.path / "logic.cpp", "void act()\n{\n  run();\n  log();\n}\n");
+  commitAll(repo.path, "append");
+
+  const auto drift = complexityDrift(repo.path, "HEAD~1", "HEAD");
+  REQUIRE(drift.violations.empty());
+  REQUIRE(drift.positiveDelta == 0);
 }
