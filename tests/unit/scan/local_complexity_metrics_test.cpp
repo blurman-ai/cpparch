@@ -99,6 +99,54 @@ TEST_CASE("complexity: multi-line directive continuation is stripped", "[scan][c
   REQUIRE(scoreOf("int g(int x)\n{\n#define CHECK(a) \\\n  if (a) { trap(); }\n  return x;\n}\n") == 0);
 }
 
+// #109 Mudlet case: `if (..) { #else if (..) {` keeps both opens for one close
+// unless alternate branches are dropped; the function would never be found.
+TEST_CASE("complexity: only the first preprocessor branch is analysed", "[scan][complexity]")
+{
+  const auto fns = archcheck::scan::computeFileComplexity("int g(int x)\n{\n#if NEW_API\n  if (check(x)) {\n#else\n"
+                                                          "  if (legacyCheck(x)) {\n#endif\n    use(x);\n  }\n"
+                                                          "  return x;\n}\n");
+  REQUIRE(fns.size() == 1);
+  REQUIRE(fns[0].qualifiedName == "g");
+  REQUIRE(fns[0].score == 1);
+}
+
+TEST_CASE("complexity: largest branch of an elif chain wins", "[scan][complexity]")
+{
+  // The elif branch carries the most tokens => it is the one analysed:
+  // outer if (+1) + nested if (+2).
+  REQUIRE(scoreOf("int g(int x)\n{\n#if A\n  if (x) use(1);\n#elif B\n  if (x) { if (x) use(2); }\n#else\n"
+                  "  while (x) use(3);\n#endif\n  return x;\n}\n") == 3);
+}
+
+// #109 wiRedPanda case: a trivial `#ifdef Q_OS_WASM` stub must not shadow the
+// real desktop branch.
+TEST_CASE("complexity: stub first branch loses to the larger else branch", "[scan][complexity]")
+{
+  REQUIRE(scoreOf("int g(int x)\n{\n#ifdef Q_OS_WASM\n  use(0);\n#else\n  if (x) { if (x) use(1); }\n"
+                  "  if (x) use(2);\n#endif\n  return x;\n}\n") == 4);
+}
+
+// #109 Cytnx case: the whole file lives in `#ifdef BACKEND_TORCH #else ... #endif`;
+// an empty first branch must not swallow the real code.
+TEST_CASE("complexity: empty if branch falls through to the else branch", "[scan][complexity]")
+{
+  const auto fns =
+      archcheck::scan::computeFileComplexity("#ifdef BACKEND_TORCH\n#else\nint g(int x)\n{\n  if (x) use(1);\n"
+                                             "  return x;\n}\n#endif\n");
+  REQUIRE(fns.size() == 1);
+  REQUIRE(fns[0].qualifiedName == "g");
+  REQUIRE(fns[0].score == 1);
+}
+
+// #109 sbbs case: `char buf[N];` left lambdaPending armed, so a following bare
+// scope block was scored as a lambda body, inflating nesting inside it.
+TEST_CASE("complexity: bare block after array declaration adds no nesting", "[scan][complexity]")
+{
+  REQUIRE(scoreOf("void g(int x)\n{\n  char buf[MAX + 1];\n  fill(buf);\n  {\n    if (x) use(1);\n  }\n"
+                  "  if (x) use(2);\n}\n") == 2);
+}
+
 TEST_CASE("complexity: meaningful loc counts token lines", "[scan][complexity]")
 {
   const auto fns =
