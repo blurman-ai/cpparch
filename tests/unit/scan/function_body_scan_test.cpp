@@ -19,11 +19,11 @@ TEST_CASE("function_body_scan: free function with arity", "[scan][complexity]")
   REQUIRE(spans[0].paramArity == 2);
 }
 
-TEST_CASE("function_body_scan: inline method inside class body", "[scan][complexity]")
+TEST_CASE("function_body_scan: inline method gets the class qualifier", "[scan][complexity]")
 {
   const auto spans = discover("class Foo\n{\n  int bar() const { return 1; }\n};\n");
   REQUIRE(spans.size() == 1);
-  REQUIRE(spans[0].qualifiedName == "bar");
+  REQUIRE(spans[0].qualifiedName == "Foo::bar");
   REQUIRE(spans[0].paramArity == 0);
 }
 
@@ -39,7 +39,7 @@ TEST_CASE("function_body_scan: operator() definition", "[scan][complexity]")
 {
   const auto spans = discover("struct F\n{\n  int operator()(int x) const { return x; }\n};\n");
   REQUIRE(spans.size() == 1);
-  REQUIRE(spans[0].qualifiedName == "operator()");
+  REQUIRE(spans[0].qualifiedName == "F::operator()");
   REQUIRE(spans[0].paramArity == 1);
 }
 
@@ -81,6 +81,42 @@ TEST_CASE("function_body_scan: declarations and control headers are not function
   REQUIRE(spans.size() == 1);
   REQUIRE(spans[0].qualifiedName == "g");
   REQUIRE(spans[0].paramArity == 0);
+}
+
+// Corpus FP class "overload-crossmatch" (#109): same-named inline methods in
+// sibling classes must not collide — each gets its own class prefix.
+TEST_CASE("function_body_scan: same-named methods in sibling classes", "[scan][complexity]")
+{
+  const auto spans = discover("struct A { int parse() { return 1; } };\n"
+                              "struct B { int parse() { return 2; } };\n");
+  REQUIRE(spans.size() == 2);
+  REQUIRE(spans[0].qualifiedName == "A::parse");
+  REQUIRE(spans[1].qualifiedName == "B::parse");
+}
+
+TEST_CASE("function_body_scan: nested namespace and class prefixes compose", "[scan][complexity]")
+{
+  const auto spans = discover("namespace ns {\nclass Foo : public Bar\n{\n  void run() { go(); }\n};\n"
+                              "void Foo::stop() { halt(); }\n}\n");
+  REQUIRE(spans.size() == 2);
+  REQUIRE(spans[0].qualifiedName == "ns::Foo::run");
+  REQUIRE(spans[1].qualifiedName == "ns::Foo::stop");
+}
+
+TEST_CASE("function_body_scan: anonymous namespace adds no prefix", "[scan][complexity]")
+{
+  const auto spans = discover("namespace {\nint helper() { return 1; }\n}\n");
+  REQUIRE(spans.size() == 1);
+  REQUIRE(spans[0].qualifiedName == "helper");
+}
+
+TEST_CASE("function_body_scan: scope keywords in declarations are not scopes", "[scan][complexity]")
+{
+  const auto spans = discover("class Fwd;\ntemplate <class T> T pick(T a) { return a; }\n"
+                              "namespace n::m {\nstruct S final { void f() { s(); } };\n}\n");
+  REQUIRE(spans.size() == 2);
+  REQUIRE(spans[0].qualifiedName == "pick");
+  REQUIRE(spans[1].qualifiedName == "n::m::S::f");
 }
 
 TEST_CASE("function_body_scan: body token range covers the braces", "[scan][complexity]")

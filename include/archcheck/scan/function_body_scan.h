@@ -12,12 +12,13 @@ namespace archcheck::scan
 // A function (or function-like) definition located in a token stream.
 struct FunctionSpan
 {
-  std::string qualifiedName; // "ns::Cls::method", "~Name", "operator+", ...
-  int paramArity = 0;        // top-level parameter count; 0 for () and (void)
-  int startLine = 0;         // line of the name token
-  int endLine = 0;           // line of the closing brace
-  std::size_t bodyBegin = 0; // token index of the opening '{'
-  std::size_t bodyEnd = 0;   // token index of the matching '}'
+  std::string qualifiedName;    // "ns::Cls::method", "~Name", "operator+", ...
+  std::string paramFingerprint; // concatenated parameter-list spellings; tells equal-arity overloads apart
+  int paramArity = 0;           // top-level parameter count; 0 for () and (void)
+  int startLine = 0;            // line of the name token
+  int endLine = 0;              // line of the closing brace
+  std::size_t bodyBegin = 0;    // token index of the opening '{'
+  std::size_t bodyEnd = 0;      // token index of the matching '}'
 };
 
 // Conservative function-definition discovery over a lex() token stream (#101).

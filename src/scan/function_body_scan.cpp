@@ -178,6 +178,57 @@ std::size_t findBodyBrace(const std::vector<Token> &toks, std::size_t closeParen
   return kNpos;
 }
 
+// Enclosing namespace/class/struct names; an entry's depth is the brace depth
+// of its body. Anonymous scopes push an empty name and are skipped in prefix().
+struct ScopeTracker
+{
+  struct Entry
+  {
+    std::string name;
+    int depth = 0;
+  };
+  std::vector<Entry> stack;
+  int depth = 0;
+
+  std::string prefix() const
+  {
+    std::string out;
+    for (const Entry &e : stack)
+      if (!e.name.empty())
+        out += e.name + "::";
+    return out;
+  }
+};
+
+bool isScopeAbort(const std::string &s) { return s == ";" || s == "(" || s == ")" || s == "=" || s == "}"; }
+
+// `<`, `>`, `,` before the base-clause colon => template parameter or
+// elaborated type in a declaration, not a scope definition.
+bool isHeadAbort(const std::string &s) { return s == "<" || s == ">" || s == ","; }
+
+// Lookahead from a scope keyword (namespace/class/struct/union) to its body
+// brace. Fills the scope name; kNpos => not a scope definition (forward
+// declaration, elaborated type, template parameter).
+std::size_t findScopeBrace(const std::vector<Token> &toks, std::size_t kw, std::string &name)
+{
+  bool inBases = false;
+  for (std::size_t j = kw + 1; j < toks.size(); ++j)
+  {
+    const std::string &s = toks[j].sym;
+    if (s == "{")
+      return j;
+    if (isScopeAbort(s) || (!inBases && isHeadAbort(s)))
+      return kNpos;
+    if (s == ":")
+      inBases = true;
+    else if (!inBases && s == "id")
+      name = (toks[j - 1].sym == "::") ? name + "::" + spellingOf(toks[j]) : spellingOf(toks[j]);
+  }
+  return kNpos;
+}
+
+bool isScopeKeyword(const std::string &s) { return s == "namespace" || s == "class" || s == "struct" || s == "union"; }
+
 struct Candidate
 {
   NameInfo name;
@@ -196,7 +247,8 @@ Candidate candidateAt(const std::vector<Token> &tokens, std::size_t i)
 
 // Appends a span when the candidate at the '(' token is a definition.
 // Returns the index to resume scanning from.
-std::size_t scanCandidate(const std::vector<Token> &tokens, std::size_t i, std::vector<FunctionSpan> &out)
+std::size_t scanCandidate(const std::vector<Token> &tokens, std::size_t i, const std::string &scopePrefix,
+                          std::vector<FunctionSpan> &out)
 {
   const Candidate cand = candidateAt(tokens, i);
   const std::size_t paramClose = cand.name.name.empty() ? kNpos : findMatching(tokens, cand.paramOpen, "(", ")");
@@ -206,9 +258,37 @@ std::size_t scanCandidate(const std::vector<Token> &tokens, std::size_t i, std::
   const std::size_t bodyClose = bodyOpen == kNpos ? kNpos : findMatching(tokens, bodyOpen, "{", "}");
   if (bodyClose == kNpos)
     return paramClose + 1;
-  out.push_back({cand.name.name, countArity(tokens, cand.paramOpen, paramClose), cand.name.line, tokens[bodyClose].line,
-                 bodyOpen, bodyClose});
+  std::string fingerprint;
+  for (std::size_t k = cand.paramOpen + 1; k < paramClose; ++k)
+    fingerprint += spellingOf(tokens[k]);
+  out.push_back({scopePrefix + cand.name.name, std::move(fingerprint), countArity(tokens, cand.paramOpen, paramClose),
+                 cand.name.line, tokens[bodyClose].line, bodyOpen, bodyClose});
   return bodyClose + 1;
+}
+
+// Scope bookkeeping for the token at i; returns the index to resume from.
+std::size_t trackScopes(ScopeTracker &scopes, const std::vector<Token> &tokens, std::size_t i)
+{
+  const std::string &s = tokens[i].sym;
+  if (s == "{")
+    ++scopes.depth;
+  else if (s == "}")
+  {
+    --scopes.depth;
+    while (!scopes.stack.empty() && scopes.stack.back().depth > scopes.depth)
+      scopes.stack.pop_back();
+  }
+  else if (isScopeKeyword(s))
+  {
+    std::string name;
+    const std::size_t brace = findScopeBrace(tokens, i, name);
+    if (brace != kNpos)
+    {
+      scopes.stack.push_back({name, ++scopes.depth});
+      return brace + 1;
+    }
+  }
+  return i + 1;
 }
 
 } // namespace
@@ -216,14 +296,10 @@ std::size_t scanCandidate(const std::vector<Token> &tokens, std::size_t i, std::
 std::vector<FunctionSpan> discoverFunctions(const std::vector<Token> &tokens)
 {
   std::vector<FunctionSpan> out;
+  ScopeTracker scopes;
   std::size_t i = 0;
   while (i < tokens.size())
-  {
-    if (tokens[i].sym == "(")
-      i = scanCandidate(tokens, i, out);
-    else
-      ++i;
-  }
+    i = tokens[i].sym == "(" ? scanCandidate(tokens, i, scopes.prefix(), out) : trackScopes(scopes, tokens, i);
   return out;
 }
 

@@ -13,6 +13,7 @@ namespace archcheck::scan
 struct FunctionComplexity
 {
   std::string qualifiedName;
+  std::string paramFingerprint; // see FunctionSpan::paramFingerprint
   int paramArity = 0;
   int startLine = 0;
   int endLine = 0;

@@ -25,15 +25,19 @@ constexpr int kDeltaK = 5;
 // findings and not actionable (#102 verdict).
 constexpr int kAboveFloor = 3;
 
+std::string shortNameOf(const std::string &qualifiedName)
+{
+  const std::size_t pos = qualifiedName.rfind("::");
+  return pos == std::string::npos ? qualifiedName : qualifiedName.substr(pos + 2);
+}
+
 // TEST_F(Suite, Name) bodies all share the macro symbol, so matching would
 // pair unrelated tests (#102 review D6).
 bool isTestMacroSymbol(const std::string &name)
 {
-  const std::size_t pos = name.rfind("::");
-  const std::string shortName = pos == std::string::npos ? name : name.substr(pos + 2);
   static constexpr std::array<const char *, 6> kTestSymbols = {"TEST",       "TEST_F",    "TEST_P",
                                                                "TYPED_TEST", "BENCHMARK", "MOCK_METHOD"};
-  return std::find(kTestSymbols.begin(), kTestSymbols.end(), shortName) != kTestSymbols.end();
+  return std::find(kTestSymbols.begin(), kTestSymbols.end(), shortNameOf(name)) != kTestSymbols.end();
 }
 
 std::vector<FunctionComplexity> authoredFunctions(const std::string &source)
@@ -45,17 +49,26 @@ std::vector<FunctionComplexity> authoredFunctions(const std::string &source)
   return fns;
 }
 
-// Match on (qualifiedName, paramArity); several candidates (overload set with
-// equal arity) degrade to nearest start line with low confidence.
+// Match on (qualifiedName, paramArity), preferring an exact parameter-list
+// fingerprint — equal-arity overloads (#109 deletion-shift FP class) must not
+// cross-match on line proximity. Remaining ambiguity (several candidates with
+// the same signature) degrades to nearest start line with low confidence.
 const FunctionComplexity *findOldMatch(const std::vector<FunctionComplexity> &olds, const FunctionComplexity &fn,
                                        bool &lowConfidence)
 {
+  const auto matches = [&fn](const FunctionComplexity &old, bool withParams)
+  {
+    return old.qualifiedName == fn.qualifiedName && old.paramArity == fn.paramArity &&
+           (!withParams || old.paramFingerprint == fn.paramFingerprint);
+  };
+  const bool exact =
+      std::any_of(olds.begin(), olds.end(), [&matches](const FunctionComplexity &o) { return matches(o, true); });
   const FunctionComplexity *best = nullptr;
   int count = 0;
   int bestDist = INT_MAX;
   for (const FunctionComplexity &old : olds)
   {
-    if (old.qualifiedName != fn.qualifiedName || old.paramArity != fn.paramArity)
+    if (!matches(old, exact))
       continue;
     ++count;
     const int dist = std::abs(old.startLine - fn.startLine);
@@ -67,6 +80,72 @@ const FunctionComplexity *findOldMatch(const std::vector<FunctionComplexity> &ol
   }
   lowConfidence = count > 1;
   return best;
+}
+
+// Same name, different arity, nearest line: a signature change, not a new
+// function (#109 arity-change FP class — the body usually carries over).
+const FunctionComplexity *findArityChangedMatch(const std::vector<FunctionComplexity> &olds,
+                                                const FunctionComplexity &fn)
+{
+  const FunctionComplexity *best = nullptr;
+  int bestDist = INT_MAX;
+  for (const FunctionComplexity &old : olds)
+  {
+    const int dist = std::abs(old.startLine - fn.startLine);
+    if (old.qualifiedName == fn.qualifiedName && dist < bestDist)
+    {
+      bestDist = dist;
+      best = &old;
+    }
+  }
+  return best;
+}
+
+// Same short name and arity, but the old function disappeared from the new
+// side: a namespace/class move (#109 gromacs "into gmx namespace" gave 29
+// phantom "new function" findings), not a new function. The disappeared check
+// keeps genuinely new same-named overloads reportable; parameter spellings are
+// not compared — a move often re-spells qualifiers (gmx::MDLogger -> MDLogger).
+const FunctionComplexity *findRescopedMatch(const std::vector<FunctionComplexity> &olds,
+                                            const std::vector<FunctionComplexity> &news, const FunctionComplexity &fn)
+{
+  const std::string shortName = shortNameOf(fn.qualifiedName);
+  const auto stillPresent = [&news](const FunctionComplexity &old)
+  {
+    return std::any_of(news.begin(), news.end(), [&old](const FunctionComplexity &n)
+                       { return n.qualifiedName == old.qualifiedName && n.paramArity == old.paramArity; });
+  };
+  const FunctionComplexity *best = nullptr;
+  int bestDist = INT_MAX;
+  for (const FunctionComplexity &old : olds)
+  {
+    if (old.paramArity != fn.paramArity || shortNameOf(old.qualifiedName) != shortName || stillPresent(old))
+      continue;
+    const int dist = std::abs(old.startLine - fn.startLine);
+    if (dist < bestDist)
+    {
+      bestDist = dist;
+      best = &old;
+    }
+  }
+  return best;
+}
+
+// An unclosed brace (broken commit) swallows every following function into one
+// garbage mega-span; #109 corpus showed phantom "new function" findings from
+// such parents. Stray extra `}` is tolerated: forward discovery self-heals at
+// the next definition. Skip the file pair only on unclosed opens.
+bool hasUnclosedBrace(const std::string &source)
+{
+  int depth = 0;
+  for (const duplication::Token &t : stripDirectiveTokens(duplication::lex(source)))
+  {
+    if (t.sym == "{")
+      ++depth;
+    else if (t.sym == "}")
+      --depth;
+  }
+  return depth > 0;
 }
 
 // LCX hierarchy, strongest first. Low-confidence matches qualify only for the
@@ -89,32 +168,90 @@ std::string growthMessage(const FunctionComplexity &fn, int oldScore, const std:
          std::to_string(fn.score) + " (+" + std::to_string(fn.score - oldScore) + reasonSuffix + ")";
 }
 
-} // namespace
-
-ComplexityDriftResult compareLocalComplexity(const std::string &oldSource, const std::string &newSource,
-                                             const std::string &file)
+// New functions: only the corpus-validated LCX.1 signal — flagging every
+// new function with score >= K would be noise (#101 start decision).
+void addNewFunctionFinding(ComplexityDriftResult &result, const FunctionComplexity &fn, const std::string &file)
 {
-  const auto olds = authoredFunctions(oldSource);
-  const auto news = authoredFunctions(newSource);
+  if (fn.score >= kCognitiveThreshold)
+    result.violations.push_back({kRuleId, file, fn.startLine,
+                                 "new function '" + fn.qualifiedName + "' has local complexity " +
+                                     std::to_string(fn.score) + " (threshold " + std::to_string(kCognitiveThreshold) +
+                                     ")"});
+}
+
+// Cross-file move pool: profiles of functions that vanished from (or collapsed
+// to a delegate stub in) some changed file of the same diff. A from-zero /
+// new-function finding elsewhere with a matching profile is a relocation, not
+// growth (#109 foundationdb: an 861-line move gave 9 phantom "grew 0->N").
+struct MovedFunction
+{
+  std::string shortName;
+  int arity = 0;
+  int score = 0;
+};
+
+void addDisappearedFunctions(std::vector<MovedFunction> &pool, const std::vector<FunctionComplexity> &olds,
+                             const std::vector<FunctionComplexity> &news)
+{
+  for (const FunctionComplexity &old : olds)
+  {
+    if (old.score < kDeltaK)
+      continue;
+    // Survival is checked per exact signature (fingerprint): an equal-arity
+    // sibling overload must not mask this overload's disappearance (#109
+    // minsky counter-example — implement-shim-and-drop-old fired +17).
+    // A survivor shrunk to a delegate stub (score < K) still counts as gone.
+    const std::string shortName = shortNameOf(old.qualifiedName);
+    int bestScore = -1;
+    for (const FunctionComplexity &n : news)
+      if (n.paramArity == old.paramArity && n.paramFingerprint == old.paramFingerprint &&
+          shortNameOf(n.qualifiedName) == shortName)
+        bestScore = std::max(bestScore, n.score);
+    if (bestScore < kDeltaK)
+      pool.push_back({shortName, old.paramArity, old.score});
+  }
+}
+
+// Consumes a pool entry so one disappeared body can mute only one finding.
+bool consumeMovedMatch(std::vector<MovedFunction> &pool, const FunctionComplexity &fn)
+{
+  const std::string shortName = shortNameOf(fn.qualifiedName);
+  const int tolerance = std::max(2, fn.score / 10); // a moved body is often lightly edited
+  for (auto it = pool.begin(); it != pool.end(); ++it)
+  {
+    if (it->arity == fn.paramArity && it->shortName == shortName && std::abs(it->score - fn.score) <= tolerance)
+    {
+      pool.erase(it);
+      return true;
+    }
+  }
+  return false;
+}
+
+ComplexityDriftResult compareFunctions(const std::vector<FunctionComplexity> &olds,
+                                       const std::vector<FunctionComplexity> &news, const std::string &file,
+                                       std::vector<MovedFunction> *movedPool)
+{
   ComplexityDriftResult result;
   for (const FunctionComplexity &fn : news)
   {
     bool lowConfidence = false;
     const FunctionComplexity *old = findOldMatch(olds, fn, lowConfidence);
+    if (old == nullptr && (old = findArityChangedMatch(olds, fn)) != nullptr)
+      lowConfidence = true; // signature change: only the soft LCX.3 signal applies
+    if (old == nullptr && (old = findRescopedMatch(olds, news, fn)) != nullptr)
+      lowConfidence = true; // namespace/class move: same body under a new scope
     const int oldScore = old != nullptr ? old->score : 0;
     const int delta = fn.score - oldScore;
     (delta > 0 ? result.positiveDelta : result.negativeDelta) += delta;
+    if (oldScore < kDeltaK && fn.score >= kDeltaK && movedPool != nullptr && consumeMovedMatch(*movedPool, fn))
+      continue; // relocated body: the net delta already reflects both sides
     if (old == nullptr)
     {
-      // New functions: only the corpus-validated LCX.1 signal — flagging every
-      // new function with score >= K would be noise (#101 start decision).
-      if (fn.score >= kCognitiveThreshold)
-        result.violations.push_back({kRuleId, file, fn.startLine,
-                                     "new function '" + fn.qualifiedName + "' has local complexity " +
-                                         std::to_string(fn.score) + " (threshold " +
-                                         std::to_string(kCognitiveThreshold) + ")"});
+      addNewFunctionFinding(result, fn, file);
       continue;
     }
+    // GCC8-COMPAT: cppcheck 1.86 (Astra 1.7) can't parse init-statement in else-if.
     const auto reason = reasonFor(oldScore, fn.score, lowConfidence);
     if (reason.has_value())
       result.violations.push_back({kRuleId, file, fn.startLine, growthMessage(fn, oldScore, *reason)});
@@ -122,20 +259,63 @@ ComplexityDriftResult compareLocalComplexity(const std::string &oldSource, const
   return result;
 }
 
-ComplexityDriftResult detectLocalComplexityDrift(FileSource &oldSource, FileSource &newSource,
-                                                 const std::vector<std::filesystem::path> &changedFiles)
+} // namespace
+
+ComplexityDriftResult compareLocalComplexity(const std::string &oldSource, const std::string &newSource,
+                                             const std::string &file)
 {
-  ComplexityDriftResult total;
+  if (hasUnclosedBrace(oldSource) || hasUnclosedBrace(newSource))
+    return {};
+  return compareFunctions(authoredFunctions(oldSource), authoredFunctions(newSource), file, nullptr);
+}
+
+namespace
+{
+
+struct FilePair
+{
+  std::string path;
+  std::vector<FunctionComplexity> olds, news;
+};
+
+// Pass 1: parse every analysable file pair and pool disappeared functions.
+// Vendor exclusion is path/basename only: the license-header heuristic
+// (isVendoredFile) was calibrated for the duplication scanner and silently
+// skips the entire code of Apache-licensed projects (#109 foundationdb —
+// every file carries the project's own banner).
+std::vector<FilePair> collectFilePairs(FileSource &oldSource, FileSource &newSource,
+                                       const std::vector<std::filesystem::path> &changedFiles,
+                                       std::vector<MovedFunction> &movedPool)
+{
+  std::vector<FilePair> pairs;
   for (const std::filesystem::path &p : changedFiles)
   {
     const std::string path = p.generic_string();
-    if (pathHasVendoredDir(path) || pathHasTestDir(path) || isTestBasename(baseName(path)))
+    if (pathHasVendoredDir(path) || pathHasTestDir(path) || isTestBasename(baseName(path)) ||
+        isVendoredBasename(baseName(path)))
       continue;
     const std::string oldText = oldSource.read(path);
     const std::string newText = newSource.read(path);
-    if (isVendoredFile(baseName(path), oldText) || isVendoredFile(baseName(path), newText))
+    if (hasUnclosedBrace(oldText) || hasUnclosedBrace(newText))
       continue;
-    ComplexityDriftResult fileResult = compareLocalComplexity(oldText, newText, path);
+    pairs.push_back({path, authoredFunctions(oldText), authoredFunctions(newText)});
+    addDisappearedFunctions(movedPool, pairs.back().olds, pairs.back().news);
+  }
+  return pairs;
+}
+
+} // namespace
+
+ComplexityDriftResult detectLocalComplexityDrift(FileSource &oldSource, FileSource &newSource,
+                                                 const std::vector<std::filesystem::path> &changedFiles)
+{
+  std::vector<MovedFunction> movedPool;
+  const std::vector<FilePair> pairs = collectFilePairs(oldSource, newSource, changedFiles, movedPool);
+  // Pass 2: per-file comparison; the shared pool mutes relocation findings.
+  ComplexityDriftResult total;
+  for (const FilePair &pair : pairs)
+  {
+    ComplexityDriftResult fileResult = compareFunctions(pair.olds, pair.news, pair.path, &movedPool);
     total.positiveDelta += fileResult.positiveDelta;
     total.negativeDelta += fileResult.negativeDelta;
     std::move(fileResult.violations.begin(), fileResult.violations.end(), std::back_inserter(total.violations));
