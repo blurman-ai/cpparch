@@ -8,6 +8,13 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 
+- **JSON output for `--diff`** — `--diff --format=json <revspec>` emits one stable JSON
+  document (schema `version: 1`): refs, `gate: ok|fail`, a `gating` block (grown cycles,
+  new god-headers) and an `advisory` block (added/removed edges, cross-area dependencies,
+  chain-length/NCCD deltas, SATD / test co-evolution / complexity-drift violations).
+  Covered by product-level E2E tests that run the real binary on synthesized repos
+  (clean diff / new edge / new cycle / docs-only fast path). (#075)
+
 - **SATD delta advisory in `--diff`** — added lines of a diff are scanned for self-admitted
   technical debt markers in comments: `SATD.1` (TODO/FIXME/HACK/XXX/TEMP, plus
   temporary/workaround/quick fix/dirty) and `SATD.2` (FIXME/HACK without an issue id).
@@ -46,6 +53,12 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Changed
 
+- **`--diff` is advisory-first** — exit 1 now means only a gated regression: a new/grown
+  include cycle (SF.9-class) or a new god-header crossing the fan-in threshold
+  (Lakos.GodHeader-class). Added/removed edges, new cross-area dependencies, chain-length
+  and NCCD growth are still reported but marked `(advisory)` and no longer fail the run —
+  a PR that merely adds an `#include` stays green. The text report ends with an explicit
+  `gate: ok|fail` verdict line. Mirrors the `--drift-baseline` regression-gate semantics (#086). (#075)
 - **`git` execution unified** — the fork/exec git helper is shared across `git_state` and
   `git_object_file_source` via `git/git_exec` (removes ~50 lines of duplication). (#096, #105)
 

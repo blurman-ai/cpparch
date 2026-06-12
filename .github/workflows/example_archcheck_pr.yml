@@ -1,5 +1,6 @@
-# Example GitHub Actions job for users of archcheck: comment on a PR when
-# it introduces new edges or new/grown cycles vs. the merge base.
+# Example GitHub Actions job for users of archcheck: the canonical PR diff
+# workflow. Reports what the PR does to the include graph; advisory-first —
+# only gated regressions fail the check.
 #
 # Three visibility channels used here:
 #   1. $GITHUB_STEP_SUMMARY — full report one click away from the run page.
@@ -11,9 +12,12 @@
 # to use a release binary or a Docker image once those ship.
 #
 # Exit codes (from `archcheck --diff`):
-#   0 — no architectural regression
-#   1 — regression (new edges or grown cycles)
-#   2 — git / IO error
+#   0 — no gated regression (advisory findings — added edges, chain/NCCD
+#       growth, SATD, complexity drift — may still appear in the report)
+#   1 — gated regression: new/grown include cycle or new god-header
+#   2 — git / IO / config error
+#
+# Machine-readable variant: `archcheck --diff --format=json <revspec> .`
 name: archcheck (PR diff)
 
 on:

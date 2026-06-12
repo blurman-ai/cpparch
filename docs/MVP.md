@@ -27,7 +27,9 @@ Chrome) had to build it in-house. The MVP competes with *not using anything*.
    gates **only** structural regressions (DRIFT.1 shortcut edges, DRIFT.2 cycle
    growth); legacy debt and advisory DRIFT.3 never fail the run.
 4. **PR diff mode** — `--diff <revspec>`: deterministic structural regression report
-   between two git refs.
+   between two git refs, in stable `text` or `json` (`--format=json`). Advisory-first:
+   exit 1 only on gated regressions (new/grown cycles, new god-headers); added edges,
+   chain/NCCD growth and scan advisories never fail the run.
 5. **Honest config surface** — `.archcheck.yml` is validated (exit 2 on malformed)
    and `thresholds:` overrides apply. Module rules (`layers`/`independence`/
    `forbidden`) are parsed and validated but **not enforced** — that is the v0.2

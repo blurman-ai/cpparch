@@ -32,7 +32,7 @@ Linters don’t check architecture.
   - **Lakos.ChainLength** — include-chain depth ≤ 10
 - Reports violations as `file:line: [rule] message`, exit non-zero on failure
 - Tracks architectural drift between revisions: `--save-graph-baseline` once, then `--drift-baseline` in CI catches new cycles (DRIFT.2) and short-circuit edges (DRIFT.1), and reports new mutual module coupling (DRIFT.3, advisory)
-- Diff mode (`--diff <revspec>`) compares the include graph between two git refs and reports structural regressions — added/removed edges, grown cycles, new god-headers, chain-length growth — useful for PR checks on legacy projects
+- Diff mode (`--diff <revspec>`, the canonical PR check) compares the include graph between two git refs and reports structural regressions — added/removed edges, grown cycles, new god-headers, chain-length growth — in stable `text` or `json`. Advisory-first: only new/grown cycles and new god-headers gate (exit 1); everything else is informational, so a PR that merely adds an `#include` stays green
 
 ---
 
@@ -48,19 +48,36 @@ archcheck path/to/src
 # JSON output (for CI integration)
 archcheck --format json src/
 
+# PR check — the canonical CI workflow: what does this PR do to the
+# dependency graph? Exit 1 only on gated regressions (new/grown cycles,
+# new god-headers); added edges, chain/NCCD growth, SATD and complexity
+# drift are reported as advisory and never fail the run.
+archcheck --diff origin/main..HEAD .
+archcheck --diff --format=json origin/main..HEAD .   # machine-readable
+
 # Freeze legacy violations, fail only on new ones
 archcheck --save-baseline archcheck-baseline.json src/
 archcheck --baseline      archcheck-baseline.json src/
 
-# Snapshot the include graph, then track drift in PRs
+# Alternative to --diff when you want to pin a reviewed graph snapshot in a
+# file (instead of comparing two git refs): snapshot once, gate drift in CI
 archcheck --save-graph-baseline graph.json src/
 archcheck --drift-baseline      graph.json src/
 
-# Report only what changed in a git range
-archcheck --diff main..feature src/
-
 # Validate .archcheck.yml and apply threshold overrides
 archcheck --config .archcheck.yml src/
+
+# Advisory duplication report (report-only, never gates)
+archcheck --duplication src/
+
+# Quick previews: scanner stats / include-graph stats
+archcheck --scan src/
+archcheck --graph src/
+```
+
+A ready-to-copy GitHub Actions job for the PR workflow (sticky PR comment +
+step summary) lives in
+[`.github/workflows/example_archcheck_pr.yml`](.github/workflows/example_archcheck_pr.yml).
 
 ### Default thresholds
 
@@ -72,14 +89,6 @@ These thresholds apply automatically without a config file. Override any via the
 | god-header fan-in | `50` | `Lakos.GodHeader` |
 | project source extensions | `.c .cc .cpp .cxx .h .hh .hpp .hxx .ipp .tpp .inl .inc` | scan |
 | header extensions | `.h .hh .hpp .hxx .ipp .tpp .inl .inc` | scan |
-
-# Advisory duplication report (report-only, never gates)
-archcheck --duplication src/
-
-# Quick previews: scanner stats / include-graph stats
-archcheck --scan src/
-archcheck --graph src/
-```
 
 ### Example output
 
