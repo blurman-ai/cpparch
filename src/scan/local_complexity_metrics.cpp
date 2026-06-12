@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <climits>
 
 #include "archcheck/scan/function_body_scan.h"
 
@@ -209,10 +210,16 @@ void handlePunct(ScoreState &st, const std::string &sym)
     handleOpenBrace(st);
   else if (sym == "}")
     handleCloseBrace(st);
-  else if (sym == ";" && st.parenDepth == 0 && st.bracelessOpen > 0)
+  else if (sym == ";" && st.parenDepth == 0)
   {
-    st.nesting = std::max(0, st.nesting - st.bracelessOpen);
-    st.bracelessOpen = 0;
+    // `char buf[N];` must not leave lambdaPending armed: a following bare
+    // block `{` is a scope, not a lambda body (#109 sbbs false +nesting).
+    st.lambdaPending = false;
+    if (st.bracelessOpen > 0)
+    {
+      st.nesting = std::max(0, st.nesting - st.bracelessOpen);
+      st.bracelessOpen = 0;
+    }
   }
 }
 
@@ -269,8 +276,74 @@ FunctionComplexity scoreSpan(const std::vector<Token> &tokens, const FunctionSpa
       prevLine = tokens[k].line;
     }
   }
-  return {span.qualifiedName, span.paramArity, span.startLine, span.endLine, lines,
-          st.score,           st.increments,   st.maxNesting};
+  return {span.qualifiedName, span.paramFingerprint, span.paramArity, span.startLine, span.endLine, lines,
+          st.score,           st.increments,         st.maxNesting};
+}
+
+} // namespace
+
+namespace
+{
+
+// Conditional-compilation bookkeeping: keep only the largest branch of an
+// #if/#elif/#else chain. Keeping all branches doubles the braces
+// (`if (..) { #else if (..) {` is one `}` at runtime but two opens here),
+// breaking discovery and the balance guard (#109 Mudlet case). Largest-wins
+// covers both the `#ifdef X #else <whole file> #endif` idiom (#109 Cytnx) and
+// a trivial stub branch shadowing the real code (#109 wiRedPanda Q_OS_WASM).
+struct DirectiveState
+{
+  struct Chain
+  {
+    std::vector<Token> best;
+    std::vector<Token> current;
+
+    void nextBranch()
+    {
+      if (current.size() > best.size())
+        best = std::move(current);
+      current.clear();
+    }
+  };
+  std::vector<Chain> chains;
+
+  std::vector<Token> &sink(std::vector<Token> &out) { return chains.empty() ? out : chains.back().current; }
+
+  void onDirective(const std::string &spelling, std::vector<Token> &out)
+  {
+    if (spelling == "if" || spelling == "ifdef" || spelling == "ifndef")
+      chains.emplace_back();
+    else if ((spelling == "elif" || spelling == "else") && !chains.empty())
+      chains.back().nextBranch();
+    else if (spelling == "endif" && !chains.empty())
+      closeChain(out);
+  }
+
+  void closeChain(std::vector<Token> &out)
+  {
+    chains.back().nextBranch();
+    const std::vector<Token> winner = std::move(chains.back().best);
+    chains.pop_back();
+    std::vector<Token> &dst = sink(out);
+    dst.insert(dst.end(), winner.begin(), winner.end());
+  }
+};
+
+// Consume one logical directive line, honouring backslash continuations.
+std::size_t skipDirectiveLine(const std::vector<Token> &tokens, std::size_t i)
+{
+  int line = tokens[i].line;
+  while (i < tokens.size())
+  {
+    if (tokens[i].line != line)
+    {
+      if (tokens[i - 1].sym != "\\")
+        break;
+      line = tokens[i].line; // backslash continuation: directive spans lines
+    }
+    ++i;
+  }
+  return i;
 }
 
 } // namespace
@@ -279,28 +352,23 @@ std::vector<Token> stripDirectiveTokens(const std::vector<Token> &tokens)
 {
   std::vector<Token> out;
   out.reserve(tokens.size());
+  DirectiveState cond;
   std::size_t i = 0;
   while (i < tokens.size())
   {
     const bool lineStart = i == 0 || tokens[i - 1].line != tokens[i].line;
     if (tokens[i].sym != "#" || !lineStart)
     {
-      out.push_back(tokens[i]);
+      cond.sink(out).push_back(tokens[i]);
       ++i;
       continue;
     }
-    int line = tokens[i].line;
-    while (i < tokens.size())
-    {
-      if (tokens[i].line != line)
-      {
-        if (tokens[i - 1].sym != "\\")
-          break;
-        line = tokens[i].line; // backslash continuation: directive spans lines
-      }
-      ++i;
-    }
+    if (i + 1 < tokens.size() && tokens[i + 1].line == tokens[i].line)
+      cond.onDirective(tokens[i + 1].raw.empty() ? tokens[i + 1].sym : tokens[i + 1].raw, out);
+    i = skipDirectiveLine(tokens, i);
   }
+  while (!cond.chains.empty()) // unterminated #if at EOF: salvage the winner
+    cond.closeChain(out);
   return out;
 }
 
