@@ -99,6 +99,15 @@ TEST_CASE("pathHasVendoredDir tests directory segments only", "[scan][vendor]")
   REQUIRE_FALSE(pathHasVendoredDir("vendor.cpp")); // file named like a dir, not a segment
 }
 
+TEST_CASE("vendored dir name: dotted version suffix maps to the lib name", "[scan][vendor]")
+{
+  // #109 corpus: `src/zlib-1.3.2/` escaped the plain `zlib` entry.
+  REQUIRE(pathHasVendoredDir("src/zlib-1.3.2/zutil.c"));
+  REQUIRE(pathHasVendoredDir("libs/freetype-2.13.0/src/base/ftbase.c"));
+  REQUIRE_FALSE(pathHasVendoredDir("src/engine-1.3.2/core.cpp")); // unknown stem stays in
+  REQUIRE_FALSE(pathHasVendoredDir("src/zlib2/x.c"));             // undotted tail is a name, not a version
+}
+
 TEST_CASE("vendored dir name: in-tree bundled libraries (not under third_party/)", "[scan][vendor]")
 {
   // Multi-file libs dropped under their own dir, no third_party/ wrapper.
@@ -134,8 +143,12 @@ TEST_CASE("pathHasTestDir tests directory segments only", "[scan][test]")
 {
   REQUIRE(pathHasTestDir("tests/unit/foo.cpp"));
   REQUIRE(pathHasTestDir("src/test/bar.cpp"));
+  REQUIRE(pathHasTestDir("be/src/testutil/scoped-flag-setter.h"));
+  REQUIRE(pathHasTestDir("be/src/test_utils/foo.h")); // normalizes to testutils
   REQUIRE_FALSE(pathHasTestDir("src/graph/graph_builder.cpp"));
   REQUIRE_FALSE(pathHasTestDir("latest/x.cpp")); // segment is "latest", not "test"
+  REQUIRE_FALSE(pathHasTestDir("be/src/observe/span-manager.cc"));
+  REQUIRE_FALSE(pathHasTestDir("src/testutility/foo.h")); // segment != testutil/testutils
 }
 
 TEST_CASE("isTestBasename matches test_/_test/_tests/_spec stems", "[scan][test]")
@@ -145,6 +158,13 @@ TEST_CASE("isTestBasename matches test_/_test/_tests/_spec stems", "[scan][test]
   REQUIRE(isTestBasename("test_helpers.cpp"));
   REQUIRE(isTestBasename("widget_spec.cpp"));
   REQUIRE(isTestBasename("Foo_Test.CPP")); // case-insensitive
+  REQUIRE(isTestBasename("otel-test.cc"));
+  REQUIRE(isTestBasename("unit-tests.cpp"));
+  REQUIRE(isTestBasename("test-main.cc"));
+  REQUIRE(isTestBasename("widget-spec.cpp"));
   REQUIRE_FALSE(isTestBasename("graph_builder.cpp"));
   REQUIRE_FALSE(isTestBasename("contest.cpp")); // not a _test suffix
+  REQUIRE_FALSE(isTestBasename("contest.cc"));  // no separator before 'test'
+  REQUIRE_FALSE(isTestBasename("attest.h"));    // ditto
+  REQUIRE_FALSE(isTestBasename("latest.h"));    // ditto
 }

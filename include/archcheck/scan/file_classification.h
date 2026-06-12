@@ -127,8 +127,20 @@ inline constexpr std::array<std::string_view, 14> kVendoredLibDirs = {
 inline bool isVendoredDirName(std::string_view name)
 {
   const std::string norm = normalizeDirSegment(name);
-  return std::find(kVendoredDirNames.begin(), kVendoredDirNames.end(), norm) != kVendoredDirNames.end() ||
-         std::find(kVendoredLibDirs.begin(), kVendoredLibDirs.end(), norm) != kVendoredLibDirs.end();
+  if (std::find(kVendoredDirNames.begin(), kVendoredDirNames.end(), norm) != kVendoredDirNames.end() ||
+      std::find(kVendoredLibDirs.begin(), kVendoredLibDirs.end(), norm) != kVendoredLibDirs.end())
+  {
+    return true;
+  }
+  // `zlib-1.3.2` normalizes to `zlib1.3.2`; a dotted version tail maps back to
+  // the plain library name (#109 corpus: vendored zlib update flagged 32 times).
+  const std::size_t tail = norm.find_last_not_of("0123456789.");
+  if (tail == std::string::npos || norm.find('.', tail + 1) == std::string::npos)
+  {
+    return false;
+  }
+  const std::string_view stem = std::string_view{norm}.substr(0, tail + 1);
+  return std::find(kVendoredLibDirs.begin(), kVendoredLibDirs.end(), stem) != kVendoredLibDirs.end();
 }
 
 // True if any *directory* segment of a repo-relative POSIX path is vendored
@@ -207,13 +219,10 @@ inline bool isVendoredFile(std::string_view filename, std::string_view headerByt
 // Test code duplicates by nature — parallel cases, shared fixtures,
 // CHECK()-boilerplate — and its cycles / god-headers are not author drift. It is
 // dropped from every signal alongside vendored code: directory segments
-// test/ tests/ unit_test(s)/, plus basenames foo_test.* / foo_tests.* /
-// test_foo.* / foo_spec.*.
-inline constexpr std::array<std::string_view, 4> kTestDirNames = {
-    "test",
-    "tests",
-    "unittest",
-    "unittests",
+// test/ tests/ testutil/ testutils/ unit_test(s)/, plus basenames foo_test.* / foo_tests.* /
+// test_foo.* / test-foo.* / foo-test.* / foo_spec.* / foo-spec.*.
+inline constexpr std::array<std::string_view, 6> kTestDirNames = {
+    "test", "tests", "testutil", "testutils", "unittest", "unittests",
 };
 
 inline bool isTestDirName(std::string_view name)
@@ -224,8 +233,8 @@ inline bool isTestDirName(std::string_view name)
 
 inline bool pathHasTestDir(std::string_view path) { return pathAnyDirSegment(path, isTestDirName); }
 
-// Test-file basename heuristic on the stem: starts with test_, or ends with
-// _test / _tests / _spec (case-insensitive).
+// Test-file basename heuristic on the stem: starts with test_ or test-, or ends with
+// _test / _tests / _spec / -test / -tests / -spec (case-insensitive).
 // GCC8-COMPAT: libstdc++8 has no std::string_view::ends_with — match via
 // compare() like the vendored helpers above.
 inline bool isTestBasename(std::string_view filename)
@@ -237,7 +246,12 @@ inline bool isTestBasename(std::string_view filename)
   {
     return true;
   }
-  static constexpr std::array<std::string_view, 3> kTestStemSuffixes = {"_test", "_tests", "_spec"};
+  if (stem.rfind("test-", 0) == 0)
+  {
+    return true;
+  }
+  static constexpr std::array<std::string_view, 6> kTestStemSuffixes = {"_test", "_tests", "_spec",
+                                                                        "-test", "-tests", "-spec"};
   for (std::string_view suffix : kTestStemSuffixes)
   {
     if (stem.size() >= suffix.size() && stem.compare(stem.size() - suffix.size(), suffix.size(), suffix) == 0)
