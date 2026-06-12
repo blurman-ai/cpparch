@@ -19,10 +19,10 @@ from pathlib import Path
 
 OSS_ROOT   = Path("/home/localadm/oss")
 LEDGER     = Path("/home/localadm/projects/cpparch/experiments/ai_repo_run/grow_corpus_ledger.tsv")
-TARGET     = 1000
+TARGET     = 9999   # стоп по count отключён: oss/ уже >1000 мусором; идём по worklist (#122)
 MAX_CPP_MB = 50          # «размер после C++ чистки не более 50 МБ»
 MAX_OSS_GB = 2.0         # upstream-гигант → skip (прокси для «макс 50 ГБ», но режем раньше)
-SHALLOW_SINCE = "2025-05-01"
+SHALLOW_SINCE = "2024-06-01"   # окно анализа #119 (было 2025-05-01)
 CLONE_TIMEOUT = 600
 CPP_EXTS = (".h", ".hh", ".hpp", ".hxx", ".ipp", ".inc", ".tcc",
             ".c", ".cc", ".cpp", ".cxx", ".cppm", ".mm")
