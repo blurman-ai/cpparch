@@ -1,8 +1,8 @@
 # [SCAN] Тест-фильтр: дефисные суффиксы (-test) и каталоги testutil/
 
 **Дата создания:** 2026-06-12
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-12
+**Статус:** done
 **Модуль:** SCAN
 **Приоритет:** minor
 **Сложность:** small
@@ -90,7 +90,16 @@ production-код.
 
 ## Сделано
 
-- (пусто)
+- `kTestDirNames`: расширен с 4 до 6 строк — добавлены `"testutil"`, `"testutils"`.
+  Нормализация `normalizeDirSegment` автоматически схлопывает `test_util/`, `test-utils/`
+  в эти формы, отдельных написаний не потребовалось.
+- `isTestBasename`: добавлен prefix `test-` (сразу за `test_`); `kTestStemSuffixes`
+  расширен с 3 до 6 — добавлены `"-test"`, `"-tests"`, `"-spec"`.
+- GCC8-COMPAT: суффиксное сравнение через `compare()`, `ends_with` не используется.
+- 11/11 контрольных кейсов зелёные, 31/31 assertions в тест-кейсах `[scan][test]`.
+- 506/506 тестов, lizard 0 warnings, dogfood 0 нарушений.
+- Coverage: lines 91.5% / functions 96.5% / branches 57.6% — PASS.
+- Коммит: `362ca60` (`fix(scan): add hyphenated test suffixes and testutil dirs (#114)`)
 
 ## В работе
 
@@ -98,7 +107,7 @@ production-код.
 
 ## Следующие шаги
 
-1. Стартовать по плану.
+- (пусто)
 
 ## Ключевые решения
 
@@ -111,5 +120,17 @@ production-код.
 
 | Файл | Изменение |
 |------|-----------|
-| `include/archcheck/scan/file_classification.h` | `kTestDirNames` +2, `kTestStemSuffixes` +3, prefix `test-` |
-| `tests/unit/scan/file_classification_test.cpp` | +11 контрольных REQUIRE |
+| `include/archcheck/scan/file_classification.h` | `kTestDirNames` +2, `kTestStemSuffixes` +3, prefix `test-` (commit `362ca60`) |
+| `tests/unit/scan/file_classification_test.cpp` | +11 контрольных REQUIRE (commit `362ca60`) |
+
+## Как работает
+
+`normalizeDirSegment` (lowercase + strip `_/-/space`) уже схлопывает `test-utils/`
+и `test_util/` в `testutils` / `testutil` — поэтому в массив добавлены только
+нормализованные формы. Суффиксы `-test`/`-tests`/`-spec` ловятся тем же
+`compare()`-циклом, что и `_test`/`_tests`/`_spec` — GCC8-совместимость сохранена.
+Голый суффикс `test` намеренно не добавлен: он бы поймал `contest`, `attest`, `latest`.
+
+## Дата завершения
+
+2026-06-12
