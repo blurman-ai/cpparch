@@ -41,6 +41,10 @@ struct Thresholds
 {
   std::size_t chainLength = 10;    // Lakos.ChainLength: include chain depth
   std::size_t godHeaderFanIn = 50; // Lakos.GodHeader: header fan-in
+  // --diff: skip the local-complexity advisory when the diff adds more lines
+  // (bulk source imports are not authored evolution; #109 corpus calibration —
+  // genuine large features stay below ~6k, bulk drops start at ~20k).
+  std::size_t diffMaxAddedLines = 10000;
 };
 
 struct Config

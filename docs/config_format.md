@@ -87,11 +87,12 @@ Optional map of tunable rule defaults. Omit the block — or any individual key 
 thresholds:
   chain_length: 10        # Lakos.ChainLength: max include-chain depth
   god_header_fan_in: 50   # Lakos.GodHeader: max fan-in before a header is a "god header"
+  diff_max_added_lines: 10000  # --diff: skip the local-complexity advisory above this many added lines (bulk import)
 ```
 
 - Each value must be a **positive integer**. Zero, negatives, and non-numeric values are a config error (exit code `2`).
 - Unknown keys inside `thresholds` are a config error.
-- Defaults when absent: `chain_length: 10`, `god_header_fan_in: 50`.
+- Defaults when absent: `chain_length: 10`, `god_header_fan_in: 50`, `diff_max_added_lines: 10000`.
 
 ## Rule types
 

@@ -34,4 +34,15 @@ struct NumStat
 [[nodiscard]] std::vector<NumStat> collectNumstat(const std::filesystem::path &repoRoot, const std::string &baselineRef,
                                                   const std::string &currentRef);
 
+// Total added lines of a diff — the bulk-import gate for advisories (#117):
+// a diff adding more than thresholds.diff_max_added_lines is a source drop,
+// not authored evolution.
+[[nodiscard]] inline std::size_t totalAddedLines(const std::vector<NumStat> &stats)
+{
+  std::size_t total = 0;
+  for (const NumStat &s : stats)
+    total += static_cast<std::size_t>(s.added > 0 ? s.added : 0);
+  return total;
+}
+
 } // namespace archcheck::git

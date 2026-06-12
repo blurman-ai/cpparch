@@ -1,12 +1,14 @@
 #include "archcheck/config/config_loader.h"
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <fstream>
 #include <ryml.hpp>
 #include <ryml_std.hpp>
 #include <sstream>
 #include <unordered_set>
+#include <utility>
 
 namespace archcheck::config
 {
@@ -317,21 +319,21 @@ void parse_thresholds(const ryml::ConstNodeRef &root, const LoaderCtx &ctx, Conf
   {
     throw_at(ctx, node, "'thresholds' must be a map");
   }
+  static constexpr std::array<std::pair<std::string_view, std::size_t Thresholds::*>, 3> kKeys = {{
+      {"chain_length", &Thresholds::chainLength},
+      {"god_header_fan_in", &Thresholds::godHeaderFanIn},
+      {"diff_max_added_lines", &Thresholds::diffMaxAddedLines},
+  }};
   for (const auto &child : node.children())
   {
     const std::string key = to_string(child.key());
-    if (key == "chain_length")
+    const auto it = std::find_if(kKeys.begin(), kKeys.end(), [&key](const auto &entry) { return entry.first == key; });
+    if (it == kKeys.end())
     {
-      config.thresholds.chainLength = parse_positive_int(child, key, ctx);
+      throw_at(ctx, child,
+               "unknown threshold key '" + key + "' (expected: chain_length, god_header_fan_in, diff_max_added_lines)");
     }
-    else if (key == "god_header_fan_in")
-    {
-      config.thresholds.godHeaderFanIn = parse_positive_int(child, key, ctx);
-    }
-    else
-    {
-      throw_at(ctx, child, "unknown threshold key '" + key + "' (expected: chain_length, god_header_fan_in)");
-    }
+    config.thresholds.*(it->second) = parse_positive_int(child, key, ctx);
   }
 }
 

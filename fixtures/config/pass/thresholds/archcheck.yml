@@ -9,3 +9,4 @@ rules: []
 thresholds:
   chain_length: 7
   god_header_fan_in: 25
+  diff_max_added_lines: 500

@@ -133,16 +133,24 @@ struct DiffAdvisories
   archcheck::rules::ViolationList satd;
   archcheck::rules::ViolationList testCoEvolution;
   archcheck::scan::ComplexityDriftResult complexity;
+  std::size_t complexitySkippedAddedLines = 0; // >0: bulk import, advisory skipped (#117)
 };
 
-DiffAdvisories collectDiffAdvisories(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed)
+DiffAdvisories collectDiffAdvisories(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed,
+                                     std::size_t maxAddedLines)
 {
   DiffAdvisories result;
   const auto addedLines = archcheck::git::collectAddedLines(repoRoot, parsed.baseline, parsed.current);
   result.satd = archcheck::scan::detectSatdMarkers(addedLines);
   const auto numstatEntries = archcheck::git::collectNumstat(repoRoot, parsed.baseline, parsed.current);
   result.testCoEvolution = archcheck::scan::detectTestCoEvolution(numstatEntries);
-  result.complexity = collectComplexityDrift(repoRoot, parsed);
+  // Bulk source imports are not authored evolution — their per-function
+  // complexity findings are mechanically true but pure volume noise (#117).
+  const std::size_t totalAdded = archcheck::git::totalAddedLines(numstatEntries);
+  if (totalAdded > maxAddedLines)
+    result.complexitySkippedAddedLines = totalAdded;
+  else
+    result.complexity = collectComplexityDrift(repoRoot, parsed);
   return result;
 }
 
@@ -160,6 +168,12 @@ void printDiffAdvisories(const DiffAdvisories &a)
     for (const auto &v : a.testCoEvolution)
       std::cout << "  " << v.ruleId << ": " << v.message << '\n';
   }
+  if (a.complexitySkippedAddedLines > 0)
+  {
+    std::cout << "\nlocal complexity drift (advisory): skipped — diff adds " << a.complexitySkippedAddedLines
+              << " lines (bulk import; thresholds.diff_max_added_lines)\n";
+    return;
+  }
   printComplexityResult(a.complexity);
 }
 
@@ -172,20 +186,30 @@ archcheck::rules::ViolationList flattenAdvisories(DiffAdvisories a)
   return all;
 }
 
-// Threshold discovery shared with check mode; nullopt = config error (exit 2).
-std::optional<archcheck::diff::MetricThresholds> loadDiffThresholds(const std::filesystem::path &repoRoot)
+// Config-derived knobs of the diff path: graph metric thresholds plus the
+// bulk-import gate for advisories (#117).
+struct DiffConfig
 {
-  archcheck::diff::MetricThresholds thresholds;
+  archcheck::diff::MetricThresholds metric;
+  std::size_t maxAddedLines = archcheck::config::Thresholds{}.diffMaxAddedLines;
+};
+
+// Threshold discovery shared with check mode; nullopt = config error (exit 2).
+std::optional<DiffConfig> loadDiffThresholds(const std::filesystem::path &repoRoot)
+{
+  DiffConfig cfg;
   try
   {
-    thresholds.godHeaderFanIn = archcheck::config::discover(repoRoot).thresholds.godHeaderFanIn;
+    const auto thresholds = archcheck::config::discover(repoRoot).thresholds;
+    cfg.metric.godHeaderFanIn = thresholds.godHeaderFanIn;
+    cfg.maxAddedLines = thresholds.diffMaxAddedLines;
   }
   catch (const archcheck::config::ConfigError &e)
   {
     std::cerr << "archcheck: " << e.what() << '\n';
     return std::nullopt;
   }
-  return thresholds;
+  return cfg;
 }
 
 int emitJsonDiff(const archcheck::diff::RegressionReport &report, DiffAdvisories advisories,
@@ -210,8 +234,8 @@ int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git:
   if (!okBase || !okCurr)
     return 2;
 
-  const auto report = archcheck::diff::buildRegressionReport(baseline.graph, current.graph, *thresholds);
-  auto advisories = collectDiffAdvisories(repoRoot, parsed);
+  const auto report = archcheck::diff::buildRegressionReport(baseline.graph, current.graph, thresholds->metric);
+  auto advisories = collectDiffAdvisories(repoRoot, parsed, thresholds->maxAddedLines);
   if (format == OutputFormat::Json)
     return emitJsonDiff(report, std::move(advisories), parsed);
   std::cout << "baseline_ref:   " << parsed.baseline << '\n'
