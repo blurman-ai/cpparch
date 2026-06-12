@@ -141,7 +141,11 @@ bool collectChangedVsWorktree(const std::filesystem::path &repoRoot, const std::
                               std::vector<std::string> &out)
 {
   // S6: --no-ext-diff prevents diff.external from running arbitrary programs.
-  const auto diff = runGit({"diff", "--no-ext-diff", "--name-only", "--diff-filter=ACMRD", baselineRef}, repoRoot);
+  // --no-renames: a rename must surface BOTH paths (A + D), otherwise the
+  // old side never reaches the LCX move pool (#109 skyrim: a directory
+  // rename resurfaced 33 functions as new).
+  const auto diff =
+      runGit({"diff", "--no-ext-diff", "--no-renames", "--name-only", "--diff-filter=ACMRD", baselineRef}, repoRoot);
   if (diff.exitCode != 0)
     return false;
   splitLines(diff.out, out);
@@ -156,7 +160,8 @@ bool collectChangedVsWorktree(const std::filesystem::path &repoRoot, const std::
 bool collectChangedTwoRefs(const std::filesystem::path &repoRoot, const std::string &a, const std::string &b,
                            std::vector<std::string> &out)
 {
-  const auto diff = runGit({"diff", "--no-ext-diff", "--name-only", "--diff-filter=ACMRD", a, b}, repoRoot);
+  const auto diff =
+      runGit({"diff", "--no-ext-diff", "--no-renames", "--name-only", "--diff-filter=ACMRD", a, b}, repoRoot);
   if (diff.exitCode != 0)
     return false;
   splitLines(diff.out, out);

@@ -281,6 +281,22 @@ TEST_CASE("git diff: changedCppFiles (a..b) lists only C/C++ files", "[diff][git
   REQUIRE(changed->front().filename() == "a.h");
 }
 
+// #109 skyrim case: a renamed file must surface BOTH paths (old as deleted,
+// new as added) so the LCX move pool sees the disappearing side.
+TEST_CASE("git diff: changedCppFiles reports a rename as both paths", "[diff][git][integration][changed]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  writeFile(repo.path / "old_name.cpp", "void f(int x)\n{\n  if (x) use(1);\n}\n");
+  commitAll(repo.path, "baseline");
+  REQUIRE(runIn(repo.path, "git mv old_name.cpp new_name.cpp") == 0);
+  commitAll(repo.path, "rename");
+
+  const auto changed = archcheck::git::changedCppFiles(repo.path, "HEAD~1", "HEAD");
+  REQUIRE(changed.has_value());
+  REQUIRE(changed->size() == 2);
+}
+
 TEST_CASE("git diff: changedCppFiles (a..b) docs-only PR → empty list", "[diff][git][integration][changed]")
 {
   TempDir repo;
