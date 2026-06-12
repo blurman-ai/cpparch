@@ -185,7 +185,7 @@ void writeAdded(const std::vector<AddedEdge> &v, std::ostream &out)
 {
   if (v.empty())
     return;
-  out << "\nadded:\n"; // LCOV_EXCL_BR_LINE
+  out << "\nadded (advisory):\n"; // LCOV_EXCL_BR_LINE
   for (const auto &e : v)
     out << "  + " << e.from << "  ->  " << e.to << '\n'; // LCOV_EXCL_BR_LINE
 }
@@ -194,7 +194,7 @@ void writeRemoved(const std::vector<RemovedEdge> &v, std::ostream &out)
 {
   if (v.empty())
     return;
-  out << "\nremoved:\n"; // LCOV_EXCL_BR_LINE
+  out << "\nremoved (advisory):\n"; // LCOV_EXCL_BR_LINE
   for (const auto &e : v)
     out << "  - " << e.from << "  ->  " << e.to << '\n'; // LCOV_EXCL_BR_LINE
 }
@@ -203,7 +203,7 @@ void writeGrown(const std::vector<GrownCycle> &v, std::ostream &out)
 {
   if (v.empty())
     return;
-  out << "\ngrown_cycles:\n"; // LCOV_EXCL_BR_LINE
+  out << "\ngrown_cycles (gating):\n"; // LCOV_EXCL_BR_LINE
   for (const auto &g : v)
   {
     out << "  * size " << g.baselineSize << " -> " << g.currentSize << " (" << g.members.size()
@@ -217,7 +217,7 @@ void writeCrossAreaDependencies(const std::vector<NewCrossAreaDependency> &v, st
 {
   if (v.empty())
     return;
-  out << "\nnew_cross_area_dependencies:\n"; // LCOV_EXCL_BR_LINE
+  out << "\nnew_cross_area_dependencies (advisory):\n"; // LCOV_EXCL_BR_LINE
   for (const auto &dep : v)
   {
     out << "  * " << dep.fromArea << " -> " << dep.toArea << " (" << dep.edgeCount << " edge";
@@ -232,14 +232,14 @@ void writeChainLength(const std::optional<MetricDelta> &d, std::ostream &out)
 {
   if (!d)
     return;
-  out << "\nchain_length_grown: " << d->baseline << " -> " << d->current << '\n'; // LCOV_EXCL_BR_LINE
+  out << "\nchain_length_grown (advisory): " << d->baseline << " -> " << d->current << '\n'; // LCOV_EXCL_BR_LINE
 }
 
 void writeGodHeaders(const std::vector<std::string> &v, std::ostream &out)
 {
   if (v.empty())
     return;
-  out << "\nnew_god_headers:\n"; // LCOV_EXCL_BR_LINE
+  out << "\nnew_god_headers (gating):\n"; // LCOV_EXCL_BR_LINE
   for (const auto &h : v)
     out << "  ! " << h << '\n'; // LCOV_EXCL_BR_LINE
 }
@@ -248,7 +248,7 @@ void writeNccdDelta(const std::optional<double> &d, std::ostream &out)
 {
   if (!d)
     return;
-  out << "\nnccd_grown: +" << *d << '\n'; // LCOV_EXCL_BR_LINE
+  out << "\nnccd_grown (advisory): +" << *d << '\n'; // LCOV_EXCL_BR_LINE
 }
 
 void writeTextReport(const RegressionReport &r, std::ostream &out)
@@ -264,6 +264,7 @@ void writeTextReport(const RegressionReport &r, std::ostream &out)
   writeChainLength(r.chainLengthGrown, out);                   // LCOV_EXCL_BR_LINE
   writeGodHeaders(r.newGodHeaders, out);                       // LCOV_EXCL_BR_LINE
   writeNccdDelta(r.nccdDelta, out);                            // LCOV_EXCL_BR_LINE
+  out << "\ngate: " << (r.gates() ? "fail" : "ok") << " (gating: cycles, god-headers)\n";
 }
 
 } // namespace archcheck::diff

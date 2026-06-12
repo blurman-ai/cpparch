@@ -3,8 +3,10 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "archcheck/config/config_loader.h"
+#include "archcheck/diff/diff_json_report.h"
 #include "archcheck/diff/regression_report.h"
 #include "archcheck/git/diff_query.h"
 #include "archcheck/git/git_object_file_source.h"
@@ -36,11 +38,17 @@ std::optional<archcheck::git::Worktree> materializeOrReport(const std::filesyste
 // Returns true and prints a one-shot report if the fast-path applies
 // (zero C/C++ files changed between baseline and current → graph cannot have
 // changed). Caller in that case skips the worktree materialisation.
-bool tryFastPathNoCppChanges(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed)
+bool tryFastPathNoCppChanges(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed,
+                             archcheck::cli::OutputFormat format)
 {
   const auto changed = archcheck::git::changedCppFiles(repoRoot, parsed.baseline, parsed.current);
   if (!changed || !changed->empty())
     return false;
+  if (format == archcheck::cli::OutputFormat::Json)
+  {
+    archcheck::diff::writeJsonReport({}, {parsed.baseline, parsed.current, {}}, std::cout);
+    return true;
+  }
   std::cout << "baseline_ref:   " << parsed.baseline << '\n'
             << "current_ref:    " << parsed.current << '\n'
             << "no C/C++ files changed; skipping graph build\n";
@@ -97,51 +105,75 @@ void printComplexityResult(const archcheck::scan::ComplexityDriftResult &drift)
 
 // Local complexity drift (#101): per-function cognitive complexity compared
 // between baseline and current versions of the changed C/C++ files.
-void printComplexityAdvisory(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed)
+archcheck::scan::ComplexityDriftResult collectComplexityDrift(const std::filesystem::path &repoRoot,
+                                                              const archcheck::git::Revspec &parsed)
 {
   const auto changed = archcheck::git::changedCppFiles(repoRoot, parsed.baseline, parsed.current);
   if (!changed || changed->empty())
-    return;
+    return {};
   archcheck::git::GitObjectFileSource oldSource(repoRoot, parsed.baseline);
   if (!oldSource.valid())
-    return;
+    return {};
   if (parsed.current == archcheck::git::kWorktreeRef)
   {
     archcheck::scan::DiskFileSource newSource(repoRoot);
-    printComplexityResult(archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed));
-    return;
+    return archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed);
   }
   archcheck::git::GitObjectFileSource newSource(repoRoot, parsed.current);
-  if (newSource.valid())
-    printComplexityResult(archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed));
+  if (!newSource.valid())
+    return {};
+  return archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed);
 }
 
-// Advisory-only signals over the changed lines (SATD markers, test
-// co-evolution): reported after the structural diff, never gating.
-void printDiffAdvisories(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed)
+// Advisory-only signals: SATD markers and test co-evolution over the changed
+// lines, plus local complexity drift. Reported after the structural diff,
+// never gating.
+struct DiffAdvisories
 {
+  archcheck::rules::ViolationList satd;
+  archcheck::rules::ViolationList testCoEvolution;
+  archcheck::scan::ComplexityDriftResult complexity;
+};
+
+DiffAdvisories collectDiffAdvisories(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed)
+{
+  DiffAdvisories result;
   const auto addedLines = archcheck::git::collectAddedLines(repoRoot, parsed.baseline, parsed.current);
-  const auto satdViolations = archcheck::scan::detectSatdMarkers(addedLines);
-  if (!satdViolations.empty())
+  result.satd = archcheck::scan::detectSatdMarkers(addedLines);
+  const auto numstatEntries = archcheck::git::collectNumstat(repoRoot, parsed.baseline, parsed.current);
+  result.testCoEvolution = archcheck::scan::detectTestCoEvolution(numstatEntries);
+  result.complexity = collectComplexityDrift(repoRoot, parsed);
+  return result;
+}
+
+void printDiffAdvisories(const DiffAdvisories &a)
+{
+  if (!a.satd.empty())
   {
     std::cout << "\nself-admitted technical debt (advisory):\n";
-    for (const auto &v : satdViolations)
+    for (const auto &v : a.satd)
       std::cout << "  " << v.file << ":" << v.line << ": " << v.ruleId << " — " << v.message << '\n';
   }
-
-  const auto numstatEntries = archcheck::git::collectNumstat(repoRoot, parsed.baseline, parsed.current);
-  const auto testCoEvolViolations = archcheck::scan::detectTestCoEvolution(numstatEntries);
-  if (!testCoEvolViolations.empty())
+  if (!a.testCoEvolution.empty())
   {
     std::cout << "\ntest co-evolution (advisory):\n";
-    for (const auto &v : testCoEvolViolations)
+    for (const auto &v : a.testCoEvolution)
       std::cout << "  " << v.ruleId << ": " << v.message << '\n';
   }
-
-  printComplexityAdvisory(repoRoot, parsed);
+  printComplexityResult(a.complexity);
 }
 
-int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed, DiffMode mode)
+// One flat list for the JSON document: SATD + test co-evolution + complexity.
+archcheck::rules::ViolationList flattenAdvisories(DiffAdvisories a)
+{
+  archcheck::rules::ViolationList all = std::move(a.satd);
+  all.insert(all.end(), a.testCoEvolution.begin(), a.testCoEvolution.end());
+  all.insert(all.end(), a.complexity.violations.begin(), a.complexity.violations.end());
+  return all;
+}
+
+// Threshold discovery shared with check mode; nullopt = config error (exit 2).
+std::optional<archcheck::diff::MetricThresholds> loadDiffThresholds(const std::filesystem::path &repoRoot)
 {
   archcheck::diff::MetricThresholds thresholds;
   try
@@ -151,8 +183,25 @@ int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git:
   catch (const archcheck::config::ConfigError &e)
   {
     std::cerr << "archcheck: " << e.what() << '\n';
-    return 2;
+    return std::nullopt;
   }
+  return thresholds;
+}
+
+int emitJsonDiff(const archcheck::diff::RegressionReport &report, DiffAdvisories advisories,
+                 const archcheck::git::Revspec &parsed)
+{
+  archcheck::diff::writeJsonReport(report, {parsed.baseline, parsed.current, flattenAdvisories(std::move(advisories))},
+                                   std::cout);
+  return report.gates() ? 1 : 0;
+}
+
+int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed, DiffMode mode,
+                    OutputFormat format)
+{
+  const auto thresholds = loadDiffThresholds(repoRoot);
+  if (!thresholds)
+    return 2;
   bool okBase = false, okCurr = false;
   const auto baseline = (mode == DiffMode::Memory) ? buildSideMemory(repoRoot, parsed.baseline, okBase)
                                                    : buildSideDisk(repoRoot, parsed.baseline, "baseline", okBase);
@@ -161,20 +210,23 @@ int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git:
   if (!okBase || !okCurr)
     return 2;
 
-  const auto report = archcheck::diff::buildRegressionReport(baseline.graph, current.graph, thresholds);
+  const auto report = archcheck::diff::buildRegressionReport(baseline.graph, current.graph, *thresholds);
+  auto advisories = collectDiffAdvisories(repoRoot, parsed);
+  if (format == OutputFormat::Json)
+    return emitJsonDiff(report, std::move(advisories), parsed);
   std::cout << "baseline_ref:   " << parsed.baseline << '\n'
             << "current_ref:    " << parsed.current << '\n'
             << "diff_mode:      " << (mode == DiffMode::Memory ? "memory" : "disk") << '\n'
             << "baseline_nodes: " << baseline.graph.nodeCount() << '\n'
             << "current_nodes:  " << current.graph.nodeCount() << '\n';
   archcheck::diff::writeTextReport(report, std::cout);
-  printDiffAdvisories(repoRoot, parsed);
-  return report.hasRegression() ? 1 : 0;
+  printDiffAdvisories(advisories);
+  return report.gates() ? 1 : 0;
 }
 
 } // namespace
 
-int runDiff(std::string_view revspec, const std::filesystem::path &root, DiffMode mode)
+int runDiff(std::string_view revspec, const std::filesystem::path &root, DiffMode mode, OutputFormat format)
 {
   const auto parsed = archcheck::git::parseRevspec(revspec);
   if (!parsed)
@@ -188,9 +240,9 @@ int runDiff(std::string_view revspec, const std::filesystem::path &root, DiffMod
     std::cerr << "archcheck: '" << root.string() << "' is not inside a git repository\n";
     return 2;
   }
-  if (tryFastPathNoCppChanges(*repoRoot, *parsed))
+  if (tryFastPathNoCppChanges(*repoRoot, *parsed, format))
     return 0;
-  return runDiffFullPath(*repoRoot, *parsed, mode);
+  return runDiffFullPath(*repoRoot, *parsed, mode, format);
 }
 
 } // namespace archcheck::cli
