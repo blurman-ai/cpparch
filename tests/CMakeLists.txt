@@ -52,6 +52,7 @@ add_executable(archcheck_tests
    unit/graph/algorithms_test.cpp
    unit/graph/diff_test.cpp
    unit/graph/baseline_test.cpp
+   unit/graph/graph_builder_test.cpp
    unit/git/git_state_test.cpp
    unit/git/git_object_file_source_test.cpp
    unit/git/diff_query_test.cpp

@@ -1,5 +1,6 @@
 #include "archcheck/graph/graph_builder.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,13 @@ namespace archcheck::graph
 
 namespace
 {
+
+struct FilterEntry
+{
+  scan::ProjectFile file;
+  std::string content;
+  bool hasBanner;
+};
 
 void applyResolved(const std::vector<scan::ResolvedInclude> &resolved, NodeId source, const std::vector<NodeId> &idMap,
                    DependencyGraph &dg, GraphBuildCounters &c)
@@ -54,21 +62,35 @@ struct FilteredFiles
 
 FilteredFiles filterVendored(scan::FileSource &source)
 {
-  FilteredFiles out;
+  std::vector<FilterEntry> candidates;
   for (const auto &f : source.list())
   {
-    if (scan::pathHasVendoredDir(f.path) || scan::pathHasTestDir(f.path) ||
-        scan::isTestBasename(scan::baseName(f.path)))
+    const std::string_view base = scan::baseName(f.path);
+    if (scan::pathHasVendoredDir(f.path) || scan::pathHasTestDir(f.path) || scan::isTestBasename(base) ||
+        scan::isVendoredBasename(base))
     {
       continue;
     }
     std::string src = source.read(f.path);
-    if (scan::isVendoredFile(scan::baseName(f.path), src))
+    const bool hasBanner = scan::hasVendorLicenseHeader(src);
+    candidates.push_back({f, std::move(src), hasBanner});
+  }
+
+  // If >50% of project files carry a full license banner, it is the project's
+  // own license (Apache/MIT/BSD), not a vendor signal — disable the banner layer.
+  const std::size_t nBanner = static_cast<std::size_t>(
+      std::count_if(candidates.begin(), candidates.end(), [](const FilterEntry &e) { return e.hasBanner; }));
+  const bool dominant = !candidates.empty() && nBanner * 2 > candidates.size();
+
+  FilteredFiles out;
+  for (auto &e : candidates)
+  {
+    if (!dominant && e.hasBanner)
     {
       continue;
     }
-    out.files.push_back(f);
-    out.contents.push_back(std::move(src));
+    out.files.push_back(e.file);
+    out.contents.push_back(std::move(e.content));
   }
   return out;
 }
