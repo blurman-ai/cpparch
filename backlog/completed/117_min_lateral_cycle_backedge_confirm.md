@@ -1,8 +1,8 @@
 # [SCAN][GRAPH] Lateral CYCLE-грейдер: подтверждать back-edge B→A на пред-состоянии
 
 **Дата создания:** 2026-06-12
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-12
+**Статус:** done
 **Модуль:** SCAN][GRAPH
 **Приоритет:** minor
 **Сложность:** small
@@ -70,7 +70,30 @@ CYCLE precision 84.6 % (11/13). Оба FP среди CYCLE — один клас
 
 ## Сделано
 
-- (пусто)
+- **`confirm_backedge()`** в `lateral_drift_scan.py`: для CYCLE-кандидата с
+  pre-existing back-edge (ветка `rev_pair in graph.mod_edges`) подтверждает на
+  `<sha>~1`, что какой-то файл модуля B реально `#include`-ит файл модуля A.
+  Резолв includes как в archcheck (три пути):
+  - относительный `../x.h`/`./x.h` → `os.path.normpath` от каталога включающего
+    файла, exact-match по нормализованным путям модуля A;
+  - root-relative `engine/x.h` → суффикс-match (`endswith('/'+inc)`);
+  - bare `x.h` → basename-match.
+  Same-commit двунаправленные циклы (`rev_pair in commit_pairs`) подтверждения
+  не требуют. `None` (репа/sha недоступны) → сохраняем replay-вердикт.
+- **Корпусный эффект:** CYCLE 153 → **146**, понижены ровно **7 фантомных
+  back-edge** (Astraeus, 3× Aztec, GBAStation, ThemisDB, UE5), 0 потерянных
+  событий (495 всего), 0 неожиданных апгрейдов.
+- **Каждый из 7 проверен независимо** (git-grep по дереву `<sha>~1`, отдельно от
+  confirm) — back-edge B→A отсутствует у всех.
+- **Две ловушки recall по дороге, обе закрыты:**
+  1. первая версия требовала сегмент модуля в тексте include → теряла OpenADS/
+     DIYComfort (root-relative includes без префикса) → суффикс-резолв;
+  2. суффикс не ловил `../`-includes → терял 15 НАСТОЯЩИХ циклов (NeoCalculator,
+     Avalon, GameRewritten, Lightpad×6, abra×2) → добавлена нормализация `../`.
+- **Побочный вывод:** PantheonChain (FP №2 из eyeball #115) — на деле настоящий
+  *same-commit* цикл (`include↔layer1` обе дуги в одном коммите); eyeball
+  пропустил встречное ребро. Истинная CYCLE-precision eyeball'а — 12/13 ≈ 92 %.
+- Отчёт обновлён: `docs/research/lateral_module_drift_corpus_run.md` §8.3/§8.6.
 
 ## В работе
 
@@ -78,7 +101,7 @@ CYCLE precision 84.6 % (11/13). Оба FP среди CYCLE — один клас
 
 ## Следующие шаги
 
-1. Локализовать грейдинг в скрипте, добавить проверку back-edge.
+- (пусто)
 
 ## Ключевые решения
 
@@ -91,5 +114,26 @@ CYCLE precision 84.6 % (11/13). Оба FP среди CYCLE — один клас
 
 | Файл | Изменение |
 |------|-----------|
-| `experiments/ai_repo_run/lateral_drift_scan.py` | back-edge confirm в CYCLE-грейдере |
-| `docs/research/lateral_module_drift_corpus_run.md` | отметка о фиксе в §8.3/8.5 |
+| `experiments/ai_repo_run/lateral_drift_scan.py` | `confirm_backedge()` + интеграция в грейдер (gitignored) |
+| `experiments/ai_repo_run/lateral_drift_new.csv` | перепрогон, CYCLE 146 (gitignored) |
+| `docs/research/lateral_module_drift_corpus_run.md` | §8.3 (фикс + урок), §8.6 (закрыто) |
+
+## Как работает
+
+CYCLE-грейд = новое ребро A→B при существующей обратной дуге B→A. Replay-граф
+(`mod_edges`) форвард-онли и хранит фантомы (removed-списки утеряны + bare-name
+резолв archcheck). Поэтому перед грейдом CYCLE по pre-existing back-edge скан идёт
+в git на родителя коммита и подтверждает дугу реальными `#include`-ами модуля B,
+резолвя пути тремя способами (relative/suffix/bare). Не подтвердилось → грейд
+падает в SDP/NEW по обычным правилам. Same-commit циклы и unverifiable (нет клона)
+не трогаются. Урок для DRIFT.4: относительные `../`-includes обязательны к резолву,
+наивный суффикс теряет реальные циклы.
+
+## Дата завершения
+
+2026-06-12
+
+## Примечание о коммите
+
+Код скана в gitignored `experiments/` — в репозиторий уезжают только отчёт и файл
+задачи.
