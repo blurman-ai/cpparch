@@ -38,6 +38,7 @@ add_library(archcheck_core STATIC
    rules/drift_no_shortcut_edge.cpp
    rules/drift_no_cycle_growth.cpp
    rules/drift_bidirectional_coupling.cpp
+   rules/drift_lateral_module_dependency.cpp
    rules/lakos_chain_length.cpp
    rules/lakos_god_headers.cpp
    rules/sf7_using_namespace.cpp

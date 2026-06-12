@@ -70,6 +70,22 @@ bool textReportUseColor()
   return ::isatty(fileno(stdout)) != 0;
 }
 
+// Drift mode is a regression gate: DRIFT.1 (new shortcut edge), DRIFT.2
+// (new/grown cycle), and DRIFT.4.CYCLE (lateral module cycle) gate the exit.
+// Pre-existing intrinsic findings (SF.*/Lakos.*) and advisory signals
+// (DRIFT.3, DRIFT.4.SDP, DRIFT.4.NEW) are reported but never fail the run.
+int reportDriftGate(const archcheck::rules::ViolationList &all, OutputFormat fmt)
+{
+  const auto gating =
+      std::count_if(all.begin(), all.end(), [](const auto &v)
+                    { return v.ruleId == "DRIFT.1" || v.ruleId == "DRIFT.2" || v.ruleId == "DRIFT.4.CYCLE"; });
+  if (fmt == OutputFormat::Text)
+    std::cout << "drift gate: " << gating
+              << " gating regression(s) (DRIFT.1/DRIFT.2/DRIFT.4.CYCLE);"
+                 " pre-existing and advisory findings (DRIFT.3/DRIFT.4.SDP/DRIFT.4.NEW) are advisory\n";
+  return gating > 0 ? 1 : 0;
+}
+
 int applyBaselineAndReport(archcheck::rules::ViolationList all, OutputFormat fmt, const BaselineOpts &baseline)
 {
   if (baseline.mode == BaselineMode::Save)
@@ -92,19 +108,8 @@ int applyBaselineAndReport(archcheck::rules::ViolationList all, OutputFormat fmt
   if (suppressed > 0 && fmt == OutputFormat::Text)
     std::cout << "suppressed: " << suppressed << " known violation(s) (run without --baseline to see all)\n";
 
-  // Drift mode is a regression gate: only DRIFT.1 (new shortcut edge) and DRIFT.2
-  // (new/grown cycle) gate the exit. Pre-existing intrinsic findings (SF.*/Lakos.*)
-  // and the advisory DRIFT.3 module-coupling signal are reported but never fail a
-  // drift run -- a legacy repo with no regression in this diff exits 0.
   if (baseline.driftFile)
-  {
-    const auto gating = std::count_if(all.begin(), all.end(),
-                                      [](const auto &v) { return v.ruleId == "DRIFT.1" || v.ruleId == "DRIFT.2"; });
-    if (fmt == OutputFormat::Text)
-      std::cout << "drift gate: " << gating
-                << " gating regression(s) (DRIFT.1/DRIFT.2); pre-existing and DRIFT.3 findings are advisory\n";
-    return gating > 0 ? 1 : 0;
-  }
+    return reportDriftGate(all, fmt);
 
   return all.empty() ? 0 : 1;
 }

@@ -1,6 +1,11 @@
 # archcheck — Architecture rules for C++
 
-> Версия документа: 2.2. Изменения от 2.1 (точечная синхронизация с шипнутым кодом, 2026-06-11):
+> Версия документа: 2.3. Изменения от 2.2 (2026-06-12):
+>
+> - ID `DRIFT.4` занят шипнутым правилом *lateral_module_dependency* (#118, CYCLE-grade gating);
+>   волна стала `DRIFT.5`–`DRIFT.10`.
+>
+> Изменения 2.2 от 2.1 (2026-06-11):
 >
 > - Имена флагов graph-baseline приведены к фактическим: `--drift-baseline` / `--save-graph-baseline`.
 > - Drift-волна перенумерована: ID `DRIFT.3` занят шипнутым bidirectional module coupling (#087), волна стала `DRIFT.4`–`DRIFT.9`.
@@ -192,7 +197,7 @@ C++ community консервативнее джавовского. "Clean archit
 - **Component Dependency (CD)** для каждого компонента — число компонентов, от которых он зависит транзитивно.
 - **In-degree / Out-degree** — для каждого компонента.
 - **Средняя связность `edges/nodes`** — среднее число прямых зависимостей на компонент. Дешёвый детектор «тихого дрейфа»: связность может утроиться без единого цикла и при низком копипасте (эмпирика — прогон #054 §7.3: stellar-core 1.9→6.3, FastLED 1.3→4.8). Планируется в отчёт (#057). **Нормируем именно на узлы, не на KLOC**: per-KLOC мешает объём кода в структурную метрику (раздутый LOC без новых рёбер ложно «улучшает» показатель), а `edges/nodes` чисто структурна.
-- **Max blast radius** — `max_n |reachableFrom(n)|`, наибольшее число компонент, затрагиваемых изменением одного. Уже вычисляется внутри CCD; планируется удержать и печатать (#057). Абсолютная версия drift-правила `DRIFT.5 blast_radius_growth`.
+- **Max blast radius** — `max_n |reachableFrom(n)|`, наибольшее число компонент, затрагиваемых изменением одного. Уже вычисляется внутри CCD; планируется удержать и печатать (#057). Абсолютная версия drift-правила `DRIFT.6 blast_radius_growth`.
 
 #### Правила
 
@@ -372,23 +377,24 @@ connected component.
 Следующие drift-правила признаются перспективными, но не входят в первый
 прототип:
 
-> **Нумерация уточнена:** ID `DRIFT.3` занят шипнутым правилом
-> *bidirectional module coupling* (#087, advisory; см. CHANGELOG) — волна
-> перенумерована, имена правил не менялись.
+> **Нумерация уточнена дважды:**
+> - ID `DRIFT.3` занят шипнутым *bidirectional module coupling* (#087).
+> - ID `DRIFT.4` занят шипнутым *lateral_module_dependency* (#118, CYCLE-grade gating).
+> Волна исследовательских правил стала `DRIFT.5`–`DRIFT.10`; имена не менялись.
 
-- `DRIFT.4 public_surface_growth`
-- `DRIFT.5 blast_radius_growth`
-- `DRIFT.6 hub_reinforcement`
-- `DRIFT.7 boundary_bypass_of_existing_entrypoint`
-- `DRIFT.8 scattered_new_boundary_access`
-- `DRIFT.9 hotspot_inflow`
+- `DRIFT.5 public_surface_growth`
+- `DRIFT.6 blast_radius_growth`
+- `DRIFT.7 hub_reinforcement`
+- `DRIFT.8 boundary_bypass_of_existing_entrypoint`
+- `DRIFT.9 scattered_new_boundary_access`
+- `DRIFT.10 hotspot_inflow`
 
 Причины переноса:
 
-- `DRIFT.4`, `DRIFT.7`, `DRIFT.8` требуют repo inference;
-- `DRIFT.5`, `DRIFT.6` требуют настройки порогов и сначала должны жить как
+- `DRIFT.5`, `DRIFT.8`, `DRIFT.9` требуют repo inference;
+- `DRIFT.6`, `DRIFT.7` требуют настройки порогов и сначала должны жить как
   `report-only`;
-- `DRIFT.9` требует git history и должен быть opt-in
+- `DRIFT.10` требует git history и должен быть opt-in
   (`--with-git-history` или аналог).
 
 #### Graph baseline

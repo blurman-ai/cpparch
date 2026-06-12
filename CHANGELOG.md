@@ -8,6 +8,17 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 
+- **DRIFT.4 `lateral_module_dependency`** — detects the first lateral dependency between
+  peer modules (neither previously depended on the other in baseline). Three graded
+  sub-rules: `DRIFT.4.CYCLE` (creates module-level cycle with a baseline back-edge, gates
+  in `--drift` mode alongside DRIFT.1/2), `DRIFT.4.SDP` (violates Martin Stable
+  Dependencies: I(B) > I(A) + 0.10, advisory), `DRIFT.4.NEW` (first lateral pair, advisory).
+  Mass-touch guard: >150 added edges → rule is silent (reorg/vendor drop). Shared layer
+  (FID > 0.5·maxFID AND FOD ≤ medianFOD) is also silent. Logic extracted from corpus
+  validation in #111/#115/#117 (417-event baseline on 479 repos, CYCLE precision 92%).
+  `areaOf` extracted into shared `include/archcheck/rules/area_of.h` (was inline in
+  DRIFT.3). Architecture spec bumped to v2.3 (DRIFT.4–9 wave → DRIFT.5–10). (#118)
+
 - **JSON output for `--diff`** — `--diff --format=json <revspec>` emits one stable JSON
   document (schema `version: 1`): refs, `gate: ok|fail`, a `gating` block (grown cycles,
   new god-headers) and an `advisory` block (added/removed edges, cross-area dependencies,

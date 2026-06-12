@@ -143,3 +143,39 @@ TEST_CASE("drift fixture: bidirectional/pass_file_cycle — DRIFT.3 defers to DR
   REQUIRE(count_rule(v, "DRIFT.3") == 0); // direct two-file cycle is not DRIFT.3's job
   REQUIRE(count_rule(v, "DRIFT.2") >= 1); // ... it belongs to DRIFT.2
 }
+
+// ── DRIFT.4 lateral_module_dependency ─────────────────────────────────────────
+
+TEST_CASE("drift fixture: lateral/pass_shared_target — DRIFT.4 silent on shared layer", "[drift][fixtures]")
+{
+  REQUIRE(count_rule(run_drift_check("drift_lateral/pass_shared_target"), "DRIFT.4.NEW") == 0);
+  REQUIRE(count_rule(run_drift_check("drift_lateral/pass_shared_target"), "DRIFT.4.SDP") == 0);
+  REQUIRE(count_rule(run_drift_check("drift_lateral/pass_shared_target"), "DRIFT.4.CYCLE") == 0);
+}
+
+TEST_CASE("drift fixture: lateral/pass_existing_pair — DRIFT.4 silent on existing pair", "[drift][fixtures]")
+{
+  REQUIRE(count_rule(run_drift_check("drift_lateral/pass_existing_pair"), "DRIFT.4.NEW") == 0);
+}
+
+TEST_CASE("drift fixture: lateral/fail_lateral_new — DRIFT.4.NEW fires", "[drift][fixtures]")
+{
+  const auto v = run_drift_check("drift_lateral/fail_lateral_new");
+  REQUIRE(count_rule(v, "DRIFT.4.NEW") == 1);
+  const auto it = std::find_if(v.begin(), v.end(), [](const auto &vi) { return vi.ruleId == "DRIFT.4.NEW"; });
+  REQUIRE(it != v.end());
+  REQUIRE(it->message.find("'a'") != std::string::npos);
+  REQUIRE(it->message.find("'b'") != std::string::npos);
+}
+
+TEST_CASE("drift fixture: lateral/fail_lateral_cycle — DRIFT.4.CYCLE fires", "[drift][fixtures]")
+{
+  const auto v = run_drift_check("drift_lateral/fail_lateral_cycle");
+  REQUIRE(count_rule(v, "DRIFT.4.CYCLE") == 1);
+}
+
+TEST_CASE("drift fixture: lateral/fail_lateral_sdp — DRIFT.4.SDP fires", "[drift][fixtures]")
+{
+  const auto v = run_drift_check("drift_lateral/fail_lateral_sdp");
+  REQUIRE(count_rule(v, "DRIFT.4.SDP") == 1);
+}

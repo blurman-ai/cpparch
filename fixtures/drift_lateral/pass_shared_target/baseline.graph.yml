@@ -1,0 +1,10 @@
+format_version: "1"
+nodes:
+  - "a/a.h"
+  - "b/b.h"
+  - "c/c.h"
+  - "utils/u.h"
+edges:
+  - [0, 3]
+  - [1, 3]
+  - [2, 3]

@@ -1,0 +1,11 @@
+format_version: "1"
+nodes:
+  - "a/a.h"
+  - "b/b.h"
+  - "c/c.h"
+  - "d/d.h"
+edges:
+  - [2, 0]
+  - [3, 0]
+  - [1, 2]
+  - [1, 3]
