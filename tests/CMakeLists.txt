@@ -72,6 +72,8 @@ add_executable(archcheck_tests
    unit/rules/sf8_include_guard_test.cpp
    unit/rules/sf9_no_cycles_test.cpp
    integration/diff/git_diff_test.cpp
+   integration/diff/diff_workflow_e2e_test.cpp
+   integration/cli/cli_smoke_e2e_test.cpp
    integration/rules/drift_fixtures_test.cpp
    unit/config/test_loader.cpp
 )
@@ -85,6 +87,10 @@ if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 target_compile_definitions(archcheck_tests PRIVATE
    ARCHCHECK_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/fixtures"
+   # E2E diff-workflow tests run the real CLI binary.
+   ARCHCHECK_BINARY_PATH="$<TARGET_FILE:archcheck>"
 )
+target_include_directories(archcheck_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+add_dependencies(archcheck_tests archcheck)
 
 catch_discover_tests(archcheck_tests)
