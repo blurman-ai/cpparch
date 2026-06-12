@@ -1,8 +1,8 @@
 # [GRAPH] Переклон 297 реп корпуса + полный lateral-прогон + нормированный agentic-разрез
 
 **Дата создания:** 2026-06-12
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-12
+**Статус:** done
 **Модуль:** GRAPH][SCAN
 **Приоритет:** major
 **Сложность:** medium
@@ -58,7 +58,31 @@
 
 ## Сделано
 
-- (пусто)
+- **Переклон (`reclone_missing.py`):** 297 `repo_missing` → полные клоны через
+  `gh repo clone` (auth, без rate-limit), 3 потока, retry, cleanup половинчатых.
+  Итог: **296 cloned + 1 exists + 1 gone (404: studiocollective/songbird) + 0 failed.**
+  Диск: 101 ГБ свободно после (расход ~30 ГБ).
+- **Baseline (`make_window_baselines.py`, идемпотентен):** 479 .yml.
+  143 новых `ok` + 183 прежних + 151 `ok_empty` + 2 root. `ok_empty` проверен —
+  легитимен (окно покрывает C++-историю репы от инцепции; полный клон убрал
+  off-by-one #111). Бэкап старого манифеста: `manifest.tsv.bak_before_reclone`.
+- **Полный прогон (`lateral_drift_scan.py`):** **495 событий** (CYCLE 153 /
+  SDP 58 / NEW 284) на 479 репах, 56 реп с событиями. Подмножество `exists`
+  (183 репы) воспроизвело **ровно 98 событий** — детерминизм подтверждён.
+  Старый CSV сохранён: `lateral_drift_new.csv.bak_183repos`.
+- **Eyeball топ-20 из новых реп (верификация на SHA события, не HEAD):**
+  TP 17/20 = **85 %**, CYCLE precision 11/13 = **84.6 %** — планка ≥70 % взята.
+  3 FP: 2 CYCLE-мисгрейда (leaf-цель без back-edge) → задача **#117**;
+  1 NEW из file-split.
+- **Нормированный agentic-разрез (`agentic_normalized.py`, repo fixed effects):**
+  сырьё 294 agent / 201 human. Пулинг (на 1k коммитов): agent 9.19 vs human 4.27
+  = 2.15×. **Но within-repo (50 mixed-реп): 23 выше agent / 27 выше human,
+  sign-test p≈0.67 — НЕЗНАЧИМО.** Пулинг — артефакт композиции: 60 % agent-событий
+  даёт одна `makr-code/ThemisDB` (13 024 коммита copilot-swe-agent[bot] из 18 818,
+  классификация верна). Вывод: per-commit агентское авторство дрейф НЕ повышает;
+  рост — agent-насыщенный хвост распределения реп. Согласуется с velocity-surge.
+- **Отчёт дополнен:** `docs/research/lateral_module_drift_corpus_run.md` §8
+  (полное покрытие, eyeball, agentic-разрез) + forward-ссылка из §4.
 
 ## В работе
 
@@ -66,7 +90,9 @@
 
 ## Следующие шаги
 
-1. Проверить диск, написать скрипт переклона, запустить на ночь.
+- → **#117** — CYCLE-грейдер: подтверждать back-edge B→A (2 FP из eyeball).
+- Грейс-период time-based (30 дней) — крутить, если NEW-шум станет проблемой
+  при имплементации DRIFT.4; на advisory-грейде не блокирует.
 
 ## Ключевые решения
 
@@ -80,7 +106,27 @@
 
 | Файл | Изменение |
 |------|-----------|
-| `experiments/ai_repo_run/reclone_missing.py` | Новый скрипт переклона |
-| `experiments/ai_repo_run/baselines/*` | +~290 baseline |
-| `experiments/ai_repo_run/lateral_drift_new.csv` | Полный прогон |
-| `docs/research/lateral_module_drift_corpus_run.md` | Полное покрытие + agentic-разрез |
+| `experiments/ai_repo_run/reclone_missing.py` | Новый скрипт переклона (296/297) |
+| `experiments/ai_repo_run/agentic_normalized.py` | Новый: нормировка + repo fixed effects |
+| `experiments/ai_repo_run/baselines/*` | +296 baseline (479 всего) |
+| `experiments/ai_repo_run/lateral_drift_new.csv` | Полный прогон (495 событий) |
+| `docs/research/lateral_module_drift_corpus_run.md` | §8: полное покрытие + agentic-разрез |
+
+## Как работает
+
+Переклон: `manifest.tsv` (status==repo_missing) → имя `<owner>_<repo>` инвертируется
+в slug `<owner>/<repo>` (GitHub-username не содержит `_`, первый `_` — разделитель) →
+`gh repo clone` полным клоном. Нормировка: один `git log --all` на репу классифицирует
+авторов всех коммитов (те же BOT_HINTS + Co-Authored-By, что в скане), пересекается с
+окном из jsonl → знаменатель agent/human коммитов; rate = события/коммиты; repo fixed
+effects = within-repo сравнение по 50 mixed-репам (sign-test), что вычищает
+between-repo композицию (выброс ThemisDB).
+
+## Дата завершения
+
+2026-06-12
+
+## Примечание о коммите
+
+Артефакты прогона (`*.py`, `*.csv`, `baselines/`) живут в gitignored `experiments/` —
+в репозиторий уезжают только обновлённый отчёт `docs/research/...` и файлы задач.
