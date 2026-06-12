@@ -49,6 +49,7 @@ TEST_CASE("buildRegressionReport: shortcut edge a->c is reported as added", "[di
   REQUIRE(r.addedEdges[0].from == "a.h");
   REQUIRE(r.addedEdges[0].to == "c.h");
   REQUIRE(r.hasRegression());
+  REQUIRE_FALSE(r.gates()); // added edge alone is advisory, must not fail CI
 }
 
 TEST_CASE("buildRegressionReport: new cycle is reported as grown SCC", "[diff][report]")
@@ -62,6 +63,7 @@ TEST_CASE("buildRegressionReport: new cycle is reported as grown SCC", "[diff][r
   REQUIRE(r.grownCycles[0].currentSize == 3);
   REQUIRE(r.grownCycles[0].baselineSize == 0);
   REQUIRE(r.hasRegression());
+  REQUIRE(r.gates());
 }
 
 TEST_CASE("buildRegressionReport: first cross-area dependency is reported once per area pair", "[diff][report]")
@@ -136,7 +138,8 @@ TEST_CASE("writeTextReport: added edge appears in output", "[diff][report]")
   writeTextReport(r, out);
   const auto s = out.str();
   REQUIRE(s.find("added_edges:    1") != std::string::npos);
-  REQUIRE(s.find("added:") != std::string::npos);
+  REQUIRE(s.find("added (advisory):") != std::string::npos);
+  REQUIRE(s.find("gate: ok") != std::string::npos);
   REQUIRE(s.find("a.h") != std::string::npos);
   REQUIRE(s.find("c.h") != std::string::npos);
 }
@@ -153,8 +156,9 @@ TEST_CASE("writeTextReport: grown cycle appears in output", "[diff][report]")
   writeTextReport(r, out);
   const auto s = out.str();
   REQUIRE(s.find("grown_cycles:   1") != std::string::npos);
-  REQUIRE(s.find("grown_cycles:") != std::string::npos);
+  REQUIRE(s.find("grown_cycles (gating):") != std::string::npos);
   REQUIRE(s.find("size") != std::string::npos);
+  REQUIRE(s.find("gate: fail") != std::string::npos);
 }
 
 TEST_CASE("writeTextReport: empty report shows zeros only", "[diff][report]")
@@ -193,7 +197,7 @@ TEST_CASE("writeTextReport: new cross-area dependency appears in output", "[diff
   writeTextReport(r, out);
   const auto s = out.str();
   REQUIRE(s.find("new_area_deps:  1") != std::string::npos);
-  REQUIRE(s.find("new_cross_area_dependencies:") != std::string::npos);
+  REQUIRE(s.find("new_cross_area_dependencies (advisory):") != std::string::npos);
   REQUIRE(s.find("tests -> src") != std::string::npos);
   REQUIRE(s.find("tests/test_a.h") != std::string::npos);
 }
@@ -222,6 +226,7 @@ TEST_CASE("buildRegressionReport: chain length grows → chainLengthGrown set", 
   REQUIRE(r.chainLengthGrown->baseline == 1);
   REQUIRE(r.chainLengthGrown->current == 3);
   REQUIRE(r.hasRegression());
+  REQUIRE_FALSE(r.gates());
 }
 
 TEST_CASE("buildRegressionReport: chain length unchanged → chainLengthGrown nullopt", "[diff][report][metrics]")
@@ -256,6 +261,7 @@ TEST_CASE("buildRegressionReport: new god-header → newGodHeaders non-empty", "
   REQUIRE(r.newGodHeaders.size() == 1);
   REQUIRE(r.newGodHeaders[0] == "hub.h");
   REQUIRE(r.hasRegression());
+  REQUIRE(r.gates());
 }
 
 TEST_CASE("buildRegressionReport: NCCD grows → nccdDelta set positive", "[diff][report][metrics]")
@@ -278,6 +284,7 @@ TEST_CASE("buildRegressionReport: NCCD grows → nccdDelta set positive", "[diff
   REQUIRE(r.nccdDelta.has_value());
   REQUIRE(*r.nccdDelta > 0.0);
   REQUIRE(r.hasRegression());
+  REQUIRE_FALSE(r.gates());
 }
 
 TEST_CASE("writeTextReport: metric regressions appear in output", "[diff][report][metrics]")
@@ -301,7 +308,7 @@ TEST_CASE("writeTextReport: metric regressions appear in output", "[diff][report
   std::ostringstream out;
   writeTextReport(r, out);
   const auto s = out.str();
-  REQUIRE(s.find("chain_length_grown:") != std::string::npos);
-  REQUIRE(s.find("new_god_headers:") != std::string::npos);
-  REQUIRE(s.find("nccd_grown:") != std::string::npos);
+  REQUIRE(s.find("chain_length_grown (advisory):") != std::string::npos);
+  REQUIRE(s.find("new_god_headers (gating):") != std::string::npos);
+  REQUIRE(s.find("nccd_grown (advisory):") != std::string::npos);
 }

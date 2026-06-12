@@ -30,6 +30,7 @@ add_library(archcheck_core STATIC
    git/git_object_file_source.cpp
    git/diff_query.cpp
    git/history_query.cpp
+   diff/diff_json_report.cpp
    diff/regression_report.cpp
    report/json_reporter.cpp
    report/text_reporter.cpp

@@ -66,11 +66,17 @@ struct RegressionReport
   std::vector<std::string> newGodHeaders;      // nodes crossing godHeaderFanIn threshold
   std::optional<double> nccdDelta;             // set when NCCD increased
 
+  // Any structural change worth reporting (gated or advisory).
   bool hasRegression() const
   {
     return !addedEdges.empty() || !grownCycles.empty() || !newCrossAreaDependencies.empty() ||
            chainLengthGrown.has_value() || !newGodHeaders.empty() || (nccdDelta.has_value() && *nccdDelta > 0.0);
   }
+
+  // Gated regressions — the only findings that fail the run (exit 1).
+  // Mirrors check-mode rule violations: new/grown cycles (SF.9) and new
+  // god-headers (Lakos.GodHeader). Everything else is advisory.
+  bool gates() const { return !grownCycles.empty() || !newGodHeaders.empty(); }
 };
 
 RegressionReport buildRegressionReport(const graph::DependencyGraph &baseline, const graph::DependencyGraph &current,

@@ -38,8 +38,8 @@ void print_help()
       << "  archcheck --duplication <path>               (report duplicate code; advisory, does not gate CI)\n"
       << "  archcheck --history <path>                   (history analytics: god-file growth; advisory, does not "
          "gate CI)\n"
-      << "  archcheck --diff  [--diff-mode=disk|memory] <revspec> [path]\n"
-      << "                                               (regression vs git ref; revspec = 'a..b' or '<ref>')\n"
+      << "  archcheck --diff  [--diff-mode=disk|memory] [--format=text|json] <revspec> [path]\n"
+      << "                  (PR diff vs 'a..b' or '<ref>'; exit 1 gates: new/grown cycles, new god-headers)\n"
       << "\n"
       << "Default rules (no config required): SF.7, SF.8, SF.9, Lakos.GodHeader, Lakos.ChainLength\n"
       << "Default thresholds: chain_length=10, god_header_fan_in=50 (override via thresholds: in .archcheck.yml)\n"
@@ -62,23 +62,43 @@ bool parseDiffMode(std::string_view raw, cli::DiffMode &out)
   return false;
 }
 
-// Strip a leading `--diff-mode=...` from argv starting at `idx`. Returns
-// the new idx on success; -1 on malformed value. Mutates `mode` in place.
-int consumeDiffModeFlag(int argc, char *argv[], int idx, cli::DiffMode &mode)
+bool parseDiffFormat(std::string_view raw, cli::OutputFormat &out)
 {
-  constexpr std::string_view kPrefix = "--diff-mode=";
-  while (idx < argc)
+  if (raw == "json")
+    out = cli::OutputFormat::Json;
+  else if (raw == "text")
+    out = cli::OutputFormat::Text;
+  else
+    return false;
+  return true;
+}
+
+// Strip leading `--diff-mode=...` / `--format=...` flags from argv starting
+// at `idx`. Returns the new idx on success; -1 on malformed value.
+int consumeDiffFlags(int argc, char *argv[], int idx, cli::DiffMode &mode, cli::OutputFormat &format)
+{
+  constexpr std::string_view kModePrefix = "--diff-mode=";
+  constexpr std::string_view kFormatPrefix = "--format=";
+  for (; idx < argc; ++idx)
   {
     const std::string_view a{argv[idx]};
-    if (a.size() <= kPrefix.size() || a.compare(0, kPrefix.size(), kPrefix) != 0)
-      return idx;
-    if (!parseDiffMode(a.substr(kPrefix.size()), mode))
+    if (a.size() > kModePrefix.size() && a.compare(0, kModePrefix.size(), kModePrefix) == 0)
     {
-      std::cerr << "archcheck: invalid --diff-mode value '" << a.substr(kPrefix.size())
+      if (parseDiffMode(a.substr(kModePrefix.size()), mode))
+        continue;
+      std::cerr << "archcheck: invalid --diff-mode value '" << a.substr(kModePrefix.size())
                 << "' (expected 'disk' or 'memory')\n";
       return -1;
     }
-    ++idx;
+    if (a.size() > kFormatPrefix.size() && a.compare(0, kFormatPrefix.size(), kFormatPrefix) == 0)
+    {
+      if (parseDiffFormat(a.substr(kFormatPrefix.size()), format))
+        continue;
+      std::cerr << "archcheck: invalid --format value '" << a.substr(kFormatPrefix.size())
+                << "' (expected 'text' or 'json')\n";
+      return -1;
+    }
+    break;
   }
   return idx;
 }
@@ -86,7 +106,8 @@ int consumeDiffModeFlag(int argc, char *argv[], int idx, cli::DiffMode &mode)
 int dispatch_diff(int argc, char *argv[])
 {
   cli::DiffMode mode = cli::DiffMode::Memory;
-  const int idx = consumeDiffModeFlag(argc, argv, 2, mode);
+  cli::OutputFormat format = cli::OutputFormat::Text;
+  const int idx = consumeDiffFlags(argc, argv, 2, mode, format);
   if (idx < 0)
     return 2;
   if (idx >= argc)
@@ -97,7 +118,7 @@ int dispatch_diff(int argc, char *argv[])
   const std::string_view revspec{argv[idx]};
   const std::filesystem::path root =
       (idx + 1 < argc) ? std::filesystem::path{argv[idx + 1]} : std::filesystem::current_path();
-  return cli::runDiff(revspec, root, mode);
+  return cli::runDiff(revspec, root, mode, format);
 }
 
 int dispatch_drift_baseline(int argc, char *argv[])
