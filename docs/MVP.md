@@ -34,15 +34,24 @@ Chrome) had to build it in-house. The MVP competes with *not using anything*.
    and `thresholds:` overrides apply. Module rules (`layers`/`independence`/
    `forbidden`) are parsed and validated but **not enforced** — that is the v0.2
    headline, by decision ([ADR-001](decisions/001-config-rules-deferred-to-v0.2.md)).
+6. **Copy-paste surfaced in PR diff** — the token clone detector (#052–#117),
+   until now snapshot-only/advisory, also reports clones a commit *introduces*
+   in `--diff` (added-lines ∩ clone-spans), advisory-first. Without this, v0.1
+   would publish a validated detector while showing only graph drift — gold left
+   in the chest (#123).
 
 ## Non-goals for v0.1 (each has a decision or a task)
 
 - Module-rule **enforcement** from YAML — v0.2 ([ADR-001](decisions/001-config-rules-deferred-to-v0.2.md)).
 - SF.21 and other semantic (AST) rules — v0.2+ ([ADR-002](decisions/002-sf21-deferred-to-v0.2.md)).
 - libclang / `compile_commands.json` — v0.2 opt-in backend ([ADR-003](decisions/003-fast-backend-default.md)).
-- Duplication as a gate — advisory only (`--duplication` always exits 0).
+- Duplication as a **gate** (exit 1) — v0.2, pending precision. Pulled into v0.1:
+  per-commit advisory surfacing in `--diff` (#123) + the per-commit copy-paste
+  corpus measurement that validates its precision (#103). Snapshot `--duplication`
+  stays advisory (exits 0).
 - SARIF, Martin metrics, color TTY, `archcheck init`.
-- Cheap-drift heuristics wave (#093–#103) — post-release, demand-driven.
+- Cheap-drift heuristics wave (#093–#102) — post-release, demand-driven.
+  (#103 pulled into v0.1 — see above.)
 
 ## Acceptance criteria
 
@@ -71,9 +80,16 @@ MVP is done when all of the following hold (status as of 2026-06-11 in brackets)
    S3–S6 tracked as #105, **release blocker**]
 9. **Dogfood green in CI**: archcheck runs on its own `src/ include/ tests/` as a
    CI gate. [✅ as of 2026-06-11]
+10. **Copy-paste not hidden**: a commit that introduces a clone surfaces it in
+    `--diff` (advisory); the 10-commit control set (5 positive / 5 negative)
+    behaves correctly locally and on a GitHub test repo (#123); per-commit
+    copy-paste precision is measured on the corpus (#103). [○ — open]
 
-The single open item for a public v0.1 release is therefore **#105 (S3–S6 hardening)**
-— everything else on this list is shipped and verified.
+#105 (S3–S6 hardening) is now closed. The open items for a public v0.1 release are
+**#123 (copy-paste surfaced in `--diff`)** and **#103 (per-commit copy-paste corpus
+validation)** — shipping without them would publish archcheck with a validated
+detector hidden, showing only graph drift. Everything else on this list is shipped
+and verified.
 
 ## Success condition
 

@@ -1,14 +1,16 @@
 # [SCAN] Copypaste per-commit drift (research; прекурсор продуктового new-clone-gate)
 
 **Дата создания:** 2026-06-11
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-13
+**Статус:** wip
 **Модуль:** SCAN][DUPLICATION
 **Приоритет:** major
 **Сложность:** unknown
 **Блокирует:** —
 **Заблокирован:** —
-**Related:** #089 (boolean_state drift research), #077 (per_commit_graph_drift_export), #090 (boolean_state_drift_metric, future)
+**Related:** #089 (boolean_state drift research), #077 (per_commit_graph_drift_export), #090 (boolean_state_drift_metric, future), #123 (продуктовый new-clone-gate в `--diff`)
+
+> **MVP:** втянута в v0.1 — release-блокер (решение 2026-06-13, [MVP.md](../../docs/MVP.md) §Acceptance #10). Больше НЕ post-release: per-commit copy-paste precision на корпусе нужна, чтобы знать, что в сундуке реальное золото, до публикации. Прежняя рамка «research, post-release» в тексте ниже — устарела этим решением.
 
 ## Цель
 
