@@ -8,6 +8,15 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 
+- **`--diff` now surfaces copy-paste a commit introduces** — when a change adds new code,
+  `--diff` reports duplicate blocks that the change itself brought in (a block copied from
+  code already in the tree, or two identical blocks added together), not just a snapshot of
+  the whole project. Advisory only — it never fails the build; the blocking gate stays v0.2.
+  Entry point lands in `--diff`; corpus precision measurement is tracked in #103. (#123)
+- **`diff_max_added_lines` — bulk imports skip the complexity advisory** — a change that
+  adds more than the configured number of lines (a vendored drop, generated code, a large
+  paste) no longer triggers the per-function complexity advisory (`DRIFT.LOCAL_COMPLEXITY`),
+  which would otherwise flag every imported function. (#117)
 - **DRIFT.4 `lateral_module_dependency`** — detects the first lateral dependency between
   peer modules (neither previously depended on the other in baseline). Three graded
   sub-rules: `DRIFT.4.CYCLE` (creates module-level cycle with a baseline back-edge, gates

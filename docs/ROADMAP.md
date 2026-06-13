@@ -1,6 +1,6 @@
 # archcheck — ROADMAP
 
-_2026-06-02 · phase: **v0.1 (in progress — trusted dependency diff core)**_
+_2026-06-13 · phase: **v0.1 (in progress — trusted dependency diff core)**_
 
 ## Product framing
 
@@ -69,12 +69,16 @@ research-ветки.
 - deterministic text/json output;
 - documented exit codes `0 / 1 / 2 / 3`;
 - advisory-first default;
-- строгий gate только для самых надёжных regressions.
+- строгий gate только для самых надёжных regressions;
+- advisory-вывод копипаста, внесённого коммитом, в `--diff` (решение 2026-06-13:
+  показывать его уже в v0.1; блокирующий duplication-gate остаётся v0.2).
 
 ### Trusted signals
 
 - intrinsic include-graph checks (`SF.7`, `SF.8`, `SF.9`, Lakos-style defaults);
 - `DRIFT.1`, `DRIFT.2`;
+- `DRIFT.4.CYCLE` (новая латеральная связь между модулями, образующая цикл с
+  baseline-обратным ребром);
 - новые нежелательные dependency edges;
 - новые циклы;
 - рост SCC / dependency knot;
