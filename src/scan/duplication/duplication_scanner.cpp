@@ -253,7 +253,7 @@ void phase11BoilerplateDensity(std::vector<Pair> &candidates, const std::vector<
 
 // P1.4: file-local IDF down-weight — reduce weight of tokens that are very common in the file
 // High-frequency tokens (getters, setters, common names) shouldn't dominate the score
-void phase13FileLoclalIDFDownweight(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
+void phase13FileLocalIdfDownweight(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
 {
   // Count token frequencies per file to build per-file stop-list
   std::unordered_map<std::string, std::unordered_map<std::string, int>> fileTokenFreq;
@@ -294,7 +294,7 @@ void phase13FileLoclalIDFDownweight(std::vector<Pair> &candidates, const std::ve
 }
 
 // Canonical "fileA\nfileB" key (order-independent) for a cross-file pair.
-std::string filerPairKey(const std::string &x, const std::string &y) { return x < y ? x + "\n" + y : y + "\n" + x; }
+std::string filePairKey(const std::string &x, const std::string &y) { return x < y ? x + "\n" + y : y + "\n" + x; }
 
 // Set of file-pairs that are whole-file clones: ≥80% of the smaller file's
 // fragments (and it has ≥2) are matched across the pair → move/copy/vendored twin.
@@ -314,7 +314,7 @@ std::unordered_set<std::string> wholeFileClonePairs(const std::vector<Pair> &can
     const std::string &fb = allFragments[p.b].file;
     if (fa != fb)
     {
-      ++matched[filerPairKey(fa, fb)];
+      ++matched[filePairKey(fa, fb)];
     }
   }
 
@@ -333,7 +333,7 @@ std::unordered_set<std::string> wholeFileClonePairs(const std::vector<Pair> &can
 
 // P0.2: whole-file clone suppression — count file-level clones (move/copy/vendored
 // twins) separately and drop their constituent pairs from the actionable set.
-std::size_t phase8WholeFileSuppress(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
+std::size_t phase9WholeFileSuppress(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
 {
   const std::unordered_set<std::string> wholeFile = wholeFileClonePairs(candidates, allFragments);
   if (wholeFile.empty())
@@ -346,7 +346,7 @@ std::size_t phase8WholeFileSuppress(std::vector<Pair> &candidates, const std::ve
   {
     const std::string &fa = allFragments[p.a].file;
     const std::string &fb = allFragments[p.b].file;
-    if (fa != fb && wholeFile.count(filerPairKey(fa, fb)) > 0)
+    if (fa != fb && wholeFile.count(filePairKey(fa, fb)) > 0)
     {
       continue;
     }
@@ -389,7 +389,7 @@ void applyCandidateFilters(std::vector<Pair> &candidates, const std::vector<Frag
   }
   if (opts.enableWholeFileGuard)
   {
-    result.wholeFileClones = phase8WholeFileSuppress(candidates, allFragments);
+    result.wholeFileClones = phase9WholeFileSuppress(candidates, allFragments);
   }
   // P0.7-P0.9: path-based suppression of intentional/generated duplication
   if (opts.enablePathGuards)
@@ -401,7 +401,7 @@ void applyCandidateFilters(std::vector<Pair> &candidates, const std::vector<Frag
   {
     phase10DataTableClassifier(candidates, allFragments);
     phase11BoilerplateDensity(candidates, allFragments);
-    phase13FileLoclalIDFDownweight(candidates, allFragments);
+    phase13FileLocalIdfDownweight(candidates, allFragments);
   }
   phaseClassifyCloneType(candidates, allFragments);
 }
