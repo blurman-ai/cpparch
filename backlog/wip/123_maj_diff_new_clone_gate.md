@@ -1,8 +1,8 @@
 # [SCAN][DUPLICATION] new-clone-gate: detect copy-paste introduced by a commit (--diff entry)
 
 **Дата создания:** 2026-06-13
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-13
+**Статус:** wip
 **Модуль:** SCAN][DUPLICATION
 **Приоритет:** major
 **Сложность:** unknown
@@ -59,15 +59,28 @@
 экземпляре, пары нет, ловить нечего. Защита от rename не нужна. Если обе копии
 остались — это настоящая дупликация, и она *обязана* гореть.
 
+## Прогресс (2026-06-13)
+
+- ✅ **Базовый detect** (коммит `344870f`): `detectNewClones` + ветка в
+  `diff_command.cpp` — added-lines ∩ clone-spans на новом дереве, advisory.
+- ✅ **parent-guard** (эта сессия): пара, чьё клон-отношение уже было в parent,
+  отбрасывается. Идентичность пары = хэш нормализованного `seq` обеих сторон →
+  reformat/whitespace не обманывают guard; свежая копия pre-existing кода всё
+  равно горит (в parent был один экземпляр, пары нет). 4 unit-теста, dogfood 0,
+  lizard чист. Реализация: отдельный `scanForDuplication(parent)`.
+- → **Валидация переезжает в #124**: продуктовый `archcheck --diff` по выборке
+  реальных клон-коммитов корпуса (`--diff-mode=memory`, без checkout). Идея
+  инкрементального corpus-walk рассмотрена и **отброшена** (нужна выборка, не
+  каждый коммит; механизм избыточен).
+
 ## План выполнения
 
-- [ ] `--diff`: добавить duplication-ветку в `diff_command.cpp` (рядом с LCX-вызовом)
-- [ ] Шаг 1–3: пересечение clone-spans с added-line ranges коммита
-- [ ] FP-guard: parent-скан, отброс пар, уже бывших клонами до коммита
+- [x] `--diff`: добавить duplication-ветку в `diff_command.cpp` (рядом с LCX-вызовом)
+- [x] Шаг 1–3: пересечение clone-spans с added-line ranges коммита
+- [x] FP-guard: parent-скан, отброс пар, уже бывших клонами до коммита
 - [ ] Severity: стартовать **advisory** (как LCX), gating — отдельным решением
-      после precision на корпусе (#103/#083)
-- [ ] Reuse, не переписывать: added-lines (diff_command path), `scanForDuplication`,
-      шаблон scan_commit.py
+      после precision на корпусе (#103/#124)
+- [x] Reuse, не переписывать: added-lines (diff_command path), `scanForDuplication`
 - [ ] Fixtures (ниже)
 
 ## Валидация (двухступенчатая — цель пользователя)

@@ -25,9 +25,13 @@ struct NewCloneDriftResult
 // in. Scanning the whole tree (not just changed files) is deliberate: the twin
 // of a freshly added clone often lives in an unchanged file.
 //
-// Minimal first cut: no parent-tree comparison yet, so a pre-existing clone
-// whose copy the diff merely touched (e.g. reformat) still reports. The
-// parent-guard that drops those is the next step (#123 plan).
-[[nodiscard]] NewCloneDriftResult detectNewClones(FileSource &newSource, const AddedLineMap &added);
+// Parent-guard: a pair whose clone relationship already existed in `parentSource`
+// is dropped, so a pre-existing clone whose copy the diff merely touched (e.g. a
+// reformat) does not report. Pair identity is the normalized token sequence of
+// both sides, so whitespace/reformat churn doesn't defeat the guard. A brand-new
+// copy of pre-existing code still fires: the parent had only one instance, hence
+// no pair to match against.
+[[nodiscard]] NewCloneDriftResult detectNewClones(FileSource &newSource, FileSource &parentSource,
+                                                  const AddedLineMap &added);
 
 } // namespace archcheck::scan

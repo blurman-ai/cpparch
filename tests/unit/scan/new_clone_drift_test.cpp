@@ -102,27 +102,44 @@ archcheck::scan::AddedLineMap allLinesOf(const std::string &file, int upTo)
 TEST_CASE("new_clone_drift: clone introduced in added lines fires", "[scan][newclone]")
 {
   MapFileSource src = cloneCorpus();
+  // Parent holds only the original — the copy is what this diff adds, so the
+  // parent has no pair to suppress against.
+  MapFileSource parent = cloneCorpus();
+  parent.files.erase("copy.cpp");
 
-  const auto res = detectNewClones(src, allLinesOf("copy.cpp", 14));
+  const auto res = detectNewClones(src, parent, allLinesOf("copy.cpp", 14));
   REQUIRE(res.violations.size() >= 1);
   REQUIRE(res.violations[0].ruleId == "DRIFT.NEW_CLONE");
   REQUIRE(res.violations[0].file == "copy.cpp");
   REQUIRE(res.violations[0].message.find("clone of orig.cpp") != std::string::npos);
 }
 
+TEST_CASE("new_clone_drift: pre-existing clone merely touched is silent", "[scan][newclone]")
+{
+  MapFileSource src = cloneCorpus();
+  // The clone pair already exists in the parent tree; the diff merely touched
+  // the copy (e.g. a reformat). The parent-guard must drop it.
+  MapFileSource parent = cloneCorpus();
+
+  const auto res = detectNewClones(src, parent, allLinesOf("copy.cpp", 14));
+  REQUIRE(res.violations.empty());
+}
+
 TEST_CASE("new_clone_drift: clone outside added lines is silent", "[scan][newclone]")
 {
   MapFileSource src = cloneCorpus();
+  MapFileSource parent; // irrelevant here — added touches an unrelated file
 
   // Diff touched only an unrelated file — the clone pair must not report.
-  const auto res = detectNewClones(src, allLinesOf("unrelated.cpp", 5));
+  const auto res = detectNewClones(src, parent, allLinesOf("unrelated.cpp", 5));
   REQUIRE(res.violations.empty());
 }
 
 TEST_CASE("new_clone_drift: empty added map yields nothing", "[scan][newclone]")
 {
   MapFileSource src = cloneCorpus();
+  MapFileSource parent;
 
-  const auto res = detectNewClones(src, {});
+  const auto res = detectNewClones(src, parent, {});
   REQUIRE(res.violations.empty());
 }
