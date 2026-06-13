@@ -138,15 +138,20 @@ archcheck::scan::NewCloneDriftResult collectNewClones(const std::filesystem::pat
     added[a.file].insert(a.lineNumber);
   if (added.empty())
     return {};
+  // Parent tree (baseline ref) feeds the parent-guard: clone pairs that already
+  // existed there are not introduced by this diff, even if it touched one side.
+  archcheck::git::GitObjectFileSource parentSource(repoRoot, parsed.baseline);
+  if (!parentSource.valid())
+    return {};
   if (parsed.current == archcheck::git::kWorktreeRef)
   {
     archcheck::scan::DiskFileSource newSource(repoRoot);
-    return archcheck::scan::detectNewClones(newSource, added);
+    return archcheck::scan::detectNewClones(newSource, parentSource, added);
   }
   archcheck::git::GitObjectFileSource newSource(repoRoot, parsed.current);
   if (!newSource.valid())
     return {};
-  return archcheck::scan::detectNewClones(newSource, added);
+  return archcheck::scan::detectNewClones(newSource, parentSource, added);
 }
 
 // Advisory-only signals: SATD markers and test co-evolution over the changed
