@@ -43,11 +43,50 @@
 
 ## Сделано
 
-- (пусто)
+- **Шаги 0–4**: написан `copypaste_per_commit.py` — streaming `git log -p -U0`, rolling hash-index (`seen`), move-фильтр (del_blocks per commit), CSV с полями `repo/sha/date/author_kind/subject/target_kind/dup_pairs_added/max_clone_tokens/files_affected/lines_added/example_file`.
+- **author_kind**: определяется через `%(trailers:key=co-authored-by)` + heuristics по author/subject (обнаруживает Claude/Copilot и т.п.).
+- **Шаг 5 — синтетический тест**: 3 корректных детекции (new_file copy 1 пара, full new_file copy 2 пары, existing_file verbatim copy 1 пара), уникальный код и короткие копии (<6 строк) — не детектируются (ожидаемо).
+- **Eyeball на FastLED** (5 мес, 3072 коммита, 281 клон-коммит): move-фильтр снижает FP от reorg (17→3 пары на FFT-move). Обнаружены 2 класса остаточного FP: (1) cross-commit refactoring (код удалён в коммите A, добавлен в B — move-фильтр не ловит), (2) boilerplate coincidental matches. Для Шага 6 нужна нормализация по `lines_added` (пары/KLOC).
 
-## В работе
+## Результат разведки (2026-06-13)
 
-- (пусто)
+**Решение: full scan 185 реп НЕ добиваем.** На 22 разнородных репах (openwrt-форки,
+ML, embedded, браузерный движок, llama.cpp) порядок величины устаканился — добивать
+остальные ради третьего знака смысла нет. Презентационные числа всё равно возьмём
+с продуктового **archcheck-прогона**, не с этого питоновского MD5-детектора.
+
+Доля коммитов, в которых детектор сработал ≥1 раз (числитель — clone-commits из CSV,
+знаменатель — `git log --since=2025-05-01 --until=2026-05-31` по C++-файлам):
+
+| Проект | clone-commits | доля |
+|---|---|---|
+| llama.cpp | 617 | 23% |
+| react-native | 290 | 21% |
+| nrf-sdk | 416 | 20% |
+| FastLED | 876 | 19% |
+| gtk | 397 | 12% |
+| git | 145 | 6% |
+| scylladb | 158 | 4% |
+| bitcoin | 64 | 3% |
+
+**Вывод:** доля — единицы–двадцатки процентов, зависит не от агента (гипотеза
+agentic-vs-human отвалилась ещё на HEAD-снимке, p=0.144), а от культуры проекта.
+bitcoin/git (строгий code review) — 3–6%; быстрые фичевые проекты — ~20%. Разброс ×6–7.
+
+**Три оговорки (почему эти числа — только порядок величины, не продуктовая метрика):**
+1. Это доля *коммитов с ≥1 срабатыванием*, а не объём скопированного кода (коммит с
+   одним 6-строчным совпадением = коммит с 66 парами).
+2. Внутри известный FP-хвост (cross-commit refactoring + boilerplate `namespace fl {…}`),
+   поэтому «20%» завышены.
+3. Алгоритм — питоновский MD5-по-6-строкам, **не** токеновый archcheck-детектор;
+   пороги отсюда в продукт не переносятся напрямую.
+
+## Не делаем (осознанно отброшено)
+
+- ~~Запустить full scan по 185 репо~~ — порядок величины ясен на 22, см. выше.
+- ~~Шаг 6: agentic vs human clone-rate~~ — гипотеза отвалилась, разрез не нужен.
+- Калибровка продуктовых порогов и презентация — **переезжают на archcheck-прогон**
+  (продуктовый детектор на diff-скоупе), не на этот research-скрипт.
 
 ## Детальная инструкция (алгоритм, функции, тесты)
 
@@ -97,27 +136,27 @@ introduction rate чувствительнее, т.к. vendored-FP не «доб
 
 ## Следующие шаги
 
-1. Шаг 0–1: каркас + извлечение added-блоков (`--unified=0`, оба target_kind).
-2. Шаг 2–3: base-индекс + клон-матчинг с self-match-исключением.
-3. Шаг 4–5: CSV + синтетический контроль из 3 коммитов + eyeball топ-20.
-4. Шаг 6: AI-vs-human разрез внутри смешанных реп; решение о new-clone-gate.
+1. Запустить `python3 copypaste_per_commit.py` overnight (185 реп, ~5–10 ч, resume через `.done_repos`).
+2. Шаг 6: загрузить CSV, построить per-commit pairs/KLOC, сравнить agentic vs human внутри смешанных реп (repo fixed effects), оформить в `experiments/FINDINGS.md` или отдельный doc.
 
 ## Ключевые решения
 
 | Решение | Причина |
 |---------|---------|
 | Per-commit, не per-diff | Нужно tracking per-PR (как graph/bool) |
-| Added lines (новые файлы + вставки в существующие), не only-new-files | Клон чаще добавляется в существующий файл; only-new-files пропускает сценарий Juergens (неконсистентные правки клонов ≈ 50% дефектов) |
-| EXACT/RENAMED, не LITERAL | Точная идентификация, не noise |
-| CSV format как bool_history | Унификация слоёв, простой анализ |
+| Added lines (новые файлы + вставки в существующие) | Клон чаще добавляется в существующий файл; only-new-files пропускает сценарий Juergens |
+| Rolling `seen` hash-index (не git archive per commit) | Один `git log -p` subprocess на репо вместо N git-show; производительность ~0.2–1 с/коммит |
+| Move-фильтр (del_blocks per commit) | Убирает FP от reorg: del_hashes исключаются при проверке added-блоков |
+| `lines_added` в CSV | Нормализация на KLOC для шага 6; необходима, т.к. cross-commit refactoring создаёт outlier-коммиты с >100 парами |
+| WARMUP_START = 2023-01-01 | Baseline для реп с историей до мая 2025; для новых реп (0 warmup) seen строится внутри окна |
 
 ## Изменённые файлы
 
 | Файл | Изменение |
 |------|-----------|
-| `experiments/boolean_state/copypaste_per_commit.py` | Новый скрипт |
-| `experiments/boolean_state/copypaste_per_commit_new185.csv` | Output |
-| `experiments/RESUME_pending.sh` | Добавить фазу copypaste |
+| `experiments/boolean_state/copypaste_per_commit.py` | Новый скрипт (streaming parser, move-filter, resume, CSV) |
+| `experiments/boolean_state/copypaste_per_commit_new185.csv` | Output (создаётся при запуске) |
+| `/tmp/test_copypaste_repo/` | Синтетический тест-репо (4 коммита, не в git) |
 
 ## Notes
 
