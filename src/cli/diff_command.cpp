@@ -14,6 +14,7 @@
 #include "archcheck/graph/graph_builder.h"
 #include "archcheck/scan/disk_file_source.h"
 #include "archcheck/scan/local_complexity_drift.h"
+#include "archcheck/scan/new_clone_drift.h"
 #include "archcheck/scan/satd_scan.h"
 #include "archcheck/scan/test_co_evolution.h"
 
@@ -125,14 +126,38 @@ archcheck::scan::ComplexityDriftResult collectComplexityDrift(const std::filesys
   return archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed);
 }
 
+// New-clone drift (#123): copy-paste a commit introduces — duplication pairs in
+// the new tree touching the diff's added lines. Advisory only. Built from the
+// added lines already collected for SATD, so no extra git diff call.
+archcheck::scan::NewCloneDriftResult collectNewClones(const std::filesystem::path &repoRoot,
+                                                      const archcheck::git::Revspec &parsed,
+                                                      const std::vector<archcheck::git::AddedLine> &addedLines)
+{
+  archcheck::scan::AddedLineMap added;
+  for (const auto &a : addedLines)
+    added[a.file].insert(a.lineNumber);
+  if (added.empty())
+    return {};
+  if (parsed.current == archcheck::git::kWorktreeRef)
+  {
+    archcheck::scan::DiskFileSource newSource(repoRoot);
+    return archcheck::scan::detectNewClones(newSource, added);
+  }
+  archcheck::git::GitObjectFileSource newSource(repoRoot, parsed.current);
+  if (!newSource.valid())
+    return {};
+  return archcheck::scan::detectNewClones(newSource, added);
+}
+
 // Advisory-only signals: SATD markers and test co-evolution over the changed
-// lines, plus local complexity drift. Reported after the structural diff,
-// never gating.
+// lines, plus local complexity drift and new-clone drift. Reported after the
+// structural diff, never gating.
 struct DiffAdvisories
 {
   archcheck::rules::ViolationList satd;
   archcheck::rules::ViolationList testCoEvolution;
   archcheck::scan::ComplexityDriftResult complexity;
+  archcheck::scan::NewCloneDriftResult newClones;
   std::size_t complexitySkippedAddedLines = 0; // >0: bulk import, advisory skipped (#117)
 };
 
@@ -150,7 +175,10 @@ DiffAdvisories collectDiffAdvisories(const std::filesystem::path &repoRoot, cons
   if (totalAdded > maxAddedLines)
     result.complexitySkippedAddedLines = totalAdded;
   else
+  {
     result.complexity = collectComplexityDrift(repoRoot, parsed);
+    result.newClones = collectNewClones(repoRoot, parsed, addedLines);
+  }
   return result;
 }
 
@@ -175,6 +203,12 @@ void printDiffAdvisories(const DiffAdvisories &a)
     return;
   }
   printComplexityResult(a.complexity);
+  if (!a.newClones.violations.empty())
+  {
+    std::cout << "\nnew-clone drift (advisory):\n";
+    for (const auto &v : a.newClones.violations)
+      std::cout << "  " << v.file << ":" << v.line << ": " << v.ruleId << " — " << v.message << '\n';
+  }
 }
 
 // One flat list for the JSON document: SATD + test co-evolution + complexity.
@@ -183,6 +217,7 @@ archcheck::rules::ViolationList flattenAdvisories(DiffAdvisories a)
   archcheck::rules::ViolationList all = std::move(a.satd);
   all.insert(all.end(), a.testCoEvolution.begin(), a.testCoEvolution.end());
   all.insert(all.end(), a.complexity.violations.begin(), a.complexity.violations.end());
+  all.insert(all.end(), a.newClones.violations.begin(), a.newClones.violations.end());
   return all;
 }
 
