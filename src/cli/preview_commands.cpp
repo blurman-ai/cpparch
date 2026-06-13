@@ -13,6 +13,7 @@
 #include "archcheck/graph/algorithms.h"
 #include "archcheck/graph/dependency_graph.h"
 #include "archcheck/graph/graph_builder.h"
+#include "archcheck/rules/sf9_no_cycles.h"
 #include "archcheck/scan/defect_attractor.h"
 #include "archcheck/scan/disk_file_source.h"
 #include "archcheck/scan/duplication/duplication_scanner.h"
@@ -106,6 +107,8 @@ int runGraph(const std::filesystem::path &root)
   const auto built = archcheck::graph::buildGraphForPath(root);
   const auto &c = built.counters;
   const auto scc = computeSccStats(built.graph);
+  const archcheck::rules::Sf9NoCycles sf9;
+  const auto sf9Violations = sf9.check(built.graph, [](std::string_view) { return std::string{}; });
   std::cout << "nodes:          " << built.graph.nodeCount() << '\n'
             << "edges:          " << c.edges << '\n'
             << "external:       " << c.external << '\n'
@@ -113,9 +116,10 @@ int runGraph(const std::filesystem::path &root)
             << "ambiguous:      " << c.ambiguous << '\n'
             << "macro_includes: " << c.macro_includes << '\n'
             << "sccs_total:     " << scc.total << '\n'
-            << "sccs_cyclic:    " << scc.cyclic << '\n'
+            << "sccs_cyclic:    " << scc.cyclic << "  (raw; includes conditional/inl-split)\n"
+            << "sf9_cycles:     " << sf9Violations.size() << "  (SF.9-filtered; actionable)\n"
             << "largest_scc:    " << scc.largest << '\n';
-  return scc.cyclic == 0 ? 0 : 1;
+  return sf9Violations.empty() ? 0 : 1;
 }
 
 int runDuplication(const std::filesystem::path &root)
