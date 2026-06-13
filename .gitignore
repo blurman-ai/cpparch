@@ -87,3 +87,7 @@ memory/
 
 # Experiment / corpus-analysis artifacts — local only, not part of the shipped repo (#079/#080 research)
 experiments/
+
+# Python bytecode cache (analysis/ scripts)
+__pycache__/
+*.pyc
