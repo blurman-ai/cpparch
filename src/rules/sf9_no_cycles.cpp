@@ -63,9 +63,12 @@ bool endsWith(std::string_view s, std::string_view suf)
 }
 
 // Markers of an inline/template implementation file that legitimately pairs with a
-// same-stem header (foo.h + foo.inl / foo.ipp / foo.hxx / foo-inl.h ...).
-constexpr std::array<std::string_view, 10> kImplMarkers = {"-inl.h", "_inl.h", ".tmpl.h", ".impl.h", ".inl",
-                                                           ".ipp",   ".icc",   ".tcc",    ".tpp",    ".hxx"};
+// same-stem header (foo.h + foo.inl / foo.ipp / foo.hxx / foo-inl.h / foo_impl.hpp ...).
+// The _impl.* family is the dominant header-only convention (mlpack, Boost, Eigen):
+// foo.hpp ends with #include "foo_impl.hpp", foo_impl.hpp includes foo.hpp back.
+constexpr std::array<std::string_view, 14> kImplMarkers = {"-inl.h",    "_inl.h",   ".tmpl.h", ".impl.h",  ".inl",
+                                                           ".ipp",      ".icc",     ".tcc",    ".tpp",     ".hxx",
+                                                           "_impl.hpp", "_impl.hh", "_impl.h", "_impl.hxx"};
 
 bool isImplName(std::string_view name)
 {
