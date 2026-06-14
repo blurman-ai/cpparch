@@ -6,6 +6,8 @@
 #include <string>
 #include <string_view>
 
+#include "archcheck/scan/file_classification.h"
+
 namespace archcheck::scan
 {
 
@@ -130,13 +132,19 @@ rules::ViolationList detectSatdMarkers(const std::vector<git::AddedLine> &addedL
 
   for (const auto &added : addedLines)
   {
-    // Extract comment part from the line
+    // Vendored third-party and test code carry their own TODO/FIXME — that is not
+    // the project's production self-admitted debt. Skip both, matching the
+    // complexity-drift scan's classification (file_classification.h).
+    const auto base = baseName(added.file);
+    if (pathHasVendoredDir(added.file) || isVendoredBasename(base) || pathHasTestDir(added.file) ||
+        isTestBasename(base))
+      continue;
+
     const auto commentPart = extractCommentPart(added.text);
-
     if (commentPart.empty())
-      continue; // No comment in this line
+      continue;
 
-    // Check SATD.2 first (more specific: FIXME/HACK without issue id)
+    // SATD.2 (FIXME/HACK without issue id) is more specific — check it first.
     const auto satd2 = checkSatd2(commentPart);
     if (!satd2.empty())
     {
@@ -144,12 +152,9 @@ rules::ViolationList detectSatdMarkers(const std::vector<git::AddedLine> &addedL
       continue;
     }
 
-    // Check SATD.1 (more general: any SATD marker)
     const auto satd1 = checkSatd1(commentPart);
     if (!satd1.empty())
-    {
       violations.push_back({satd1, added.file, added.lineNumber, truncateMessage(added.text)});
-    }
   }
 
   return violations;

@@ -233,4 +233,21 @@ TEST_CASE("satd_scan: message truncation at 120 chars", "[scan][satd]")
   REQUIRE(violations[0].message.size() <= 120);
 }
 
+TEST_CASE("satd_scan: vendored and test code are skipped, project code still fires (#124)", "[scan][satd]")
+{
+  const std::vector<archcheck::git::AddedLine> lines{{
+      {"ThirdParty/imgui/imgui.cpp", 1, "  // FIXME: vendored debt, not ours\n"}, // vendored dir
+      {"vendor/foo.c", 2, "  // TODO: also vendored\n"},                          // vendored dir
+      {"src/json.hpp", 3, "  // FIXME: bundled single-file lib\n"},               // vendored basename
+      {"tests/widget_test.cpp", 4, "  // FIXME: test debt\n"},                    // test dir + basename
+      {"src/app.cpp", 5, "  // FIXME: our real debt\n"},                          // project code
+  }};
+
+  const auto violations = archcheck::scan::detectSatdMarkers(lines);
+  // Only the production project line is reported; vendored and test TODO/FIXME is
+  // not the project's production self-admitted debt.
+  REQUIRE(violations.size() == 1);
+  REQUIRE(violations[0].file == "src/app.cpp");
+}
+
 } // namespace
