@@ -255,8 +255,9 @@ std::optional<DiffConfig> loadDiffThresholds(const std::filesystem::path &repoRo
 int emitJsonDiff(const archcheck::diff::RegressionReport &report, DiffAdvisories advisories,
                  const archcheck::git::Revspec &parsed)
 {
-  archcheck::diff::writeJsonReport(report, {parsed.baseline, parsed.current, flattenAdvisories(std::move(advisories))},
-                                   std::cout);
+  const std::size_t skipped = advisories.complexitySkippedAddedLines;
+  archcheck::diff::writeJsonReport(
+      report, {parsed.baseline, parsed.current, flattenAdvisories(std::move(advisories)), skipped}, std::cout);
   return report.gates() ? 1 : 0;
 }
 

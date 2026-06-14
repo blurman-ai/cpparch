@@ -101,4 +101,24 @@ TEST_CASE("e2e --diff --format=json: docs-only PR → empty report, gate ok", "[
   REQUIRE(r.exitCode == 0);
   REQUIRE(r.output.find("\"gate\": \"ok\"") != std::string::npos);
   REQUIRE(r.output.find("\"added_edges\": []") != std::string::npos);
+  // Non-bulk diff: advisory zeros are genuine, so the skip marker reads 0.
+  REQUIRE(r.output.find("\"complexity_skipped_added_lines\": 0") != std::string::npos);
+}
+
+TEST_CASE("e2e --diff --format=json: bulk import exposes skip marker (#117/#124)", "[diff][e2e][json]")
+{
+  TempDir repo;
+  commitChain(repo.path);
+  // Exceed the default diff_max_added_lines (10000): the bulk-import gate skips
+  // the complexity + new-clone advisories. The JSON must say so, so a consumer
+  // can tell this skipped zero from a genuinely clean zero.
+  std::string body;
+  for (int i = 0; i < 10100; ++i)
+    body += "int v" + std::to_string(i) + " = 0;\n";
+  writeFile(repo.path / "big.h", body);
+  commitAll(repo.path, "bulk import");
+
+  const auto r = runArchcheck(repo.path, "--diff --format=json HEAD~1..HEAD");
+  REQUIRE(r.output.find("\"complexity_skipped_added_lines\":") != std::string::npos);
+  REQUIRE(r.output.find("\"complexity_skipped_added_lines\": 0,") == std::string::npos);
 }

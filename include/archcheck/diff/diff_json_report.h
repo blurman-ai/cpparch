@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <ostream>
 #include <string>
 
@@ -16,6 +17,10 @@ struct DiffJsonContext
   std::string baselineRef;
   std::string currentRef;
   rules::ViolationList advisoryViolations;
+  // >0 means the bulk-import gate (#117) skipped the complexity + new-clone
+  // advisories for this diff; lets JSON consumers tell a skipped zero from a
+  // genuinely clean zero. 0 = not skipped.
+  std::size_t complexitySkippedAddedLines = 0;
 };
 
 // Stable JSON document for `--diff --format=json`. Schema version 1:
