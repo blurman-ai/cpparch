@@ -3,6 +3,7 @@
 #include <sys/types.h>
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -38,7 +39,7 @@ private:
   void closeChild();
   bool readLine(std::string &line);
   bool readExact(std::string &out, std::size_t n);
-  static std::size_t parseBlobSize(const std::string &header);
+  static std::optional<std::size_t> parseBlobSize(const std::string &header);
 
   std::filesystem::path repoRoot_;
   std::string ref_;

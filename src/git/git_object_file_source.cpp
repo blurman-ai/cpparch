@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -180,19 +181,24 @@ bool GitObjectFileSource::readExact(std::string &out, std::size_t n)
 }
 
 // Parse the `git cat-file --batch` header line for a blob object.
-// Returns the blob size on success, or 0 if the header is not a blob.
-std::size_t GitObjectFileSource::parseBlobSize(const std::string &header)
+// Returns the blob size (which may be 0 for an empty file) on success, or
+// std::nullopt if the header is not a blob ("<obj> missing" / non-blob type).
+// The distinction matters for stream sync: a blob — even a 0-byte one — is
+// followed by <size> content bytes AND a trailing newline that must be consumed;
+// a "missing" line has neither. Conflating "empty blob" with "not a blob" left
+// the empty blob's trailing newline in the pipe and desynced every later read.
+std::optional<std::size_t> GitObjectFileSource::parseBlobSize(const std::string &header)
 {
   // Header form: "<sha> <type> <size>" (blob) or "<obj> missing" / "<obj> ambiguous".
   const auto sp1 = header.find(' ');
   if (sp1 == std::string::npos)
-    return 0;
+    return std::nullopt;
   const auto sp2 = header.find(' ', sp1 + 1);
   if (sp2 == std::string::npos)
-    return 0;
+    return std::nullopt;
   const std::string_view type = std::string_view{header}.substr(sp1 + 1, sp2 - sp1 - 1);
   if (type != "blob")
-    return 0;
+    return std::nullopt;
   return static_cast<std::size_t>(std::strtoull(header.data() + sp2 + 1, nullptr, 10));
 }
 
@@ -206,9 +212,10 @@ std::string GitObjectFileSource::read(const std::string &repoRelativePath)
   std::string header;
   if (!readLine(header))
     return {};
-  const std::size_t size = parseBlobSize(header);
-  if (size == 0)
-    return {};
+  const auto blobSize = parseBlobSize(header);
+  if (!blobSize)
+    return {}; // "missing"/non-blob: header line only, no body or trailer to drain
+  const std::size_t size = *blobSize;
   if (size > kMaxBlobSizeBytes)
   {
     std::cerr << "archcheck: skipping oversized git blob (> 64 MiB): " << repoRelativePath << '\n';

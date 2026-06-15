@@ -121,6 +121,29 @@ TEST_CASE("GitObjectFileSource: parity with DiskFileSource on the same commit", 
   }
 }
 
+TEST_CASE("GitObjectFileSource: empty blob does not desync the batch stream (#124)", "[git][file_source][unit]")
+{
+  // Regression: a 0-byte file is still a blob — `cat-file --batch` emits its
+  // (empty) content AND a trailing newline. read() used to return early on
+  // size==0 without consuming that newline, shifting every later read by one
+  // byte and corrupting subsequent files' content (→ phantom include edges,
+  // grown cycles, god-headers in --diff memory mode). 'a_empty.h' sorts first
+  // and is empty; the files after it must still read byte-for-byte.
+  TempRepo repo;
+  seed(repo.path);
+  const std::string contentB = "#include \"c.h\"\nint x = 1;\n";
+  const std::string contentC = "// c\n";
+  writeFile(repo.path / "a_empty.h", "");
+  writeFile(repo.path / "b.h", contentB);
+  writeFile(repo.path / "c.h", contentC);
+  commitAll(repo.path, "init");
+
+  archcheck::git::GitObjectFileSource src(repo.path, "HEAD");
+  REQUIRE(src.read("a_empty.h").empty()); // empty blob, no crash
+  REQUIRE(src.read("b.h") == contentB);   // must NOT be shifted by the empty blob's trailer
+  REQUIRE(src.read("c.h") == contentC);
+}
+
 TEST_CASE("GitObjectFileSource: read() on non-existent path returns empty", "[git][file_source][unit]")
 {
   TempRepo repo;
