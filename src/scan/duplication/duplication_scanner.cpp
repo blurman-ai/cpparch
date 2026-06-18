@@ -6,6 +6,7 @@
 
 #include "archcheck/scan/duplication/clone_classifier.h"
 #include "archcheck/scan/duplication/token_normalizer.h"
+#include "archcheck/scan/file_classification.h"
 
 namespace archcheck::scan::duplication
 {
@@ -152,10 +153,6 @@ void phase8JointTokenOrderFloor(std::vector<Pair> &candidates, double minWeighte
 }
 
 // --- P0.9 generated-file FP guard ------------------------------------------
-// Machine-generated files (protobuf *.pb.cc, Qt moc_/ui_/qrc_, flex/bison
-// output) are never hand-edited, so duplication in them is not actionable
-// copy-paste — there is no human to refactor. Recognized by path alone.
-//
 // NOTE: the platform-twin (P0.7) and perf-variant (P0.8) guards that once lived
 // here were REMOVED. They keyed on file PATH and suppressed whole file-pairs,
 // but platform/variant files mix genuinely-divergent bodies (correctly NOT
@@ -163,27 +160,10 @@ void phase8JointTokenOrderFloor(std::vector<Pair> &candidates, double minWeighte
 // shared across os_macos.cpp/os_linux.cpp — and those identical helpers are
 // real, consolidatable duplication (TP). A path guard cannot tell them apart,
 // so it was killing true positives. Identical code is reported regardless of path.
-std::string toLowerCopy(std::string s)
-{
-  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-  return s;
-}
-
-// P0.9: generated files — protobuf / Qt-moc / flex-bison output, never hand-edited.
-bool isGeneratedPath(const std::string &lowerPath)
-{
-  static const std::vector<std::string> kMarkers = {".pb.h",       ".pb.cc",      ".pb.cpp", "_generated.",
-                                                    ".generated.", "/generated/", "/moc_",   "/ui_",
-                                                    "/qrc_",       ".tab.c",      "lex.yy",  ".g.cpp"};
-  for (const auto &m : kMarkers)
-  {
-    if (lowerPath.find(m) != std::string::npos)
-    {
-      return true;
-    }
-  }
-  return false;
-}
+//
+// Generated-file recognition (protobuf / Qt-moc / flex-bison / SWIG) now lives in
+// scan::isGeneratedPath (file_classification.h, #129) — one definition shared with
+// clone-drift, complexity and graph instead of a private copy here.
 
 // P0.9 driver: drop pairs where either file is machine-generated.
 void phasePathBasedFpSuppress(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
@@ -191,7 +171,7 @@ void phasePathBasedFpSuppress(std::vector<Pair> &candidates, const std::vector<F
   std::vector<Pair> filtered;
   for (const auto &p : candidates)
   {
-    if (isGeneratedPath(toLowerCopy(allFragments[p.a].file)) || isGeneratedPath(toLowerCopy(allFragments[p.b].file)))
+    if (scan::isGeneratedPath(allFragments[p.a].file) || scan::isGeneratedPath(allFragments[p.b].file))
     {
       continue; // generated output — not actionable copy-paste
     }

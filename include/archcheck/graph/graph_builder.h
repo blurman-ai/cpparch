@@ -8,7 +8,8 @@
 namespace archcheck::scan
 {
 class FileSource;
-}
+class SourceSnapshot;
+} // namespace archcheck::scan
 
 namespace archcheck::graph
 {
@@ -33,6 +34,13 @@ struct GraphBuildResult
 // graph. This is the source-of-truth implementation; `buildGraphForPath`
 // is a thin wrapper that constructs a DiskFileSource and delegates here.
 GraphBuildResult buildGraphForSource(scan::FileSource &source);
+
+// Build a DependencyGraph from a pre-read+classified snapshot (#129): the
+// single read-once stage. buildGraphForSource is a thin wrapper that reads a
+// FileSource into a SourceSnapshot and delegates here. Rules that already hold
+// a snapshot (the --diff orchestrator builds one per ref) call this directly so
+// the tree is read once and shared across graph / clone / complexity.
+GraphBuildResult buildGraphForSnapshot(const scan::SourceSnapshot &snapshot);
 
 // End-to-end build over a real on-disk root. Same as buildGraphForSource
 // with a DiskFileSource(root). Backs both `--graph` and `--diff` (the

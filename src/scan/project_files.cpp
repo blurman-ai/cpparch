@@ -5,6 +5,7 @@
 #include <system_error>
 #include <utility>
 
+#include "archcheck/scan/authored_scope.h"
 #include "archcheck/scan/file_classification.h"
 #include "archcheck/scan/file_source.h"
 
@@ -147,23 +148,25 @@ bool isHeaderFile(const std::filesystem::path &p) { return is_header_file(p); }
 
 std::vector<std::pair<std::string, std::string>> collectNonVendoredSources(FileSource &source)
 {
-  std::vector<std::pair<std::string, std::string>> out;
+  // Load once, classify through the shared #129 gate (same vendor/test/generated/
+  // dominant-banner formula as graph + complexity). Delta vs the old open-coded
+  // version: gains the >50% dominant-banner guard (self-licensed Apache repos are
+  // no longer over-excluded -> clone recall up) and the generated-file exclusion.
+  std::vector<std::pair<std::string, std::string>> loaded;
   for (const auto &f : source.list())
   {
-    if (pathHasVendoredDir(f.path))
+    loaded.push_back({f.path, source.read(f.path)});
+  }
+  const auto scope = AuthoredScope::fromFiles(loaded);
+
+  std::vector<std::pair<std::string, std::string>> out;
+  for (auto &pc : loaded)
+  {
+    if (pc.second.empty() || scope.excluded(pc.first, pc.second))
     {
-      continue; // vendored directory segment (third_party/, vendor/, deps/, ...)
+      continue; // empty, or vendored / test / generated / non-dominant-banner
     }
-    if (pathHasTestDir(f.path) || isTestBasename(baseName(f.path)))
-    {
-      continue; // unit/integration test code: duplicates by nature (#070)
-    }
-    std::string content = source.read(f.path);
-    if (content.empty() || isVendoredFile(baseName(f.path), content))
-    {
-      continue; // empty, or vendored basename / vendor license header
-    }
-    out.push_back({f.path, std::move(content)});
+    out.push_back(std::move(pc));
   }
   return out;
 }

@@ -17,6 +17,7 @@
 #include "archcheck/scan/local_complexity_drift.h"
 #include "archcheck/scan/new_clone_drift.h"
 #include "archcheck/scan/satd_scan.h"
+#include "archcheck/scan/source_snapshot.h"
 #include "archcheck/scan/test_co_evolution.h"
 
 namespace archcheck::cli
@@ -105,33 +106,44 @@ void printComplexityResult(const archcheck::scan::ComplexityDriftResult &drift)
   std::cout << '\n';
 }
 
+// Read+classify one ref's tree into a snapshot for the memory advisories
+// (complexity + clone). WORKTREE => the on-disk source; otherwise blobs via git
+// cat-file. nullopt if the ref does not resolve. One snapshot per ref is shared
+// by both advisories so each tree is read once (#129 read-once).
+std::optional<archcheck::scan::SourceSnapshot> readRefSnapshotMemory(const std::filesystem::path &repoRoot,
+                                                                     const std::string &ref)
+{
+  if (ref == archcheck::git::kWorktreeRef)
+  {
+    archcheck::scan::DiskFileSource src(repoRoot);
+    return archcheck::scan::SourceSnapshot::read(src);
+  }
+  archcheck::git::GitObjectFileSource src(repoRoot, ref);
+  if (!src.valid())
+    return std::nullopt;
+  return archcheck::scan::SourceSnapshot::read(src);
+}
+
 // Local complexity drift (#101): per-function cognitive complexity compared
-// between baseline and current versions of the changed C/C++ files.
+// between the baseline and current versions of the changed C/C++ files. Consumes
+// the shared per-ref snapshots (#129).
 archcheck::scan::ComplexityDriftResult collectComplexityDrift(const std::filesystem::path &repoRoot,
-                                                              const archcheck::git::Revspec &parsed)
+                                                              const archcheck::git::Revspec &parsed,
+                                                              const archcheck::scan::SourceSnapshot &baseSnap,
+                                                              const archcheck::scan::SourceSnapshot &curSnap)
 {
   const auto changed = archcheck::git::changedCppFiles(repoRoot, parsed.baseline, parsed.current);
   if (!changed || changed->empty())
     return {};
-  archcheck::git::GitObjectFileSource oldSource(repoRoot, parsed.baseline);
-  if (!oldSource.valid())
-    return {};
-  if (parsed.current == archcheck::git::kWorktreeRef)
-  {
-    archcheck::scan::DiskFileSource newSource(repoRoot);
-    return archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed);
-  }
-  archcheck::git::GitObjectFileSource newSource(repoRoot, parsed.current);
-  if (!newSource.valid())
-    return {};
-  return archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed);
+  return archcheck::scan::detectLocalComplexityDrift(baseSnap, curSnap, *changed);
 }
 
 // New-clone drift (#123): copy-paste a commit introduces — duplication pairs in
-// the new tree touching the diff's added lines. Advisory only. Built from the
-// added lines already collected for SATD, so no extra git diff call.
-archcheck::scan::NewCloneDriftResult collectNewClones(const std::filesystem::path &repoRoot,
-                                                      const archcheck::git::Revspec &parsed,
+// the new tree touching the diff's added lines. Advisory only. Consumes the shared
+// per-ref snapshots (#129); the parent (baseline) snapshot feeds the parent-guard:
+// clone pairs that already existed there are not introduced by this diff.
+archcheck::scan::NewCloneDriftResult collectNewClones(const archcheck::scan::SourceSnapshot &curSnap,
+                                                      const archcheck::scan::SourceSnapshot &baseSnap,
                                                       const std::vector<archcheck::git::AddedLine> &addedLines)
 {
   archcheck::scan::AddedLineMap added;
@@ -139,20 +151,7 @@ archcheck::scan::NewCloneDriftResult collectNewClones(const std::filesystem::pat
     added[a.file].insert(a.lineNumber);
   if (added.empty())
     return {};
-  // Parent tree (baseline ref) feeds the parent-guard: clone pairs that already
-  // existed there are not introduced by this diff, even if it touched one side.
-  archcheck::git::GitObjectFileSource parentSource(repoRoot, parsed.baseline);
-  if (!parentSource.valid())
-    return {};
-  if (parsed.current == archcheck::git::kWorktreeRef)
-  {
-    archcheck::scan::DiskFileSource newSource(repoRoot);
-    return archcheck::scan::detectNewClones(newSource, parentSource, added);
-  }
-  archcheck::git::GitObjectFileSource newSource(repoRoot, parsed.current);
-  if (!newSource.valid())
-    return {};
-  return archcheck::scan::detectNewClones(newSource, parentSource, added);
+  return archcheck::scan::detectNewClones(curSnap, baseSnap, added);
 }
 
 // Advisory-only signals: SATD markers and test co-evolution over the changed
@@ -179,12 +178,18 @@ DiffAdvisories collectDiffAdvisories(const std::filesystem::path &repoRoot, cons
   // complexity findings are mechanically true but pure volume noise (#117).
   const std::size_t totalAdded = archcheck::git::totalAddedLines(numstatEntries);
   if (totalAdded > maxAddedLines)
-    result.complexitySkippedAddedLines = totalAdded;
-  else
   {
-    result.complexity = collectComplexityDrift(repoRoot, parsed);
-    result.newClones = collectNewClones(repoRoot, parsed, addedLines);
+    result.complexitySkippedAddedLines = totalAdded;
+    return result;
   }
+  // #129 read-once: one snapshot per ref, read+classified here and shared by both
+  // the complexity and the clone advisory (each used to read the trees itself).
+  const auto baseSnap = readRefSnapshotMemory(repoRoot, parsed.baseline);
+  const auto curSnap = readRefSnapshotMemory(repoRoot, parsed.current);
+  if (!baseSnap || !curSnap)
+    return result;
+  result.complexity = collectComplexityDrift(repoRoot, parsed, *baseSnap, *curSnap);
+  result.newClones = collectNewClones(*curSnap, *baseSnap, addedLines);
   return result;
 }
 

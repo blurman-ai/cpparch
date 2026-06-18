@@ -5,10 +5,11 @@
 #include <vector>
 
 #include "archcheck/rules/violation.h"
-#include "archcheck/scan/file_source.h"
 
 namespace archcheck::scan
 {
+
+class SourceSnapshot;
 
 // Result of the baseline/current local-complexity comparison for changed files.
 // Advisory only: never gates the exit code (#101).
@@ -26,10 +27,12 @@ struct ComplexityDriftResult
 [[nodiscard]] ComplexityDriftResult compareLocalComplexity(const std::string &oldSource, const std::string &newSource,
                                                            const std::string &file);
 
-// Run the comparison over the changed C/C++ files of a diff, reading both
-// versions from the given sources. Vendored and test paths are skipped — same
-// classification the corpus run used (file_classification.h).
-[[nodiscard]] ComplexityDriftResult detectLocalComplexityDrift(FileSource &oldSource, FileSource &newSource,
+// Run the comparison over the changed C/C++ files of a diff, taking both versions
+// from the pre-read+classified snapshots (#129). A changed file's authored verdict
+// comes from the whole current tree, so vendored/test/generated/banner files are
+// dropped with the same classification as graph and clone.
+[[nodiscard]] ComplexityDriftResult detectLocalComplexityDrift(const SourceSnapshot &oldSnapshot,
+                                                               const SourceSnapshot &newSnapshot,
                                                                const std::vector<std::filesystem::path> &changedFiles);
 
 } // namespace archcheck::scan

@@ -21,6 +21,7 @@
 #include "archcheck/scan/god_file_growth.h"
 #include "archcheck/scan/local_complexity_drift.h"
 #include "archcheck/scan/satd_scan.h"
+#include "archcheck/scan/source_snapshot.h"
 #include "archcheck/scan/test_co_evolution.h"
 
 namespace
@@ -657,7 +658,8 @@ archcheck::scan::ComplexityDriftResult complexityDrift(const fs::path &repo, con
   archcheck::git::GitObjectFileSource newSource(repo, headRef);
   REQUIRE(oldSource.valid());
   REQUIRE(newSource.valid());
-  return archcheck::scan::detectLocalComplexityDrift(oldSource, newSource, *changed);
+  return archcheck::scan::detectLocalComplexityDrift(archcheck::scan::SourceSnapshot::read(oldSource),
+                                                     archcheck::scan::SourceSnapshot::read(newSource), *changed);
 }
 
 } // namespace

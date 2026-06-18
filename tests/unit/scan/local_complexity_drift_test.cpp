@@ -3,18 +3,26 @@
 #include <string>
 
 #include "archcheck/scan/local_complexity_drift.h"
+#include "archcheck/scan/source_snapshot.h"
 
 namespace
 {
 
 using archcheck::scan::compareLocalComplexity;
 using archcheck::scan::detectLocalComplexityDrift;
+using archcheck::scan::SourceSnapshot;
 
 struct MapFileSource final : archcheck::scan::FileSource
 {
   std::map<std::string, std::string> files;
 
-  std::vector<archcheck::scan::ProjectFile> list() override { return {}; }
+  std::vector<archcheck::scan::ProjectFile> list() override
+  {
+    std::vector<archcheck::scan::ProjectFile> out;
+    for (const auto &[path, content] : files)
+      out.push_back({path});
+    return out;
+  }
   std::string read(const std::string &path) override
   {
     const auto it = files.find(path);
@@ -188,7 +196,8 @@ TEST_CASE("complexity_drift: cross-file move is not growth", "[scan][complexity]
   MapFileSource olds, news;
   olds.files = {{"a.cpp", impl}, {"b.cpp", stub}};
   news.files = {{"a.cpp", stub}, {"b.cpp", impl}};
-  const auto res = detectLocalComplexityDrift(olds, news, {"a.cpp", "b.cpp"});
+  const auto res =
+      detectLocalComplexityDrift(SourceSnapshot::read(olds), SourceSnapshot::read(news), {"a.cpp", "b.cpp"});
   REQUIRE(res.violations.empty());
   // The aggregate deltas still reflect both sides of the move.
   REQUIRE(res.positiveDelta == 30);
@@ -210,8 +219,9 @@ TEST_CASE("complexity_drift: overload migration is silent, duplication fires", "
   olds.files = {{"g.cpp", oldImpl + stub}};
   migrated.files = {{"g.cpp", newImpl}};
   duplicated.files = {{"g.cpp", oldImpl + newImpl}};
-  REQUIRE(detectLocalComplexityDrift(olds, migrated, {"g.cpp"}).violations.empty());
-  const auto dup = detectLocalComplexityDrift(olds, duplicated, {"g.cpp"});
+  REQUIRE(detectLocalComplexityDrift(SourceSnapshot::read(olds), SourceSnapshot::read(migrated), {"g.cpp"})
+              .violations.empty());
+  const auto dup = detectLocalComplexityDrift(SourceSnapshot::read(olds), SourceSnapshot::read(duplicated), {"g.cpp"});
   REQUIRE(dup.violations.size() == 1);
   REQUIRE(dup.violations[0].message.find("from 0 to 17") != std::string::npos);
 }
@@ -224,7 +234,7 @@ TEST_CASE("complexity_drift: genuinely new function is not eaten by the move poo
   MapFileSource olds, news;
   olds.files = {{"a.cpp", ""}};
   news.files = {{"a.cpp", "void peek(int x)\n{\n" + body + "}\n"}};
-  const auto res = detectLocalComplexityDrift(olds, news, {"a.cpp"});
+  const auto res = detectLocalComplexityDrift(SourceSnapshot::read(olds), SourceSnapshot::read(news), {"a.cpp"});
   REQUIRE(res.violations.size() == 1);
   REQUIRE(res.violations[0].message.find("new function 'peek'") != std::string::npos);
 }

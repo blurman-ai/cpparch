@@ -9,6 +9,7 @@
 
 #include "archcheck/scan/file_classification.h"
 #include "archcheck/scan/local_complexity_metrics.h"
+#include "archcheck/scan/source_snapshot.h"
 
 namespace archcheck::scan
 {
@@ -278,24 +279,34 @@ struct FilePair
   std::vector<FunctionComplexity> olds, news;
 };
 
-// Pass 1: parse every analysable file pair and pool disappeared functions.
-// Vendor exclusion is path/basename only: the license-header heuristic
-// (isVendoredFile) was calibrated for the duplication scanner and silently
-// skips the entire code of Apache-licensed projects (#109 foundationdb —
-// every file carries the project's own banner).
-std::vector<FilePair> collectFilePairs(FileSource &oldSource, FileSource &newSource,
+// Pass 1: parse every analysable changed file and pool disappeared functions.
+// #129: classification comes from the WHOLE current tree (newSnapshot), so the
+// license-header layer has its dominant-banner ratio and complexity gets the same
+// `authored` verdict as graph/clone — a vendored single-header is dropped here too
+// (rmm false-complexity gone), while a self-licensed project stays analysed
+// (its banner is dominant, #109 foundationdb).
+std::vector<FilePair> collectFilePairs(const SourceSnapshot &oldSnapshot, const SourceSnapshot &newSnapshot,
                                        const std::vector<std::filesystem::path> &changedFiles,
                                        std::vector<MovedFunction> &movedPool)
 {
+  static const std::string kEmpty;
   std::vector<FilePair> pairs;
   for (const std::filesystem::path &p : changedFiles)
   {
     const std::string path = p.generic_string();
-    if (pathHasVendoredDir(path) || pathHasTestDir(path) || isTestBasename(baseName(path)) ||
-        isVendoredBasename(baseName(path)))
-      continue;
-    const std::string oldText = oldSource.read(path);
-    const std::string newText = newSource.read(path);
+    const SnapshotFile *newFile = newSnapshot.findFile(path);
+    const SnapshotFile *oldFile = oldSnapshot.findFile(path);
+    if (newFile == nullptr && oldFile == nullptr)
+      continue; // not in either tree
+    // Authored verdict from the current tree (whole-tree banner ratio); for a
+    // file deleted in the diff (old-only) fall back to the baseline classification.
+    // A file present in old but not new must still be processed so the move pool
+    // sees its disappeared functions (cross-file move detection).
+    const bool authored = newFile != nullptr ? newFile->authored : oldFile->authored;
+    if (!authored)
+      continue; // vendored / test / generated / banner
+    const std::string &oldText = oldFile != nullptr ? oldFile->content : kEmpty;
+    const std::string &newText = newFile != nullptr ? newFile->content : kEmpty;
     if (hasUnclosedBrace(oldText) || hasUnclosedBrace(newText))
       continue;
     pairs.push_back({path, authoredFunctions(oldText), authoredFunctions(newText)});
@@ -306,11 +317,11 @@ std::vector<FilePair> collectFilePairs(FileSource &oldSource, FileSource &newSou
 
 } // namespace
 
-ComplexityDriftResult detectLocalComplexityDrift(FileSource &oldSource, FileSource &newSource,
+ComplexityDriftResult detectLocalComplexityDrift(const SourceSnapshot &oldSnapshot, const SourceSnapshot &newSnapshot,
                                                  const std::vector<std::filesystem::path> &changedFiles)
 {
   std::vector<MovedFunction> movedPool;
-  const std::vector<FilePair> pairs = collectFilePairs(oldSource, newSource, changedFiles, movedPool);
+  const std::vector<FilePair> pairs = collectFilePairs(oldSnapshot, newSnapshot, changedFiles, movedPool);
   // Pass 2: per-file comparison; the shared pool mutes relocation findings.
   ComplexityDriftResult total;
   for (const FilePair &pair : pairs)

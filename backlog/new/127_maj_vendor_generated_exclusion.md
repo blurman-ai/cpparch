@@ -7,7 +7,7 @@
 **Сложность:** unknown
 **Блокирует:** demo/контрибьюшн на чужом коде (#1/#3); применимость на проектах с bundled-deps
 **Заблокирован:** —
-**Related:** #088 (corpus FP), #125 (extensionless — другой слой слепоты), goodfirstissue dogfood (`experiments/goodfirstissue_dogfood/`)
+**Related:** #088 (corpus FP), #125 (extensionless — другой слой слепоты), #129 (единый проход/общий view — этот предикат вставляется туда), goodfirstissue dogfood (`experiments/goodfirstissue_dogfood/`)
 
 ## Цель
 

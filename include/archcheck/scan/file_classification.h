@@ -147,6 +147,38 @@ inline bool isVendoredDirName(std::string_view name)
 // (the final, file-name segment is not tested).
 inline bool pathHasVendoredDir(std::string_view path) { return pathAnyDirSegment(path, isVendoredDirName); }
 
+// Machine-generated files — protobuf, Qt moc/ui/qrc, flex/bison, SWIG wrappers —
+// are never hand-edited, so duplication / complexity in them is not actionable.
+// Matched on the lowercased repo-relative path. (#129: lifted from the dedup
+// scanner's private copy so clone, complexity and graph share ONE definition
+// instead of each rule re-deciding what is generated.)
+inline bool isGeneratedPath(std::string_view path)
+{
+  const std::string lower = toLowerAscii(path);
+  // SWIG output: match an exact basename suffix, not a loose substring, so a
+  // hand-written `socket_wrap.cpp` is not false-dropped.
+  for (const std::string_view suf :
+       {std::string_view{"_wrap.cpp"}, std::string_view{"_wrap.cxx"}, std::string_view{"_wrap.c"}})
+  {
+    if (lower.size() >= suf.size() && lower.compare(lower.size() - suf.size(), suf.size(), suf) == 0)
+    {
+      return true;
+    }
+  }
+  static constexpr std::array<std::string_view, 12> kGeneratedMarkers = {
+      ".pb.h", ".pb.cc", ".pb.cpp", "_generated.", ".generated.", "/generated/",
+      "/moc_", "/ui_",   "/qrc_",   ".tab.c",      "lex.yy",      ".g.cpp",
+  };
+  for (const std::string_view m : kGeneratedMarkers)
+  {
+    if (lower.find(m) != std::string_view::npos)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 inline std::string_view baseName(std::string_view path)
 {
   const std::size_t slash = path.rfind('/');

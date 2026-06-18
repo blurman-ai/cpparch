@@ -5,7 +5,7 @@
 #include <unordered_set>
 
 #include "archcheck/scan/duplication/duplication_scanner.h"
-#include "archcheck/scan/project_files.h"
+#include "archcheck/scan/source_snapshot.h"
 
 namespace archcheck::scan
 {
@@ -40,9 +40,9 @@ std::string pairKey(const duplication::Fragment &a, const duplication::Fragment 
 
 // Clone pairs that already exist in the parent tree, keyed by content. A pair in
 // this set was not introduced by the diff, even if the diff touched one side.
-std::unordered_set<std::string> parentPairKeys(FileSource &parentSource)
+std::unordered_set<std::string> parentPairKeys(const SourceSnapshot &parentSnapshot)
 {
-  const auto sources = collectNonVendoredSources(parentSource);
+  const auto sources = parentSnapshot.authoredSources();
   duplication::ScannerOptions opts;
   opts.enableWholeFileGuard = false;
   const auto scan = duplication::scanForDuplication(sources, opts);
@@ -79,13 +79,14 @@ rules::Violation makeViolation(const duplication::Fragment &introduced, const du
 
 } // namespace
 
-NewCloneDriftResult detectNewClones(FileSource &newSource, FileSource &parentSource, const AddedLineMap &added)
+NewCloneDriftResult detectNewClones(const SourceSnapshot &newSnapshot, const SourceSnapshot &parentSnapshot,
+                                    const AddedLineMap &added)
 {
   NewCloneDriftResult result;
   if (added.empty())
     return result;
-  const auto parentKeys = parentPairKeys(parentSource);
-  const auto sources = collectNonVendoredSources(newSource);
+  const auto parentKeys = parentPairKeys(parentSnapshot);
+  const auto sources = newSnapshot.authoredSources();
   // Whole-file guard off: in a snapshot a whole-file duplicate is vendored noise,
   // but a commit that adds a file-copy is exactly the signal we want. Precision
   // filters (joint floor, P1 classifiers) stay on.

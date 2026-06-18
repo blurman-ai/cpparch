@@ -42,6 +42,7 @@ add_executable(archcheck_tests
    unit/scan/project_files_test.cpp
    unit/scan/include_resolver_test.cpp
    unit/scan/file_classification_test.cpp
+   unit/scan/authored_scope_test.cpp
    unit/scan/satd_scan_test.cpp
    unit/scan/test_co_evolution_test.cpp
    unit/scan/god_file_growth_test.cpp

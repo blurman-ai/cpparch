@@ -4,11 +4,13 @@
 #include <vector>
 
 #include "archcheck/scan/new_clone_drift.h"
+#include "archcheck/scan/source_snapshot.h"
 
 namespace
 {
 
 using archcheck::scan::detectNewClones;
+using archcheck::scan::SourceSnapshot;
 
 struct MapFileSource final : archcheck::scan::FileSource
 {
@@ -107,7 +109,7 @@ TEST_CASE("new_clone_drift: clone introduced in added lines fires", "[scan][newc
   MapFileSource parent = cloneCorpus();
   parent.files.erase("copy.cpp");
 
-  const auto res = detectNewClones(src, parent, allLinesOf("copy.cpp", 14));
+  const auto res = detectNewClones(SourceSnapshot::read(src), SourceSnapshot::read(parent), allLinesOf("copy.cpp", 14));
   REQUIRE(res.violations.size() >= 1);
   REQUIRE(res.violations[0].ruleId == "DRIFT.NEW_CLONE");
   REQUIRE(res.violations[0].file == "copy.cpp");
@@ -121,7 +123,7 @@ TEST_CASE("new_clone_drift: pre-existing clone merely touched is silent", "[scan
   // the copy (e.g. a reformat). The parent-guard must drop it.
   MapFileSource parent = cloneCorpus();
 
-  const auto res = detectNewClones(src, parent, allLinesOf("copy.cpp", 14));
+  const auto res = detectNewClones(SourceSnapshot::read(src), SourceSnapshot::read(parent), allLinesOf("copy.cpp", 14));
   REQUIRE(res.violations.empty());
 }
 
@@ -131,7 +133,8 @@ TEST_CASE("new_clone_drift: clone outside added lines is silent", "[scan][newclo
   MapFileSource parent; // irrelevant here — added touches an unrelated file
 
   // Diff touched only an unrelated file — the clone pair must not report.
-  const auto res = detectNewClones(src, parent, allLinesOf("unrelated.cpp", 5));
+  const auto res =
+      detectNewClones(SourceSnapshot::read(src), SourceSnapshot::read(parent), allLinesOf("unrelated.cpp", 5));
   REQUIRE(res.violations.empty());
 }
 
@@ -140,6 +143,6 @@ TEST_CASE("new_clone_drift: empty added map yields nothing", "[scan][newclone]")
   MapFileSource src = cloneCorpus();
   MapFileSource parent;
 
-  const auto res = detectNewClones(src, parent, {});
+  const auto res = detectNewClones(SourceSnapshot::read(src), SourceSnapshot::read(parent), {});
   REQUIRE(res.violations.empty());
 }
