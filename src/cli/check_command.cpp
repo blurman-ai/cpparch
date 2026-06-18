@@ -19,6 +19,7 @@
 #include "archcheck/report/violation_baseline.h"
 #include "archcheck/rules/rule_set.h"
 #include "archcheck/scan/disk_file_source.h"
+#include "archcheck/scan/source_snapshot.h"
 
 namespace archcheck::cli
 {
@@ -135,6 +136,29 @@ int applyDriftFile(const std::filesystem::path &driftFile, std::vector<std::uniq
 
 } // namespace
 
+// Read+classify the tree once (#129); the graph and the SF.* text rules share the
+// one snapshot instead of re-reading every header from disk (was up to 3x: graph
+// build + SF.7 + SF.8). readFile serves from the in-memory snapshot.
+archcheck::rules::ViolationList checkViolations(const std::filesystem::path &root,
+                                                const std::vector<std::unique_ptr<archcheck::rules::IRule>> &rules)
+{
+  archcheck::scan::DiskFileSource src(root);
+  const auto snapshot = archcheck::scan::SourceSnapshot::read(src);
+  const auto built = archcheck::graph::buildGraphForSnapshot(snapshot);
+  const auto readFile = [&snapshot](std::string_view path) -> std::string
+  {
+    const archcheck::scan::SnapshotFile *f = snapshot.findFile(path);
+    return f != nullptr ? f->content : std::string{};
+  };
+  archcheck::rules::ViolationList all;
+  for (const auto &rule : rules)
+  {
+    const auto v = rule->check(built.graph, readFile);
+    all.insert(all.end(), v.begin(), v.end());
+  }
+  return all;
+}
+
 int runCheck(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts baseline,
              std::optional<config::Config> config)
 {
@@ -150,20 +174,11 @@ int runCheck(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts b
       return 2;
     }
   }
-  const auto built = archcheck::graph::buildGraphForPath(root);
-  archcheck::scan::DiskFileSource src(root);
-  auto readFile = [&](std::string_view path) -> std::string { return src.read(std::string(path)); };
   auto rules = archcheck::rules::makeDefaultRuleSet(*config);
   const int driftRc = baseline.driftFile ? applyDriftFile(*baseline.driftFile, rules) : 0;
   if (driftRc != 0)
     return driftRc;
-  archcheck::rules::ViolationList all;
-  for (const auto &rule : rules)
-  {
-    auto v = rule->check(built.graph, readFile);
-    all.insert(all.end(), v.begin(), v.end());
-  }
-  return applyBaselineAndReport(std::move(all), fmt, baseline);
+  return applyBaselineAndReport(checkViolations(root, rules), fmt, baseline);
 }
 
 int runSaveGraphBaseline(const std::filesystem::path &root, const std::filesystem::path &file)
