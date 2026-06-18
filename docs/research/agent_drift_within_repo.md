@@ -49,6 +49,15 @@ only. Bulk is just 0.4 % of commits here, so it barely moves anything. (But see 
 - *parentless / shallow-boundary commits* fake "whole tree added" — excluded at source.
 - *bulk imports* no longer gate the graph (only slow incremental drift should).
 
+**Post-run classification refactor (#129, commit ec5988b).** The run above used a
+binary whose vendor/test/generated/banner filter was open-coded per rule with
+divergent formulas (the FP audit in §5 surfaced this). It is now one shared
+read-once gate (`scan::AuthoredScope` over a `SourceSnapshot`). A 200-commit
+old-vs-new comparison shows the refactor is near-behaviour-preserving — 197/200
+commits identical on copy-paste, 200/200 on complexity and every graph category.
+The only change: copy-paste *recall rises* on self-licensed projects (see §5), so
+the numbers below stand, with the copy-paste rate now understood as a **floor**.
+
 ---
 
 ## 2. Population baseline — the per-commit drift census
@@ -244,24 +253,32 @@ per-output-variable triads (SOILWAT2). The 2 FPs are **artifacts**: a generated 
 amalgamation (`epiworld.hpp`) matched against its own source; and a staged code **move**
 (`*__moved` corpses) counted as new duplication.
 
-### New / under-reported FP & artifact classes
+### New / under-reported FP & artifact classes (and what #129 fixed)
 
-| class | hits the category | fix |
+| class | category | status after #129 |
 |---|---|---|
-| **vendored third-party** (`third_party/`, single-header libs) | complexity, clone | path filter |
-| **generated / amalgamated** (SWIG `*_wrap.cpp`, `*.pb.h`, amalgamations) | clone, complexity | path/marker filter |
-| **sub-bulk generated/vendored dumps** (1k–10k added lines, *under* the bulk cut) | clone, complexity | see below |
-| **staged code-moves** (`*__moved`, migrations) | clone | compare against deletions |
-| **compile-time variants** (`#ifdef`, `if constexpr`) | clone | accept as idiom |
-| **token-scanner over-count** (`#if` guards, `?:` chains, `[[attr]]` syntax) | complexity | parse-aware CCN |
+| **generated** (SWIG `*_wrap.cpp`, `*.pb.h`, moc/ui/qrc, lex/yacc) | clone, complexity, graph | **fixed** — `scan::isGeneratedPath`, one shared definition |
+| **vendored third-party** (`third_party/`/`vendor/` dirs, single-header libs) | clone, complexity, graph | **fixed** for dir/basename via the unified gate; a foreign-licensed file inside a self-licensed repo (rmm `rapidcsv.h`) still flags → needs copyright-mismatch (#127) |
+| **clone over-exclusion on self-licensed repos** | clone | **fixed** — dominant-banner guard (see below); was a silent recall hole |
+| **sub-bulk generated/vendored dumps** (1k–10k lines, under the bulk cut) | clone, complexity | partly — now path/marker-filtered by #129; residual is foreign-licensed files (#127) |
+| **staged code-moves** (`*__moved`, migrations) | clone | open — compare against deletions |
+| **compile-time variants** (`#ifdef`, `if constexpr`) | clone | by-design idiom (won't-fix) |
+| **token-scanner over-count** (`#if`/`?:`/`[[attr]]`) | complexity | open — needs parse-aware CCN |
 
-The **sub-bulk** hole matters most for the two "high-precision" categories: in the 1k–10k
-added-line band (just under the bulk-skip threshold) clone fires at **40–47 %** and
-complexity at **~50 %** (vs 8.4 % / 17.1 % population), and that band supplies **16.6 %** of
-all clone fires and **10.0 %** of all complexity fires. Much of it is generated/vendored
-dumps. The small-commit precision above does **not** extend to this band; a vendor/generated
-path filter (or a lower bulk threshold) is needed before calling these categories clean at
-large commit sizes.
+The **sub-bulk** hole: in the 1k–10k added-line band (just under the bulk-skip threshold)
+clone fired at **40–47 %** and complexity at **~50 %** (vs 8.4 % / 17.1 % population) in the
+pre-#129 run, supplying **16.6 %** of all clone and **10.0 %** of all complexity fires — much
+of it generated/vendored dumps. #129 now path/marker-filters generated and vendored code at
+the source, removing most of that noise; the residual is foreign-licensed single files (#127).
+
+**A recall hole the refactor exposed.** Before #129 the clone detector's license-banner
+filter was *unguarded*: any project that puts a full license banner in every file — routine
+for Apache/MIT/BSD codebases — had **all** its files excluded and reported **zero** clones.
+So the pre-#129 copy-paste rate (8.4 %) *under-counts* — self-licensed repos contributed
+nothing. The #129 dominant-banner guard (if >50 % of files carry a banner it is the project's
+own license, not a vendor signal) closes this: gvsoc-core, for instance, went 0 → 43 real
+authored clones in its trace subsystem. **8.4 % is therefore a floor**; the true population
+copy-paste rate is modestly higher, concentrated in self-licensed projects.
 
 ### Does this bias the agent-vs-human result?
 
@@ -299,9 +316,12 @@ it.
 
 - Run `archcheck --diff` **per PR in CI**. It is author-agnostic by construction — the right
   control precisely *because* the AI difference is volume.
-- **Filter first.** Exclude vendored/generated paths (`third_party/`, `vendor/`, `*.pb.h`,
-  `*_wrap.cpp`, single-file amalgamations) and treat sub-bulk (1k–10k-line) commits like
-  bulk; without this the clone/complexity precision claimed for small commits does not hold.
+- **Vendored/generated filtering is now built in** (#129): one shared `AuthoredScope` gate
+  excludes `third_party/`/`vendor/` dirs, single-header libs, generated files (`*.pb.h`,
+  `*_wrap.cpp`, moc/ui/qrc, lex/yacc), and license-banner files (dominant-banner-guarded so
+  self-licensed projects are not over-excluded). Still recommended: treat sub-bulk
+  (1k–10k-line) commits like bulk, and expect a foreign-licensed single file to slip through
+  until copyright-mismatch (#127) lands.
 - **Gate** on the precise signals: **copy-paste** (post-filter) and **genuinely-new
   dependency cycles** (exempt the `.h` ↔ `.tmpl.h` template-split idiom).
 - **Advisory only:** complexity (mostly inherent — a heads-up, not a blocker), god-header
