@@ -77,10 +77,24 @@ shipped-бинаря, ни одна проверка не переписана. 
 blacklist). Bottleneck = спавн процессов (CPU простаивает), не CPU/RAM. ETA полного
 прохода ~1.5–2.5 дня, resumable. Числа Part B в `experiments/FINDINGS.md`.
 
+## Свежий прогон на текущем бинаре (2026-06-20)
+
+Прошлый full-прогон (`worklist_light`, 520177 коммитов) завершён 18.06, но на
+**старом бинаре** — до полного приземления #127/#129 (vendored/generated exclusion
+меняет набор сканируемых файлов → new-clone и graph fire-rate сдвигаются) и до
+пересборки. Старые результаты сохранены: `results_full.oldbin_20260618.jsonl`.
+
+**Перезапущен начисто на HEAD `4ec4445`** (debug-бинарь, runner default):
+`launch_full.sh 8 60`, worklist_light (520177), detached/resumable, baloo suspended.
+Старт здоров: done растёт, все категории fire (`new_clone`/`graph_edges`/`complexity`/
+`bulk_skip`), parentless-guard 1307 skip. ETA @8w ~5.5–6.5 дн (cheapest-first →
+1000-floor рано). Мониторинг: `status.sh`; стоп: `os.killpg` PID из `run_full.pid`.
+Heavy-корпус (`worklist_heavy.tsv`, 226060) — отдельно после light.
+
 ## Следующие шаги
 
 - [ ] Дождаться покрытия корпуса, написать Part B summary (corpus-wide fire rates
-      по категориям, доля slow-repo-skip, топ-находки).
+      по категориям, доля slow-repo-skip, топ-находки) — НА ТЕКУЩЕМ бинаре.
 - [x] продукт: bulk-import-skip маркер в diff-JSON (`complexity_skipped_added_lines`)
       — сделано этой сессией (DiffJsonContext → diff_json_report.cpp, 2 e2e-теста,
       528/528 зелёные, dogfood 0). Закрыт пункт в `backlog/DEBT.md`.
