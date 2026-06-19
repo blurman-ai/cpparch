@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "archcheck/git/git_exec.h"
+#include "archcheck/git/git_hardening.h"
 #include "archcheck/scan/file_classification.h"
 
 namespace archcheck::git
@@ -63,19 +64,17 @@ namespace
   ::dup2(childStdout, STDOUT_FILENO);
   if (!cwd.empty() && ::chdir(cwd.c_str()) != 0)
     _exit(127);
-  // S6: disable system config, hooks, fsmonitor, and pager.
+  // S6: disable system config, hooks, fsmonitor, and pager (shared policy).
   ::setenv("GIT_CONFIG_NOSYSTEM", "1", 1);
-  char *const argv[] = {const_cast<char *>("git"),
-                        const_cast<char *>("-c"),
-                        const_cast<char *>("core.hooksPath=/dev/null"),
-                        const_cast<char *>("-c"),
-                        const_cast<char *>("core.fsmonitor="),
-                        const_cast<char *>("-c"),
-                        const_cast<char *>("core.pager=cat"),
-                        const_cast<char *>("cat-file"),
-                        const_cast<char *>("--batch"),
-                        nullptr};
-  ::execvp("git", argv);
+  std::vector<char *> argv;
+  argv.reserve(kGitHardeningCount + 4);
+  argv.push_back(const_cast<char *>("git"));
+  for (int i = 0; i < kGitHardeningCount; ++i)
+    argv.push_back(const_cast<char *>(kGitHardeningArgs[i]));
+  argv.push_back(const_cast<char *>("cat-file"));
+  argv.push_back(const_cast<char *>("--batch"));
+  argv.push_back(nullptr);
+  ::execvp("git", argv.data());
   _exit(127);
 }
 // LCOV_EXCL_STOP

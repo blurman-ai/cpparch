@@ -9,21 +9,13 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "archcheck/git/git_hardening.h"
+
 namespace archcheck::git
 {
 
 namespace
 {
-
-// S6: hardening flags prepended before every git subcommand.
-// Prevents the untrusted repo's .git/config from executing arbitrary commands
-// via core.fsmonitor, core.pager, and post-checkout hooks.
-// Note: diff.external is NOT suppressed here because an empty value causes
-// git diff to fail (git 2.30); instead callers pass --no-ext-diff when needed.
-static const char *const kHardeningFlags[] = {
-    "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=", "-c", "core.pager=cat",
-};
-static constexpr int kHardeningCount = 6; // sizeof kHardeningFlags / sizeof *kHardeningFlags
 
 // LCOV_EXCL_START — child-process code; runs after fork(), not visible to gcov in parent
 [[noreturn]] void execChild(const std::vector<std::string> &args, const std::filesystem::path &cwd, int outFd,
@@ -39,11 +31,11 @@ static constexpr int kHardeningCount = 6; // sizeof kHardeningFlags / sizeof *kH
   setenv("GIT_CONFIG_NOSYSTEM", "1", 1);
 
   std::vector<char *> argv;
-  argv.reserve(args.size() + kHardeningCount + 2);
+  argv.reserve(args.size() + kGitHardeningCount + 2);
   argv.push_back(const_cast<char *>("git"));
-  for (int i = 0; i < kHardeningCount; ++i)
+  for (int i = 0; i < kGitHardeningCount; ++i)
   {
-    argv.push_back(const_cast<char *>(kHardeningFlags[i]));
+    argv.push_back(const_cast<char *>(kGitHardeningArgs[i]));
   }
   for (const auto &a : args)
   {
