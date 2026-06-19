@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -72,22 +74,32 @@ public:
 
   // The classified file at one path, or nullptr if absent. For diff-scoped rules
   // (complexity) that look up specific changed files and need both content and the
-  // whole-tree `authored` verdict.
+  // whole-tree `authored` verdict. O(1) via index_ — the diff path does one lookup
+  // per changed file.
   const SnapshotFile *findFile(std::string_view path) const
   {
-    for (const auto &sf : files_)
-    {
-      if (sf.path == path)
-      {
-        return &sf;
-      }
-    }
-    return nullptr;
+    const auto it = index_.find(path);
+    return it == index_.end() ? nullptr : &files_[it->second];
   }
 
+  // index_ aliases files_[i].path buffers, so the snapshot is non-copyable (a copy
+  // would reallocate the paths and dangle the views). Moves are safe: the vector's
+  // heap-stored elements keep their addresses, so the views stay valid.
+  SourceSnapshot(const SourceSnapshot &) = delete;
+  SourceSnapshot &operator=(const SourceSnapshot &) = delete;
+  SourceSnapshot(SourceSnapshot &&) = default;
+  SourceSnapshot &operator=(SourceSnapshot &&) = default;
+
 private:
-  explicit SourceSnapshot(std::vector<SnapshotFile> files) : files_(std::move(files)) {}
+  explicit SourceSnapshot(std::vector<SnapshotFile> files) : files_(std::move(files))
+  {
+    index_.reserve(files_.size());
+    for (std::size_t i = 0; i < files_.size(); ++i)
+      index_.emplace(files_[i].path, i); // emplace keeps the first entry on a dup path
+  }
+
   std::vector<SnapshotFile> files_;
+  std::unordered_map<std::string_view, std::size_t> index_;
 };
 
 } // namespace archcheck::scan
