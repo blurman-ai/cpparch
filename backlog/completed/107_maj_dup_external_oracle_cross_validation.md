@@ -258,7 +258,8 @@ recall-баг) через extractability-тест #071. Прогоны before/af
 - **P0.6 line-floor против тяжёлых Type-2 оставлен как есть** — осознанный tradeoff,
   решение об ослаблении (lcs==1 → пропуск) вынесено в #070/#059.
 - **Количественная часть (NiCad/TXL, Bellon) отложена** решением пользователя
-  2026-06-11 → `backlog/future/f_maj_oracle_quantitative_validation.md`.
+  2026-06-11 → #132 (`backlog/new/132_maj_oracle_quantitative_validation.md`;
+  расконсервирована из future 2026-06-19).
 
 ## Изменённые файлы
 
