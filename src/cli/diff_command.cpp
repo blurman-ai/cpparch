@@ -58,28 +58,10 @@ bool tryFastPathNoCppChanges(const std::filesystem::path &repoRoot, const archch
   return true;
 }
 
-// Materialise one side of the revspec as a FileSource. For WORKTREE always
-// use the on-disk source. For real refs: in Memory mode read blobs directly;
-// in Disk mode go through `git worktree add` via materializeRef.
-archcheck::graph::GraphBuildResult buildSideMemory(const std::filesystem::path &repoRoot, const std::string &ref,
-                                                   bool &ok)
-{
-  if (ref == archcheck::git::kWorktreeRef)
-  {
-    archcheck::scan::DiskFileSource src(repoRoot);
-    ok = true;
-    return archcheck::graph::buildGraphForSource(src);
-  }
-  archcheck::git::GitObjectFileSource src(repoRoot, ref);
-  if (!src.valid())
-  {
-    ok = false;
-    return {};
-  }
-  ok = true;
-  return archcheck::graph::buildGraphForSource(src);
-}
-
+// Materialise one side of the revspec from a worktree (Disk mode): `git worktree add`
+// via materializeOrReport, then build the graph from the on-disk tree. ok=false on a
+// ref-materialisation failure. (Memory mode reuses the advisory snapshots instead — see
+// buildDiffGraph — so it has no buildSide* path.)
 archcheck::graph::GraphBuildResult buildSideDisk(const std::filesystem::path &repoRoot, const std::string &ref,
                                                  const char *role, bool &ok)
 {
@@ -164,6 +146,11 @@ struct DiffAdvisories
   archcheck::scan::ComplexityDriftResult complexity;
   archcheck::scan::NewCloneDriftResult newClones;
   std::size_t complexitySkippedAddedLines = 0; // >0: bulk import, advisory skipped (#117)
+  // #129 read-once: the per-ref snapshots built here are kept so the graph build
+  // reuses them in memory mode instead of re-reading both trees. Empty on a bulk
+  // skip or an unresolvable ref (the graph then sees no snapshot ⇒ exit 2).
+  std::optional<archcheck::scan::SourceSnapshot> baseSnapshot;
+  std::optional<archcheck::scan::SourceSnapshot> currentSnapshot;
 };
 
 DiffAdvisories collectDiffAdvisories(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed,
@@ -182,14 +169,17 @@ DiffAdvisories collectDiffAdvisories(const std::filesystem::path &repoRoot, cons
     result.complexitySkippedAddedLines = totalAdded;
     return result;
   }
-  // #129 read-once: one snapshot per ref, read+classified here and shared by both
-  // the complexity and the clone advisory (each used to read the trees itself).
-  const auto baseSnap = readRefSnapshotMemory(repoRoot, parsed.baseline);
-  const auto curSnap = readRefSnapshotMemory(repoRoot, parsed.current);
+  // #129 read-once: one snapshot per ref, read+classified here and shared by the
+  // complexity advisory, the clone advisory AND (kept on the result) the graph
+  // build — each of which used to read the trees itself.
+  auto baseSnap = readRefSnapshotMemory(repoRoot, parsed.baseline);
+  auto curSnap = readRefSnapshotMemory(repoRoot, parsed.current);
   if (!baseSnap || !curSnap)
     return result;
   result.complexity = collectComplexityDrift(repoRoot, parsed, *baseSnap, *curSnap);
   result.newClones = collectNewClones(*curSnap, *baseSnap, addedLines);
+  result.baseSnapshot = std::move(baseSnap);
+  result.currentSnapshot = std::move(curSnap);
   return result;
 }
 
@@ -292,16 +282,29 @@ struct DiffGraph
   bool ok = true;
 };
 
+// Memory mode reuses the advisory snapshots (#129 read-once: both trees were already
+// read+classified in collectDiffAdvisories), so the refs are not read a second time. A
+// null snapshot means an unresolvable ref (advisories returned early) ⇒ ok=false ⇒ exit 2.
+// Disk mode builds from worktrees — a different backend that cannot share memory snapshots.
 DiffGraph buildDiffGraph(const std::filesystem::path &repoRoot, const archcheck::git::Revspec &parsed, DiffMode mode,
-                         const archcheck::diff::MetricThresholds &metric)
+                         const archcheck::diff::MetricThresholds &metric, const DiffAdvisories &advisories)
 {
-  bool okBase = false, okCurr = false;
-  const auto baseline = (mode == DiffMode::Memory) ? buildSideMemory(repoRoot, parsed.baseline, okBase)
-                                                   : buildSideDisk(repoRoot, parsed.baseline, "baseline", okBase);
-  const auto current = (mode == DiffMode::Memory) ? buildSideMemory(repoRoot, parsed.current, okCurr)
-                                                  : buildSideDisk(repoRoot, parsed.current, "current", okCurr);
-  if (!okBase || !okCurr)
-    return {{}, 0, 0, false};
+  archcheck::graph::GraphBuildResult baseline, current;
+  if (mode == DiffMode::Memory)
+  {
+    if (!advisories.baseSnapshot || !advisories.currentSnapshot)
+      return {{}, 0, 0, false};
+    baseline = archcheck::graph::buildGraphForSnapshot(*advisories.baseSnapshot);
+    current = archcheck::graph::buildGraphForSnapshot(*advisories.currentSnapshot);
+  }
+  else
+  {
+    bool okBase = false, okCurr = false;
+    baseline = buildSideDisk(repoRoot, parsed.baseline, "baseline", okBase);
+    current = buildSideDisk(repoRoot, parsed.current, "current", okCurr);
+    if (!okBase || !okCurr)
+      return {{}, 0, 0, false};
+  }
   return {archcheck::diff::buildRegressionReport(baseline.graph, current.graph, metric), baseline.graph.nodeCount(),
           current.graph.nodeCount(), true};
 }
@@ -340,7 +343,7 @@ int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git:
   DiffGraph graph; // bulk ⇒ stays empty (no gating, no drift)
   if (!bulk)
   {
-    graph = buildDiffGraph(repoRoot, parsed, mode, thresholds->metric);
+    graph = buildDiffGraph(repoRoot, parsed, mode, thresholds->metric, advisories);
     if (!graph.ok)
       return 2;
   }
