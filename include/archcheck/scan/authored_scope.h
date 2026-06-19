@@ -21,10 +21,11 @@
 // predicates. The license-banner layer needs a whole-file-set view: if >50% of
 // the candidate files carry a full license banner it is the PROJECT's own
 // license, not a vendor signal, so the banner layer is disabled (#109/#113
-// foundationdb guard). `fromFiles` captures that ratio once; `changedFilesMode`
-// (diff / changed-files, where the full set is not in hand) makes the banner
-// term a no-op, preserving complexity's historical #109-safe behavior until it
-// is handed the whole tree (#129 step 6).
+// foundationdb guard). `fromFiles` captures that ratio once. Since #129 every
+// production consumer (graph, clone, complexity) reads the whole tree via
+// SourceSnapshot and therefore uses `fromFiles`; `changedFilesMode` (banner term
+// a no-op, for callers without the full set in hand) now survives only for the
+// characterization tests and any future changed-files-only caller.
 namespace archcheck::scan
 {
 
@@ -61,9 +62,10 @@ public:
     return AuthoredScope{/*bannerIsProjectOwn=*/dominant};
   }
 
-  // Diff / changed-files mode: the full set is not available, so the banner term
-  // is a no-op (cannot compute the dominant ratio). Matches complexity's #109-safe
-  // behavior until step 6 gives it the whole tree.
+  // Changed-files mode: the full file set is not available, so the banner term is
+  // a no-op (cannot compute the dominant ratio). No production caller since #129
+  // (all read the whole tree via SourceSnapshot ⇒ fromFiles); kept for the
+  // characterization tests and any future changed-files-only consumer.
   static AuthoredScope changedFilesMode() { return AuthoredScope{/*bannerIsProjectOwn=*/true}; }
 
   // True => vendored / test / generated / non-dominant-banner => exclude from

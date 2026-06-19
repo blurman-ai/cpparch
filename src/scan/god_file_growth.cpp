@@ -32,7 +32,8 @@ std::int32_t GodFileGrowthDetector::calculateP75() const
   std::vector<std::int32_t> productionLocs;
   for (const auto &[path, loc] : currentLocMap_)
   {
-    // Exclude vendor, test, and generated code
+    // Exclude vendored-directory and test files from the p75 baseline. (Generated
+    // files and curated vendored basenames are NOT excluded here yet — see #127.)
     if (pathHasVendoredDir(path) || pathHasTestDir(path) || isTestBasename(baseName(path)))
     {
       continue;
@@ -166,7 +167,7 @@ archcheck::rules::ViolationList GodFileGrowthDetector::detect() const
 
   for (const auto &[path, currentLoc] : currentLocMap_)
   {
-    // Skip if this file is vendor/test/generated
+    // Skip vendored-directory and test files (same gate as the p75 baseline above).
     if (pathHasVendoredDir(path) || pathHasTestDir(path) || isTestBasename(baseName(path)))
     {
       continue;
