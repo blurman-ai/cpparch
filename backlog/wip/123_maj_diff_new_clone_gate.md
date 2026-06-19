@@ -9,6 +9,7 @@
 **Блокирует:** —
 **Заблокирован:** —
 **Related:** #103 (copypaste_per_commit_drift — research-прекурсор, валидирует пороги), #117/#118 (diff_max_added_lines), #075 (trusted_diff_workflow), #052/#056 (token clone detector)
+**Верификация:** #131 (Группа 2: ступени 1+2 — precision/recall на выборке)
 
 > **MVP:** втянута в v0.1 — release-блокер (решение 2026-06-13, [MVP.md](../../docs/MVP.md) §What-v0.1-is #6, §Acceptance #10). Причина: без этого публикуем archcheck с отвалидированным детектором в сундуке, показывая только граф. Advisory-first; gate (exit 1) остаётся v0.2.
 

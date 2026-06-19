@@ -17,7 +17,8 @@ snapshot), `9cc349b` (check-mode читает дерево через SourceSnap
 `docs/research/agent_drift_within_repo.md` (числа сдвинулись от шагов 3–5: clone
 recall ↑, graph −generated). Файл лежал в `new/` ошибочно — перенесён в `wip/`.
 Perf-нит из ревью этой задачи вынесен в #130 (findFile-индекс там уже сделан).
-**Заблокирован:** —
+**Заблокирован (закрытие):** #131 — шаг 7 (финальный corpus golden) выполняется там.
+**Верификация:** #131 (Группа 1: clone recall ↑, graph −generated, complexity rmm fixed, foundationdb 0)
 **Related:** #127 (точность vendored/generated-предиката — вставляется сюда), #068 (graph vendor exclude), #069 (vendored file exclude), #081 (over-exclusion), #113 (apache-banner dominant-guard — переиспользовать), #124 (корпус-прогон, вскрывший расхождение)
 
 ## Цель
