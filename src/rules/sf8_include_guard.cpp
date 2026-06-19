@@ -14,8 +14,10 @@ namespace archcheck::rules
 namespace
 {
 
-// Scan first kScanLines non-empty lines for #pragma once or #ifndef guard.
-// 60 covers Apache 2.0 copyright blocks (~47 lines) common in OSS headers.
+// Scan the first kScanLines lines of *code* for a #pragma once or #ifndef
+// guard. Comment and blank lines are stripped first (stripComment), so a long
+// license/doc banner never consumes the budget — some headers carry a 100+ line
+// banner above the guard (#128, nanovdb). 60 code lines is ample headroom.
 constexpr int kScanLines = 60;
 
 bool hasPragmaOnce(std::string_view line)
@@ -41,21 +43,58 @@ std::string_view directiveArg(std::string_view line, std::string_view directive)
   return line.substr(b, e - b);
 }
 
-// Objective-C files use #import and @interface — not C++ headers, skip SF.8.
-bool isObjcFile(const std::string &source)
+// Returns `line` with comment content removed, tracking /* */ state across
+// lines via `inBlock`. Collapsing comments to blanks keeps a long license
+// banner from consuming the guard-scan budget (#128). Guard regions hold no
+// string literals, so string-awareness is unnecessary here.
+std::string stripComment(std::string_view line, bool &inBlock)
 {
-  std::size_t start = 0;
+  std::string code;
+  std::size_t i = 0;
+  while (i < line.size())
+  {
+    if (inBlock)
+    {
+      const auto close = line.find("*/", i);
+      if (close == std::string_view::npos)
+        return code;
+      i = close + 2;
+      inBlock = false;
+    }
+    else if (line.compare(i, 2, "//") == 0)
+      break;
+    else if (line.compare(i, 2, "/*") == 0)
+    {
+      inBlock = true;
+      i += 2;
+    }
+    else
+      code.push_back(line[i++]);
+  }
+  return code;
+}
+
+bool isBlank(std::string_view s)
+{
+  return std::all_of(s.begin(), s.end(), [](char c) { return std::isspace(static_cast<unsigned char>(c)) != 0; });
+}
+
+// Visits up to kScanLines comment-stripped, non-blank lines from the top of
+// `source`, calling `accept` on each; returns true as soon as `accept` does.
+template <typename Accept> bool scanLeadingCode(const std::string &source, Accept accept)
+{
+  bool inBlock = false;
   int seen = 0;
+  std::size_t start = 0;
   while (start <= source.size() && seen < kScanLines)
   {
     const auto end = source.find('\n', start);
     const auto len = (end == std::string::npos) ? source.size() - start : end - start;
-    const auto line = std::string_view(source).substr(start, len);
-    if (!line.empty())
+    const auto code = stripComment(std::string_view(source).substr(start, len), inBlock);
+    if (!isBlank(code))
     {
       ++seen;
-      if (line.find("@interface") != std::string_view::npos || line.find("@implementation") != std::string_view::npos ||
-          line.find("#import") != std::string_view::npos)
+      if (accept(std::string_view(code)))
         return true;
     }
     if (end == std::string::npos)
@@ -65,18 +104,31 @@ bool isObjcFile(const std::string &source)
   return false;
 }
 
+// Objective-C files use #import and @interface — not C++ headers, skip SF.8.
+bool isObjcFile(const std::string &source)
+{
+  return scanLeadingCode(source,
+                         [](std::string_view line)
+                         {
+                           return line.find("@interface") != std::string_view::npos ||
+                                  line.find("@implementation") != std::string_view::npos ||
+                                  line.find("#import") != std::string_view::npos;
+                         });
+}
+
 // .inc files are platform-specific fragments included exactly once via #if.
 // An include guard would contradict their purpose; skip SF.8 for them.
 bool isIncFile(std::string_view path) { return std::filesystem::path(path).extension() == ".inc"; }
 
 // Records an `#ifndef NAME` into `pending`; true when `line` is a `#define`
 // matching a pending name — i.e. the pair completes a real include guard.
-bool closesGuardPair(std::string_view line, std::vector<std::string_view> &pending)
+// Names are owned (std::string): the scanned line is a transient buffer.
+bool closesGuardPair(std::string_view line, std::vector<std::string> &pending)
 {
   const auto name = directiveArg(line, "#ifndef");
   if (!name.empty())
   {
-    pending.push_back(name);
+    pending.emplace_back(name);
     return false;
   }
   const auto defined = directiveArg(line, "#define");
@@ -88,25 +140,9 @@ bool closesGuardPair(std::string_view line, std::vector<std::string_view> &pendi
 // semantics and must not satisfy SF.8.
 bool hasIncludeGuard(const std::string &source)
 {
-  std::vector<std::string_view> pending; // #ifndef names awaiting their #define
-  int seen = 0;
-  std::size_t start = 0;
-  while (start <= source.size() && seen < kScanLines)
-  {
-    const auto end = source.find('\n', start);
-    const auto len = (end == std::string::npos) ? source.size() - start : end - start;
-    const auto line = std::string_view(source).substr(start, len);
-    if (!line.empty())
-    {
-      ++seen;
-      if (hasPragmaOnce(line) || closesGuardPair(line, pending))
-        return true;
-    }
-    if (end == std::string::npos)
-      break;
-    start = end + 1;
-  }
-  return false;
+  std::vector<std::string> pending; // #ifndef names awaiting their #define
+  return scanLeadingCode(source,
+                         [&](std::string_view line) { return hasPragmaOnce(line) || closesGuardPair(line, pending); });
 }
 
 } // namespace

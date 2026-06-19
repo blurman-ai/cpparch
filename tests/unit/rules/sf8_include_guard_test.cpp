@@ -106,6 +106,50 @@ TEST_CASE("SF.8: long copyright block + ifndef guard → no violation", "[rules]
   REQUIRE(rule.check(g, makeReadFile(src)).empty());
 }
 
+TEST_CASE("SF.8: #ifndef guard below a 100-line block-comment banner → no violation", "[rules][sf8]")
+{
+  DependencyGraph g;
+  g.addNode("nano.h");
+
+  // nanovdb ships a ~125-line license/doc banner before the guard; stripped
+  // comment lines must not exhaust the code-line budget (#128).
+  std::string src = "/*\n";
+  for (int i = 0; i < 100; ++i)
+    src += " * license / doc line\n";
+  src += " */\n#ifndef NANO_H\n#define NANO_H\nclass Foo {};\n#endif\n";
+
+  Sf8IncludeGuard rule;
+  REQUIRE(rule.check(g, makeReadFile(src)).empty());
+}
+
+TEST_CASE("SF.8: #pragma once below a 100-line line-comment banner → no violation", "[rules][sf8]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  std::string src;
+  for (int i = 0; i < 100; ++i)
+    src += "// license line\n";
+  src += "#pragma once\nclass Foo {};\n";
+
+  Sf8IncludeGuard rule;
+  REQUIRE(rule.check(g, makeReadFile(src)).empty());
+}
+
+TEST_CASE("SF.8: long banner with no guard is still flagged", "[rules][sf8]")
+{
+  DependencyGraph g;
+  g.addNode("a.h");
+
+  std::string src = "/*\n";
+  for (int i = 0; i < 100; ++i)
+    src += " * banner\n";
+  src += " */\nclass Foo {};\n";
+
+  Sf8IncludeGuard rule;
+  REQUIRE(rule.check(g, makeReadFile(src)).size() == 1);
+}
+
 TEST_CASE("SF.8: .inc fragment is not checked", "[rules][sf8]")
 {
   DependencyGraph g;
