@@ -14,11 +14,19 @@ namespace
 namespace fs = std::filesystem;
 using namespace archcheck::testsupport;
 
-// Project with one SF.7 violation (using namespace in a header).
+// Project with one SF.7 violation (using namespace in a header) — advisory in
+// check mode since #133 (does not gate).
 void writeDirtyProject(const fs::path &dir)
 {
   writeFile(dir / "a.h", "#pragma once\nusing namespace std;\n");
   writeFile(dir / "b.h", "#pragma once\n");
+}
+
+// Project with a dependency cycle (SF.9) — the one gating signal in check mode.
+void writeCyclicProject(const fs::path &dir)
+{
+  writeFile(dir / "a.h", "#pragma once\n#include \"b.h\"\n");
+  writeFile(dir / "b.h", "#pragma once\n#include \"a.h\"\n");
 }
 
 } // namespace
@@ -48,13 +56,21 @@ TEST_CASE("e2e cli: unknown argument exits 2 with usage", "[cli][e2e]")
   REQUIRE(r.output.find("unknown argument") != std::string::npos);
 }
 
-TEST_CASE("e2e cli: zero-config check — violation exits 1, clean exits 0", "[cli][e2e]")
+TEST_CASE("e2e cli: zero-config check — cycle gates (exit 1), advisory exits 0", "[cli][e2e]")
 {
+  // A dependency cycle (SF.9) is the one gating signal in check mode (#133).
+  TempDir cyclic;
+  writeCyclicProject(cyclic.path);
+  const auto bad = runArchcheck(cyclic.path, "");
+  REQUIRE(bad.exitCode == 1);
+  REQUIRE(bad.output.find("[SF.9]") != std::string::npos);
+
+  // A non-cycle finding (SF.7) is reported but advisory — exit 0 (#133).
   TempDir dirty;
   writeDirtyProject(dirty.path);
-  const auto bad = runArchcheck(dirty.path, "");
-  REQUIRE(bad.exitCode == 1);
-  REQUIRE(bad.output.find("[SF.7]") != std::string::npos);
+  const auto adv = runArchcheck(dirty.path, "");
+  REQUIRE(adv.exitCode == 0);
+  REQUIRE(adv.output.find("[SF.7]") != std::string::npos);
 
   TempDir clean;
   writeFile(clean.path / "b.h", "#pragma once\n");
@@ -67,7 +83,7 @@ TEST_CASE("e2e cli: --format json check emits violations schema", "[cli][e2e][js
   TempDir dir;
   writeDirtyProject(dir.path);
   const auto r = runArchcheck(dir.path, "--format json .");
-  REQUIRE(r.exitCode == 1);
+  REQUIRE(r.exitCode == 0); // SF.7 is advisory in check mode (#133)
   REQUIRE(r.output.find("\"violations\"") != std::string::npos);
   REQUIRE(r.output.find("\"rule\": \"SF.7\"") != std::string::npos);
 

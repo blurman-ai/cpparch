@@ -87,6 +87,25 @@ int reportDriftGate(const archcheck::rules::ViolationList &all, OutputFormat fmt
   return gating > 0 ? 1 : 0;
 }
 
+// Plain check mode gates (exit 1) only on the architectural regression the tool is
+// most precise on: a dependency cycle (SF.9). Physical-design proxies
+// (Lakos.ChainLength deep include chains, Lakos.GodHeader fan-in) and per-file
+// hygiene (SF.7/SF.8) are reported but advisory — they flood header-heavy libraries
+// on a naive first run (abseil: 211 chain-length, exit 1) and existing debt belongs
+// behind --baseline, not a hard exit. Mirrors the --diff/drift gating model
+// (gate = cycles; everything else is an advisory nudge). #133.
+int reportCheckGate(const archcheck::rules::ViolationList &all, OutputFormat fmt)
+{
+  const auto gating = std::count_if(all.begin(), all.end(), [](const auto &v) { return v.ruleId == "SF.9"; });
+  const auto advisory = all.size() - static_cast<std::size_t>(gating);
+  if (fmt == OutputFormat::Text && advisory > 0)
+    std::cout << "note: " << advisory
+              << " advisory finding(s) reported, not gated (chain-length / god-header / SF.7-8 are"
+                 " physical-design advisories); the gate fails only on dependency cycles (SF.9)."
+                 " Use --baseline to track existing debt.\n";
+  return gating > 0 ? 1 : 0;
+}
+
 int applyBaselineAndReport(archcheck::rules::ViolationList all, OutputFormat fmt, const BaselineOpts &baseline)
 {
   if (baseline.mode == BaselineMode::Save)
@@ -112,7 +131,7 @@ int applyBaselineAndReport(archcheck::rules::ViolationList all, OutputFormat fmt
   if (baseline.driftFile)
     return reportDriftGate(all, fmt);
 
-  return all.empty() ? 0 : 1;
+  return reportCheckGate(all, fmt);
 }
 
 int applyDriftFile(const std::filesystem::path &driftFile, std::vector<std::unique_ptr<archcheck::rules::IRule>> &rules)
