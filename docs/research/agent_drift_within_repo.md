@@ -49,14 +49,16 @@ only. Bulk is just 0.4 % of commits here, so it barely moves anything. (But see 
 - *parentless / shallow-boundary commits* fake "whole tree added" — excluded at source.
 - *bulk imports* no longer gate the graph (only slow incremental drift should).
 
-**Post-run classification refactor (#129, commit ec5988b).** The run above used a
-binary whose vendor/test/generated/banner filter was open-coded per rule with
-divergent formulas (the FP audit in §5 surfaced this). It is now one shared
-read-once gate (`scan::AuthoredScope` over a `SourceSnapshot`). A 200-commit
-old-vs-new comparison shows the refactor is near-behaviour-preserving — 197/200
-commits identical on copy-paste, 200/200 on complexity and every graph category.
-The only change: copy-paste *recall rises* on self-licensed projects (see §5), so
-the numbers below stand, with the copy-paste rate now understood as a **floor**.
+**Post-run classification refactor (#129, commits ec5988b…b01707a).** The run above
+used a binary whose vendor/test/generated/banner filter was open-coded per rule with
+divergent formulas (the FP audit in §5 surfaced this). It is now one shared gate
+(`scan::AuthoredScope`) over a `SourceSnapshot` that reads+classifies each ref's tree
+exactly once. We then **re-ran the corrected binary over the full agent+human corpus**
+(128 393 commits — the 226 repos carrying ≥20 of each class) and compared old-vs-new on
+the *same* commits with the *same* method: the agent-vs-human conclusion is unchanged in
+6 of 7 categories, and the one that moved moved in agents' favor (§5). The numbers below
+are the original-run numbers; the only material shift is copy-paste *recall rising* on
+self-licensed projects, so the copy-paste rate is a **floor**.
 
 ---
 
@@ -280,16 +282,34 @@ own license, not a vendor signal) closes this: gvsoc-core, for instance, went 0 
 authored clones in its trace subsystem. **8.4 % is therefore a floor**; the true population
 copy-paste rate is modestly higher, concentrated in self-licensed projects.
 
-### Does this bias the agent-vs-human result?
+### Does this bias the agent-vs-human result? (the corrected-scanner re-run)
 
-The within-repo + size-band design controls repo-level and size-level FP propensity, so
-most of these classes (vendored, generated, parsers, version-boilerplate) hit agent and
-human commits **within a repo** alike and add noise, not a spurious difference. We do **not
-have direct evidence** that FP classes are symmetric across author classes, however — e.g.
-if agents skew toward chores/refactors, `test_coevo` (whose FP class *is* refactors/chores)
-could be differentially inflated. That assumption is untested and is the main caveat on the
-test-coevolution "agents cleaner" result; the SATD and copy-paste results do not depend on
-it.
+We tested this directly instead of assuming it. The #129 binary was re-run over the full
+agent+human corpus — **128 393 commits across the 226 repos with ≥20 of each class** — and
+compared to the old scanner on the *same* commits, with the *same* within-repo size-matched
+sign test (§3). The method was first validated by reproducing §3's table on the old data
+exactly (complexity p = 0.44, SATD p = 1.6·10⁻¹⁰, … to the digit).
+
+- **The scanner change is small and not class-biased.** It altered the count on ~1.5 % of
+  commits: copy-paste **+1 424** (the recall fix — banners no longer hide self-licensed
+  clones), complexity **−201** and include-edges **−55** (generated/vendored now excluded at
+  source). The complexity/edge fixes hit agent and human commits about equally (0.26 % vs
+  0.20 % of each class). The copy-paste recall fix surfaced **more *human* clones than agent**
+  (1.41 % of human commits vs 0.84 % of agent) — it exposes human copy-paste that
+  self-licensing was hiding, the *opposite* of inflating an agent disadvantage.
+- **The within-repo verdict is unchanged in 6 of 7 categories** (complexity null on both;
+  SATD and test-coevolution agents-cleaner on both, identical p; cross_area / grown_cycles /
+  god_headers unchanged). The one move: copy-paste went from marginal (p = 0.098) to
+  borderline (p = 0.049), **in the agents-cleaner direction** (median −0.22 → −0.64 pp). It
+  is a fragile p that would not survive the §3 Bonferroni cut (α = 0.0071), so read it as
+  "the recall fix firms up the pre-existing agents-better-on-copy-paste signal," not a new
+  result.
+
+So the headline survives the precision fix intact: **no scanner-FP class flips any category
+toward an agent disadvantage; the only verdict that moved, moved in agents' favor.** The
+residual untested-symmetry caveat is now narrow — `test_coevo`'s FP class (refactors/chores)
+could still be differentially distributed by author class, the main caveat on that one row;
+SATD and copy-paste do not depend on it.
 
 ---
 
@@ -303,7 +323,8 @@ it.
    copy-paste they are cleaner, and on test co-evolution they look cleaner on a noisy signal.
    The agent difference is **throughput** (≈1.3× larger commits), not a new failure mode.
    This is the counter-narrative to "AI slop" — and it survives the controls (repo, size,
-   multiple-testing) that kill the naive pooled story.
+   multiple-testing) that kill the naive pooled story, plus a full re-run on the corrected
+   (#129) scanner that left every verdict intact (§5).
 3. **Maturity ≠ discipline; review culture is the variable** (§4) — bitcoin vs llama.cpp
    differ 4× in complexity-ratchet despite both being flagship C++.
 4. **The tool's actionable core is narrow and honest** (§5): copy-paste flags real
