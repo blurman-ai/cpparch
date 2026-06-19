@@ -79,6 +79,13 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
   and NCCD growth are still reported but marked `(advisory)` and no longer fail the run —
   a PR that merely adds an `#include` stays green. The text report ends with an explicit
   `gate: ok|fail` verdict line. Mirrors the `--drift-baseline` regression-gate semantics (#086). (#075)
+- **`check` mode is advisory-first too** — a plain `archcheck <repo>` now exits 1 only on a
+  dependency cycle (SF.9). Deep include chains (Lakos.ChainLength), god-headers
+  (Lakos.GodHeader) and per-file hygiene (SF.7/SF.8) are still reported but advisory (exit 0),
+  with a note pointing to `--baseline` for existing debt. A naive first run on a header-heavy
+  library (abseil: 211 chain-length findings) no longer fails with a wall of noise — the gate
+  fires only on the architectural regression the tool is most precise on. Mirrors the `--diff`
+  gating model above. (#133)
 - **`git` execution unified** — the fork/exec git helper is shared across `git_state` and
   `git_object_file_source` via `git/git_exec` (removes ~50 lines of duplication). (#096, #105)
 
