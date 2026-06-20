@@ -82,7 +82,7 @@ Argument (optional): подсказка типа (например `/commit fix`
 
    Скрипт использует отдельный `build/coverage` (с `ARCHCHECK_ENABLE_COVERAGE=ON`),
    прогоняет все тесты, собирает lcov с branch-coverage и проверяет пороги:
-   - lines ≥ 70%, functions ≥ 60%, branches ≥ 40%
+   - lines ≥ 90%, functions ≥ 90%, branches ≥ 40% (источник правды — docs/dev/coverage_constraints.md; те же пороги в CI job `coverage`)
 
    Если результат **FAIL** — показать вывод скрипта пользователю и спросить:
    продолжить (пользователь сознательно принимает низкое покрытие) или остановиться.

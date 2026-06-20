@@ -192,3 +192,67 @@ jobs:
             clang-tidy-strict-report.txt
           retention-days: 14
           if-no-files-found: warn
+
+  coverage:
+    name: Coverage gate (gcovr, lines≥90 functions≥90 branches≥40)
+    runs-on: ubuntu-24.04
+    # Параллельно с build / static-analysis. Покрытие считаем на gcc-13 + gcovr,
+    # НЕ через scripts/check_coverage.sh: тот скрипт написан под lcov 1.13 (Astra),
+    # а Ubuntu 24.04 ставит lcov 2.x, который валит сборку на throw-arc'ах и
+    # несовпавших --remove паттернах. gcovr — единый pip-пакет с нативным
+    # --fail-under-* гейтом и --exclude-throw-branches (снимает C++ throw-шум).
+    # Пороги синхронизированы с локальным гейтом: docs/dev/coverage_constraints.md.
+    env:
+      CC: gcc-13
+      CXX: g++-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install build + coverage tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake g++-13
+          python3 -m pip install --user gcovr
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v5
+        with:
+          path: build/coverage/_deps
+          key: deps-${{ runner.os }}-coverage-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt', 'src/CMakeLists.txt') }}
+          restore-keys: |
+            deps-${{ runner.os }}-coverage-
+
+      - name: Configure (coverage instrumentation)
+        run: cmake -B build/coverage -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug -DARCHCHECK_ENABLE_COVERAGE=ON
+
+      - name: Build
+        run: cmake --build build/coverage
+
+      - name: Test
+        working-directory: build/coverage
+        run: ctest --output-on-failure
+
+      # gcovr-гейт по src/ только. Путь поиска сужен до build/coverage/src —
+      # объектов самого archcheck: иначе gcovr парсит и инструментированные .gcno
+      # зависимостей (_deps/catch2 без .gcda для невыполненного benchmark-кода) и
+      # падает с no_working_dir_found. --filter 'src/' оставлен на отчётный слой.
+      # --gcov-ignore-errors no_working_dir_found — страховка на невыполненный src-TU.
+      # --exclude-throw-branches убирает throw-arc'и (на lcov из-за них branches
+      # застревали на ~63%). Пороги из docs/dev/coverage_constraints.md;
+      # любой fail-under → ненулевой exit → red.
+      - name: Coverage gate
+        run: |
+          gcovr \
+            --root . \
+            --filter 'src/' \
+            --gcov-executable gcov-13 \
+            --gcov-ignore-errors no_working_dir_found \
+            --exclude-throw-branches \
+            --print-summary \
+            --fail-under-line 90 \
+            --fail-under-function 90 \
+            --fail-under-branch 40 \
+            build/coverage/src
