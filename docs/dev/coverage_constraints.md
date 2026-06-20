@@ -48,11 +48,25 @@ Astra Linux 1.7 поставляет **lcov 1.13** (Debian Buster).
 `MIN_LINES=90` и `MIN_FUNCTIONS=90` — уже проходят, подняты.  
 `MIN_BRANCHES` остаётся на `40` до смены окружения.
 
-## Когда это станет решаемым
+## Где гоняется
 
-При переходе на:
+| Окружение | Тулза | Запуск |
+|-----------|-------|--------|
+| Локально (Astra, lcov 1.13) | lcov | `scripts/check_coverage.sh`, шаг 6 в `/commit` и `/autocommit` |
+| CI (Ubuntu 24.04, gcc-13) | gcovr | job `coverage` в `.github/workflows/ci.yml` (жёсткий гейт) |
+
+CI намеренно НЕ зовёт `check_coverage.sh`: тот написан под lcov 1.13, а apt
+Ubuntu 24.04 ставит lcov 2.x, который валится на throw-arc'ах и несовпавших
+`--remove` паттернах. gcovr — единый pip-пакет с нативным `--fail-under-*` и
+`--exclude-throw-branches`. **Пороги в обоих местах держать одинаковыми (90/90/40);
+эта таблица — источник правды.** Branches на gcovr выше lcov-овых ~63% (throw-arc'и
+вырезаны `--exclude-throw-branches`), так что порог 40% с большим запасом.
+
+## Когда lcov-ветку станет решаемым поднять
+
+При переходе локального окружения на:
 - Ubuntu 22.04+ / Debian Bookworm (lcov 1.16+) — добавить `--exclude-unreachable-branches`
-- или `pip3 install gcovr` + переписать `check_coverage.sh` под gcovr
+- или `pip3 install gcovr` + переписать `check_coverage.sh` под gcovr (унифицировать с CI)
 
 ## GCC 8 / C++20 stdlib gaps (Astra Linux 1.7)
 

@@ -65,7 +65,7 @@ Argument (optional): подсказка типа (например `/autocommit 
    bash scripts/check_coverage.sh
    ```
 
-   Пороги: lines ≥ 70%, functions ≥ 60%, branches ≥ 40%.
+   Пороги: lines ≥ 90%, functions ≥ 90%, branches ≥ 40% (те же, что в CI job `coverage`; источник — docs/dev/coverage_constraints.md).
    Результат **FAIL** — **СТОП**, показать вывод скрипта, не коммитить.
    (В автономном режиме не продолжаем «сознательно принимая низкое покрытие» — некому принять.)
    При успехе — `Verified: build+coverage`.
