@@ -164,10 +164,13 @@ summary. (Можно и через PR — тогда
 4. ⏳ Ступень 2 (outward-facing, нужен надзор): тестовый репо на GitHub +
    push-триггерный workflow; собрать те же 10 коммитов, запушить, прочитать отчёты
    в Actions.
-5. ⏳ (опц., durable) Перенести control set в committed Catch2 E2E
-   (`tests/integration/diff/`): нужна synth-база ~15+ distinctive-файлов, чтобы IDF
-   не вырождался (крошечные репы не срабатывают, §3). Сейчас ядро покрыто
-   unit-тестами (`new_clone_drift_test.cpp`: fires / parent-guard / outside / empty).
+5. ✅ (durable) Control set перенесён в committed Catch2 E2E
+   (`tests/integration/diff/diff_workflow_e2e_test.cpp`, тег `[newclone]`):
+   synth-база 15 distinctive-файлов (IDF не вырождается, §3), 2 кейса —
+   positive (копия функции → `DRIFT.NEW_CLONE`, advisory exit 0) + negative
+   (уникальный код → тишина). 549/549 зелёные, dogfood 0, clang-format/lizard чисты.
+   Вместе с unit-тестами (`new_clone_drift_test.cpp`: fires / parent-guard / outside
+   / empty) — критерий 7 MVP («фикстуры на правило») для new-clone закрыт.
 
 ## Ключевые решения
 

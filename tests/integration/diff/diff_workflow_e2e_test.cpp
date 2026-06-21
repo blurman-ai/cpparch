@@ -23,7 +23,75 @@ void commitChain(const fs::path &repo)
   commitAll(repo, "baseline");
 }
 
+// One distinctive C source per index: unique helper-call names so the token clone
+// detector's candidacy fires (a 2-file toy degenerates — corpus-relative IDF, §3).
+std::string modSrc(int i)
+{
+  const std::string s = std::to_string(i);
+  return "extern int helper_" + s +
+         "_a(int);\n"
+         "extern int helper_" +
+         s +
+         "_b(int, int);\n"
+         "int compute_mod" +
+         s +
+         "(int x, int y) {\n"
+         "  int acc = helper_" +
+         s +
+         "_a(x);\n"
+         "  for (int k = 0; k < y; k++) { acc += helper_" +
+         s + "_b(k, x); acc = helper_" + s +
+         "_a(acc); }\n"
+         "  return acc + helper_" +
+         s +
+         "_b(y, x);\n"
+         "}\n";
+}
+
+// A 15-file base — enough corpus for new-clone candidacy to be meaningful.
+void distinctiveBase(const fs::path &repo)
+{
+  initRepo(repo);
+  for (int i = 0; i < 15; ++i)
+  {
+    writeFile(repo / ("mod" + std::to_string(i) + ".c"), modSrc(i));
+  }
+  commitAll(repo, "baseline");
+}
+
 } // namespace
+
+TEST_CASE("e2e --diff: copy-paste a commit introduces fires DRIFT.NEW_CLONE, advisory (#123)", "[diff][e2e][newclone]")
+{
+  TempDir repo;
+  distinctiveBase(repo.path);
+  // Append a renamed copy of mod3's distinctive function into mod7 — a clone the
+  // commit introduces (its helper_3_* calls make it a candidate against mod3).
+  std::string copy = modSrc(3);
+  copy.replace(copy.find("compute_mod3"), std::string("compute_mod3").size(), "copied_from_mod3");
+  writeFile(repo.path / "mod7.c", modSrc(7) + copy);
+  commitAll(repo.path, "copy compute_mod3 into mod7");
+
+  const auto r = runArchcheck(repo.path, "--diff HEAD~1..HEAD");
+  REQUIRE(r.output.find("DRIFT.NEW_CLONE") != std::string::npos);
+  REQUIRE(r.output.find("copy-paste introduced") != std::string::npos);
+  REQUIRE(r.exitCode == 0); // advisory — never gates
+  REQUIRE(r.output.find("gate: ok") != std::string::npos);
+}
+
+TEST_CASE("e2e --diff: a commit adding only unique code surfaces no new clone (#123)", "[diff][e2e][newclone]")
+{
+  TempDir repo;
+  distinctiveBase(repo.path);
+  writeFile(
+      repo.path / "mod7.c",
+      modSrc(7) +
+          "int unique_only(int p) { int q = p; for (int i = 0; i < p; i++) q ^= (i * 131 + 7); return q % 997; }\n");
+  commitAll(repo.path, "add unique code");
+
+  const auto r = runArchcheck(repo.path, "--diff HEAD~1..HEAD");
+  REQUIRE(r.output.find("DRIFT.NEW_CLONE") == std::string::npos);
+}
 
 TEST_CASE("e2e --diff: added edge is advisory — exit 0, gate ok", "[diff][e2e]")
 {
