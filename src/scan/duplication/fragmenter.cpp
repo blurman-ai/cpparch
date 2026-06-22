@@ -3,6 +3,7 @@
 #include <cctype>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace archcheck::scan::duplication
@@ -126,30 +127,51 @@ Fragment makeFragment(const std::vector<Token> &t, std::size_t lo, std::size_t h
   return f;
 }
 
-void collect(const CollectContext &ctx, std::size_t lo, std::size_t hi)
+using Range = std::pair<std::size_t, std::size_t>;
+
+// Scan [from, to): emit fn-body fragments inline; on the first nested block to
+// descend, queue its inner range and the continuation on `work` and stop.
+void scanRange(const CollectContext &ctx, std::size_t from, std::size_t to, std::vector<Range> &work)
 {
-  std::size_t i = lo;
-  while (i < hi)
+  for (std::size_t i = from; i < to;)
   {
-    if (ctx.tokens[i].sym == "{" && ctx.match[i] >= 0 && static_cast<std::size_t>(ctx.match[i]) < hi)
-    {
-      const std::size_t j = static_cast<std::size_t>(ctx.match[i]);
-      const std::size_t body = j - i - 1;
-      const bool fnBody = (i > 0 && ctx.tokens[i - 1].sym == ")");
-      if (fnBody && body >= ctx.opts.minTokens && body <= ctx.opts.maxTokens)
-      {
-        ctx.out.push_back(makeFragment(ctx.tokens, i + 1, j, ctx.file, ctx.lines));
-      }
-      else
-      {
-        collect(ctx, i + 1, j);
-      }
-      i = j + 1;
-    }
-    else
+    const bool open = ctx.tokens[i].sym == "{" && ctx.match[i] >= 0 && static_cast<std::size_t>(ctx.match[i]) < to;
+    if (!open)
     {
       ++i;
+      continue;
     }
+    const std::size_t j = static_cast<std::size_t>(ctx.match[i]);
+    const std::size_t body = j - i - 1;
+    const bool fnBody = (i > 0 && ctx.tokens[i - 1].sym == ")");
+    if (fnBody && body >= ctx.opts.minTokens && body <= ctx.opts.maxTokens)
+    {
+      ctx.out.push_back(makeFragment(ctx.tokens, i + 1, j, ctx.file, ctx.lines));
+      i = j + 1;
+      continue;
+    }
+    // Descend into [i+1, j), then resume at j+1. Push continuation first so the
+    // inner range pops (runs) first — matching the old recursion's pre-order.
+    work.emplace_back(j + 1, to);
+    work.emplace_back(i + 1, j);
+    return;
+  }
+}
+
+// Iterative DFS over brace-nested ranges. Recursion here was bounded only by the
+// input's brace-nesting depth, so a pathologically deep file (e.g. ctags' vendored
+// LLVM parser_overflow fixture — 16k nested braces) blew the call stack → SIGSEGV
+// (only under -O2, where makeFragment inlines into the recursive frame). The explicit
+// work stack keeps the original pre-order, so the emitted fragment set is identical.
+void collect(const CollectContext &ctx, std::size_t lo, std::size_t hi)
+{
+  std::vector<Range> work;
+  work.emplace_back(lo, hi);
+  while (!work.empty())
+  {
+    const auto [from, to] = work.back();
+    work.pop_back();
+    scanRange(ctx, from, to, work);
   }
 }
 

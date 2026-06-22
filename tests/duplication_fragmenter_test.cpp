@@ -51,6 +51,24 @@ TEST_CASE("Fragmenter: fragment size limits", "[duplication]")
   REQUIRE(frags.empty()); // too small
 }
 
+TEST_CASE("Fragmenter: deeply nested blocks do not overflow the stack", "[duplication]")
+{
+  // ctags vendored an LLVM parser_overflow fixture with ~16k nested braces; the
+  // old recursive collect() blew the call stack (SIGSEGV under -O2). The iterative
+  // walker must handle arbitrary nesting. 100k levels overflows the old recursion
+  // even in a debug build, so completing at all is the regression assertion.
+  const std::size_t depth = 100000;
+  std::string src;
+  src.reserve(depth * 2);
+  src.append(depth, '{');
+  src.append(depth, '}');
+
+  const auto tokens = lex(src);
+  const auto frags = extractFragments(tokens, src, "deep.cpp");
+
+  REQUIRE(frags.empty()); // bare nested blocks: no function bodies to fragment
+}
+
 TEST_CASE("Fragmenter: trigram diversity calculated", "[duplication]")
 {
   const std::string src = "void f() { a = b + c; d = e * f; g = h - i; }";
