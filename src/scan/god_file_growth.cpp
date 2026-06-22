@@ -5,6 +5,7 @@
 #include <numeric>
 #include <sstream>
 
+#include "archcheck/scan/authored_scope.h"
 #include "archcheck/scan/file_classification.h"
 
 namespace archcheck::scan
@@ -32,9 +33,9 @@ std::int32_t GodFileGrowthDetector::calculateP75() const
   std::vector<std::int32_t> productionLocs;
   for (const auto &[path, loc] : currentLocMap_)
   {
-    // Exclude vendored-directory and test files from the p75 baseline. (Generated
-    // files and curated vendored basenames are NOT excluded here yet — see #127.)
-    if (pathHasVendoredDir(path) || pathHasTestDir(path) || isTestBasename(baseName(path)))
+    // Exclude non-authored files (vendor/test/generated) from the p75 baseline,
+    // via the one shared gate every rule uses (#129) — not an ad-hoc subset.
+    if (AuthoredScope::pathExcluded(path))
     {
       continue;
     }
@@ -167,8 +168,8 @@ archcheck::rules::ViolationList GodFileGrowthDetector::detect() const
 
   for (const auto &[path, currentLoc] : currentLocMap_)
   {
-    // Skip vendored-directory and test files (same gate as the p75 baseline above).
-    if (pathHasVendoredDir(path) || pathHasTestDir(path) || isTestBasename(baseName(path)))
+    // Skip non-authored files (same shared gate as the p75 baseline above).
+    if (AuthoredScope::pathExcluded(path))
     {
       continue;
     }

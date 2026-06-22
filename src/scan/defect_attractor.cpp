@@ -8,6 +8,7 @@
 #include <string>
 
 #include "archcheck/rules/violation.h"
+#include "archcheck/scan/authored_scope.h"
 #include "archcheck/scan/file_classification.h"
 
 namespace archcheck::scan
@@ -25,8 +26,10 @@ const std::regex kFixPattern(R"(\b(fix(es|ed)?|bug|crash|regress(ion|ed)?|hotfix
 
 bool isProductionFile(std::string_view path)
 {
-  // Skip vendor, test, and generated code
-  if (pathHasVendoredDir(path) || pathHasTestDir(path) || isTestBasename(baseName(path)))
+  // Skip vendor, test, and generated code — via the one shared gate (#129), so
+  // this actually excludes generated/vendored-basename too (the open-coded subset
+  // here previously did not, despite this comment).
+  if (AuthoredScope::pathExcluded(path))
   {
     return false;
   }

@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 
+#include "archcheck/scan/authored_scope.h"
 #include "archcheck/scan/file_classification.h"
 
 namespace archcheck::scan
@@ -132,12 +133,10 @@ rules::ViolationList detectSatdMarkers(const std::vector<git::AddedLine> &addedL
 
   for (const auto &added : addedLines)
   {
-    // Vendored third-party and test code carry their own TODO/FIXME — that is not
-    // the project's production self-admitted debt. Skip both, matching the
-    // complexity-drift scan's classification (file_classification.h).
-    const auto base = baseName(added.file);
-    if (pathHasVendoredDir(added.file) || isVendoredBasename(base) || pathHasTestDir(added.file) ||
-        isTestBasename(base))
+    // Vendored third-party, test, and generated code carry their own TODO/FIXME —
+    // that is not the project's production self-admitted debt. Skip via the one
+    // shared gate every rule uses (#129), not an open-coded subset.
+    if (AuthoredScope::pathExcluded(added.file))
       continue;
 
     const auto commentPart = extractCommentPart(added.text);
