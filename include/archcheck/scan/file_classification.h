@@ -302,10 +302,14 @@ inline bool isVendoredFile(std::string_view filename, std::string_view headerByt
 // Test code duplicates by nature — parallel cases, shared fixtures,
 // CHECK()-boilerplate — and its cycles / god-headers are not author drift. It is
 // dropped from every signal alongside vendored code: directory segments
-// test/ tests/ testutil/ testutils/ unit_test(s)/, plus basenames foo_test.* / foo_tests.* /
-// test_foo.* / test-foo.* / foo-test.* / foo_spec.* / foo-spec.*.
-inline constexpr std::array<std::string_view, 6> kTestDirNames = {
-    "test", "tests", "testutil", "testutils", "unittest", "unittests",
+// test/ tests/ tst/ testutil/ testutils/ unit_test(s)/, plus basenames foo_test.* /
+// foo_tests.* / test_foo.* / test-foo.* / foo-test.* / foo_spec.* / foo-spec.*.
+// `tst` is a common test-dir abbreviation (corpus: 8 repos, all test trees; e.g.
+// dsstne's tst/gputests/). Deliberately NOT added: `units` (16 corpus repos, often
+// units-of-measurement, not tests) and substring/endswith-"test" matching (would
+// catch `latest/`, `contests/`) — over-exclusion silently hides real findings.
+inline constexpr std::array<std::string_view, 7> kTestDirNames = {
+    "test", "tests", "tst", "testutil", "testutils", "unittest", "unittests",
 };
 
 inline bool isTestDirName(std::string_view name)
