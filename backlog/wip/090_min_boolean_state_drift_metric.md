@@ -1,13 +1,44 @@
 # [RULES] boolean_state_accumulation — drift-метрика (deferred v0.3+)
 
 **Дата создания:** 2026-06-07
-**Статус:** future
+**Дата старта:** 2026-06-24
+**Статус:** wip
 **Целевой релиз:** v0.3+ (когда будет спрос)
 **Модуль:** RULES / DRIFT
 **Приоритет:** minor
 **Блокирует:** —
-**Заблокирован:** — (НЕ #042: метрика идёт по git-истории, AST по коммитам нереально; строится на fast-бэкенде. #042 — лишь опц. буст гейта 4 на текущем срезе)
-**Related:** #089 (research, вердикт MAYBE), #086/#087 (drift-семейство), #042 (опциональный буст, не зависимость)
+**Заблокирован:** —
+**Related:** #089 (research), #135 (метрика валидирована), #136 (фикс парсера), #086/#087 (drift-семейство)
+
+## ПЕРЕОТКРЫТО 2026-06-24 — реализуем как advisory diff-правило `DRIFT.BOOL_FIELD_*`
+
+Решение пользователя: вместо research-сайдкара #135 (Python, переизобретает скан+фильтр) — **нативное
+archcheck-правило**. Фильтр vendored/generated/test наследуется даром через `SourceSnapshot.authored`
+(`file_classification.h`); никакого Python-дубля фильтра.
+
+**Метрика — НЕ старый нейминг-детект ниже (откачен `4268a39`, 78% шум), а валидированная в #135:**
+per-commit **нетто-прирост числа depth-0 bool-полей в структуре, существовавшей в родителе**
+(`Σ max(0, count_after − count_before)` по структурам, что есть и в old, и в new версии файла).
+Rename/replace/реформат → 0. Парсер — порт `perstruct_drift.struct_fields` С ФИКСОМ #136 (стрип
+литералов/комментов перед счётом скобок).
+
+**Образец — `DRIFT.LOCAL_COMPLEXITY`** (`src/scan/local_complexity_drift.{h,cpp}`): сверены интерфейс
+`compareX(old,new,file)` + `detectXDrift(oldSnap,newSnap,changedFiles)`; фильтр через `SnapshotFile.authored`;
+проводка в `src/cli/diff_command.cpp` (`DiffAdvisories`/`collectX`/`flattenAdvisories`/print); JSON через
+`writeViolations` → `advisory.violations[]`. **Оракул валидации — Python-сайдкар #135** (C++ == Python).
+
+### Commit-план (≤50 строк/коммит, ≤2 файла, фикстуры обязательны)
+- [ ] C1: `include/archcheck/scan/bool_field_drift.h` — интерфейс (`BoolFieldDriftResult`, `compareBoolFields`, `detectBoolFieldDrift`).
+- [ ] C2: `src/scan/bool_field_drift.cpp` — парсер struct/bool (порт + фикс #136) + `compareBoolFields` (нетто per struct) + unit-тесты.
+- [ ] C3: `detectBoolFieldDrift` (changedFiles + `findFile`/`authored`) + CMake.
+- [ ] C4: проводка в `diff_command.cpp` + JSON.
+- [ ] C5: фикстуры `fixtures/bool_field_drift/{pass,fail_accretion}` + тест.
+- [ ] C6: дугфуд + сверка с сайдкаром #135 на ≥20 коммитах (C++ == Python).
+- [ ] C7: CHANGELOG + docs + порог advisory (открытый вопрос: сырой +1 шумен для PR, но корпус-колонке нужен raw).
+
+---
+
+### (УСТАРЕВШИЙ исходный план — нейминг-детект, ОТКАЧЕН `4268a39`, для истории)
 
 > **Переосмыслено по итогам research #089.** Исходный план «статическое правило `implicit_state_machine_growth` (5+ bool + state-имена)» ОТМЕНЁН: эмпирика на 790 репо показала, что нейминг-детект бесполезен (единственный флаг — FP), а статический счётчик — 78% шум. Рабочий сигнал — только **per-struct накопление по git-истории**. См. дизайн: `docs/research/boolean_state_metric_design.md`.
 
