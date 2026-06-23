@@ -19,6 +19,8 @@ struct FunctionSpan
   int endLine = 0;              // line of the closing brace
   std::size_t bodyBegin = 0;    // token index of the opening '{'
   std::size_t bodyEnd = 0;      // token index of the matching '}'
+  std::size_t paramOpen = 0;    // token index of the parameter-list '('
+  std::size_t paramClose = 0;   // token index of the matching ')'
 };
 
 // Conservative function-definition discovery over a lex() token stream (#101).

@@ -262,7 +262,7 @@ std::size_t scanCandidate(const std::vector<Token> &tokens, std::size_t i, const
   for (std::size_t k = cand.paramOpen + 1; k < paramClose; ++k)
     fingerprint += spellingOf(tokens[k]);
   out.push_back({scopePrefix + cand.name.name, std::move(fingerprint), countArity(tokens, cand.paramOpen, paramClose),
-                 cand.name.line, tokens[bodyClose].line, bodyOpen, bodyClose});
+                 cand.name.line, tokens[bodyClose].line, bodyOpen, bodyClose, cand.paramOpen, paramClose});
   return bodyClose + 1;
 }
 

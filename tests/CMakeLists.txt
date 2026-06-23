@@ -15,6 +15,7 @@ include(Catch)
 
 add_executable(archcheck_tests
    smoke_test.cpp
+   flag_argument_scan_test.cpp
    duplication_token_normalizer_test.cpp
    duplication_similarity_test.cpp
    duplication_clone_classifier_test.cpp

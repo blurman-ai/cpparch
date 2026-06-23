@@ -3,6 +3,7 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include "archcheck/config/config_loader.h"
@@ -14,7 +15,10 @@
 #include "archcheck/git/git_state.h"
 #include "archcheck/graph/graph_builder.h"
 #include "archcheck/scan/disk_file_source.h"
+#include "archcheck/scan/duplication/token_normalizer.h"
+#include "archcheck/scan/flag_argument_scan.h"
 #include "archcheck/scan/local_complexity_drift.h"
+#include "archcheck/scan/local_complexity_metrics.h"
 #include "archcheck/scan/new_clone_drift.h"
 #include "archcheck/scan/satd_scan.h"
 #include "archcheck/scan/source_snapshot.h"
@@ -136,15 +140,38 @@ archcheck::scan::NewCloneDriftResult collectNewClones(const archcheck::scan::Sou
   return archcheck::scan::detectNewClones(curSnap, baseSnap, added);
 }
 
+// Flag-argument drift (ARG.1, #093): boolean flag parameters in signatures the
+// diff touches. Full-tree scan over authored sources, filtered to the commit's
+// added lines (a signature flagged on an added line = introduced/changed here).
+archcheck::rules::ViolationList collectFlagArguments(const archcheck::scan::SourceSnapshot &curSnap,
+                                                     const std::vector<archcheck::git::AddedLine> &addedLines)
+{
+  std::unordered_set<std::string> addedKey;
+  for (const auto &a : addedLines)
+    addedKey.insert(a.file + ":" + std::to_string(a.lineNumber));
+  if (addedKey.empty())
+    return {};
+  archcheck::rules::ViolationList out;
+  for (const auto &[path, content] : curSnap.authoredSources())
+  {
+    const auto toks = archcheck::scan::stripDirectiveTokens(archcheck::scan::duplication::lex(content));
+    for (auto &v : archcheck::scan::detectFlagArguments(toks, path))
+      if (addedKey.count(v.file + ":" + std::to_string(v.line)) != 0)
+        out.push_back(std::move(v));
+  }
+  return out;
+}
+
 // Advisory-only signals: SATD markers and test co-evolution over the changed
-// lines, plus local complexity drift and new-clone drift. Reported after the
-// structural diff, never gating.
+// lines, plus local complexity drift, new-clone drift and flag-argument drift.
+// Reported after the structural diff, never gating.
 struct DiffAdvisories
 {
   archcheck::rules::ViolationList satd;
   archcheck::rules::ViolationList testCoEvolution;
   archcheck::scan::ComplexityDriftResult complexity;
   archcheck::scan::NewCloneDriftResult newClones;
+  archcheck::rules::ViolationList flagArguments;
   std::size_t complexitySkippedAddedLines = 0; // >0: bulk import, advisory skipped (#117)
   // #129 read-once: the per-ref snapshots built here are kept so the graph build
   // reuses them in memory mode instead of re-reading both trees. Empty on a bulk
@@ -178,19 +205,26 @@ DiffAdvisories collectDiffAdvisories(const std::filesystem::path &repoRoot, cons
     return result;
   result.complexity = collectComplexityDrift(repoRoot, parsed, *baseSnap, *curSnap);
   result.newClones = collectNewClones(*curSnap, *baseSnap, addedLines);
+  result.flagArguments = collectFlagArguments(*curSnap, addedLines);
   result.baseSnapshot = std::move(baseSnap);
   result.currentSnapshot = std::move(curSnap);
   return result;
 }
 
+// Print a "file:line: rule — message" advisory block under a header, or nothing
+// when empty. Shared by the SATD / new-clone / flag-argument advisories.
+void printViolationList(const char *header, const archcheck::rules::ViolationList &vs)
+{
+  if (vs.empty())
+    return;
+  std::cout << '\n' << header << ":\n";
+  for (const auto &v : vs)
+    std::cout << "  " << v.file << ":" << v.line << ": " << v.ruleId << " — " << v.message << '\n';
+}
+
 void printDiffAdvisories(const DiffAdvisories &a)
 {
-  if (!a.satd.empty())
-  {
-    std::cout << "\nself-admitted technical debt (advisory):\n";
-    for (const auto &v : a.satd)
-      std::cout << "  " << v.file << ":" << v.line << ": " << v.ruleId << " — " << v.message << '\n';
-  }
+  printViolationList("self-admitted technical debt (advisory)", a.satd);
   if (!a.testCoEvolution.empty())
   {
     std::cout << "\ntest co-evolution (advisory):\n";
@@ -204,12 +238,8 @@ void printDiffAdvisories(const DiffAdvisories &a)
     return;
   }
   printComplexityResult(a.complexity);
-  if (!a.newClones.violations.empty())
-  {
-    std::cout << "\nnew-clone drift (advisory):\n";
-    for (const auto &v : a.newClones.violations)
-      std::cout << "  " << v.file << ":" << v.line << ": " << v.ruleId << " — " << v.message << '\n';
-  }
+  printViolationList("new-clone drift (advisory)", a.newClones.violations);
+  printViolationList("flag-argument drift (advisory)", a.flagArguments);
 }
 
 // One flat list for the JSON document: SATD + test co-evolution + complexity.
@@ -219,6 +249,7 @@ archcheck::rules::ViolationList flattenAdvisories(DiffAdvisories a)
   all.insert(all.end(), a.testCoEvolution.begin(), a.testCoEvolution.end());
   all.insert(all.end(), a.complexity.violations.begin(), a.complexity.violations.end());
   all.insert(all.end(), a.newClones.violations.begin(), a.newClones.violations.end());
+  all.insert(all.end(), a.flagArguments.begin(), a.flagArguments.end());
   return all;
 }
 

@@ -93,6 +93,26 @@ TEST_CASE("e2e --diff: a commit adding only unique code surfaces no new clone (#
   REQUIRE(r.output.find("DRIFT.NEW_CLONE") == std::string::npos);
 }
 
+TEST_CASE("e2e --diff: a commit adding a boolean-flag signature fires ARG.1, advisory (#093)", "[diff][e2e][flagarg]")
+{
+  TempDir repo;
+  initRepo(repo.path);
+  writeFile(repo.path / "svc.c", "int base(int x) { return x; }\n");
+  commitAll(repo.path, "baseline");
+  // The flag-argument signature lands on added line 2.
+  writeFile(repo.path / "svc.c", "int base(int x) { return x; }\n"
+                                 "void configure(bool enable_cache, bool verbose) { run(); }\n");
+  commitAll(repo.path, "add flag-arg fn");
+
+  const auto r = runArchcheck(repo.path, "--diff HEAD~1..HEAD");
+  REQUIRE(r.output.find("ARG.1.flag_argument_signature") != std::string::npos);
+  REQUIRE(r.output.find("takes 2 boolean flag parameters") != std::string::npos);
+  // Regression guard for the unified-diff off-by-one: the signature is added
+  // line 2, not 3 (the hunk header used to be double-counted as a context line).
+  REQUIRE(r.output.find("svc.c:2: ARG.1") != std::string::npos);
+  REQUIRE(r.exitCode == 0); // advisory — never gates
+}
+
 TEST_CASE("e2e --diff: added edge is advisory — exit 0, gate ok", "[diff][e2e]")
 {
   TempDir repo;
