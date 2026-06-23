@@ -68,6 +68,7 @@ add_executable(archcheck_tests
    unit/report/text_reporter_test.cpp
    integration/scan/scanner_fixtures_test.cpp
    integration/scan/local_complexity_fixtures_test.cpp
+   integration/scan/bool_field_drift_fixtures_test.cpp
    integration/graph/end_to_end_test.cpp
    integration/graph/vendor_exclude_test.cpp
    unit/rules/drift_no_shortcut_edge_test.cpp
