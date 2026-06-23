@@ -71,8 +71,10 @@ void processContentLine(const std::string &line, const std::string &currentFile,
   if (line.empty())
     return;
 
-  // Metadata lines
-  if (line[0] == 'i' || line[0] == '-' || line[0] == '\\')
+  // Metadata lines. '@' = hunk header: processHeaderOrHunk already set the new
+  // line number from it, so it must NOT also be counted as a context line here
+  // (that double-count shifted every hunk's added lines by +1).
+  if (line[0] == 'i' || line[0] == '-' || line[0] == '\\' || line[0] == '@')
     return;
 
   // Added line: +content
