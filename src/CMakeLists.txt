@@ -43,6 +43,7 @@ add_library(archcheck_core STATIC
    rules/drift_lateral_module_dependency.cpp
    rules/lakos_chain_length.cpp
    rules/lakos_god_headers.cpp
+   rules/gate_policy.cpp
    rules/sf7_using_namespace.cpp
    rules/sf8_include_guard.cpp
    rules/sf9_no_cycles.cpp

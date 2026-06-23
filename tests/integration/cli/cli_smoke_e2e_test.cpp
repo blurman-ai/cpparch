@@ -37,7 +37,9 @@ TEST_CASE("e2e cli: --help exits 0 and shows the diff workflow", "[cli][e2e]")
   const auto r = runArchcheck(dir.path, "--help");
   REQUIRE(r.exitCode == 0);
   REQUIRE(r.output.find("--diff") != std::string::npos);
-  REQUIRE(r.output.find("gates: new/grown cycles, new god-headers") != std::string::npos);
+  REQUIRE(r.output.find("SF.9 [gating]") != std::string::npos);
+  REQUIRE(r.output.find("DRIFT.4.CYCLE [gating]") != std::string::npos);
+  REQUIRE(r.output.find("gates new/grown cycles and new god-headers") != std::string::npos);
 }
 
 TEST_CASE("e2e cli: --version prints the product name", "[cli][e2e]")
@@ -84,8 +86,18 @@ TEST_CASE("e2e cli: --format json check emits violations schema", "[cli][e2e][js
   writeDirtyProject(dir.path);
   const auto r = runArchcheck(dir.path, "--format json .");
   REQUIRE(r.exitCode == 0); // SF.7 is advisory in check mode (#133)
+  REQUIRE(r.output.find("\"gate\": \"ok\"") != std::string::npos);
   REQUIRE(r.output.find("\"violations\"") != std::string::npos);
   REQUIRE(r.output.find("\"rule\": \"SF.7\"") != std::string::npos);
+  REQUIRE(r.output.find("\"disposition\": \"advisory\"") != std::string::npos);
+
+  TempDir cyclic;
+  writeCyclicProject(cyclic.path);
+  const auto gated = runArchcheck(cyclic.path, "--format json .");
+  REQUIRE(gated.exitCode == 1);
+  REQUIRE(gated.output.find("\"gate\": \"fail\"") != std::string::npos);
+  REQUIRE(gated.output.find("\"rule\": \"SF.9\"") != std::string::npos);
+  REQUIRE(gated.output.find("\"disposition\": \"gating\"") != std::string::npos);
 
   const auto bad = runArchcheck(dir.path, "--format yaml .");
   REQUIRE(bad.exitCode == 2);

@@ -72,6 +72,7 @@ add_executable(archcheck_tests
    unit/rules/drift_no_shortcut_edge_test.cpp
    unit/rules/drift_no_cycle_growth_test.cpp
    unit/rules/drift_lateral_module_dependency_test.cpp
+   unit/rules/gate_policy_test.cpp
    unit/rules/lakos_chain_length_test.cpp
    unit/rules/lakos_god_headers_test.cpp
    unit/rules/sf7_using_namespace_test.cpp

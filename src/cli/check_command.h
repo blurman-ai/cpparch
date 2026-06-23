@@ -28,8 +28,8 @@ struct BaselineOpts
   std::optional<std::filesystem::path> driftFile; // --drift-baseline <file>
 };
 
-// Run all default rules on `root` and report. Owns the baseline/drift policy:
-// --save-baseline / --baseline filtering and the DRIFT.1/DRIFT.2 gating exit.
+// Run all default rules on `root` and report. Owns baseline filtering and
+// delegates check/drift exit gating to rules/gate_policy.h.
 // Discovers .archcheck.yml from `root` unless an explicit `config` is given.
 int runCheck(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts baseline = {},
              std::optional<config::Config> config = std::nullopt);

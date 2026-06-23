@@ -14,9 +14,8 @@ namespace archcheck::rules
 // default-constructed Config carries the embedded defaults).
 std::vector<std::unique_ptr<IRule>> makeDefaultRuleSet(const config::Config &config = {});
 
-// Returns the drift rules — gating DRIFT.1 (shortcut edge) and DRIFT.2 (cycle
-// growth) plus advisory DRIFT.3 (bidirectional coupling) — each holding a copy
-// of the baseline graph. Call only when a graph baseline has been loaded.
+// Returns drift rules for graph-baseline mode. Exit gating is owned by
+// gate_policy.h so rule registration and CI severity stay separate.
 std::vector<std::unique_ptr<IRule>> makeDriftRuleSet(graph::DependencyGraph baseline);
 
 } // namespace archcheck::rules

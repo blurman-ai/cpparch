@@ -16,35 +16,35 @@ namespace cli = archcheck::cli;
 
 void print_version() { std::cout << "archcheck " << archcheck::kVersionString << '\n'; }
 
+constexpr std::string_view kHelpText = R"(archcheck - architecture rules for C++ projects
+
+Usage:
+  archcheck [path]                             (check: gate SF.9 cycles; report other default findings as advisory)
+  archcheck --format json [path]               (JSON output with gate/disposition fields)
+  archcheck --config <path> [check-path]       (validate .archcheck.yml v1 + apply thresholds;
+                                                module rules not yet enforced)
+  archcheck --save-baseline <file> [path]      (save current violations as baseline)
+  archcheck --baseline <file> [path]           (report only new violations vs baseline)
+  archcheck --save-graph-baseline <file> [path] (save include graph snapshot for drift checks)
+  archcheck --drift-baseline <file> [path]    (drift gate: DRIFT.1/DRIFT.2/DRIFT.4.CYCLE; other findings advisory)
+  archcheck --version
+  archcheck --help
+  archcheck --scan  <path>                     (preview: discover + scan #includes)
+  archcheck --graph <path>                     (preview: build dependency graph + SCC stats)
+  archcheck --duplication <path>               (report duplicate code; advisory, does not gate CI)
+  archcheck --history <path>                   (history analytics: god-file growth; advisory, does not gate CI)
+  archcheck --diff  [--diff-mode=disk|memory] [--format=text|json] <revspec> [path]
+                  (PR diff; gates new/grown cycles and new god-headers, reports advisories)
+
+Default rules (no config required): SF.9 [gating]; SF.7, SF.8, Lakos.GodHeader, Lakos.ChainLength [advisory]
+Default thresholds: chain_length=10, god_header_fan_in=50 (override via thresholds: in .archcheck.yml)
+Drift rules (require --drift-baseline):        DRIFT.1, DRIFT.2, DRIFT.4.CYCLE [gating];
+                                                DRIFT.3, DRIFT.4.NEW, DRIFT.4.SDP [advisory]
+)";
+
 void print_help()
 {
-  std::cout
-      << "archcheck - architecture rules for C++ projects\n"
-      << "\n"
-      << "Usage:\n"
-      << "  archcheck [path]                             (check: run all default rules on path or cwd)\n"
-      << "  archcheck --format json [path]               (JSON output)\n"
-      << "  archcheck --config <path> [check-path]       (validate .archcheck.yml v1 + apply thresholds; module "
-         "rules not yet enforced)\n"
-      << "  archcheck --save-baseline <file> [path]      (save current violations as baseline)\n"
-      << "  archcheck --baseline <file> [path]           (report only new violations vs baseline)\n"
-      << "  archcheck --save-graph-baseline <file> [path] (save include graph snapshot for drift checks)\n"
-      << "  archcheck --drift-baseline <file> [path]    (drift gate: DRIFT.1/DRIFT.2 fail the run; "
-         "DRIFT.3 + pre-existing findings advisory)\n"
-      << "  archcheck --version\n"
-      << "  archcheck --help\n"
-      << "  archcheck --scan  <path>                     (preview: discover + scan #includes)\n"
-      << "  archcheck --graph <path>                     (preview: build dependency graph + SCC stats)\n"
-      << "  archcheck --duplication <path>               (report duplicate code; advisory, does not gate CI)\n"
-      << "  archcheck --history <path>                   (history analytics: god-file growth; advisory, does not "
-         "gate CI)\n"
-      << "  archcheck --diff  [--diff-mode=disk|memory] [--format=text|json] <revspec> [path]\n"
-      << "                  (PR diff vs 'a..b' or '<ref>'; exit 1 gates: new/grown cycles, new god-headers)\n"
-      << "\n"
-      << "Default rules (no config required): SF.7, SF.8, SF.9, Lakos.GodHeader, Lakos.ChainLength\n"
-      << "Default thresholds: chain_length=10, god_header_fan_in=50 (override via thresholds: in .archcheck.yml)\n"
-      << "Drift rules (require --drift-baseline):        DRIFT.1 (shortcut edges), DRIFT.2 (cycle growth) "
-         "[gating]; DRIFT.3 (module coupling) [advisory]\n";
+  std::cout << kHelpText;
 }
 
 bool parseDiffMode(std::string_view raw, cli::DiffMode &out)

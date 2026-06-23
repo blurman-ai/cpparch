@@ -16,7 +16,7 @@ Code review doesn’t catch this.
 Linters don’t check architecture.
 **AI-generated code accelerates the drift** — agents suffer *constraint decay* ([Dente et al., EURECOM, 2026](docs/research/constraint_decay.md)): ~30 pp drop in assertion pass rate when functional tasks gain structural constraints. The prompt degrades with context; CI doesn’t.
 
-**archcheck enforces architectural rules in CI.**
+**archcheck keeps the hard CI gate narrow, and reports the rest as explicit advisories.**
 
 ---
 
@@ -25,14 +25,23 @@ Linters don’t check architecture.
 - Scans `.h` / `.cpp` sources with a fast preprocessor pass — no `compile_commands.json` required
 - Builds the include-dependency graph and detects cycles, deep chains, and god-headers
 - Runs five default intrinsic rules sourced from C++ Core Guidelines and Lakos:
-  - **SF.7** — no `using namespace` in headers
-  - **SF.8** — every header has `#pragma once` or include guard
-  - **SF.9** — no cycles in the include graph
-  - **Lakos.GodHeader** — fan-in ≤ 50 incoming includes
-  - **Lakos.ChainLength** — include-chain depth ≤ 10
-- Reports violations as `file:line: [rule] message`, exit non-zero on failure
-- Tracks architectural drift between revisions: `--save-graph-baseline` once, then `--drift-baseline` in CI catches new cycles (DRIFT.2) and short-circuit edges (DRIFT.1), and reports new mutual module coupling (DRIFT.3, advisory)
-- Diff mode (`--diff <revspec>`, the canonical PR check) compares the include graph between two git refs and reports structural regressions — added/removed edges, grown cycles, new god-headers, chain-length growth — in stable `text` or `json`. Advisory-first: only new/grown cycles and new god-headers gate (exit 1); everything else is informational, so a PR that merely adds an `#include` stays green
+  - **SF.9** — no cycles in the include graph (**gating** in plain check mode)
+  - **SF.7** — no `using namespace` in headers (**advisory**)
+  - **SF.8** — every header has `#pragma once` or include guard (**advisory**)
+  - **Lakos.GodHeader** — fan-in ≤ 50 incoming includes (**advisory** in check mode)
+  - **Lakos.ChainLength** — include-chain depth ≤ 10 (**advisory**)
+- Reports findings as `file:line: [rule] message`; exit `1` means a gated finding, not merely "anything was reported"
+- Tracks architectural drift between graph baselines: `DRIFT.1`, `DRIFT.2`, and `DRIFT.4.CYCLE` gate; `DRIFT.3`, `DRIFT.4.NEW`, `DRIFT.4.SDP`, and pre-existing findings are advisory
+- Runs the canonical PR workflow with `--diff <revspec>`: new/grown cycles and new god-headers gate, while added edges, chain/NCCD growth, SATD, test co-evolution, local complexity, flag-argument drift, and new clone drift are advisory
+
+The current signal model:
+
+| Layer | Examples | Exit behavior |
+|-------|----------|---------------|
+| Core gate | SF.9 cycles, DRIFT.1/2/4.CYCLE, `--diff` new/grown cycles and new god-headers | exit `1` |
+| Structural advisories | SF.7/SF.8, Lakos chain/god-header in check mode, added edges, NCCD/chain growth | reported, exit `0` |
+| PR hygiene advisories | SATD, test co-evolution, local complexity, flag arguments, new clones | reported, exit `0` |
+| History analytics | `--history` god-file growth and defect-attractor signals | report-only, exit `0` |
 
 ---
 
@@ -45,13 +54,13 @@ archcheck
 # Check a specific path
 archcheck path/to/src
 
-# JSON output (for CI integration)
+# JSON output for CI integration. Check-mode JSON includes top-level
+# "gate": "ok|fail" and per-finding "disposition": "gating|advisory".
 archcheck --format json src/
 
-# PR check — the canonical CI workflow: what does this PR do to the
-# dependency graph? Exit 1 only on gated regressions (new/grown cycles,
-# new god-headers); added edges, chain/NCCD growth, SATD and complexity
-# drift are reported as advisory and never fail the run.
+# PR check — the canonical CI workflow. Exit 1 only on gated regressions
+# (new/grown cycles, new god-headers); structural and hygiene drift are
+# reported as advisory and never fail the run.
 archcheck --diff origin/main..HEAD .
 archcheck --diff --format=json origin/main..HEAD .   # machine-readable
 
@@ -67,8 +76,9 @@ archcheck --drift-baseline      graph.json src/
 # Validate .archcheck.yml and apply threshold overrides
 archcheck --config .archcheck.yml src/
 
-# Advisory duplication report (report-only, never gates)
+# Advisory reports (report-only, never gate)
 archcheck --duplication src/
+archcheck --history src/
 
 # Quick previews: scanner stats / include-graph stats
 archcheck --scan src/
@@ -106,7 +116,7 @@ $ echo $?
 ## Key Features
 
 - **Zero config** — runs with no arguments, ships sensible defaults; no `compile_commands.json` needed
-- **CI-first** — non-zero exit on violations, deterministic output
+- **CI-first** — deterministic output; non-zero exit only for gated findings
 - **Baseline-friendly** — freeze legacy, fail on new (`--baseline`, `--save-baseline`)
 - **Drift detection** — track architecture across revisions (`--drift-baseline`, `--diff`)
 - **Sourced** — every default rule cites a published authority (Core Guidelines, Lakos)
@@ -128,7 +138,8 @@ $ echo $?
 - Not an include optimizer (IWYU)
 - Not a GUI, not a web dashboard, not an IDE extension — CLI and CI only
 
-archcheck checks architecture only.
+archcheck is not a clang-tidy replacement. Its hygiene signals are diff-scoped,
+advisory-first regression hints for CI, not broad style or semantic linting.
 
 ---
 
@@ -148,7 +159,12 @@ The defaults that ship today were chosen precisely so a YAML config is not requi
 
 ## Status
 
-v0.1 in active development. Shipped: five default rules, baselines, drift gate (DRIFT.1/2 gating + DRIFT.3 advisory), PR diff mode, advisory duplication report. Module-rule enforcement from YAML is the **v0.2** headline by design ([ADR-001](docs/decisions/001-config-rules-deferred-to-v0.2.md) — zero-config first); SARIF and the semantic backend are also v0.2. MVP acceptance criteria: [docs/MVP.md](docs/MVP.md) — the single open release item is security hardening on untrusted repos (#105).
+v0.1 in active development. Shipped: five default rules, baselines, graph drift gate
+(`DRIFT.1/2/4.CYCLE` gating + `DRIFT.3/4.NEW/4.SDP` advisory), PR diff mode,
+check/diff JSON, advisory duplication and history reports. Module-rule enforcement
+from YAML is the **v0.2** headline by design ([ADR-001](docs/decisions/001-config-rules-deferred-to-v0.2.md)
+— zero-config first); SARIF and the semantic backend are also v0.2. Current release-readiness
+status lives in [backlog/TASK_TRACKER.md](backlog/TASK_TRACKER.md).
 
 ---
 

@@ -13,6 +13,12 @@
 
 > **MVP:** втянута в v0.1 — release-блокер (решение 2026-06-13, [MVP.md](../../docs/MVP.md) §What-v0.1-is #6, §Acceptance #10). Причина: без этого публикуем archcheck с отвалидированным детектором в сундуке, показывая только граф. Advisory-first; gate (exit 1) остаётся v0.2.
 
+> **Статус 2026-06-23:** product path shipped as advisory: `DRIFT.NEW_CLONE`,
+> parent-guard, local 10/10 control set and Catch2 E2E are in place. Remaining
+> GitHub test repo is outward-facing validation/demo; either keep this task wip
+> for that demo or split the demo into a follow-up, but core MVP behavior is no
+> longer blocked here.
+
 ## Цель
 
 Дать `archcheck --diff` точку входа для дубликатов: репортить копипаст,

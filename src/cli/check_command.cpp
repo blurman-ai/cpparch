@@ -2,7 +2,6 @@
 
 #include <unistd.h>
 
-#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -17,6 +16,7 @@
 #include "archcheck/report/json_reporter.h"
 #include "archcheck/report/text_reporter.h"
 #include "archcheck/report/violation_baseline.h"
+#include "archcheck/rules/gate_policy.h"
 #include "archcheck/rules/rule_set.h"
 #include "archcheck/scan/disk_file_source.h"
 #include "archcheck/scan/source_snapshot.h"
@@ -77,9 +77,7 @@ bool textReportUseColor()
 // (DRIFT.3, DRIFT.4.SDP, DRIFT.4.NEW) are reported but never fail the run.
 int reportDriftGate(const archcheck::rules::ViolationList &all, OutputFormat fmt)
 {
-  const auto gating =
-      std::count_if(all.begin(), all.end(), [](const auto &v)
-                    { return v.ruleId == "DRIFT.1" || v.ruleId == "DRIFT.2" || v.ruleId == "DRIFT.4.CYCLE"; });
+  const auto gating = archcheck::rules::countGating(all, archcheck::rules::GateMode::Drift);
   if (fmt == OutputFormat::Text)
     std::cout << "drift gate: " << gating
               << " gating regression(s) (DRIFT.1/DRIFT.2/DRIFT.4.CYCLE);"
@@ -92,11 +90,11 @@ int reportDriftGate(const archcheck::rules::ViolationList &all, OutputFormat fmt
 // (Lakos.ChainLength deep include chains, Lakos.GodHeader fan-in) and per-file
 // hygiene (SF.7/SF.8) are reported but advisory — they flood header-heavy libraries
 // on a naive first run (abseil: 211 chain-length, exit 1) and existing debt belongs
-// behind --baseline, not a hard exit. Mirrors the --diff/drift gating model
-// (gate = cycles; everything else is an advisory nudge). #133.
+// behind --baseline, not a hard exit. This mirrors the narrow-gate trust model,
+// but not the exact --diff gate: diff also gates new god-headers. #133.
 int reportCheckGate(const archcheck::rules::ViolationList &all, OutputFormat fmt)
 {
-  const auto gating = std::count_if(all.begin(), all.end(), [](const auto &v) { return v.ruleId == "SF.9"; });
+  const auto gating = archcheck::rules::countGating(all, archcheck::rules::GateMode::Check);
   const auto advisory = all.size() - static_cast<std::size_t>(gating);
   if (fmt == OutputFormat::Text && advisory > 0)
     std::cout << "note: " << advisory
@@ -104,6 +102,19 @@ int reportCheckGate(const archcheck::rules::ViolationList &all, OutputFormat fmt
                  " physical-design advisories); the gate fails only on dependency cycles (SF.9)."
                  " Use --baseline to track existing debt.\n";
   return gating > 0 ? 1 : 0;
+}
+
+archcheck::rules::GateMode gateModeFor(const BaselineOpts &baseline)
+{
+  return baseline.driftFile ? archcheck::rules::GateMode::Drift : archcheck::rules::GateMode::Check;
+}
+
+void writeReport(const archcheck::rules::ViolationList &all, OutputFormat fmt, const BaselineOpts &baseline)
+{
+  if (fmt == OutputFormat::Json)
+    archcheck::report::writeJsonReport(all, std::cout, gateModeFor(baseline));
+  else
+    archcheck::report::writeTextReport(all, std::cout, textReportUseColor());
 }
 
 int applyBaselineAndReport(archcheck::rules::ViolationList all, OutputFormat fmt, const BaselineOpts &baseline)
@@ -120,10 +131,7 @@ int applyBaselineAndReport(archcheck::rules::ViolationList all, OutputFormat fmt
     suppressed = static_cast<std::size_t>(n);
   }
 
-  if (fmt == OutputFormat::Json)
-    archcheck::report::writeJsonReport(all, std::cout);
-  else
-    archcheck::report::writeTextReport(all, std::cout, textReportUseColor());
+  writeReport(all, fmt, baseline);
 
   if (suppressed > 0 && fmt == OutputFormat::Text)
     std::cout << "suppressed: " << suppressed << " known violation(s) (run without --baseline to see all)\n";

@@ -73,6 +73,11 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Changed
 
+- **Check-mode JSON now carries gate semantics** — `archcheck --format json` adds a
+  top-level `gate: ok|fail` verdict and per-finding `disposition: advisory|gating`.
+  Advisory findings remain visible in JSON even when exit code is `0`. Check/drift
+  gate classification is centralized in `rules/gate_policy`, so text and JSON use
+  the same source of truth. (#140, #141)
 - **`--diff` is advisory-first** — exit 1 now means only a gated regression: a new/grown
   include cycle (SF.9-class) or a new god-header crossing the fan-in threshold
   (Lakos.GodHeader-class). Added/removed edges, new cross-area dependencies, chain-length

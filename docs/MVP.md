@@ -25,7 +25,8 @@ Chrome) had to build it in-house. The MVP competes with *not using anything*.
    `--baseline` fails only on new violations.
 3. **Drift gate** — `--save-graph-baseline` once, then `--drift-baseline` in CI:
    gates **only** structural regressions (DRIFT.1 shortcut edges, DRIFT.2 cycle
-   growth); legacy debt and advisory DRIFT.3 never fail the run.
+   growth, DRIFT.4.CYCLE lateral module cycles); legacy debt and advisory DRIFT.3 /
+   DRIFT.4.NEW / DRIFT.4.SDP never fail the run.
 4. **PR diff mode** — `--diff <revspec>`: deterministic structural regression report
    between two git refs, in stable `text` or `json` (`--format=json`). Advisory-first:
    exit 1 only on gated regressions (new/grown cycles, new god-headers); added edges,
@@ -76,20 +77,21 @@ MVP is done when all of the following hold (status as of 2026-06-11 in brackets)
    acceptance bar, not a nice-to-have. [✅ — 8/8 rules; duplication subsystem is
    advisory and unit-tested instead]
 8. **Safe on untrusted repos**: a malicious repository cannot crash the process
-   (SIGABRT/stack overflow) or read files outside the scan root. [◑ — S1/S2 fixed;
-   S3–S6 tracked as #105, **release blocker**]
+   (SIGABRT/stack overflow) or read files outside the scan root. [✅ — #105 closed:
+   symlink escape, size caps, JSON escaping and git hardening shipped]
 9. **Dogfood green in CI**: archcheck runs on its own `src/ include/ tests/` as a
    CI gate. [✅ as of 2026-06-11]
 10. **Copy-paste not hidden**: a commit that introduces a clone surfaces it in
     `--diff` (advisory); the 10-commit control set (5 positive / 5 negative)
     behaves correctly locally and on a GitHub test repo (#123); per-commit
-    copy-paste precision is measured on the corpus (#103). [○ — open]
+    copy-paste precision is measured on the corpus (#103). [◑ — product path shipped:
+    local control set + Catch2 E2E are green; #103 precision ≈86–91%; outward-facing
+    GitHub test repo remains validation/publishing work]
 
-#105 (S3–S6 hardening) is now closed. The open items for a public v0.1 release are
-**#123 (copy-paste surfaced in `--diff`)** and **#103 (per-commit copy-paste corpus
-validation)** — shipping without them would publish archcheck with a validated
-detector hidden, showing only graph drift. Everything else on this list is shipped
-and verified.
+Release-readiness status is intentionally not duplicated here. The current SSOT is
+[`backlog/TASK_TRACKER.md`](../backlog/TASK_TRACKER.md): #103 has product precision,
+#123 is shipped/advisory with durable local tests, and the remaining public-readiness
+work is tracked separately from the core MVP contract.
 
 ## Success condition
 

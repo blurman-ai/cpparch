@@ -1,6 +1,10 @@
 # Backlog Task Tracker — MVP v1
 
-_2026-06-19 (четвёртый проход); синхронизировано с backlog_review.md. #073 и #075 закрыты (completed 2026-06-12). P0-остаток сузился: #123 ядро+parent-guard закоммичены (остаток = фикстуры), #103 research-цифры по факту получены. С прошлого прохода уехало #129 (unify source scan — ядро в 6 коммитах, файл всё ещё в new/, надо move→wip). Известный ID-clash: #117 (два файла в completed — diff\_max\_added\_lines + lateral\_backedge\_confirm), #118 (completed drift4\_lateral + new diff\_max\_added\_lines — **вероятный дубль**, diffMaxAddedLines уже реализован в коде). Долг: #071 (completed + future), #029 в new/ (реализован c480e39), #109 closed._
+_2026-06-23 (пятый проход); этот файл — SSOT по release-readiness v0.1. Core MVP
+уже реализован: #103 дал product precision, #123 shipped как advisory `--diff`
+с parent-guard и durable local/Catch2 tests. Оставшееся делится на board hygiene
+(формально закрыть/перенести #103) и public-readiness перед анонсом (#123 GitHub
+test repo, #127/#131 vendored/generated applicability sign-off)._
 
 ## Что считаем MVP v1
 
@@ -41,8 +45,8 @@ _2026-06-19 (четвёртый проход); синхронизировано 
 | ~~Контракты и alignment~~ | ~~#073~~, ~~#045~~ ✅ completed 2026-06-12 | выровнены контракты, docs актуализированы |
 | ~~Product-grade diff workflow~~ | ~~#075~~ ✅ completed 2026-06-12 | advisory-first + stable JSON output shipped |
 | Trust floor для SF.9 | ~~#032~~ ✅ реализовано 04b523b | conditional-рёбра трекаются, SF.9 пропускает all-conditional циклы |
-| **Copypaste precision на корпусе** | **#103 wip → close** | per-commit precision нужна до публикации (MVP.md §Acceptance #10); research-цель достигнута (порядок величины получен, «185 реп не добиваем» зафиксировано), Шаг 6 необязателен → кандидат на `completed/` |
-| **new-clone-gate в --diff** | **#123 wip** | ядро (344870f: `detectNewClones` + DRIFT.NEW_CLONE, advisory, bulk-import guard) **+ parent-guard закоммичены** (хэш нормализованного seq, 4 теста). Остаток: фикстуры `fixtures/diff_new_clone/` (MVP-критерий) + тестовый GitHub-репо |
+| ~~Copypaste precision на корпусе~~ | ~~#103 wip → close~~ | ✅ product precision получена: 70-findings triage, ≈86–91% precision; full 185-repo run не нужен для MVP. Остаток = board move/cleanup, не dev blocker |
+| ~~new-clone в --diff~~ | ~~#123 wip~~ | ✅ shipped advisory: `DRIFT.NEW_CLONE`, parent-guard, local 10/10 control set, Catch2 E2E. Остаток = outward-facing GitHub test repo для публичной демонстрации, не core MVP blocker |
 
 ## P1 — делать в текущей волне, если не ломает P0
 
@@ -91,7 +95,7 @@ _2026-06-19 (четвёртый проход); синхронизировано 
   fallback/absorbed by #101), `new/#101` (local complexity drift).
 - Research: `wip/#102` (прототип #101 на корпусе; вердикт `revise`, см.
   `docs/research/local_complexity_drift_scorer_review.md`), `wip/#103`
-  (copypaste per-commit — **MVP release-блокер**, overnight прогон 185 реп).
+  (copypaste per-commit — product precision получена; остался board cleanup).
 
 Не блокеры MVP v1; порядок остатка волны: #093 (shared text/signature scan) →
 #094/#095/#099/#101; git-ветка (#096→#097/#098/#100) уже закрыта, инфраструктура
@@ -125,26 +129,24 @@ _2026-06-19 (четвёртый проход); синхронизировано 
 1. ~~Закрыть `P0` slice из `#073`~~ ✅ completed 2026-06-12.
 2. ~~Довести `#075` до product-grade diff workflow~~ ✅ completed 2026-06-12.
 3. ~~Ядро `#123`~~ ✅ закоммичено 344870f (advisory new-clone в `--diff`).
-4. **Запустить `#103` overnight** (185 реп, ~5–10 ч) → пороги для #123.
-5. **Добить `#123`** — parent-guard (клон, который коммит лишь задел).
-6. После MVP-тега: `#057`, далее cheap-drift wave. (`#088`/`#116` закрыты.)
+4. ~~Получить product precision по `#103`~~ ✅ ≈86–91%, full 185-repo run отменён как не несущий решения.
+5. ~~Добить `#123` parent-guard + durable tests~~ ✅ local 10/10 + Catch2 E2E.
+6. Перед публичным анонсом: #123 GitHub test repo, #127/#131 applicability sign-off.
+7. После MVP-тега: `#057`, далее cheap-drift wave. (`#088`/`#116` закрыты.)
 
 ## Сжатый вердикт (обновлено 2026-06-19, 5-й проход)
 
-**Строго по MVP-v1 осталось 2 хвоста, оба почти закрыты:**
+**Core MVP-v1:** code-level blockers не осталось. `#073`, `#075`, `#032`, `#045`,
+`#105`, `#029`, `#103` product precision и `#123` product path закрыты по сути.
+Нужна board hygiene: перенести/закрыть #103 и решить, оставлять ли #123 в wip ради
+GitHub test repo или вынести этот демо-хвост отдельной задачей.
 
-1. `#123` wip — ядро + parent-guard закоммичены; остаток = **фикстуры
-   `fixtures/diff_new_clone/` (4 сценария) + тестовый GitHub-репо**. Единственный dev-таск.
-2. `#103` wip — research-цифры получены; **формально закрыть** (move → `completed/`). Ноль работы.
-
-`#073`, `#075`, `#032`, `#045`, `#105`, `#029` — закрыты. После фикстур #123 и закрытия #103 — MVP-v1 тегируется.
-
-**«Готов к публике без позора» добавляет (не строгий MVP-тег, но до анонса):**
-- `#127` vendored/generated exclusion — **едет** (parallel session: `ab21d5f`/`157c727`);
-  без него archcheck на bundled-deps непригоден (supercollider ~2900 FP).
-- **Чистка цикл-гейта** (FP от `.h↔.tmpl.h`-идиомы + артефактов массовых rename) —
-  **НЕ заведена задачей**; цикл — наш сильнейший gating-сигнал, первый чужой репо словит FP.
-- First-run sanity на 3–5 известных репах (не сыпет ли шумом).
+**До публичного анонса:**
+- `#127/#131` vendored/generated exclusion и corpus sign-off — главный применимостный хвост.
+  Без него archcheck на bundled-deps всё ещё может утонуть в vendor/generated шуме
+  (supercollider-класс кейсов уже резко улучшен, но bpftrace/newsboat хвосты открыты).
+- `#123` GitHub test repo — outward-facing validation/demo, не core behavior.
+- First-run sanity на 3–5 известных репах.
 
 **Закрыто этой сессией:** #128 (SF.8 баннер), #130 (findFile), #108 (hardening SSOT).
 **Гигиена борда:** #129 ядро landed (wip, остаток = corpus golden #131 → near-close);
