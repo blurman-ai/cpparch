@@ -1,13 +1,17 @@
-# Cuts a GitHub Release with a prebuilt archcheck binary when a vX.Y.Z tag is
+# Cuts a GitHub Release with prebuilt archcheck binaries when a vX.Y.Z tag is
 # pushed. Downstream CI then downloads a pinned, checksummed asset instead of
 # building from source (3-4 min → seconds). See docs/ci_usage.md.
 #
-# Asset layout (flat tarball, extracts to CWD):
-#   archcheck-<version>-linux-x86_64.tar.gz         → archcheck, LICENSE, README.install
-#   archcheck-<version>-linux-x86_64.tar.gz.sha256  → checksum for `sha256sum -c`
+# Two assets per release (flat tarballs, extract to CWD → archcheck, LICENSE,
+# README.install), each with a .sha256 for `sha256sum -c`:
+#   archcheck-<version>-linux-x86_64.tar.gz          dynamic; needs glibc ≥ 2.38
+#                                                    (ubuntu-24.04/latest), smaller
+#   archcheck-<version>-linux-x86_64-static.tar.gz   fully static (-static); no
+#                                                    glibc dep, runs anywhere incl
+#                                                    Astra 1.7 / Debian 10 / RHEL 8
 #
 # To dry-run before a real release: push a throwaway tag (e.g. v0.0.0-rc1),
-# inspect the draft/prerelease, then delete the tag + release.
+# inspect the prerelease, then delete the tag + release.
 name: Release
 
 on:
@@ -26,6 +30,7 @@ jobs:
     outputs:
       version: ${{ steps.meta.outputs.version }}
       asset: ${{ steps.meta.outputs.asset }}
+      asset_static: ${{ steps.meta.outputs.asset_static }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -37,10 +42,12 @@ jobs:
           version="${tag#v}"                # 0.1.0   or 0.1.0-rc1
           core="${version%%-*}"             # 0.1.0   (strip prerelease suffix)
           asset="archcheck-${version}-linux-x86_64.tar.gz"
-          echo "tag=$tag"           >> "$GITHUB_OUTPUT"
-          echo "version=$version"   >> "$GITHUB_OUTPUT"
-          echo "core=$core"         >> "$GITHUB_OUTPUT"
-          echo "asset=$asset"       >> "$GITHUB_OUTPUT"
+          asset_static="archcheck-${version}-linux-x86_64-static.tar.gz"
+          echo "tag=$tag"                   >> "$GITHUB_OUTPUT"
+          echo "version=$version"           >> "$GITHUB_OUTPUT"
+          echo "core=$core"                 >> "$GITHUB_OUTPUT"
+          echo "asset=$asset"               >> "$GITHUB_OUTPUT"
+          echo "asset_static=$asset_static" >> "$GITHUB_OUTPUT"
           # Mark rc/alpha/beta tags as prerelease.
           if [[ "$tag" == *-* ]]; then
             echo "prerelease=true"  >> "$GITHUB_OUTPUT"
@@ -53,50 +60,56 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build cmake g++-13
 
-      - name: Configure (Release)
+      - name: Build (dynamic + static)
         env:
           CC: gcc-13
           CXX: g++-13
-        # -static-libstdc++ -static-libgcc drops the libstdc++/libgcc_s version
-        # dependency, leaving only glibc — widest portability for a small CLI.
+        # dynamic: -static-libstdc++ -static-libgcc drops the libstdc++/libgcc_s
+        #   version dependency, leaving only glibc — small binary for modern runners.
+        # static:  adds -static → libc statically linked too, no glibc dependency,
+        #   runs on any kernel ≥3.2 (Astra 1.7 / Debian 10 / RHEL 8). archcheck
+        #   forks `git` and only touches the filesystem (no NSS/getpwnam/getaddrinfo),
+        #   so the usual static-glibc caveats do not apply.
         run: |
-          cmake -B build/release -S . -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
+          cmake -B build/release -S . -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc"
+          cmake --build build/release
+          cmake -B build/static -S . -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libstdc++ -static-libgcc"
+          cmake --build build/static
 
-      - name: Build
-        run: cmake --build build/release
-
-      - name: Verify binary version matches tag
+      - name: Verify versions and linkage
         run: |
-          bin=./build/release/src/archcheck
-          got="$("$bin" --version)"          # "archcheck 0.1.0" (CMake numeric version)
-          # Compare against the tag's numeric core — CMake VERSION can't hold a
-          # prerelease suffix, so a vX.Y.Z-rc1 tag still ships an X.Y.Z binary.
           want="archcheck ${{ steps.meta.outputs.core }}"
-          echo "binary: $got"
-          echo "expect: $want"
-          test "$got" = "$want"
-          echo "--- ldd (portability surface) ---"
-          ldd "$bin" || true
+          for bin in build/release/src/archcheck build/static/src/archcheck; do
+            got="$("$bin" --version)"
+            echo "$bin: $got (expect: $want)"
+            test "$got" = "$want"          # CMake VERSION can't hold a prerelease suffix
+          done
+          echo "--- dynamic ldd ---"; ldd build/release/src/archcheck || true
+          echo "--- static ldd (must NOT be dynamic) ---"
+          if ldd build/static/src/archcheck 2>&1 | grep -q "not a dynamic executable"; then
+            echo "ok: static binary has no dynamic dependencies"
+          else
+            echo "ERROR: static binary is still dynamically linked"; exit 1
+          fi
 
-      - name: Package asset
+      - name: Package assets
         run: |
           version="${{ steps.meta.outputs.version }}"
-          asset="${{ steps.meta.outputs.asset }}"
-          stage="$(mktemp -d)"
-          install -m 0755 build/release/src/archcheck "$stage/archcheck"
-          cp LICENSE "$stage/LICENSE"
-          cat > "$stage/README.install" <<EOF
+          pack() {            # pack <binary> <asset-name> <compat-note>
+            local bin="$1" asset="$2" compat="$3"
+            local stage; stage="$(mktemp -d)"
+            install -m 0755 "$bin" "$stage/archcheck"
+            cp LICENSE "$stage/LICENSE"
+            cat > "$stage/README.install" <<EOF
           archcheck ${version} — prebuilt CLI for Linux x86_64
 
           Install:
             sudo install -m 0755 archcheck /usr/local/bin/archcheck
             archcheck --version
 
-          Built on ubuntu-24.04 (gcc-13, -static-libstdc++ -static-libgcc).
-          Requires glibc from a recent distro. Build from source for older
-          baselines — see docs/ci_usage.md.
+          ${compat}
 
           Verify checksum before use:
             sha256sum -c ${asset}.sha256
@@ -104,19 +117,20 @@ jobs:
           License: Apache-2.0 (see LICENSE).
           Project: https://github.com/blurman-ai/cpparch
           EOF
-          tar -C "$stage" -czf "$asset" archcheck LICENSE README.install
-          sha256sum "$asset" > "$asset.sha256"
-          echo "--- packaged ---"
-          ls -l "$asset" "$asset.sha256"
-          cat "$asset.sha256"
+            tar -C "$stage" -czf "$asset" archcheck LICENSE README.install
+            sha256sum "$asset" > "$asset.sha256"
+          }
+          pack build/release/src/archcheck "${{ steps.meta.outputs.asset }}" \
+            "Dynamic build (ubuntu-24.04, gcc-13). Requires glibc >= 2.38 — runs on ubuntu-24.04/latest, NOT ubuntu-22.04 or older. For older glibc use the -static asset."
+          pack build/static/src/archcheck "${{ steps.meta.outputs.asset_static }}" \
+            "Fully static build (-static). No glibc dependency; runs on any Linux x86_64 kernel >= 3.2, including Astra 1.7 / Debian 10 / RHEL 8. Larger but maximally portable."
+          echo "--- packaged ---"; ls -l archcheck-*.tar.gz*
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: release-asset
-          path: |
-            ${{ steps.meta.outputs.asset }}
-            ${{ steps.meta.outputs.asset }}.sha256
+          path: archcheck-*.tar.gz*
           retention-days: 7
           if-no-files-found: error
 
@@ -126,6 +140,7 @@ jobs:
         run: |
           tag="${{ steps.meta.outputs.tag }}"
           asset="${{ steps.meta.outputs.asset }}"
+          asset_static="${{ steps.meta.outputs.asset_static }}"
           prerelease_flag=""
           if [ "${{ steps.meta.outputs.prerelease }}" = "true" ]; then
             prerelease_flag="--prerelease"
@@ -133,20 +148,26 @@ jobs:
           notes="$(cat <<EOF
           Prebuilt \`archcheck\` for Linux x86_64.
 
+          | Asset | Use | glibc |
+          |-------|-----|-------|
+          | \`$asset\` | modern CI (ubuntu-24.04/latest), smaller | needs ≥ 2.38 |
+          | \`$asset_static\` | old / unknown distros (Astra 1.7, Debian 10, RHEL 8) | none (fully static) |
+
           ## Install in CI (pinned + checksummed)
           \`\`\`bash
           cd /tmp
+          asset="$asset"                       # or "$asset_static" for old glibc
           # Keep original filenames so the .sha256 manifest matches as-is.
-          gh release download "$tag" --repo blurman-ai/cpparch --pattern "$asset"
-          gh release download "$tag" --repo blurman-ai/cpparch --pattern "$asset.sha256"
-          sha256sum -c "$asset.sha256"
-          tar -xzf "$asset"
+          gh release download "$tag" --repo blurman-ai/cpparch --pattern "\$asset"
+          gh release download "$tag" --repo blurman-ai/cpparch --pattern "\$asset.sha256"
+          sha256sum -c "\$asset.sha256"
+          tar -xzf "\$asset"
           sudo install -m 0755 archcheck /usr/local/bin/archcheck
           archcheck --version
           \`\`\`
 
           Pin by tag + verify checksum. Do not use a mutable \`latest\` in CI.
-          Built on ubuntu-24.04; requires recent glibc. See docs/ci_usage.md.
+          See docs/ci_usage.md for the full guide.
 
           Full changelog: see [CHANGELOG.md](https://github.com/blurman-ai/cpparch/blob/$tag/CHANGELOG.md).
           EOF
@@ -156,29 +177,57 @@ jobs:
             --title "archcheck $tag" \
             --notes "$notes" \
             $prerelease_flag \
-            "$asset" "$asset.sha256"
+            "$asset" "$asset.sha256" "$asset_static" "$asset_static.sha256"
 
   smoke:
-    name: Smoke test released asset (clean runner)
+    name: Smoke test released assets (clean runner)
     needs: build
     runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
-      - name: Download + verify + run released asset
+      - name: Download + verify + run both released assets
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           ASSET: ${{ needs.build.outputs.asset }}
+          ASSET_STATIC: ${{ needs.build.outputs.asset_static }}
         run: |
           cd /tmp
-          # Keep original asset filenames so the .sha256 manifest matches as-is.
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$ASSET"
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$ASSET.sha256"
-          sha256sum -c "$ASSET.sha256"
-          tar -xzf "$ASSET"
-          sudo install -m 0755 archcheck /usr/local/bin/archcheck
-          archcheck --version
-          archcheck --help
-          # `archcheck .` on an empty dir: clean tree, exit 0.
-          mkdir -p /tmp/emptyproj && archcheck /tmp/emptyproj
+          for a in "$ASSET" "$ASSET_STATIC"; do
+            echo "::group::smoke $a"
+            rm -rf t && mkdir t && cd t
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$a"
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$a.sha256"
+            sha256sum -c "$a.sha256"
+            tar -xzf "$a"
+            ./archcheck --version
+            ./archcheck --help >/dev/null
+            mkdir -p emptyproj && ./archcheck emptyproj   # clean tree → exit 0
+            cd /tmp
+            echo "::endgroup::"
+          done
+
+  smoke-oldglibc:
+    name: Smoke static asset on old glibc (debian:10 ≈ Astra 1.7)
+    needs: build
+    runs-on: ubuntu-24.04
+    # debian:10 (buster) ships glibc 2.28 — the same base as Astra Linux 1.7.
+    # Proves the -static asset runs where the dynamic one cannot.
+    container: debian:10
+    steps:
+      - name: Fetch built assets
+        uses: actions/download-artifact@v7
+        with:
+          name: release-asset
+      - name: Verify glibc is old, then run the static binary
+        env:
+          ASSET_STATIC: ${{ needs.build.outputs.asset_static }}
+        run: |
+          echo "--- container glibc ---"; ldd --version | head -1
+          sha256sum -c "$ASSET_STATIC.sha256"
+          tar -xzf "$ASSET_STATIC"
+          ./archcheck --version          # would fail with GLIBC_2.38 if dynamic
+          ./archcheck --help >/dev/null
+          mkdir -p emptyproj && ./archcheck emptyproj
+          echo "ok: static binary runs on glibc 2.28"
