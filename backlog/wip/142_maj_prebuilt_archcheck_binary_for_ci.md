@@ -52,15 +52,15 @@ run показал цену: job `Archcheck` занял около 4 минут,
 
 ## Acceptance
 
-- [~] Есть GitHub Release asset для Linux x86_64 с `archcheck` — workflow
-      `release.yml` готов; реальный asset появится при push тега `v0.1.0`.
+- [x] Есть GitHub Release asset для Linux x86_64 с `archcheck` — **v0.1.0 выпущен**
+      (https://github.com/blurman-ai/cpparch/releases/tag/v0.1.0), tarball 1.3 MB.
 - [x] Есть checksum asset (`.sha256`) и пример проверки checksum в CI snippet
       (`ci_usage.md`, `example_archcheck_pr.yml`, release notes).
 - [x] `docs/ci_usage.md` показывает быстрый install path через pinned release.
 - [x] `example_archcheck_pr.yml` больше не требует CMake build в happy path
       (release-download в happy path, build-from-source — закомментированный fallback).
-- [~] В отдельном smoke job скачанный release asset запускается
-      (`--version`/`--help`/`.`) — job `smoke` в `release.yml`; сработает на реальном теге.
+- [x] В отдельном smoke job скачанный release asset запускается
+      (`--version`/`--help`/`.`) — job `smoke` в `release.yml`, зелёный на v0.1.0.
 - [x] Downstream workflow может заменить build step на download/install без
       изменения `archcheck --diff` контракта (бинарь в `/usr/local/bin`, вызов `archcheck` без пути).
 
