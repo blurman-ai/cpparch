@@ -135,12 +135,12 @@ jobs:
 
           ## Install in CI (pinned + checksummed)
           \`\`\`bash
-          gh release download "$tag" --repo blurman-ai/cpparch \\
-            --pattern "$asset" --output /tmp/archcheck.tar.gz
-          gh release download "$tag" --repo blurman-ai/cpparch \\
-            --pattern "$asset.sha256" --output /tmp/archcheck.tar.gz.sha256
-          cd /tmp && sha256sum -c archcheck.tar.gz.sha256
-          tar -xzf archcheck.tar.gz
+          cd /tmp
+          # Keep original filenames so the .sha256 manifest matches as-is.
+          gh release download "$tag" --repo blurman-ai/cpparch --pattern "$asset"
+          gh release download "$tag" --repo blurman-ai/cpparch --pattern "$asset.sha256"
+          sha256sum -c "$asset.sha256"
+          tar -xzf "$asset"
           sudo install -m 0755 archcheck /usr/local/bin/archcheck
           archcheck --version
           \`\`\`
