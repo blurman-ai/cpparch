@@ -214,9 +214,14 @@ jobs:
     permissions:
       pull-requests: write        # для sticky-комментария
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0          # ОБЯЗАТЕЛЬНО: shallow clone обрезает baseline
+      - uses: actions/checkout@v4   # shallow (depth 1) — историю НЕ тянем
+      - name: Fetch baseline snapshot   # один срез base, depth 1 (не вся история)
+        run: |
+          base="${{ github.base_ref }}"
+          [ -z "$base" ] && base="${{ github.event.merge_group.base_ref }}"
+          base="${base#refs/heads/}"
+          git fetch --no-tags --depth=1 origin "+refs/heads/$base:refs/remotes/origin/$base"
+          echo "ARCHCHECK_BASE=origin/$base" >> "$GITHUB_ENV"
       - name: Install archcheck   # pinned release — см. «Установка в CI»
         env:
           ARCHCHECK_VERSION: v0.1.0
@@ -232,7 +237,7 @@ jobs:
       - name: Run archcheck --diff
         id: archcheck
         run: |
-          archcheck --diff "origin/${{ github.base_ref }}..HEAD" . \
+          archcheck --diff "$ARCHCHECK_BASE..HEAD" . \
             | tee archcheck-diff.txt
         continue-on-error: true    # дать дойти до публикации отчёта
       - name: Publish to Step Summary
@@ -251,13 +256,21 @@ jobs:
 
 Готовый файл — [.github/workflows/example_archcheck_pr.yml](../.github/workflows/example_archcheck_pr.yml).
 
-**Канонический revspec для PR:** `origin/${{ github.base_ref }}..HEAD`. Форма
+**Канонический revspec для PR:** `origin/<base>..HEAD`. Форма
 `<ref>` (без правой стороны) означает «baseline = ref, current = рабочее дерево».
 
-**`fetch-depth: 0` обязателен** — `actions/checkout` по умолчанию делает shallow
-clone, тогда `origin/main` недоступен, `git worktree add origin/main` падает,
-archcheck возвращает exit 2. Для гигантских монорепо есть selective-fetch
-обходной путь — см. [ci_integration.md](ci_integration.md#почему-fetch-depth-0).
+**Истории git не нужно — нужен только срез base-дерева.** `archcheck --diff`
+сравнивает два дерева (`git diff` = tree-vs-tree) и материализует одно дерево
+через `git worktree`; ни `rev-list`, ни `merge-base` он не вызывает. Поэтому
+вместо тяжёлого `fetch-depth: 0` (вся история — на больших репах это десятки
+секунд впустую) берём **depth=1 дофетч одного base-рефа**. `actions/checkout` по
+умолчанию даёт shallow HEAD; шаг «Fetch baseline snapshot» дотягивает base одним
+снапшотом. `fetch-depth: 0` остаётся простым, но тяжёлым fallback'ом — см.
+[ci_integration.md](ci_integration.md#почему-shallow-base-fetch).
+
+> ⚠️ Base **обязан** дофетчиться. Если base-ref не резолвится, archcheck не падает,
+> а сравнивает с пустым деревом (всё «добавлено») → ложный gate. Не пропускайте
+> шаг дофетча и пиньте правильный base.
 
 Каналы публикации в PR (Step Summary, sticky-comment, Check-run), merge queue,
 submodules, edge-cases — подробно разобраны в [ci_integration.md](ci_integration.md).

@@ -34,10 +34,20 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - name: Checkout (with full history)
+      - name: Checkout (shallow — default depth 1)
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # `--diff origin/main..HEAD` needs both refs
+        # No fetch-depth: 0. archcheck --diff rebuilds the baseline graph from the
+        # base SNAPSHOT (git diff = tree-vs-tree, git worktree = one tree checkout);
+        # it never walks history or needs a merge-base. Fetch just that one snapshot:
+
+      - name: Fetch baseline snapshot (depth 1, no history)
+        run: |
+          base="${{ github.base_ref }}"
+          # merge_group carries the base in the event payload, not github.base_ref.
+          [ -z "$base" ] && base="${{ github.event.merge_group.base_ref }}"
+          base="${base#refs/heads/}"
+          git fetch --no-tags --depth=1 origin "+refs/heads/$base:refs/remotes/origin/$base"
+          echo "ARCHCHECK_BASE=origin/$base" >> "$GITHUB_ENV"
 
       - name: Install archcheck
         # Pinned release binary + checksum. Do not use a mutable `latest` in CI.
@@ -65,7 +75,7 @@ jobs:
       - name: Run archcheck --diff
         id: archcheck
         run: |
-          archcheck --diff "origin/${{ github.base_ref }}..HEAD" . \
+          archcheck --diff "$ARCHCHECK_BASE..HEAD" . \
             | tee archcheck-diff.txt
         # exit 1 means regression found — keep going so we can post the comment
         continue-on-error: true
