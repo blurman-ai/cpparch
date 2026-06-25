@@ -2,7 +2,7 @@
 
 **Дата создания:** 2026-06-25
 **Дата старта:** 2026-06-25
-**Статус:** wip
+**Статус:** completed
 **Модуль:** CI / RELEASE / DOCS
 **Приоритет:** major
 **Сложность:** M
@@ -121,6 +121,30 @@ Dry-run rc3 — все 3 job'а зелёные, прибран.
 Осталось (внешнее, на стороне пользователя):
 - Проверить на `leadline`: заменить build-from-source на release-download
   (static-asset под Astra-раннер, если он там), full scan = `No violations found`.
+
+## Итог
+
+**Статус:** completed
+**Дата завершения:** 2026-06-25
+
+Release-пайплайн (`release.yml`) на тег `vX.Y.Z` собирает и публикует два Linux
+x86_64 asset'а (dynamic glibc≥2.38 + fully-static) с `.sha256` и smoke-job'ами
+(чистый runner + `debian:10` для старого glibc). `v0.1.0` выпущен и живой.
+`docs/ci_usage.md` + `example_archcheck_pr.yml` дают готовый install path:
+download → `sha256sum -c` → `install /usr/local/bin`, **по умолчанию static**
+(работает на любом glibc, в т.ч. Astra 1.7 / ubuntu-22.04). `/release` команда
+автоматизирует bump→changelog→tag→push.
+
+**Изменённые файлы (финальный заход, commit 4bc33aa):**
+- `docs/ci_usage.md` — дефолт install-сниппетов переведён на static-asset.
+- `.github/workflows/example_archcheck_pr.yml` — пример тоже на static.
+- `README.md` — указатель на `docs/ci_usage.md`.
+
+Ранее (этой задачей): `release.yml`, `/release`, glibc-нота, static-asset +
+debian:10 smoke — коммиты 3bd3c07, b79b96b, 167bbf0, c4350b9, fed39d9, 3bd9b14, 8a9d810.
+
+**Внешний follow-up (вне cpparch):** проверить на `leadline` замену
+build-from-source на release-download (static-asset под Astra-раннер).
 
 ## Не делать в этой задаче
 
