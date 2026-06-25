@@ -1,119 +1,69 @@
-# Backlog Review — 2026-06-19 (пятый проход, фокус: что осталось до MVP)
+# Backlog review — 2026-06-26 (снимок после bool-волны + doc-sync)
 
-_Снимок после сессии 2026-06-19 (закрыты #128/#130/#108; #129 core landed; #127 едет;
-#132 ведёт соседняя сессия). `pending/` не трогали._
+**Активных:** 21 (11 `new/` + 10 `wip/`). Пустых шаблонов нет.
+Протухших по дате (>30 дн без правок) — 0 (самый старый: #074 от 2026-06-02).
+`pending/` не трогали.
 
-## Статистика очереди
+> Этот прогон уже применил board-гигиену: #103 и #122 → `completed/` (цели достигнуты);
+> #093 → `wip/` (ARG.1 зашиплен c0f37db, в релизе 0.1.0; остаток ARG.2); #093/#094/#095
+> получили `Related: #090`. Таблицы ниже отражают состояние ПОСЛЕ этих переносов.
 
-| Папка | Файлов |
-|-------|--------|
-| `new/` | 12 |
-| `wip/` | 9 |
-| `future/` | 14 |
-| `completed/` | 111 |
-| `pending/` | 1 (не трогаем) |
-
-**Стухших (>30 дней):** 0 — старейшая активная от 2026-06-02 (#074/#066), 17 дней.
-
----
-
-## ❗ Что осталось до MVP-v1 (ответ на вопрос)
-
-MVP-v1 = **trusted dependency diff для C++ PR** (advisory-first; exit-1 gate для
-new-clone — это уже v0.2). По `TASK_TRACKER.md` все P0 закрыты, **кроме двух — и обе почти готовы:**
-
-| Задача | Статус | Остаток |
-|--------|--------|---------|
-| **#123** new-clone-gate в `--diff` | wip — код (`detectNewClones` + parent-guard) **закоммичен** | **Фикстуры `fixtures/diff_new_clone/` (4 сценария) + тестовый GitHub-репо.** Это MVP-критерий «нет фич без фикстур». Единственная реальная dev-работа. |
-| **#103** copypaste precision на корпусе | wip — research-цель достигнута | **Формально закрыть** (move → `completed/`). Числа есть, «185 реп не добиваем» зафиксировано. Ноль новой работы. |
-
-**Строго по трекеру: до MVP-тега остался один dev-таск (#123 фикстуры) + одно закрытие (#103).**
-
-### Но «готов к публике без позора» (находки этой сессии) — добавляет ещё:
-
-| Пункт | Почему важно для выхода | Статус |
-|-------|------------------------|--------|
-| **#127** vendored/generated exclusion | без него archcheck на репе с bundled-deps **непригоден** (supercollider ~2900 FP); сам тикет — «близко к release-блокеру по применимости» | **едет** — соседняя сессия закоммитила `ab21d5f`/`157c727` (external_libraries + generated дропнуты) |
-| **Чистка цикл-гейта** (FP) | цикл — наш сильнейший дифференциатор и он **gating (exit 1)**; но ~19% срабатываний — артефакты массовых rename, плюс идиома `.h↔.tmpl.h` даёт FP. Первый чужой репо словит FP → спишут. | **НЕ заведено задачей** — гэп |
-| **First-run sanity на 3–5 известных репах** | проверить, что не сыпет шумом («5000 нарушений на первом запуске» — смерть, спека предупреждает) | не сделано |
-
----
-
-## Протухшие / висящие / кандидаты на закрытие
-
-| Файл | Причина | Рекомендация |
-|------|---------|--------------|
-| **#103** copypaste_per_commit | research-цель достигнута; MVP-блокер только формально | **→ completed** (через `/fix-issue`) |
-| **#122** grow_corpus_to_1000 | grow+measure по факту сделан (1188 реп, отчёт) — статус обновлён в этой сессии | **→ completed** (или оставить как тонкий tracker для re-mer; цель достигнута) |
-| **#129** unify_source_scan | product-часть (код) shipped, dogfood 0; остаток шаг 7 = corpus golden = research (вынесен в #131) | близок к закрытию: если шаг 7 целиком в #131, #129 можно **закрывать** |
-| **#066** airepo_remeasure | фоновый перемер с 2026-06-02, статус неизвестен | проверить `_aidev_state/remeasure.done` → `/checkpoint` |
-
----
-
-## Быстрые победы (quick_win)
+## Быстрые победы
 
 | Файл | Цель | Модуль |
 |------|------|--------|
-| **#103** → completed | закрыть (числа есть) | DOCS |
-| **#122** → completed | закрыть (grow+measure done) | DOCS/RESEARCH |
-| **#123** фикстуры | `fixtures/diff_new_clone/` (4 сценария) — **единственный MVP dev-таск** | FIXTURES/SCAN |
+| `new/144_min_diff_unresolved_baseline_exit2.md` | нерезолвящийся `--diff` ref → exit 2 вместо тихого пустого дерева (ложный gate); фикстура + интеграционный тест | CLI |
+| `new/143_maj_diff_shallow_baseline_fetch_ci.md` | убрать `fetch-depth: 0` из рекомендуемого `--diff` CI-сниппета; правки только workflow + 2 дока | CI/DOCS |
+| `wip/093_maj_flag_argument.md` (остаток) | ARG.2 (call sites: ≥2 `true`/`false` в одном вызове) поверх уже-зашипленного ARG.1 | SCAN |
 
----
+## Средние
 
-## Средние задачи
+| Файл | Цель | Модуль | Сложность |
+|------|------|--------|-----------|
+| `new/057_maj_lakos_fanout_coupling_checks.md` | `Lakos.GodComponentFanOut` + report-only метрики (avg coupling, blast radius, SCC size) | GRAPH/RULES/REPORT | medium |
+| `new/094_maj_param_count_and_accretion.md` | `ARG.3/ARG.4` длинный список параметров + accretion; reuse scanner из #093 | SCAN | medium |
+| `new/095_maj_config_bag_growth.md` | `CFG.1/CFG.2` config-bag growth (>15 полей / прирост); новый `type_body_scan` | SCAN | medium |
+| `new/125_maj_scan_extensionless_headers.md` | сканер не видит extensionless headers (`<vector>`, `gsl/span`) → ложное «0 нарушений» | SCAN | medium |
+| `new/126_maj_sf9_collapse_impl_into_component.md` | SF.9: схлопывать header+impl в один Lakos-компонент до детекции циклов (mlpack 259→16 FP) | RULES | medium |
+| `wip/127_maj_vendor_generated_exclusion.md` | исключать vendored/generated; скоуп A+B готов, остаток — generic nested-LICENSE, `.gitmodules`, фикстуры | SCAN | medium |
+| `wip/133_maj_first_run_noise_floor.md` (остаток) | ядро (advisory в check-mode, gate только SF.9) зашиплено 67a5a2c; остаток — узкий `--diff` mass-rename guard | RULES/CLI | medium |
 
-| Файл | Цель | Модуль | MVP? |
-|------|------|--------|------|
-| #057 lakos_fanout | дешёвые граф-метрики (fan-out/coupling/SCC) | GRAPH/RULES | P1 (post-MVP value) |
-| #125 scan_extensionless_headers | видеть `<vector>`/GSL; нужен выбор A/B + perf | SCAN | demo-relevant, не строгий MVP |
-| #093 flag_argument | head сигнатурной волны (shared text_scan) | SCAN/DIFF | OUT (post-release) |
-| #094/#095 param/config-bag | зависят от #093 | SCAN/DIFF | OUT (post-release) |
-| #074/#077 ai-discovery / per-commit export | corpus-ops инфраструктура | RESEARCH | OUT |
+## Hard / исследовательские
 
----
+| Файл | Цель | Модуль |
+|------|------|--------|
+| `wip/054_maj_ai_repo_duplication_run.md` | корпусный прогон граф+дубли по AI-репам | RESEARCH |
+| `wip/066_maj_airepo_remeasure_clonefail.md` | перемер CLONEFAIL + расширение корпуса ≥300 | RESEARCH/SCAN |
+| `wip/070_maj_checker_fp_fix_proposals.md` | 6 P0 FP-гардов готовы; остаток — measurement-harness + precision на корпусе | SCAN |
+| `wip/072_maj_port_056_duplication_into_archcheck.md` | порт #056 готов (CLI `--duplication`, 17 тестов); остаток — JSON-вывод пар (спорно для v0.1) | SCAN |
+| `wip/123_maj_diff_new_clone_gate.md` | core `DRIFT.NEW_CLONE` shipped + E2E; остаток — GitHub demo-репо + severity-решение | SCAN |
+| `wip/124_maj_corpus_validate_new_clone_gate.md` | продуктовые precision/recall new-clone-gate; остаток — Part B summary | SCAN |
+| `wip/129_maj_unify_source_scan_one_pass.md` | единый `AuthoredScope` (one-pass); ядро закоммичено, остаток — шаг 7 (golden, ведётся в #131) | SCAN |
+| `wip/131_maj_fresh_corpus_remeasure.md` | мастер корпус-верификатор всей волны сканера; Группа 1 done, Группы 2–6 ждут | RESEARCH |
+| `new/074_maj_ai_repo_discovery_roi_alignment.md` | свести discovery-техдолг (ROI-фильтры, giant-skip, resumable) | RESEARCH |
+| `new/077_maj_per_commit_graph_drift_export.md` | per-commit export include-графа для ручной верификации drift-кейсов | RESEARCH |
+| `new/078_maj_clone_cochange_harm_signal.md` | severity клонов по inconsistent co-change в git-истории (надстройка над #054) | SCAN/RESEARCH |
 
-## Сложные / заблокированные
+## Дубли / слияния (не сливать — связки)
 
-| Файл | Блокер / причина | MVP? |
-|------|------------------|------|
-| #127 vendor_generated_exclusion | 5 слоёв; **едет** (parallel session); applicability-critical | near-blocker по применимости |
-| #126 sf9_collapse_impl | полная компонентная модель (header+impl); demo на header-only | demo-relevant |
-| #129 unify_source_scan | core landed; остаток = corpus golden (#131) | product done |
-| #078 clone_cochange_harm | severity по co-change истории | OUT |
-| #119 unified_drift_correlation | **разблокирован** (датасет есть); работа = развернуть n_other | OUT (research) |
-| #124 corpus_validate_clone_gate | ждёт полнокорпусный прогон | OUT (research) |
-| #054 ai_repo_dup_run | ~85% done, ждёт прогоны | OUT |
-| #070 checker_fp_fix | ~75%, measurement-harness placeholder | OUT (duplication) |
-| #131 fresh_corpus_remeasure | partial re-mer vendored-реп после финала #127 | OUT (verification) |
+| Файлы | Вывод |
+|-------|-------|
+| #093 / #094 / #095 vs bool-волна #090/#135 | **НЕ дубли, не поглощены** — bool-аргументы / число параметров / config-поля ⟂ bool-поля классов. Общее — только методология. `Related: #090` проставлен. Порядок: #093(остаток)→#094→#095. |
+| #123 / #124 | связка: #123 продуктовый вход (shipped), #124 корпусная валидация его precision/recall. |
+| #127 / #129 | связка: #129 единый one-pass, #127 точность vendored/generated-предиката в этом проходе. Закрывать вместе через #131. |
+| #054 / #066 / #124 / #131 | сходятся на #131 как зонтике-верификаторе (`Верификация: #131` в каждой). |
+| #054 / #066 / #072 / #070 / #078 | duplication-семья: порт → FP-гарды → co-change severity → корпус-инфра. Цепочка, оставить. |
 
----
+## Заблокированные (де-факто разблокированы)
 
-## Без анализа
+| Файл | Чем заблокирован | Реальность |
+|------|------------------|-----------|
+| `wip/129` | #131 (шаг 7 golden) | живой блок (Группы 2–6 #131) |
+| `wip/124` | #123 | core #123 shipped → не реальный блок |
 
-_Пустых шаблонов нет — все задачи содержательны. Единственный «нужно решение до кода»:
-#125 (вариант A/B + perf-замер), #072 (dup-pairs JSON в v0.1 vs v0.2)._
+## Итог
 
----
-
-## Дубли / связанные (кластеры)
-
-| Кластер | Файлы | Заметка |
-|---------|-------|---------|
-| **MVP-ядро** | #123, #103 | единственные P0-остатки; #103 закрыть, #123 фикстуры |
-| **Applicability на чужом коде** | #127, #125, #126 | нужны для демо/публики на реальных репах; #127 едет |
-| **Сигнатурная волна (OUT)** | #093 → #094 → #095 | post-release; 94/95 зависят от 93; flag-arg НЕ в MVP (MVP.md) |
-| **Corpus research (OUT)** | #119, #122, #124, #131, #066, #054, #077, #103 | #122/#103 → completed; #119 разблокирован; остальное вне MVP-борда |
-| **Duplication ветка (OUT)** | #070, #072 | #072 закрывается одним JSON-решением |
-| **Cycle-gate FP cleanup** | (не заведено) | гэп: нужен `.tmpl.h`-exempt + mass-rename filter перед публикой |
-
----
-
-## Сводка
-
-- **Всего активных:** 21 (new/ 12 + wip/ 9). Стухших по дате: **0**.
-- **До MVP-тега строго:** **2** — #123 (фикстуры, единственный dev-таск) + #103 (закрыть).
-- **До «можно к публике»:** + #127 (едет) + чистка цикл-гейта (**не заведена**) + first-run sanity.
-- **Кандидаты на закрытие сейчас:** #103, #122, и почти #129.
-- **Главный незаведённый гэп:** чистка цикл-гейта (FP от `.tmpl.h` + массовых rename) — это product-quality для нашего сильнейшего gating-сигнала.
-
-_Перемещения делает `/issue` / `/checkpoint` / `/fix-issue`. Этот скил не двигает файлы и не коммитит._
+- **21 активная**, все с реальным анализом; протухших по дате — 0.
+- **Board-гигиена применена:** #103, #122 → completed; #093 → wip (ARG.1 в релизе, остаток ARG.2).
+- **Узкое место волны сканера** — корпус-верификатор #131 (Группы 2–6), через него закрывается #054/#066/#124/#129.
+- **Три быстрые победы первыми:** (1) #144 exit-2 на нерезолвящемся ref; (2) #143 shallow base-fetch; (3) #093 ARG.2 call-sites.

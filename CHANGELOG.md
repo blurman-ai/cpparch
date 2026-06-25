@@ -58,6 +58,11 @@ via GitHub Releases for pinned, checksummed CI install. (#142)
 - **Test co-evolution advisory in `--diff`** — `TEST.1.prod_changed_tests_silent` flags a
   diff with significant production churn and silent tests (prod ≥ 80 lines with tests = 0,
   or prod ≥ 200 with test/prod ratio < 5%). Advisory-only. (#097)
+- **Flag-argument advisory in `--diff`** — `ARG.1.flag_argument_signature` scans the added
+  lines for a function that takes a by-value `bool` parameter whose name reads like a flag
+  (`enable`/`force`/`is`/…); ≥ 2 such parameters report as "takes N boolean flag parameters".
+  Flag arguments are a known smell (C++ Core Guidelines F.21, "prefer a different design";
+  Martin). Token-level on the fast backend, advisory only — never gates. (#093)
 - **`--history <path>` advisory mode** — repository-history analytics over one
   `git log --numstat` pass (shared `history_query` parser): `SIZE.1.god_file_growth`
   flags files that are already large (≥ P75), grew ≥ +30% or +300 lines, in ≥ 5

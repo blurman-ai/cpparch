@@ -8,7 +8,7 @@
 **Сложность:** medium
 **Блокирует:** —
 **Заблокирован:** —
-**Related:** #018 (git_diff_analysis), #030 (baseline_file_flag), #051 (config_loader_v1), #075 (trusted_diff_workflow), #089 (boolean_state_drift), #093 (flag_argument)
+**Related:** #018 (git_diff_analysis), #030 (baseline_file_flag), #051 (config_loader_v1), #075 (trusted_diff_workflow), #089 (boolean_state_drift), #090 (bool_field_accretion — образец delta-first advisory), #093 (flag_argument)
 
 ## Цель
 

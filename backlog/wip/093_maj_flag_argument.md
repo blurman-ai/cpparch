@@ -1,14 +1,14 @@
 # [CHEAP-DRIFT][SCAN] Flag-Argument Heuristics
 
 **Дата создания:** 2026-06-10
-**Дата старта:** —
-**Статус:** new
+**Дата старта:** 2026-06-23
+**Статус:** wip — `ARG.1.flag_argument_signature` (сигнатуры) зашиплен (c0f37db, в релизе 0.1.0); остаток = `ARG.2` (call sites: ≥2 `true`/`false`-литерала в одном вызове)
 **Модуль:** SCAN / DIFF / REPORT
 **Приоритет:** major
 **Сложность:** medium
 **Блокирует:** —
 **Заблокирован:** —
-**Related:** #018 (git_diff_analysis), #030 (baseline_file_flag), #051 (config_loader_v1), #075 (trusted_diff_workflow), #086 (drift2_cycle_default_gate), #089 (boolean_state_drift)
+**Related:** #018 (git_diff_analysis), #030 (baseline_file_flag), #051 (config_loader_v1), #075 (trusted_diff_workflow), #086 (drift2_cycle_default_gate), #089 (boolean_state_drift), #090 (bool_field_accretion — образец delta-first advisory на fast-бэкенде)
 
 ## Цель
 
@@ -22,7 +22,7 @@
 ## Контекст
 
 - Источник постановки: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 1.
-- В текущем shipped-продукте **нет** runtime-правила про рост boolean-полей. Есть research/metric ветка вокруг boolean-state drift (#089), но не production check. Эту задачу нельзя описывать как "расширение существующего shipped rule".
+- Boolean-**поля** структур уже покрыты shipped-правилом `DRIFT.BOOL_FIELD_ACCRETION` (#090, в 0.1.0). Эта задача — про boolean **флаг-аргументы функций**: ортогональный cheap-drift сигнал, не «расширение» bool-field-правила. Общая с #090 — только методология (delta-first advisory, токенный fast-бэкенд), не феномен.
 - Текущий runtime `archcheck` строится вокруг graph-backed `IRule` и минимального `Violation { ruleId, file, line, message }`. Задача не должна ломать текущий `--format json` v1 и не должна тащить второй параллельный формат отчёта.
 - Текущий config contract (`version / modules / rules / thresholds`) не допускает произвольный top-level `cheap_drift:`. Первая реализация должна жить на встроенных дефолтах; отдельное расширение схемы — отдельная задача.
 - По позиционированию продукта это **не intrinsic default rule уровня SF/Lakos**, а cheap drift heuristic. Значит: advisory-first, delta-first, без zero-config gate по всему legacy дереву.

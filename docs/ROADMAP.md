@@ -1,6 +1,6 @@
 # archcheck — ROADMAP
 
-_2026-06-13 · phase: **v0.1 (in progress — trusted dependency diff core)**_
+_2026-06-25 · phase: **v0.1.0 released — stabilising; v0.2 (dependency policy rules) next**_
 
 ## Product framing
 
@@ -35,25 +35,29 @@ _2026-06-13 · phase: **v0.1 (in progress — trusted dependency diff core)**_
 
 ## Current focus
 
-Сейчас главный фокус — **довести trusted graph/drift core**, а не расширять
-research-ветки.
+**v0.1.0 зарелизен** (2026-06-25): trusted graph/drift/diff core зашипился, prebuilt
+Linux-бинарь живёт в GitHub Releases для pinned CI-install. Фаза сменилась с «довести
+core» на **стабилизацию + переход к v0.2**.
 
 Приоритеты текущей фазы:
 
-- выровнять CLI/документационные контракты;
-- укрепить baseline / diff / drift workflow;
-- сделать dependency-diff понятным и пригодным для CI;
-- держать duplication и AI-attribution вне trusted gate, пока нет нужной точности.
+- стабилизировать `--diff`-в-CI: shallow base-fetch (#143), exit 2 на нерезолвящемся
+  ref (#144);
+- public-readiness: outward-facing GitHub demo-репо для new-clone drift (#123);
+- начать v0.2 — enforcement модульных правил из `.archcheck.yml` (ADR-001).
 
-Особенно важно:
+Что зашипилось и больше не «в фокусе доведения» (детали — в [CHANGELOG.md](../CHANGELOG.md)):
 
-- graph/drift уже выглядит как продуктовый wedge;
-- duplication шипнут как advisory reporting capability (`--duplication`), но не как blocking gate;
-- AI-vs-human drift — полезное исследование, но не продуктовый promise.
+- graph/drift/diff — продуктовый wedge, в релизе;
+- duplication — advisory reporting (`--duplication`, new-clone drift в `--diff`), не blocking gate;
+- cheap-drift advisories (SATD, test co-evolution, local complexity, flag-argument ARG.1,
+  bool-field accretion) — в `--diff`, advisory-first;
+- AI-vs-human drift — исследование (вывод: agentic-подписи дрейфа нет, гибнет под repo FE),
+  не продуктовый promise.
 
 ---
 
-## v0.1 — Trusted Dependency Diff for PRs (current)
+## v0.1 — Trusted Dependency Diff for PRs (released 2026-06-25)
 
 **Цель:** показать архитектурные dependency changes, внесённые PR, почти без настройки.
 
