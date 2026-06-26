@@ -18,7 +18,7 @@ void phase1TokenizeAndExtract(const std::vector<std::pair<std::string, std::stri
 {
   for (const auto &[path, source] : files)
   {
-    const auto tokens = lex(source, opts.fragmentOpts.minTokens > 0);
+    const auto tokens = lex(source, opts.fragmentOpts.minTokens > 0); // #147: lex() caps oversized data files
     const auto fragments = extractFragments(tokens, source, path, opts.fragmentOpts);
     for (const auto &frag : fragments)
     {

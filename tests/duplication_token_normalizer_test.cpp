@@ -18,6 +18,26 @@ TEST_CASE("Token normalizer: simple identifier", "[duplication]")
   REQUIRE(tokens[4].sym == ";");
 }
 
+TEST_CASE("Token normalizer: oversized files are skipped (#147)", "[duplication]")
+{
+  // A multi-MB embedded-data file (e.g. a vocab `.hpp` of byte literals) must not be
+  // tokenized — doing so builds a multi-GB token + k-gram blow-up (archcheck RSS > 3 GB).
+  // lex returns no tokens past kMaxLexBytes so every lex-based scan skips the file.
+  const std::string unit = "int x = 5;\n"; // 11 tokens-worth per copy
+  std::string big;
+  big.reserve(kMaxLexBytes + unit.size() * 2);
+  while (big.size() <= kMaxLexBytes)
+    big += unit;
+  REQUIRE(big.size() > kMaxLexBytes);
+  REQUIRE(lex(big).empty()); // over the cap -> no tokens
+
+  std::string under;
+  while (under.size() < kMaxLexBytes - unit.size())
+    under += unit;
+  REQUIRE(under.size() <= kMaxLexBytes);
+  REQUIRE_FALSE(lex(under).empty()); // just under the cap -> still tokenized
+}
+
 TEST_CASE("Token normalizer: comment handling", "[duplication]")
 {
   const std::string src = "int x; // comment\nint y;";

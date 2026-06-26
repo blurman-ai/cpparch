@@ -394,6 +394,13 @@ bool consumeTrivia(const std::string &source, std::size_t &i, int &line, bool &a
 std::vector<Token> lex(const std::string &source, bool keepCalls)
 {
   std::vector<Token> out;
+  // #147: hand-written source is ~never >1 MiB; anything bigger is embedded/generated
+  // data (e.g. a 43 MiB vocab `.hpp` of byte literals). Tokenizing it builds a multi-GB
+  // token vector (then k-gram index downstream) for zero clone/complexity/flag value and
+  // pushed archcheck RSS past 3 GB per process. Skip — every lex-based scan (duplication,
+  // local-complexity, flag-argument) sees no tokens for the file, which is the right answer.
+  if (source.size() > kMaxLexBytes)
+    return out;
   const std::size_t n = source.size();
   std::size_t i = 0;
   int line = 1;

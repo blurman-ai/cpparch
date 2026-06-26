@@ -1,10 +1,17 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
 namespace archcheck::scan::duplication
 {
+
+// #147: files larger than this are embedded/generated data (e.g. a multi-MB vocab `.hpp`
+// of byte literals), never hand-written source. `lex` returns no tokens for them — every
+// lex-based scan (duplication / local-complexity / flag-argument) then produces nothing,
+// avoiding a multi-GB token + k-gram blow-up. Read caps elsewhere are 64 MiB (too high here).
+constexpr std::size_t kMaxLexBytes = 1024 * 1024;
 
 struct Token
 {
