@@ -77,4 +77,4 @@ Waves P0 → P1 → P2 → P3; verify and commit between waves.
   standing "don't touch pending/" rule. ⚠️ It IS tracked, so it would ship with
   Russian; lift the pending exclusion if it must be translated before release.
 - Untracked in-flight files (`backlog/new/145,146,148,149`,
-  `docs/research/bot_review_drift.md`) — "не под гитом не переводить".
+  `docs/research/bot_review_drift.md`) — "don't translate what isn't under git".
