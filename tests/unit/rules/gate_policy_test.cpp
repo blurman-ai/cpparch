@@ -1,11 +1,11 @@
-#include "archcheck/rules/gate_policy.h"
-
 #include <catch2/catch_test_macros.hpp>
 
-using archcheck::rules::FindingDisposition;
-using archcheck::rules::GateMode;
+#include "archcheck/rules/gate_policy.h"
+
 using archcheck::rules::classifyForGate;
 using archcheck::rules::countGating;
+using archcheck::rules::FindingDisposition;
+using archcheck::rules::GateMode;
 using archcheck::rules::isGating;
 
 TEST_CASE("gate policy: check mode gates only SF.9", "[rules][gate-policy]")
@@ -35,4 +35,3 @@ TEST_CASE("gate policy: counts gating violations", "[rules][gate-policy]")
 
   CHECK(countGating(violations, GateMode::Check) == 1);
 }
-

@@ -25,4 +25,3 @@ enum class FindingDisposition
 [[nodiscard]] std::size_t countGating(const ViolationList &violations, GateMode mode);
 
 } // namespace archcheck::rules
-

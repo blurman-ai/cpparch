@@ -10,9 +10,8 @@ FindingDisposition classifyForGate(std::string_view ruleId, GateMode mode) noexc
   if (mode == GateMode::Check)
     return ruleId == "SF.9" ? FindingDisposition::Gating : FindingDisposition::Advisory;
 
-  return (ruleId == "DRIFT.1" || ruleId == "DRIFT.2" || ruleId == "DRIFT.4.CYCLE")
-             ? FindingDisposition::Gating
-             : FindingDisposition::Advisory;
+  return (ruleId == "DRIFT.1" || ruleId == "DRIFT.2" || ruleId == "DRIFT.4.CYCLE") ? FindingDisposition::Gating
+                                                                                   : FindingDisposition::Advisory;
 }
 
 bool isGating(std::string_view ruleId, GateMode mode) noexcept
@@ -27,4 +26,3 @@ std::size_t countGating(const ViolationList &violations, GateMode mode)
 }
 
 } // namespace archcheck::rules
-

@@ -42,10 +42,7 @@ Drift rules (require --drift-baseline):        DRIFT.1, DRIFT.2, DRIFT.4.CYCLE [
                                                 DRIFT.3, DRIFT.4.NEW, DRIFT.4.SDP [advisory]
 )";
 
-void print_help()
-{
-  std::cout << kHelpText;
-}
+void print_help() { std::cout << kHelpText; }
 
 bool parseDiffMode(std::string_view raw, cli::DiffMode &out)
 {
