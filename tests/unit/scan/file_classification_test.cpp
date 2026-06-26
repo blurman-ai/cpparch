@@ -5,6 +5,7 @@
 
 using archcheck::scan::baseName;
 using archcheck::scan::hasGeneratedHeader;
+using archcheck::scan::hasMinifiedContent;
 using archcheck::scan::hasVendorLicenseHeader;
 using archcheck::scan::isGeneratedPath;
 using archcheck::scan::isTestBasename;
@@ -226,4 +227,24 @@ TEST_CASE("hasGeneratedHeader: @generated only as a top banner tag, not a mid-fi
   REQUIRE_FALSE(hasGeneratedHeader(std::string(300, '/') + "\n// emit @Generated annotations into\n")); // protobuf
   // (2) the tag as a prefix of an unrelated identifier, even near the top:
   REQUIRE_FALSE(hasGeneratedHeader("\t@GeneratedValue(strategy = GenerationType.IDENTITY)\n")); // ORM emitter
+}
+
+TEST_CASE("hasMinifiedContent: embedded-data / minified files (Linguist, #147/#127)", "[scan][generated]")
+{
+  // The umt5.hpp class: one giant `static const unsigned char x[] = {0x7b,...}` line.
+  std::string oneGiantLine = "static const unsigned char data[] = {";
+  oneGiantLine += std::string(50000, 'x'); // a single ~50 KB line, no newlines -> avg >> 110
+  REQUIRE(hasMinifiedContent(oneGiantLine));
+
+  // Real source: normal line lengths, many newlines -> not minified.
+  std::string realCode;
+  for (int i = 0; i < 2000; ++i)
+  {
+    realCode += "  int variable_" + std::to_string(i) + " = compute(i) + offset;\n"; // ~45-char lines
+  }
+  REQUIRE(realCode.size() > 4096);
+  REQUIRE_FALSE(hasMinifiedContent(realCode));
+
+  // Below the 4 KiB floor: never minified (no memory/noise risk).
+  REQUIRE_FALSE(hasMinifiedContent(std::string(100, 'x')));
 }

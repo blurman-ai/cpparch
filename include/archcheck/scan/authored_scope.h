@@ -48,7 +48,7 @@ public:
     std::size_t banners = 0;
     for (const auto &[path, content] : files)
     {
-      if (pathExcluded(path) || hasGeneratedHeader(content))
+      if (pathExcluded(path) || hasGeneratedHeader(content) || hasMinifiedContent(content))
       {
         continue; // generated/copied files don't vote on the project's license banner
       }
@@ -72,7 +72,7 @@ public:
   // author-drift analysis.
   bool excluded(std::string_view path, std::string_view content) const
   {
-    if (pathExcluded(path) || hasGeneratedHeader(content))
+    if (pathExcluded(path) || hasGeneratedHeader(content) || hasMinifiedContent(content))
     {
       return true; // hasGeneratedHeader is per-file truth, not guarded by the banner ratio
     }

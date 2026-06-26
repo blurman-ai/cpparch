@@ -291,6 +291,35 @@ inline bool hasGeneratedHeader(std::string_view headerBytes)
   return false;
 }
 
+// Minified / embedded-data heuristic (GitHub Linguist, #147/#127). A file whose average
+// line length is far above a normal source line is generated/minified/embedded data, not
+// hand-written code — e.g. a multi-MB vocab `.hpp` that is one giant
+// `static const unsigned char x[] = {0x7b,0x22,...}` line (umt5.hpp: one 2.5M-char line).
+// Excluded from all analysis like a vendored/generated file: tokenizing it builds a multi-GB
+// index for zero clone/complexity value, and its byte literals are noise to every scan.
+// Walked over a 64 KiB prefix only, so a 43 MiB blob is never traversed end-to-end: real
+// source has many newlines in that span (avg line ~30-60), a single-line data blob ~none.
+inline bool hasMinifiedContent(std::string_view content)
+{
+  constexpr std::size_t kSample = 64 * 1024;    // peek window — bounds cost on huge blobs
+  constexpr std::size_t kMinBytes = 4096;       // small files carry no memory/noise risk
+  constexpr std::size_t kAvgLineLenLimit = 110; // Linguist's minified threshold
+  if (content.size() < kMinBytes)
+  {
+    return false;
+  }
+  const std::size_t span = std::min<std::size_t>(content.size(), kSample);
+  std::size_t newlines = 0;
+  for (std::size_t i = 0; i < span; ++i)
+  {
+    if (content[i] == '\n')
+    {
+      ++newlines;
+    }
+  }
+  return span / (newlines + 1) > kAvgLineLenLimit;
+}
+
 // Combined file-level vendor test (layers 1 + 2). `filename` is the basename;
 // `headerBytes` the first bytes of the file (license banners sit at the top).
 inline bool isVendoredFile(std::string_view filename, std::string_view headerBytes)
