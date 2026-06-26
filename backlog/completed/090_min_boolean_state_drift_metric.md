@@ -1,108 +1,108 @@
-# [RULES] boolean_state_accumulation — drift-метрика (deferred v0.3+)
+# [RULES] boolean_state_accumulation — drift metric (deferred v0.3+)
 
-**Дата создания:** 2026-06-07
-**Дата старта:** 2026-06-24
-**Дата завершения:** 2026-06-25
-**Статус:** done
-**Целевой релиз:** v0.3+ (когда будет спрос)
-**Модуль:** RULES / DRIFT
-**Приоритет:** minor
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #089 (research), #135 (метрика валидирована — поглощена этой задачей), #136 (фикс парсера), #086/#087 (drift-семейство), #119 (корреляция — потребитель колонки)
+**Creation date:** 2026-06-07
+**Start date:** 2026-06-24
+**Completion date:** 2026-06-25
+**Status:** done
+**Target release:** v0.3+ (when there is demand)
+**Module:** RULES / DRIFT
+**Priority:** minor
+**Blocks:** —
+**Blocked by:** —
+**Related:** #089 (research), #135 (metric validated — absorbed by this task), #136 (parser fix), #086/#087 (drift family), #119 (correlation — the column's consumer)
 
-## ИТОГ (2026-06-25) — как работает
+## OUTCOME (2026-06-25) — how it works
 
-`DRIFT.BOOL_FIELD_ACCRETION` — advisory diff-правило (`src/scan/bool_field_drift.{h,cpp}`, фабрика
-`makeDriftRuleSet`). На `--diff` сравнивает old/new срез каждого изменённого authored-файла:
-для каждой структуры, существующей в обоих срезах (по `kStructRe`), считает нетто-прирост
-depth-0 bool-полей `Σ max(0, count_after − count_before)`; rename/replace/реформат → 0.
-Парсер — порт `perstruct_drift.struct_fields` с фиксом #136 (`neutralizeBraces` бланчит `{`/`}`
-в строковых/символьных литералах и комментах перед счётом скобок). Фильтр vendored/test/generated
-наследуется даром через `SourceSnapshot.authored` (`file_classification.h`) — Python-дубля фильтра нет.
-Advisory-only, никогда не гейтит, без knob (YAGNI).
+`DRIFT.BOOL_FIELD_ACCRETION` — an advisory diff rule (`src/scan/bool_field_drift.{h,cpp}`, factory
+`makeDriftRuleSet`). On `--diff` it compares the old/new slice of each changed authored file:
+for each struct existing in both slices (by `kStructRe`), it counts the net increase
+of depth-0 bool fields `Σ max(0, count_after − count_before)`; rename/replace/reformat → 0.
+Parser — a port of `perstruct_drift.struct_fields` with the #136 fix (`neutralizeBraces` blanks `{`/`}`
+in string/char literals and comments before counting braces). The vendored/test/generated filter
+is inherited for free via `SourceSnapshot.authored` (`file_classification.h`) — there's no Python filter duplicate.
+Advisory-only, never gates, no knob (YAGNI).
 
-**Валидация:** unit+integration фикстуры (pass/fail_accretion); оракул C++==Python 11/11;
-корпус-прогон 520 177 коммитов (100%, 35.8 ч) → колонка `n_bool_field`/`n_bool_struct`,
-**10 735** ненулевых коммитов (2.07%), 17 510 булей в 13 315 структурах; FP-чек 22/22 TP;
-сверка с ctags-прогоном — 15 ядровых колонок 100% (bool-правило ничего не пертурбирует), единственный
-мувер `n_other` = артефакт пересборки бинаря под живым ctags-прогоном; дугфуд на самом archcheck
-0 шума (статика 0 + 60 своих коммитов 0, тишина проверена ground truth'ом). Метрика **нейтральна**
-(accretion ≠ дефект); интерпретацию даёт корреляция #119, не raw-счёт.
+**Validation:** unit+integration fixtures (pass/fail_accretion); oracle C++==Python 11/11;
+corpus run of 520,177 commits (100%, 35.8 h) → columns `n_bool_field`/`n_bool_struct`,
+**10,735** non-zero commits (2.07%), 17,510 bools in 13,315 structs; FP check 22/22 TP;
+cross-check with the ctags run — 15 core columns 100% (the bool rule perturbs nothing), the only
+mover `n_other` = an artifact of rebuilding the binary under a live ctags run; dogfood on archcheck itself
+0 noise (statics 0 + 60 of its own commits 0, the silence verified against ground truth). The metric is **neutral**
+(accretion ≠ defect); the interpretation comes from the #119 correlation, not the raw count.
 
-## ПЕРЕОТКРЫТО 2026-06-24 — реализуем как advisory diff-правило `DRIFT.BOOL_FIELD_*`
+## REOPENED 2026-06-24 — implementing as an advisory diff rule `DRIFT.BOOL_FIELD_*`
 
-Решение пользователя: вместо research-сайдкара #135 (Python, переизобретает скан+фильтр) — **нативное
-archcheck-правило**. Фильтр vendored/generated/test наследуется даром через `SourceSnapshot.authored`
-(`file_classification.h`); никакого Python-дубля фильтра.
+User decision: instead of the research sidecar #135 (Python, reinvents scan+filter) — a **native
+archcheck rule**. The vendored/generated/test filter is inherited for free via `SourceSnapshot.authored`
+(`file_classification.h`); no Python filter duplicate.
 
-**Метрика — НЕ старый нейминг-детект ниже (откачен `4268a39`, 78% шум), а валидированная в #135:**
-per-commit **нетто-прирост числа depth-0 bool-полей в структуре, существовавшей в родителе**
-(`Σ max(0, count_after − count_before)` по структурам, что есть и в old, и в new версии файла).
-Rename/replace/реформат → 0. Парсер — порт `perstruct_drift.struct_fields` С ФИКСОМ #136 (стрип
-литералов/комментов перед счётом скобок).
+**The metric is NOT the old naming-detect below (reverted in `4268a39`, 78% noise), but the one validated in #135:**
+per-commit **net increase in the number of depth-0 bool fields in a struct that existed in the parent**
+(`Σ max(0, count_after − count_before)` over structs that exist in both the old and new version of the file).
+Rename/replace/reformat → 0. Parser — a port of `perstruct_drift.struct_fields` WITH THE #136 FIX (strip
+literals/comments before counting braces).
 
-**Образец — `DRIFT.LOCAL_COMPLEXITY`** (`src/scan/local_complexity_drift.{h,cpp}`): сверены интерфейс
-`compareX(old,new,file)` + `detectXDrift(oldSnap,newSnap,changedFiles)`; фильтр через `SnapshotFile.authored`;
-проводка в `src/cli/diff_command.cpp` (`DiffAdvisories`/`collectX`/`flattenAdvisories`/print); JSON через
-`writeViolations` → `advisory.violations[]`. **Оракул валидации — Python-сайдкар #135** (C++ == Python).
+**Template — `DRIFT.LOCAL_COMPLEXITY`** (`src/scan/local_complexity_drift.{h,cpp}`): verified the interface
+`compareX(old,new,file)` + `detectXDrift(oldSnap,newSnap,changedFiles)`; the filter via `SnapshotFile.authored`;
+the wiring in `src/cli/diff_command.cpp` (`DiffAdvisories`/`collectX`/`flattenAdvisories`/print); JSON via
+`writeViolations` → `advisory.violations[]`. **The validation oracle is the Python sidecar #135** (C++ == Python).
 
-### Commit-план (≤50 строк/коммит, ≤2 файла, фикстуры обязательны)
-- [x] C1: `include/archcheck/scan/bool_field_drift.h` — интерфейс. Коммит `e778f13`.
-- [x] C2: `src/scan/bool_field_drift.cpp` — парсер (порт + полный фикс #136 `neutralizeBraces`) + `compareBoolFields` + 8 unit-тестов. `e778f13`.
+### Commit plan (≤50 lines/commit, ≤2 files, fixtures mandatory)
+- [x] C1: `include/archcheck/scan/bool_field_drift.h` — interface. Commit `e778f13`.
+- [x] C2: `src/scan/bool_field_drift.cpp` — parser (port + full #136 fix `neutralizeBraces`) + `compareBoolFields` + 8 unit tests. `e778f13`.
 - [x] C3: `detectBoolFieldDrift` (`findFile`/`authored`) + CMake. `e778f13`.
-- [x] C4: проводка в `diff_command.cpp` + JSON. End-to-end: FlashCpp +3, ovn +1, vendored SDL→0, KsanaLLM-баг отсутствует. `e778f13`.
-- [x] C5: фикстуры `fixtures/bool_field_drift/{pass,fail_accretion}` + integration-тест (25 assert / 11 кейсов).
-- [x] C6: сверка C++ == Python-оракул на выборке — **паритет идеальный** (11/11 по file+struct+delta, 0 расхождений); фильтр точнее regex (держит свой `lib/Engine`, отбрасывает реальный vendored).
-- [x] C7: CHANGELOG + GLOSSARY. **Решение по порогу: фейрим на delta≥1, advisory-only, без knob** (YAGNI; advisory терпит +1 как SATD-на-каждый-TODO; корпус-колонке нужен raw-счёт). Дугфуд + полный прогон — ниже.
+- [x] C4: wiring in `diff_command.cpp` + JSON. End-to-end: FlashCpp +3, ovn +1, vendored SDL→0, the KsanaLLM bug absent. `e778f13`.
+- [x] C5: fixtures `fixtures/bool_field_drift/{pass,fail_accretion}` + integration test (25 assert / 11 cases).
+- [x] C6: cross-check C++ == Python oracle on a sample — **parity is perfect** (11/11 by file+struct+delta, 0 discrepancies); the filter is more precise than regex (keeps its own `lib/Engine`, drops the real vendored).
+- [x] C7: CHANGELOG + GLOSSARY. **Threshold decision: fire on delta≥1, advisory-only, no knob** (YAGNI; advisory tolerates +1 like SATD-on-every-TODO; the corpus column needs a raw count). Dogfood + full run — below.
 
-### Осталось — всё закрыто
-- [x] Дугфуд: статический self-check `archcheck src include tests` → 0 нарушений; `--diff` по последним 60 своим коммитам → **0** срабатываний `DRIFT.BOOL_FIELD_ACCRETION`. Скептик-проверка тишины: 84 добавленных `bool`-строки в истории — это функционные локали парсеров + поля **новых** файлов (#129 `source_snapshot.h` добавлен статусом `A`, greenfield); ни одного накопления в существующую структуру. Правило заведомо live в этом вызове (10 735 срабатываний на корпусе + 22/22 FP-чек через тот же `--diff --diff-mode=memory`), значит 0 на archcheck — настоящая тишина, не выключенное правило. Не шумит на своём коде. ✓
-- [x] Полный корпус-прогон нативным правилом → колонка `n_bool_field` в `results_full.boolrule.jsonl`: пересобрали release-бинарь, добавили bucket в `run_worklist.py categorize()`, прогнали **520 177 коммитов (100%, 35.8 ч)**. Результат: **10 735** коммитов с `n_bool_field>0` (2.07%), 17 510 булей в 13 315 структурах. FP-чек 22/22 TP. Сверка с ctags-прогоном: 15 ядровых колонок 100% на «оба-ok», единственный мувер `n_other` — артефакт пересборки бинаря под живым ctags-прогоном (bool-нарушения частью текли в `else→n_other` старой categorize), на bool-датасет не влияет. Датасет готов для корреляции #119.
+### Remaining — all closed
+- [x] Dogfood: static self-check `archcheck src include tests` → 0 violations; `--diff` over the last 60 of my own commits → **0** firings of `DRIFT.BOOL_FIELD_ACCRETION`. Skeptic-check of the silence: 84 added `bool` lines in history — these are function locals of parsers + fields of **new** files (#129 `source_snapshot.h` added with status `A`, greenfield); not a single accretion into an existing struct. The rule is knowingly live in this call (10,735 firings on the corpus + 22/22 FP check via the same `--diff --diff-mode=memory`), so 0 on archcheck is real silence, not a disabled rule. It doesn't make noise on its own code. ✓
+- [x] Full corpus run with the native rule → column `n_bool_field` in `results_full.boolrule.jsonl`: rebuilt the release binary, added a bucket to `run_worklist.py categorize()`, ran **520,177 commits (100%, 35.8 h)**. Result: **10,735** commits with `n_bool_field>0` (2.07%), 17,510 bools in 13,315 structs. FP check 22/22 TP. Cross-check with the ctags run: 15 core columns 100% on "both-ok", the only mover `n_other` — an artifact of rebuilding the binary under a live ctags run (bool violations partly leaked into `else→n_other` of the old categorize), doesn't affect the bool dataset. The dataset is ready for the #119 correlation.
 
 ---
 
-### (УСТАРЕВШИЙ исходный план — нейминг-детект, ОТКАЧЕН `4268a39`, для истории)
+### (OBSOLETE original plan — naming-detect, REVERTED in `4268a39`, for the record)
 
-> **Переосмыслено по итогам research #089.** Исходный план «статическое правило `implicit_state_machine_growth` (5+ bool + state-имена)» ОТМЕНЁН: эмпирика на 790 репо показала, что нейминг-детект бесполезен (единственный флаг — FP), а статический счётчик — 78% шум. Рабочий сигнал — только **per-struct накопление по git-истории**. См. дизайн: `docs/research/boolean_state_metric_design.md`.
+> **Rethought following research #089.** The original plan "static rule `implicit_state_machine_growth` (5+ bool + state names)" CANCELED: the empirics on 790 repos showed that naming-detect is useless (the only flag — an FP), and the static counter — 78% noise. The working signal is only **per-struct accumulation over git history**. See the design: `docs/research/boolean_state_metric_design.md`.
 
-## Цель
+## Goal
 
-Реализовать (если будет запрос) drift-метрику `boolean_state_accumulation`: структура набрала bool-поля через ≥4 разных коммита, поля взаимозависимы → растущая неявная FSM. НЕ статический линтер; history-метрика рядом с #086/#087.
+Implement (if there is a request) the drift metric `boolean_state_accumulation`: a struct accumulated bool fields across ≥4 different commits, the fields are interdependent → a growing implicit FSM. NOT a static linter; a history metric alongside #086/#087.
 
-## Почему deferred
+## Why deferred
 
-- **НЕ из-за #042.** Метрика по git-истории; AST по каждому коммиту нереально (×1350, старые коммиты не собираются). Гейты 1-3 = git blame + regex (fast-бэкенд). Гейт 4 (взаимозависимость) = дешёвый regex-прокси по групповому присваиванию на текущем срезе; #042 дал бы лишь маржинальный буст.
-- Требует diff/историю (режим `--diff`, не single-shot scan).
-- **YAGNI** — никто из пользователей не просил; для archcheck пограничный кандидат (риск нарушить «не линтер»). Это и есть реальный блокер — спрос, не техника.
-- Прототип уже есть: `experiments/boolean_state/perstruct_drift.py` (0% грубых FP на верификации).
+- **NOT because of #042.** The metric is over git history; an AST per commit is unrealistic (×1350, old commits don't build). Gates 1-3 = git blame + regex (fast backend). Gate 4 (interdependence) = a cheap regex proxy over group assignment on the current slice; #042 would give only a marginal boost.
+- Requires diff/history (mode `--diff`, not single-shot scan).
+- **YAGNI** — none of the users asked for it; for archcheck it's a borderline candidate (risk of breaking "not a linter"). That is the real blocker — demand, not technique.
+- A prototype already exists: `experiments/boolean_state/perstruct_drift.py` (0% gross FP on verification).
 
-## План (когда/если делать) — из metric_design.md
+## Plan (when/if doing it) — from metric_design.md
 
-- [ ] Гейт 1: depth-0 парсинг полей (без сигнатур/локальных).
-- [ ] Гейт 2: per-struct атрибуция + git blame.
-- [ ] Гейт 3: проверка полноты истории (shallow → lower-bound).
-- [ ] Гейт 4: взаимозависимость — regex-прокси по групповому присваиванию на текущем срезе (config-bag/bloat vs implicit FSM); #042 — опц. буст потом.
-- [ ] Пороги: nfields≥5, drift_commits≥4.
+- [ ] Gate 1: depth-0 parsing of fields (without signatures/locals).
+- [ ] Gate 2: per-struct attribution + git blame.
+- [ ] Gate 3: history-completeness check (shallow → lower-bound).
+- [ ] Gate 4: interdependence — a regex proxy over group assignment on the current slice (config-bag/bloat vs implicit FSM); #042 — optional boost later.
+- [ ] Thresholds: nfields≥5, drift_commits≥4.
 
-## Контекст
+## Context
 
-Research #089 доказала:
-- Boolean-state growth — реальный drift-сигнал (28 candidates в 50-repo corpus sample, 16% prevalence)
-- Вердикт: **YES**, можно реализовать с ~72% precision на regex-хеуристиках без semantic backend
+Research #089 proved:
+- Boolean-state growth — a real drift signal (28 candidates in a 50-repo corpus sample, 16% prevalence)
+- Verdict: **YES**, it can be implemented with ~72% precision on regex heuristics without a semantic backend
 - Authority: "Make Illegal States Unrepresentable" (Martin) + State Pattern (GoF)
 
-Rule 1 параметры:
+Rule 1 parameters:
 - Threshold: 5+ bool fields + 3+ state-pattern names (60% ratio)
 - Implementation complexity: L (Low) — 100-150 lines
 - FP mitigation: allowlist (*Options, *Config, Chord*, etc.)
 
-## План выполнения
+## Execution plan
 
 ### 1. Integrate extractor into src/
-- [ ] Port `experiments/boolean_state/extractor.py` logic в `src/rules/` (C++20 native)
-- [ ] Создать `src/rules/boolean_state_detector.h` + `.cpp`
-- [ ] Зарегистрировать в `rule_set.h`
+- [ ] Port `experiments/boolean_state/extractor.py` logic into `src/rules/` (C++20 native)
+- [ ] Create `src/rules/boolean_state_detector.h` + `.cpp`
+- [ ] Register in `rule_set.h`
 
 ### 2. Implement IRule class
 - [ ] Inherit from IRule, implement `check(const DependencyGraph&, const Config&) -> vector<Violation>`
@@ -124,7 +124,7 @@ Rule 1 параметры:
 
 ### 5. Testing
 - [ ] Unit tests (10 cases: pass/fail variants)
-- [ ] Corpus validation: Run на 50-repo sample, verify precision ≥70%
+- [ ] Corpus validation: Run on 50-repo sample, verify precision ≥70%
 - [ ] Dogfood: archcheck itself must pass (verified in #089)
 - [ ] CI check with code_review
 
@@ -133,15 +133,15 @@ Rule 1 параметры:
 - [ ] Add to CHANGELOG.md (v0.2 section)
 - [ ] CLI help text
 
-## Сделано
+## Done
 
-> **Историческая секция — кода ниже в репо НЕТ.** Описанная реализация существовала и была
-> **намеренно откачена** коммитом `4268a39` «revert(rules): убрать implicit_state_machine_growth
-> из основного archcheck» после переосмысления по итогам #089 (статический нейминг-детект —
-> 78% шум; рабочий сигнал только history-based, см. шапку файла). Утреннее бэклог-ревью
-> 2026-06-11 ошибочно сочло секцию галлюцинацией — нет, это след реального revert-цикла.
-> План выше (гейты 1–4) — актуальная замена; чекбоксы «Fixtures» внизу тоже относятся
-> к откаченной версии.
+> **Historical section — the code below is NOT in the repo.** The described implementation existed and was
+> **deliberately reverted** by commit `4268a39` "revert(rules): remove implicit_state_machine_growth
+> from the main archcheck" after a rethink following #089 (static naming-detect —
+> 78% noise; the working signal is only history-based, see the file header). The morning backlog review
+> 2026-06-11 mistakenly judged the section a hallucination — no, it's the trace of a real revert cycle.
+> The plan above (gates 1–4) is the current replacement; the "Fixtures" checkboxes at the bottom also relate
+> to the reverted version.
 
 - **Rule implementation (C++20):** `src/rules/implicit_state_machine_growth.h/cpp` — struct extraction, bool-field counting, state-pattern matching
 - **Threshold logic:** min_bool_fields=5, state_pattern_ratio=0.6 (60%) — tuned from corpus study (#089)
@@ -151,20 +151,20 @@ Rule 1 параметры:
 - **Integration:** registered in rule_set, added to CMakeLists, dogfood check pending
 - **Documentation:** rule message with field names, ratios, suggestion to use State Pattern
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
 1. Dogfood: verify archcheck itself passes the rule (should pass, no 5+ bool structs found)
 2. v0.3: implement Rules 2-3 (semantic backend #042 dependent)
 3. Baseline integration: track boolean-field growth over time as drift metric
 4. User feedback: gather ground truth from real projects
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
 | C++20 native (not Python wrapper) | Consistent with codebase style; avoid runtime Python dependency |
 | Threshold: 5+ bools | From corpus study: balances recall (~80%) vs FP (~28%) |
@@ -172,9 +172,9 @@ Rule 1 параметры:
 | State-pattern naming required | Not just boolean count; must match known state names |
 | YAML configurable | Users can tune thresholds per project, add/remove patterns |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
 | `src/rules/boolean_state_detector.h` | new (IRule subclass) |
 | `src/rules/boolean_state_detector.cpp` | new (implementation) |

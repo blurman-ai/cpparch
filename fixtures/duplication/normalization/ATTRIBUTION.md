@@ -1,15 +1,15 @@
-# Источник фикстур
+# Fixture source
 
-Адаптировано из тест-ресурсов PMD CPD (BSD-3-Clause):
+Adapted from the PMD CPD test resources (BSD-3-Clause):
 `pmd/pmd-cpp/src/test/resources/net/sourceforge/pmd/lang/cpp/cpd/testdata/`
-(https://github.com/pmd/pmd, файлы `literals.cpp`, `ignoreIdents.cpp`).
+(https://github.com/pmd/pmd, files `literals.cpp`, `ignoreIdents.cpp`).
 
-PMD-файлы — тесты их токенизатора; здесь они переразмечены под семантику НАШЕГО
-selective-normalization лексера (см. docs/duplication_architecture.md §3.1, §6):
-- `literals_a.cpp` / `literals_b.cpp` — тот же код, изменены только ЗНАЧЕНИЯ
-  литералов (вся экзотика C++: wide/char16/char32, hex-эскейпы, raw strings,
-  digit separators, бинарные) → нормализованные seq обязаны совпасть.
-- `idents_a.cpp` / `idents_b.cpp` — тот же код, переименованы только локальные
-  идентификаторы → seq обязаны совпасть (rename-blind).
-- `idents_c.cpp` — как `idents_a`, но переименован ВЫЗОВ (callee) → seq обязан
-  ОТЛИЧАТЬСЯ (selective: имена вызовов — различающий сигнал, не стираются).
+The PMD files are tests of their tokenizer; here they are relabeled for the semantics of OUR
+selective-normalization lexer (see docs/duplication_architecture.md §3.1, §6):
+- `literals_a.cpp` / `literals_b.cpp` — the same code, only the literal VALUES are changed
+  (the full C++ exotica: wide/char16/char32, hex escapes, raw strings,
+  digit separators, binary) → the normalized sequences must match.
+- `idents_a.cpp` / `idents_b.cpp` — the same code, only local identifiers are renamed
+  → the sequences must match (rename-blind).
+- `idents_c.cpp` — like `idents_a`, but the CALL (callee) is renamed → the sequence must
+  DIFFER (selective: call names are a distinguishing signal, not erased).

@@ -1,107 +1,107 @@
-# [SCAN] extensionless headers не сканируются (stdlib-style: `gsl/span`, `<vector>`-конвенция)
+# [SCAN] extensionless headers are not scanned (stdlib-style: `gsl/span`, `<vector>` convention)
 
-**Дата создания:** 2026-06-14
-**Статус:** new
-**Модуль:** SCAN
-**Приоритет:** major
-**Сложность:** unknown
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #122 (рост корпуса — те же чужие репы), demo/dogfooding mишени (GSL/mlpack/pcl)
-**Верификация:** #131 (корпус-прогон: GSL граф 0→~10 узлов, Eigen-вендор не влетел)
+**Created:** 2026-06-14
+**Status:** new
+**Module:** SCAN
+**Priority:** major
+**Difficulty:** unknown
+**Blocks:** —
+**Blocked by:** —
+**Related:** #122 (corpus growth — the same third-party repos), demo/dogfooding targets (GSL/mlpack/pcl)
+**Verification:** #131 (corpus run: GSL graph 0→~10 nodes, Eigen vendor didn't leak in)
 
-## Цель
+## Goal
 
-Научить сканер видеть **заголовки без расширения** — конвенция stdlib
-(`<vector>`, `<span>`) и ряда библиотек (GSL: `include/gsl/span`, `gsl/pointers`,
-Boost-части). Сейчас они молча выпадают из скана → ложное «0 нарушений».
+Teach the scanner to see **extension-less headers** — the stdlib convention
+(`<vector>`, `<span>`) and a number of libraries (GSL: `include/gsl/span`, `gsl/pointers`,
+parts of Boost). Right now they silently fall out of the scan → a false "0 violations".
 
-## Контекст (как нашли)
+## Context (how it was found)
 
-2026-06-14, прогон archcheck по **microsoft/GSL** (референс-реализация
-C++ Core Guidelines — тот самый авторитет, на который ссылаются наши дефолтные
-правила). Результат: `No violations found`, exit 0 — но **не потому что чисто**,
-а потому что тул её **не увидел**:
+2026-06-14, a run of archcheck on **microsoft/GSL** (the reference implementation
+of the C++ Core Guidelines — the very authority our default rules cite). Result:
+`No violations found`, exit 0 — but **not because it's clean**,
+rather because the tool **didn't see it**:
 
-- Все 8 заголовков GSL — без расширения (`include/gsl/span`, `gsl/pointers`, …).
-- Распознаваемый набор расширений зашит в [file_classification.h:25](../../include/archcheck/scan/file_classification.h#L25):
-  `.c .cc .cpp .cxx .h .hh .hpp .hxx .ipp .tpp .inl .inc` — extensionless не входит.
-- Сканер увидел лишь 14 тестовых `.cpp`; их `#include <gsl/...>` счёл системными
-  → граф пустой → нарушать нечего.
+- All 8 GSL headers are extension-less (`include/gsl/span`, `gsl/pointers`, …).
+- The recognized extension set is hardcoded in [file_classification.h:25](../../include/archcheck/scan/file_classification.h#L25):
+  `.c .cc .cpp .cxx .h .hh .hpp .hxx .ipp .tpp .inl .inc` — extension-less is not included.
+- The scanner saw only the 14 test `.cpp` files; their `#include <gsl/...>` was treated as system
+  → empty graph → nothing to violate.
 
-## Последствие
+## Consequence
 
-На любой репе в stdlib-стиле (extensionless project headers) archcheck **молча
-показывает «0 нарушений»**. Под цели demo/контрибьюшна на чужом коде (#1/#3 из
-обсуждения) это провал: мы либо опозоримся «чисто» там, где не смотрели, либо
-выдадим ложный зелёный в чужом CI.
+On any stdlib-style repo (extension-less project headers) archcheck **silently
+shows "0 violations"**. For the goal of demo/contribution on third-party code (#1/#3 from
+the discussion) this is a failure: we either embarrass ourselves with "clean" where we didn't look, or
+emit a false green in someone else's CI.
 
-## Калибровка приоритета (замер по корпусу, 2026-06-14)
+## Priority calibration (corpus measurement, 2026-06-14)
 
-Прогон по корпусу `~/oss` (1686 реп) — насколько широка слепая зона:
+A run over the corpus `~/oss` (1686 repos) — how wide is the blind spot:
 
-- 69 093 extensionless-файла (без `.git`) → 973 похожи на C/C++ → **425 явных
-  заголовков** (`#pragma once`/guard) в **27 репах**.
-- Из 425: **324 (76%) — это Eigen** (вендоринг в cvxpy/taskflow/…), 153 в
-  vendored-путях (`third_party`/`3rd-party`/`libs`). Плюс stdlib-клоны
-  (`ROCm/libhipcxx` = порт libc++, Qt/lol-shim'ы — там extensionless это *смысл*,
-  не косяк). Один FP (Bazel `BUILD`).
-- **First-party extensionless-заголовков почти нет**: по сути 1 репа
-  (`taigongzhaihua_F__K_UI`, 17 шт.) из 1686.
+- 69,093 extension-less files (excluding `.git`) → 973 look like C/C++ → **425 clear
+  headers** (`#pragma once`/guard) in **27 repos**.
+- Of those 425: **324 (76%) are Eigen** (vendored in cvxpy/taskflow/…), 153 in
+  vendored paths (`third_party`/`3rd-party`/`libs`). Plus stdlib clones
+  (`ROCm/libhipcxx` = a libc++ port, Qt/lol shims — there extension-less is *the meaning*,
+  not a mistake). One FP (Bazel `BUILD`).
+- **First-party extension-less headers are almost nonexistent**: essentially 1 repo
+  (`taigongzhaihua_F__K_UI`, 17 of them) out of 1686.
 
-**Вывод:** баг реален (подтверждён на GSL: граф 0→10 узлов, [Bash-replay]), но как
-first-party паттерн на корпусе **маргинален**. Ценность фикса — не покрытие
-корпуса, а **demo/контрибьюшн-кейс** (#1/#3): GSL и stdlib-стиль библиотеки.
-Приоритет можно держать major только в связке с целью demo; для корпус-метрик —
-low. Решить при планировании.
+**Conclusion:** the bug is real (confirmed on GSL: graph 0→10 nodes, [Bash replay]), but as a
+first-party pattern across the corpus it is **marginal**. The value of the fix is not corpus
+coverage but the **demo/contribution case** (#1/#3): GSL and stdlib-style libraries.
+Priority can stay major only in conjunction with the demo goal; for corpus metrics it's
+low. Decide during planning.
 
-## Как чинить (эскиз — не решение)
+## How to fix (sketch — not a decision)
 
-Развилка, нужна осторожность, чтобы не нахватать мусора (файлы вообще без точки —
-это и `Makefile`, и `LICENSE`, и бинарь):
+A fork in the road, care needed not to scoop up garbage (files with no dot at all —
+`Makefile`, `LICENSE`, a binary):
 
-- ⚠️ **Vendor-фильтр обязателен В ПАРЕ с фиксом.** Замер показал: 76% extensionless
-  заголовков — вендоренный Eigen, сейчас невидимый. Наивный фикс затянет 324 файла
-  Eigen в граф → вместо чистого результата шум. Path-based vendor-отсев — часть задачи, не опция.
-- **Не** просто «брать любой файл без расширения» — затопит сканом не-кода.
-- Вариант A: распознавать extensionless файл как C++, если он лежит в include-пути
-  И его содержимое выглядит как C++ (есть `#include` / `#pragma once` / шаблоны).
-  Content-sniff поверх path-эвристики.
-- Вариант B: opt-in — пользователь объявляет include-каталоги/паттерны в конфиге
-  (config — v0.2, см. ADR), тогда extensionless внутри них = заголовки.
-- Открытый вопрос: как при этом не утянуть `<gsl/...>` обратно в граф двойным
-  счётом (сейчас он «системный»; станет «проектным» — проверить резолвер
+- ⚠️ **A vendor filter is mandatory IN PAIR with the fix.** The measurement showed: 76% of extension-less
+  headers are vendored Eigen, currently invisible. A naive fix would drag 324 Eigen files
+  into the graph → instead of a clean result, noise. Path-based vendor exclusion is part of the task, not an option.
+- **Don't** just "take any file without an extension" — it would flood the scan with non-code.
+- Option A: recognize an extension-less file as C++ if it lies in an include path
+  AND its content looks like C++ (has `#include` / `#pragma once` / templates).
+  Content-sniff on top of a path heuristic.
+- Option B: opt-in — the user declares include directories/patterns in the config
+  (config — v0.2, see ADR), then extension-less files inside them = headers.
+- Open question: how to avoid pulling `<gsl/...>` back into the graph by double
+  counting (right now it's "system"; it would become "project" — check the resolver
   [include_resolver.cpp:39](../../src/scan/include_resolver.cpp#L39)).
 
-## Замерить performance (обязательно до выбора варианта)
+## Measure performance (mandatory before choosing an option)
 
-Сейчас классификация файла — дешёвая: проверка расширения по строке, файл не
-открывается. Чтобы увидеть extensionless-заголовок, придётся **открыть и прочитать
-содержимое** (content-sniff на `#include`/`#pragma once`/шаблоны). Это меняет
-стоимость скана: на корпусе таких файлов было **69 093** (а C++-маркеры есть лишь
-у ~973) — то есть в худшем случае мы открываем десятки тысяч файлов впустую.
+Right now file classification is cheap: a string extension check, the file isn't
+opened. To see an extension-less header, you'll have to **open and read the
+content** (content-sniff for `#include`/`#pragma once`/templates). This changes the
+cost of the scan: across the corpus there were **69,093** such files (and C++ markers exist in
+only ~973) — i.e. in the worst case we open tens of thousands of files in vain.
 
-Что замерить, прежде чем выбирать вариант A/B:
-- [ ] базлайн: время полного скана большой репы (pcl/godot) на текущем коде;
-- [ ] то же с включённым content-sniff всех extensionless-файлов → дельта;
-- [ ] насколько path-фильтр (нюхать только внутри include-каталогов, не всё дерево)
-      сбивает стоимость — вероятно, ключевая оптимизация;
-- [ ] стоит ли ограничить sniff первыми N байтами файла (заголовок C++ виден в
-      первых строках), чтобы не читать мегабайтные не-кодовые файлы целиком.
+What to measure before choosing option A/B:
+- [ ] baseline: time of a full scan of a large repo (pcl/godot) on the current code;
+- [ ] the same with content-sniff of all extension-less files enabled → delta;
+- [ ] how much a path filter (sniff only inside include directories, not the whole tree)
+      cuts the cost — probably the key optimization;
+- [ ] whether to limit the sniff to the first N bytes of the file (a C++ header is visible in
+      the first lines), so as not to read multi-megabyte non-code files in full.
 
-Если дельта значимая — это аргумент за **opt-in** (вариант B): по умолчанию
-extensionless не трогаем, цена нулевая; включается только когда пользователь
-объявил include-каталоги в конфиге.
+If the delta is significant — that's an argument for **opt-in** (option B): by default
+extension-less files are left alone, the cost is zero; it's enabled only when the user
+declared include directories in the config.
 
-## Проверка (фикстуры обязательны)
+## Verification (fixtures mandatory)
 
-- [ ] `fixtures/extensionless_headers/pass/` — extensionless заголовки без нарушений → 0
-- [ ] `fixtures/extensionless_headers/fail_cycle/` — цикл через extensionless заголовки → горит
-- [ ] негатив: `Makefile`/`LICENSE` рядом не должны попасть в скан
-- [ ] regression: повторный прогон по клону GSL даёт непустой граф
+- [ ] `fixtures/extensionless_headers/pass/` — extension-less headers with no violations → 0
+- [ ] `fixtures/extensionless_headers/fail_cycle/` — a cycle through extension-less headers → fires
+- [ ] negative: `Makefile`/`LICENSE` nearby must not enter the scan
+- [ ] regression: a repeat run on a clone of GSL gives a non-empty graph
 
-## Самопроверка
+## Self-check
 
-«0 нарушений» от сканера ≠ «чисто». Перед выводом — убедиться, что граф непустой
-(сколько файлов реально втянуто). Этот баг — ровно тот случай, когда пустой
-результат принят за корректный.
+"0 violations" from the scanner ≠ "clean". Before concluding — make sure the graph is non-empty
+(how many files were actually pulled in). This bug is exactly the case where an empty
+result was taken for a correct one.

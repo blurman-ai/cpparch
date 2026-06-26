@@ -1,116 +1,116 @@
-# [SCAN] Getter exposure drift — новый геттер как сигнал дрейфа инкапсуляции
+# [SCAN] Getter exposure drift — a new getter as an encapsulation-drift signal
 
-**Дата создания:** 2026-06-12
-**Дата старта:** —
-**Статус:** new
-**Модуль:** SCAN][RULES
-**Приоритет:** minor
-**Сложность:** unknown
-**Целевой релиз:** v0.3+
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #090 (boolean_state_drift_metric, future), #095 (config_bag_growth), #042 (clang_semantic_backend — точная детекция аксессоров)
+**Creation date:** 2026-06-12
+**Start date:** —
+**Status:** new
+**Module:** SCAN][RULES
+**Priority:** minor
+**Difficulty:** unknown
+**Target release:** v0.3+
+**Blocks:** —
+**Blocked by:** —
+**Related:** #090 (boolean_state_drift_metric, future), #095 (config_bag_growth), #042 (clang_semantic_backend — precise accessor detection)
 
-## Цель
+## Goal
 
-Исследовать и формализовать «добавление нового публичного геттера к существующему классу»
-как per-commit сигнал дрейфа инкапсуляции (encapsulation erosion), по образцу boolean-drift.
+Research and formalize "adding a new public getter to an existing class"
+as a per-commit signal of encapsulation drift (encapsulation erosion), modeled on boolean-drift.
 
-## Контекст
+## Context
 
-Идея пользователя (2026-06-12, сессия по corpus drift): новый геттер — тоже дрейф, но
-«наружу», зеркальный boolean-drift:
+User's idea (2026-06-12, corpus-drift session): a new getter is also drift, but
+"outward" — the mirror of boolean-drift:
 
-- **bool-поле** = состояние течёт **внутрь** структуры (config-bag, флажки);
-- **геттер** = состояние течёт **наружу** класса: внутреннее поле становится наблюдаемым,
-  клиенты начинают зависеть от представления, инвариант «поле трогает только сам класс»
-  умирает. Каждый геттер — ослабление контракта (constraint decay в терминах Dente et al.).
+- **a bool field** = state flows **inward** into a struct (config-bag, flags);
+- **a getter** = state flows **outward** from a class: an internal field becomes observable,
+  clients begin to depend on the representation, the invariant "only the class itself touches the field"
+  dies. Each getter is a weakening of the contract (constraint decay in the terms of Dente et al.).
 
-Механика деградации: getter → клиентский код строит логику на чужом состоянии (Feature
-Envy) → цепочки `a.getB().getC().x()` (нарушение Law of Demeter) → класс постепенно
-превращается в struct с церемониями, поведение размазывается по клиентам.
+The mechanics of degradation: getter → client code builds logic on someone else's state (Feature
+Envy) → chains `a.getB().getC().x()` (a Law of Demeter violation) → the class gradually
+turns into a struct with ceremonies, behavior gets smeared across clients.
 
-Семейство метрик то же, что #093–#100: дешёвый текстовый per-commit скан без семантики.
+The metric family is the same as #093–#100: a cheap textual per-commit scan without semantics.
 
-## Литобзор (выполнен 2026-06-12, веб-разведка)
+## Lit review (done 2026-06-12, web recon)
 
-**Главная находка: C.131 содержит готовую Enforcement-секцию** — *«Flag multiple `get` and
-`set` member functions that simply access a member without additional semantics»*. То есть
-правило подаётся не как наша самодеятельность, а как **темпоральная реализация официального
-enforcement из Core Guidelines**. Критерий тривиальности из C.131: флагать только геттеры,
-неотличимые от публичного поля; исключения — поддержание инварианта класса и конверсия
+**Main finding: C.131 contains a ready Enforcement section** — *"Flag multiple `get` and
+`set` member functions that simply access a member without additional semantics"*. That is, the
+rule is presented not as our own invention, but as a **temporal implementation of the official
+enforcement from Core Guidelines**. The triviality criterion from C.131: flag only getters
+indistinguishable from a public field; exceptions — maintaining the class invariant and conversion
 internal→interface type.
 
-Атрибуция (всё VERIFIED по первоисточникам, кроме помеченных):
+Attribution (all VERIFIED against primary sources, except where marked):
 
-| Источник | Что даёт правилу |
+| Source | What it gives the rule |
 |---|---|
-| [Core Guidelines C.131](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#rh-get) | Enforcement-секция + критерий тривиальности + исключения. Нюанс: issue isocpp#776 — pushback практиков → аргумент за advisory |
-| [Core Guidelines C.9](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#rc-private) | «Minimize exposure of members... simplifies maintenance» — заглавная атрибуция |
-| Parnas, CACM 1972 | Accessing/modifying procedures — часть модуля, «not shared by many modules as is conventionally done»; раскрытая информация сужает пространство будущих изменений — дословно constraint decay |
-| Riel 1996, Heuristic 3.3 | «Beware of classes that have many accessor methods... related data and behavior are not being kept in one place» — статическая форма нашей метрики |
-| Fowler, [GetterEradicator](https://martinfowler.com/bliki/GetterEradicator.html) / [TellDontAsk](https://martinfowler.com/bliki/TellDontAsk.html) | «Encapsulation = hiding design decisions» + Data Class smell. **Граница**: сам Fowler против войны со всеми query-методами → флагать только тривиальные и только дельту |
-| [Hyrum's Law](https://www.hyrumslaw.com/) | Механизм невозвратности: однажды выставленный геттер становится контрактом — убрать нельзя |
-| Law of Demeter + Guo et al., WCRE 2011 (FOUND) | Нарушения LoD ↔ bug-proneness (Eclipse, logistic regression); JPL Pathfinder: интеграция LoD-нарушающих частей на порядок дороже |
-| Khomh et al., EMSE 2012 (FOUND) | Антипаттерн ClassDataShouldBePrivate → статистически значимая change/fault-proneness (54 релиза ArgoUML/Eclipse/Mylyn/Rhino) |
-| Zoller/Schmolitzky 2012, Vidal et al. 2016 (FOUND) | Over-exposure массов: ~20% методов / 25% классов публичнее необходимого (>3.6 MLOC Java) |
-| Romano/Pinzger, ICSM 2011 (FOUND) | Fat interfaces: низкая usage cohesion интерфейса предсказывает churn — ближайшая опора для «рост публичной поверхности → нестабильность» |
-| Izurieta/Bieman, ICST 2008 / SQJ 2012 (FOUND) | Design grime: распад дизайна = накопление мелких связей со временем — эволюционный фрейм всей drift-категории |
-| [arXiv 2510.03029](https://arxiv.org/html/2510.03029v1) | **AI-аргумент**: encapsulation-смеллы в LLM-коде +118–165% против эталона (4 LLM, 1000 задач, Designite). Контрпример для честности: Molison ESEM 2025 — на Python/SonarQube LLM-код не хуже |
+| [Core Guidelines C.131](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#rh-get) | Enforcement section + triviality criterion + exceptions. Nuance: issue isocpp#776 — pushback from practitioners → an argument for advisory |
+| [Core Guidelines C.9](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#rc-private) | "Minimize exposure of members... simplifies maintenance" — the headline attribution |
+| Parnas, CACM 1972 | Accessing/modifying procedures — part of a module, "not shared by many modules as is conventionally done"; exposed information narrows the space of future changes — literally constraint decay |
+| Riel 1996, Heuristic 3.3 | "Beware of classes that have many accessor methods... related data and behavior are not being kept in one place" — the static form of our metric |
+| Fowler, [GetterEradicator](https://martinfowler.com/bliki/GetterEradicator.html) / [TellDontAsk](https://martinfowler.com/bliki/TellDontAsk.html) | "Encapsulation = hiding design decisions" + Data Class smell. **Boundary**: Fowler himself is against a war on all query methods → flag only trivial ones and only the delta |
+| [Hyrum's Law](https://www.hyrumslaw.com/) | The mechanism of irreversibility: a getter once exposed becomes a contract — it can't be removed |
+| Law of Demeter + Guo et al., WCRE 2011 (FOUND) | LoD violations ↔ bug-proneness (Eclipse, logistic regression); JPL Pathfinder: integrating LoD-violating parts is an order of magnitude more expensive |
+| Khomh et al., EMSE 2012 (FOUND) | The ClassDataShouldBePrivate antipattern → statistically significant change/fault-proneness (54 releases of ArgoUML/Eclipse/Mylyn/Rhino) |
+| Zoller/Schmolitzky 2012, Vidal et al. 2016 (FOUND) | Over-exposure is mass: ~20% of methods / 25% of classes more public than necessary (>3.6 MLOC Java) |
+| Romano/Pinzger, ICSM 2011 (FOUND) | Fat interfaces: low usage cohesion of an interface predicts churn — the closest support for "growth of the public surface → instability" |
+| Izurieta/Bieman, ICST 2008 / SQJ 2012 (FOUND) | Design grime: the decay of a design = accumulation of small couplings over time — the evolutionary frame of the whole drift category |
+| [arXiv 2510.03029](https://arxiv.org/html/2510.03029v1) | **AI argument**: encapsulation smells in LLM code +118–165% against the reference (4 LLMs, 1000 tasks, Designite). A counterexample for honesty: Molison ESEM 2025 — on Python/SonarQube LLM code is no worse |
 
-**Пробел в литературе = наша новизна**: работ про *добавление* аксессоров во времени
-(per-commit дельта как предиктор) не найдено — ни в MSR, ни в API-evolution. Статическая
-база есть, темпоральной версии нет ни у кого.
+**Gap in the literature = our novelty**: work on *adding* accessors over time
+(the per-commit delta as a predictor) wasn't found — neither in MSR nor in API evolution. The static
+base exists, the temporal version exists nowhere.
 
-### Ответы на вопросы к литературе
+### Answers to the questions for the literature
 
-- [x] Эмпирика «аксессоры ↔ дефекты»: да — Guo 2011 (LoD→bugs), Khomh 2012 (data exposure→faults), over-exposure 20–25%
-- [x] Цитируемое обоснование default-правила: C.131 Enforcement (готовое!) + C.9 + Parnas + Riel 3.3
-- [x] Эволюционные работы: прямых НЕТ (пробел=новизна); ближайшие — Romano/Pinzger (fat interfaces→churn), grime
-- [x] AI-угол: encapsulation-смеллы +118–165% (arXiv 2510.03029) — вешать аргумент на это, не на «AI пишет плохо вообще»
+- [x] Empirics "accessors ↔ defects": yes — Guo 2011 (LoD→bugs), Khomh 2012 (data exposure→faults), over-exposure 20–25%
+- [x] A citable justification for a default rule: C.131 Enforcement (ready-made!) + C.9 + Parnas + Riel 3.3
+- [x] Evolutionary work: directly NONE (gap=novelty); the closest — Romano/Pinzger (fat interfaces→churn), grime
+- [x] AI angle: encapsulation smells +118–165% (arXiv 2510.03029) — hang the argument on this, not on "AI writes badly in general"
 
-## План выполнения
+## Execution plan
 
-- [x] Литобзор — выполнен, см. выше
-- [ ] Regex-прототип per-commit скана (аналог `bool_history_scan.py`):
-      added-строки в существующих заголовках вида
+- [x] Lit review — done, see above
+- [ ] Regex prototype of a per-commit scan (analogous to `bool_history_scan.py`):
+      added lines in existing headers of the form
       `Type getX() const { return x_; }` / `const T& x() const noexcept;` /
-      объявление `getX() const;` + naming convention.
-      **Скоуп строго по C.131: только тривиальные** (тело = `return field;`)
-- [ ] Классы FP: computed getters (НЕ флагать — C.131 исключение), поддержание инварианта,
-      конверсия типов, реализации интерфейсов, генерированный код, override
-- [ ] Корпусный прогон: getter-add rate agentic vs human внутри смешанных реп
-      (дизайн как у boolean-drift, repo fixed effects); проверка предсказания
-      arXiv 2510.03029 (+118–165% encapsulation smells) на C++ корпусе
-- [ ] Доля «голых» геттеров (`return field;`) vs computed среди новых
-- [ ] Если сигнал есть → metric design doc: advisory «class X gained N trivial getters
-      over M commits» (паттерн как config-bag growth #095); gate не предлагать
+      declaration `getX() const;` + naming convention.
+      **Scope strictly per C.131: only trivial ones** (body = `return field;`)
+- [ ] FP classes: computed getters (DO NOT flag — a C.131 exception), invariant maintenance,
+      type conversion, interface implementations, generated code, override
+- [ ] Corpus run: getter-add rate agentic vs human within mixed repos
+      (design like boolean-drift, repo fixed effects); check the prediction of
+      arXiv 2510.03029 (+118–165% encapsulation smells) on the C++ corpus
+- [ ] The share of "bare" getters (`return field;`) vs computed among the new ones
+- [ ] If there is a signal → metric design doc: advisory "class X gained N trivial getters
+      over M commits" (a pattern like config-bag growth #095); don't propose a gate
 
-## Сделано
+## Done
 
-- 2026-06-12: литобзор (12 источников, 7 VERIFIED) — основание для правила есть,
-  включая готовую Enforcement-формулировку C.131
+- 2026-06-12: lit review (12 sources, 7 VERIFIED) — there is a basis for the rule,
+  including a ready-made Enforcement formulation from C.131
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. Прототип скана — после закрытия активной волны #093–#103.
+1. Scan prototype — after closing the active wave #093–#103.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Папка future, v0.3+ | Пользователь явно: «история на будущее» |
-| Текстовый скан, не clang | Семейство дешёвых drift-метрик; clang-точность — отдельно в #042 |
-| Advisory, не gate | Fowler против GetterEradicator-абсолютизма; issue isocpp#776; вероятностный сигнал |
-| Только тривиальные геттеры (тело `return field;`) | Критерий C.131; computed/инвариантные — легитимны |
-| Только дельта (новые), не статический счёт | Статический счёт = Riel 3.3, уже чужое; темпоральная версия — наша новизна |
+| future folder, v0.3+ | User explicit: "history for the future" |
+| Textual scan, not clang | A family of cheap drift metrics; clang precision — separately in #042 |
+| Advisory, not gate | Fowler against GetterEradicator absolutism; issue isocpp#776; a probabilistic signal |
+| Only trivial getters (body `return field;`) | The C.131 criterion; computed/invariant ones — legitimate |
+| Only the delta (new ones), not a static count | A static count = Riel 3.3, already someone else's; the temporal version — our novelty |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
 | — | — |

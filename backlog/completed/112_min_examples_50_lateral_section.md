@@ -1,142 +1,142 @@
-# [DOCS] EXAMPLES_50.md: перегенерить секцию A по LATERAL-событиям
+# [DOCS] EXAMPLES_50.md: regenerate section A from LATERAL events
 
-**Дата создания:** 2026-06-12
-**Дата старта:** 2026-06-12
-**Статус:** done
-**Модуль:** DOCS
-**Приоритет:** minor
-**Сложность:** small
-**Исполнитель:** Haiku
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #111 (lateral_drift_fix_and_corpus_run — источник данных)
+**Date created:** 2026-06-12
+**Date started:** 2026-06-12
+**Status:** done
+**Module:** DOCS
+**Priority:** minor
+**Difficulty:** small
+**Assignee:** Haiku
+**Blocks:** —
+**Blocked by:** —
+**Related:** #111 (lateral_drift_fix_and_corpus_run — data source)
 
-## Цель
+## Goal
 
-Заменить секцию A в `experiments/ai_repo_run/EXAMPLES_50.md` (25 строк сырых
-graph-drift примеров, среди которых шум вида «одиночное ребро в Log.hpp») на
-25 строк LATERAL-событий из `experiments/ai_repo_run/lateral_drift_new.csv`.
+Replace section A in `experiments/ai_repo_run/EXAMPLES_50.md` (25 lines of raw
+graph-drift examples, among which is noise of the "single edge in Log.hpp" kind) with
+25 lines of LATERAL events from `experiments/ai_repo_run/lateral_drift_new.csv`.
 
-## Контекст
+## Context
 
-#111 провалидировал критерий бокового дрейфа: 98 событий, TP ≈ 87%
-(см. [docs/research/lateral_module_drift_corpus_run.md](../../docs/research/lateral_module_drift_corpus_run.md)).
-Старая секция A собиралась ДО критерия — по сырым `added_edges`, 95% которых
-активность, а не дрейф. Секция B (copypaste) — НЕ трогать.
+#111 validated the lateral drift criterion: 98 events, TP ≈ 87%
+(see [docs/research/lateral_module_drift_corpus_run.md](../../docs/research/lateral_module_drift_corpus_run.md)).
+The old section A was assembled BEFORE the criterion — from raw `added_edges`, 95% of which
+are activity, not drift. Section B (copypaste) — DO NOT touch.
 
-Все файлы проверены живыми 2026-06-12:
+All files verified live 2026-06-12:
 
-- `experiments/ai_repo_run/EXAMPLES_50.md` — секция A: строки таблицы 1–25,
-  заголовок `## A. Покоммитный graph-drift — новая зависимость, внесённая коммитом`;
-  секция B начинается с `## B. Copypaste — клон-пары (снимок HEAD)`.
-- `experiments/ai_repo_run/lateral_drift_new.csv` — 98 строк + заголовок.
-  Колонки: `repo,sha,date,author_kind,repo_kind,grade,moduleA,moduleB,FID_B,level_A,level_B,I_A,I_B,example_edge`.
-- Локальные клоны реп: `~/oss/<owner>_<name>` (имя =
-  `repo` из CSV c заменой ПЕРВОГО `/` на `_`). На диске есть НЕ все репы CSV —
-  проверять `os.path.isdir` per-строка.
+- `experiments/ai_repo_run/EXAMPLES_50.md` — section A: table rows 1–25,
+  heading `## A. Per-commit graph-drift — new dependency introduced by a commit`;
+  section B starts with `## B. Copypaste — clone pairs (HEAD snapshot)`.
+- `experiments/ai_repo_run/lateral_drift_new.csv` — 98 rows + header.
+  Columns: `repo,sha,date,author_kind,repo_kind,grade,moduleA,moduleB,FID_B,level_A,level_B,I_A,I_B,example_edge`.
+- Local clones of the repos: `~/oss/<owner>_<name>` (name =
+  `repo` from the CSV with the FIRST `/` replaced by `_`). Not all repos in the CSV are on disk —
+  check `os.path.isdir` per row.
 
-## План выполнения
+## Execution plan
 
-- [ ] Отобрать 25 событий из CSV: round-robin по репам (не больше события с
-      одной репы, пока есть непокрытые репы), внутри репы приоритет грейдов
-      CYCLE > SDP > NEW. Это тот же алгоритм выборки, что в eyeball #111.
-- [ ] Сгенерить строки таблицы в формате существующей секции A:
-      `| # | репа | коммит | сигнал | новое ребро (src → dst) |`, где
-      - `репа` — local-имя (`Bitcoin-ABC_bitcoin-abc`);
-      - `коммит` — `` `sha` `` + subject (взять
+- [ ] Select 25 events from the CSV: round-robin over repos (no more than one event from
+      a single repo while there are uncovered repos), within a repo prioritize grades
+      CYCLE > SDP > NEW. This is the same selection algorithm as in the #111 eyeball.
+- [ ] Generate the table rows in the format of the existing section A:
+      `| # | repo | commit | signal | new edge (src → dst) |`, where
+      - `repo` — local name (`Bitcoin-ABC_bitcoin-abc`);
+      - `commit` — `` `sha` `` + subject (take
         `git -C ~/oss/<name> -c gc.auto=0 log -1 --format=%s <sha>`,
-        обрезать до 60 символов);
-      - `сигнал` — грейд + модули: `⟲LATERAL.CYCLE moduleA→moduleB`
-        (для SDP `↧LATERAL.SDP`, для NEW `→LATERAL.NEW`);
-      - `новое ребро` — `example_edge` из CSV; src-часть оформить кликабельной
-        ссылкой `[путь](../../oss/<name>/<путь>)` ТОЛЬКО если файл существует
-        на диске; иначе обе части плоским кодом в бэктиках.
-- [ ] Заменить в `EXAMPLES_50.md` строки таблицы секции A (между заголовком
-      таблицы и `## B.`) на новые 25. Вводный абзац секции A переписать:
-      «Каждая строка: LATERAL-событие критерия бокового дрейфа (#111) — первая
-      связь peer-модулей. Грейды: ⟲CYCLE (замкнут модульный цикл), ↧SDP
-      (зависимость на менее стабильное), →NEW (первая боковая связь).»
-- [ ] Self-check по таблице контрольных чисел (ниже).
+        truncate to 60 chars);
+      - `signal` — grade + modules: `⟲LATERAL.CYCLE moduleA→moduleB`
+        (for SDP `↧LATERAL.SDP`, for NEW `→LATERAL.NEW`);
+      - `new edge` — `example_edge` from the CSV; format the src part as a clickable
+        link `[path](../../oss/<name>/<path>)` ONLY if the file exists
+        on disk; otherwise both parts as flat code in backticks.
+- [ ] Replace in `EXAMPLES_50.md` the section A table rows (between the table
+      heading and `## B.`) with the new 25. Rewrite the section A intro paragraph:
+      "Each row: a LATERAL event of the lateral drift criterion (#111) — the first
+      link between peer modules. Grades: ⟲CYCLE (closed a module cycle), ↧SDP
+      (dependency on a less stable one), →NEW (first lateral link)."
+- [ ] Self-check against the control-numbers table (below).
 
-## Контрольные числа (контракт)
+## Control numbers (contract)
 
-| Проверка | Ожидание |
+| Check | Expected |
 |---|---|
-| Строк в таблице секции A после правки | ровно 25 |
-| Из них LATERAL.CYCLE | ≥ 14 |
-| Разных реп | ≥ 15 |
-| Событий с репы scylladb/scylladb | ≤ 2 |
-| Секция B | байт-в-байт без изменений |
-| Кликабельных ссылок, у которых файла нет на диске | 0 |
+| Rows in the section A table after the edit | exactly 25 |
+| Of them LATERAL.CYCLE | ≥ 14 |
+| Distinct repos | ≥ 15 |
+| Events from repo scylladb/scylladb | ≤ 2 |
+| Section B | byte-for-byte unchanged |
+| Clickable links whose file is not on disk | 0 |
 
-## Не делать
+## Don't do
 
-- НЕ трогать секцию B и шапку документа (кроме вводного абзаца секции A).
-- НЕ менять `lateral_drift_new.csv` и скрипты `lateral_drift_scan.py` /
+- DON'T touch section B and the document header (except the section A intro paragraph).
+- DON'T change `lateral_drift_new.csv` and the scripts `lateral_drift_scan.py` /
   `make_window_baselines.py`.
-- НЕ коммитить: `experiments/` в `.gitignore`, файл локальный. Доложить и ждать.
-- НЕ пересчитывать события и не фильтровать их по своему суждению — выборка
-  строго алгоритмом из плана.
+- DON'T commit: `experiments/` is in `.gitignore`, the file is local. Report and wait.
+- DON'T recompute events or filter them by your own judgment — selection is
+  strictly by the algorithm from the plan.
 
 ## Definition of done
 
-Все шесть контрольных чисел сходятся; вывод
-`grep -c '^| [0-9]' <секция A>` = 25 показан в докладе.
+All six control numbers match; the output
+`grep -c '^| [0-9]' <section A>` = 25 is shown in the report.
 
-## Сделано
+## Done
 
-- Секция A в `EXAMPLES_50.md` перегенерирована: 25 LATERAL-событий из
-  `lateral_drift_new.csv` (98 событий), выборка round-robin по репам,
-  приоритет грейдов CYCLE > SDP > NEW — тот же алгоритм, что в eyeball #111.
-- Вводный абзац секции A переписан под критерий бокового дрейфа (глоссарий
-  грейдов ⟲CYCLE / ↧SDP / →NEW).
-- Кликабельные ссылки на src-файл только при наличии на диске (22/25 строк);
-  3 строки — плоский код (файлы отсутствуют на тех SHA / репа ещё клонировалась).
-- Секция B (copypaste) — байт-в-байт без изменений.
-- Контрольные числа (контракт) — все 6 сходятся:
+- Section A in `EXAMPLES_50.md` regenerated: 25 LATERAL events from
+  `lateral_drift_new.csv` (98 events), round-robin selection over repos,
+  grade priority CYCLE > SDP > NEW — the same algorithm as in the #111 eyeball.
+- Section A intro paragraph rewritten for the lateral drift criterion (glossary
+  of grades ⟲CYCLE / ↧SDP / →NEW).
+- Clickable links to the src file only if present on disk (22/25 rows);
+  3 rows — flat code (files absent at those SHAs / the repo was still being cloned).
+- Section B (copypaste) — byte-for-byte unchanged.
+- Control numbers (contract) — all 6 match:
 
-| Проверка | Ожидание | Факт |
+| Check | Expected | Actual |
 |---|---|---|
-| Строк в таблице секции A | 25 | 25 ✓ |
+| Rows in the section A table | 25 | 25 ✓ |
 | LATERAL.CYCLE | ≥ 14 | 18 ✓ |
-| Разных реп | ≥ 15 | 19 ✓ |
+| Distinct repos | ≥ 15 | 19 ✓ |
 | scylladb/scylladb | ≤ 2 | 2 ✓ |
-| Секция B без изменений | да | да ✓ |
-| Битых ссылок | 0 | 0 ✓ |
+| Section B unchanged | yes | yes ✓ |
+| Broken links | 0 | 0 ✓ |
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-- (пусто)
+- (empty)
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Round-robin по репам, CYCLE-first | Та же выборка, что в eyeball #111 — сопоставимость |
-| Ссылки только на существующие файлы | 297 реп корпуса удалены с диска (#111 §1) |
+| Round-robin over repos, CYCLE-first | The same selection as in the #111 eyeball — comparability |
+| Links only to existing files | 297 corpus repos deleted from disk (#111 §1) |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `experiments/ai_repo_run/EXAMPLES_50.md` | Секция A: 25 новых строк + вводный абзац (локальный, gitignored — без коммита) |
+| `experiments/ai_repo_run/EXAMPLES_50.md` | Section A: 25 new rows + intro paragraph (local, gitignored — no commit) |
 
-## Как работает
+## How it works
 
-Выборка детерминирована: события группируются по репе, внутри репы сортируются
-по приоритету грейда (CYCLE > SDP > NEW), затем round-robin — каждый проход берёт
-по одному топ-событию с каждой репы, пока не наберётся 25. Это гарантирует охват
-≥15 реп и насыщение CYCLE до того, как любая репа даст второе событие.
+The selection is deterministic: events are grouped by repo, within a repo sorted
+by grade priority (CYCLE > SDP > NEW), then round-robin — each pass takes
+one top event from each repo until 25 are gathered. This guarantees coverage
+of ≥15 repos and saturation of CYCLE before any repo gives a second event.
 
-## Дата завершения
+## Date completed
 
 2026-06-12
 
-## Примечание о коммите
+## Note on the commit
 
-Результат (`EXAMPLES_50.md`) живёт в `experiments/`, который в `.gitignore` —
-коммита с артефактом нет по дизайну. В репозиторий уезжает только файл задачи.
+The result (`EXAMPLES_50.md`) lives in `experiments/`, which is in `.gitignore` —
+there's no commit with the artifact by design. Only the task file goes into the repository.

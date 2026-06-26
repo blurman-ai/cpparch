@@ -1,59 +1,59 @@
-# [RESEARCH] Прогон по новым AI-источникам: граф + дублирование
+# [RESEARCH] Run over new AI sources: graph + duplication
 
-**Дата создания:** 2026-05-30
-**Дата старта:** 2026-05-30
-**Статус:** wip
-**Модуль:** RESEARCH
-**Приоритет:** major
-**Сложность:** unknown
-**Блокирует:** —
-**Заблокирован:** — (детектор дублей — standalone-спайк #053; cross-component ratio из P0-B желателен, но не блокер: на первом прогоне cross-file proxy)
-**Related:** #033 (ai_drift_dataset — первый корпус, DRIFT по 33 PR), #053 (fast_backend_line_duplication_pass — детектор), #052 (cross_tu_duplication_detector — AST-слой), #048 (drift_clean_checkout_methodology), #029 (metric_regression_detection)
+**Created:** 2026-05-30
+**Started:** 2026-05-30
+**Status:** wip
+**Module:** RESEARCH
+**Priority:** major
+**Difficulty:** unknown
+**Blocks:** —
+**Blocked by:** — (the clone detector is standalone spike #053; the cross-component ratio from P0-B is desirable but not a blocker: a cross-file proxy on the first run)
+**Related:** #033 (ai_drift_dataset — first corpus, DRIFT over 33 PRs), #053 (fast_backend_line_duplication_pass — detector), #052 (cross_tu_duplication_detector — AST layer), #048 (drift_clean_checkout_methodology), #029 (metric_regression_detection)
 
-## Цель
+## Goal
 
-Прогнать по корпусу AI-репозиториев (готовый публичный датасет, не самодельный
-grep) **обе** метрики archcheck — структуру/дрейф include-графа (DRIFT.1/DRIFT.2
-из #009 + абсолютные граф-метрики) и дублирование (line-dup из #053) — и
-зафиксировать измеренные цифры без интерпретации. Корпус новый, поэтому
-граф-прогон идёт заново: честная перепроверка прошлого узкого результата (#033)
-на несмещённом наборе и прямое сравнение «где сигнал сильнее — граф или дубли».
+Run **both** archcheck metrics over a corpus of AI repositories (a ready-made public dataset, not a homemade
+grep) — the structure/drift of the include graph (DRIFT.1/DRIFT.2
+from #009 + absolute graph metrics) and duplication (line-dup from #053) — and
+record the measured numbers without interpretation. The corpus is new, so the
+graph run is done from scratch: an honest re-check of the past narrow result (#033)
+on an unbiased set and a direct comparison of "where the signal is stronger — graph or clones".
 
-## Контекст
+## Context
 
-Первый корпус (#033) искал AI-PR'ы по 1-2 git-маркерам и мерил **дрейф
-include-графа** (DRIFT.1/DRIFT.2). Улов оказался узким: 12 DRIFT.1 hit'ов на
-7 из 33 PR, DRIFT.2 — ноль. Разбор поля (2026-05-30) показал две вещи:
+The first corpus (#033) searched for AI PRs by 1-2 git markers and measured the **drift
+of the include graph** (DRIFT.1/DRIFT.2). The catch turned out narrow: 12 DRIFT.1 hits on
+7 of 33 PRs, DRIFT.2 — zero. A review of the field (2026-05-30) showed two things:
 
-1. **Источники AI-реп есть готовые** — не нужно грепать GitHub руками. См.
+1. **Ready-made AI-repo sources exist** — no need to grep GitHub by hand. See
    [docs/research/ai_code_detection_landscape.md](../../docs/research/ai_code_detection_landscape.md):
    - **Configs dataset** ([2605.08435](https://arxiv.org/html/2605.08435)) —
-     4 738 репо с AI-конфигами; 71.6% из них имеют AI-коммит.
-   - **AIDev** — 932k agentic PR / 116k репо; есть и human-PR (для within-repo
-     контроля).
+     4,738 repos with AI configs; 71.6% of them have an AI commit.
+   - **AIDev** — 932k agentic PRs / 116k repos; there are also human PRs (for within-repo
+     control).
    - **Debt Behind the AI Boom** ([2603.28592](https://arxiv.org/abs/2603.28592))
-     — 304k AI-коммитов по 4 git-сигналам (29 инструментов).
-2. **Мерим ОБЕ метрики.** На первом корпусе (#033) граф-дрейф почти молчал, но
-   корпус был узкий и ручной. На несмещённом датасете надо перепроверить граф
-   заново И добавить дублирование (где сигнал поля сильнее — GitClear: блоки 5+
-   дублей ×8 за 2024; «AI Code in the Wild»: AI-код концентрируется в
-   glue/тестах/boilerplate). Цель — прямое сравнение силы сигнала на одном корпусе.
+     — 304k AI commits by 4 git signals (29 tools).
+2. **We measure BOTH metrics.** On the first corpus (#033) graph drift was almost silent, but
+   the corpus was narrow and manual. On an unbiased dataset we need to re-check the graph
+   from scratch AND add duplication (where the field signal is stronger — GitClear: blocks of 5+
+   clones ×8 over 2024; "AI Code in the Wild": AI code concentrates in
+   glue/tests/boilerplate). The goal is a direct comparison of signal strength on one corpus.
 
-Эта задача — **только прогон и сбор цифр**. Гипотезы и проектные выводы
-(«дублирование как детектор AI-дрейфа», позиционирование archcheck) выносятся
-отдельно и сюда не пишутся, чтобы данные оставались нейтральными.
+This task is **only the run and number collection**. Hypotheses and project conclusions
+("duplication as a detector of AI drift", archcheck positioning) are taken
+separately and not written here, so the data stays neutral.
 
-Все методы/датасеты/ссылки уже сведены в
+All methods/datasets/links are already gathered in
 [ai_code_detection_landscape.md](../../docs/research/ai_code_detection_landscape.md)
-— это справочный вход для задачи.
+— it is the reference entry point for the task.
 
-## Разведка (2026-05-30, выполнено — цифры реальные)
+## Reconnaissance (2026-05-30, done — the numbers are real)
 
-Источник выбран — **AIDev** ([hao-li/AIDev](https://huggingface.co/datasets/hao-li/AIDev),
-HF, CC BY 4.0). Скачана `all_repository.parquet` (**116 211 репо**), посчитано
-по колонке `language` (pandas + pyarrow):
+The source chosen is **AIDev** ([hao-li/AIDev](https://huggingface.co/datasets/hao-li/AIDev),
+HF, CC BY 4.0). Downloaded `all_repository.parquet` (**116,211 repos**), counted
+by the `language` column (pandas + pyarrow):
 
-| Язык | Репо |
+| Language | Repos |
 |------|------|
 | Python | 25 660 |
 | TypeScript | 19 709 |
@@ -67,150 +67,150 @@ HF, CC BY 4.0). Скачана `all_repository.parquet` (**116 211 репо**), 
 | **C++** | **2 445** |
 | Rust | 1 958 |
 
-C++ по звёздам: `≥10` → 233, `≥50` → 150, **`≥100` → 119**, `≥500` → 73,
-`≥1000` → 64, `≥5000` → 33. (Из 2 445 C++-реп лишь 233 имеют ≥10 звёзд —
-остальное мелочь/форки/учебные.)
+C++ by stars: `≥10` → 233, `≥50` → 150, **`≥100` → 119**, `≥500` → 73,
+`≥1000` → 64, `≥5000` → 33. (Of 2,445 C++ repos only 233 have ≥10 stars —
+the rest are small/forks/educational.)
 
-Top C++ по звёздам (для понимания состава): bitcoin/bitcoin (84.8k),
+Top C++ by stars (to understand the composition): bitcoin/bitcoin (84.8k),
 ggml-org/llama.cpp (83.7k), opencv/opencv (83.3k), tesseract-ocr/tesseract
 (68.5k), x64dbg/x64dbg, ggml-org/whisper.cpp, microsoft/WSL, gabime/spdlog,
 keepassxreboot/keepassxc, PaddlePaddle/Paddle, Tencent/ncnn,
 microsoft/onnxruntime, …
 
-**Вывод разведки:** корпус жизнеспособен, но скромнее ожиданий — рабочее ядро
-~119 реп (≥100★) / ~233 (≥10★). Топ — крупные зрелые проекты (opencv/bitcoin
-клонируются долго и тяжелы). Configs dataset (2605.08435) не нужен: там C++
-спрятан в «remaining 27.5%» без отдельной цифры, AIDev даёт точный язык + stars
-+ human/agentic PR для будущего within-repo.
+**Reconnaissance conclusion:** the corpus is viable but more modest than expected — the working core is
+~119 repos (≥100★) / ~233 (≥10★). The top is large mature projects (opencv/bitcoin
+clone slowly and are heavy). The Configs dataset (2605.08435) is not needed: there C++ is
+hidden in the "remaining 27.5%" without a separate number, while AIDev gives an exact language + stars
++ human/agentic PRs for a future within-repo step.
 
-Колонки `all_repository`: `id, url, license, full_name, language, forks, stars`.
-В датасете также есть `pr_commit_details` / `pr_commits` / `human_pull_request`
-— для within-repo AI/human среза на следующем этапе.
+`all_repository` columns: `id, url, license, full_name, language, forks, stars`.
+The dataset also has `pr_commit_details` / `pr_commits` / `human_pull_request`
+— for a within-repo AI/human slice at the next stage.
 
-## Решённые развилки
+## Resolved forks
 
-- **Источник:** AIDev (по разведке выше).
-- **Срез:** сначала **whole-tree** (дёшево, есть инструмент); within-repo
-  AI/human — отдельным следующим этапом, когда whole-tree покажет сигнал.
-- **Детектор дублирования:** standalone-спайк
-  `experiments/line_duplication/main.cpp` (убран из дерева, в git-истории — см. #053)
-  с явной пометкой «cross-file proxy» (порт #053 в `src/` не ждём).
-- **Детектор графа:** DRIFT.1/DRIFT.2 уже в `src/` (#009). Для whole-tree
-  снимаем абсолютные граф-метрики (cycles, CCD/ACD/NCCD, god-headers, chain
-  length); DRIFT-дельта — где применима (на AI-PR диапазоне).
+- **Source:** AIDev (per the reconnaissance above).
+- **Slice:** first **whole-tree** (cheap, the tool exists); within-repo
+  AI/human — as a separate next stage, once whole-tree shows a signal.
+- **Duplication detector:** standalone spike
+  `experiments/line_duplication/main.cpp` (removed from the tree, in git history — see #053)
+  with an explicit "cross-file proxy" note (we don't wait for the #053 port into `src/`).
+- **Graph detector:** DRIFT.1/DRIFT.2 already in `src/` (#009). For whole-tree
+  we take absolute graph metrics (cycles, CCD/ACD/NCCD, god-headers, chain
+  length); DRIFT delta — where applicable (on the AI-PR range).
 
-## Отбор корпуса (решено 2026-05-30)
+## Corpus selection (decided 2026-05-30)
 
-- **Выборка:** ~50 **случайных** C++-реп из слоя `≥100★` (119 шт.), seed
-  фиксирован для воспроизводимости.
-- **Лимит размера:** брать только репо **< 500 МБ** (размер через
-  `gh api repos/{full_name}` → поле `size` в КБ, порог < 512000). Мега-проекты
-  (opencv/bitcoin/paddle) отсекаются этим лимитом естественно.
-- **Частичный чекаут:** тянуть только анализируемые text/code файлы, исключать
-  бинарь/картинки/документы (`*.png/jpg/gif/ico/pdf/zip/bin/...`), которые
-  archcheck и спайк всё равно не читают. Способ: `git clone --filter=blob:none`
-  + sparse-checkout по code-расширениям, либо post-clone чистка. Экономит диск.
+- **Sample:** ~50 **random** C++ repos from the `≥100★` layer (119 of them), with a fixed
+  seed for reproducibility.
+- **Size limit:** take only repos **< 500 MB** (size via
+  `gh api repos/{full_name}` → the `size` field in KB, threshold < 512000). Mega-projects
+  (opencv/bitcoin/paddle) are cut off by this limit naturally.
+- **Partial checkout:** pull only the analyzable text/code files, exclude
+  binaries/images/documents (`*.png/jpg/gif/ico/pdf/zip/bin/...`), which
+  archcheck and the spike don't read anyway. Method: `git clone --filter=blob:none`
+  + sparse-checkout by code extensions, or post-clone cleanup. Saves disk.
 
-## План выполнения
+## Execution plan
 
-- [ ] Зафиксировать N и критерий отбора C++-реп из AIDev (см. открытый вопрос).
-- [ ] Выгрузить список `full_name`, склонировать в `~/oss` (постоянное хранилище, не sandbox).
-- [ ] **Граф-метрики:** прогнать archcheck (`src/`) по каждому репо — абсолютные (cycles, CCD/ACD/NCCD, god-headers, chain length) + DRIFT-дельта где применима.
-- [ ] **Дублирование:** прогнать line-dup спайк по каждому репо (whole-tree).
-- [ ] Применить default excludes + авто-исключение вложенных git-репо/вендоринга (урок #053 P0-A).
-- [ ] Зафиксировать на репо: sig LOC; граф — cycles/CCD/god-headers/chain; дубли — total ratio, cross-file proxy ratio, top-N блоков; time/RSS.
-- [ ] Выборочно проверить находки обеих метрик вручную (валидный сигнал / шум).
-- [ ] Записать результат в `docs/research/` отдельным run-логом (как `ai_drift_runlog.md`), **только цифры + ручная верификация**.
+- [ ] Pin down N and the selection criterion for C++ repos from AIDev (see open question).
+- [ ] Export the list of `full_name`, clone into `~/oss` (permanent storage, not sandbox).
+- [ ] **Graph metrics:** run archcheck (`src/`) over each repo — absolute (cycles, CCD/ACD/NCCD, god-headers, chain length) + DRIFT delta where applicable.
+- [ ] **Duplication:** run the line-dup spike over each repo (whole-tree).
+- [ ] Apply default excludes + auto-exclusion of nested git repos/vendoring (lesson #053 P0-A).
+- [ ] Record per repo: sig LOC; graph — cycles/CCD/god-headers/chain; clones — total ratio, cross-file proxy ratio, top-N blocks; time/RSS.
+- [ ] Spot-check the findings of both metrics by hand (valid signal / noise).
+- [ ] Write the result into `docs/research/` as a separate run log (like `ai_drift_runlog.md`), **only numbers + manual verification**.
 
-## Критерий приёмки
+## Acceptance criteria
 
-- [ ] Корпус собран из AIDev (готовый датасет), критерий отбора и N задокументированы.
-- [ ] Прогон воспроизводим: команды + версия archcheck + версия спайка + excludes зафиксированы.
-- [ ] В run-логе по каждому репо есть **и граф-, и duplication-цифры** (сравнение силы сигнала возможно).
-- [ ] Находки обеих метрик выборочно проверены вручную.
-- [ ] Ограничения названы явно: смещение датасета по языкам; cross-file proxy ≠ cross-component; whole-tree не отделяет AI от human (within-repo — следующий этап; корреляция ≠ каузальность).
-- [ ] Файл не содержит проектных выводов — только измерения.
+- [ ] The corpus is assembled from AIDev (a ready-made dataset), the selection criterion and N are documented.
+- [ ] The run is reproducible: commands + archcheck version + spike version + excludes are pinned down.
+- [ ] The run log has **both graph and duplication numbers** for each repo (a signal-strength comparison is possible).
+- [ ] The findings of both metrics are spot-checked by hand.
+- [ ] The limitations are named explicitly: language bias of the dataset; cross-file proxy ≠ cross-component; whole-tree does not separate AI from human (within-repo — the next stage; correlation ≠ causation).
+- [ ] The file contains no project conclusions — only measurements.
 
-## Сделано
+## Done
 
-- **2026-05-31 ДЕШЁВЫЕ ГРАФ-ДЕТЕКТОРЫ по корпусу (HEAD-снимок, 68 реп).** Отчёт:
-  `experiments/ai_repo_run/GRAPH_PROBE_FINDINGS.md`. Без правок прода: граф
-  выгружается существующим `--save-graph-baseline`, анализ — `graph_probe.py`
-  (8 детекторов: cycle-members / mutual-pairs / self-include / backdoor / fan-in /
-  fan-out / longest-chain / orphan). Прогон — `graph_probe_all.sh`, сырьё в
-  `runs_history/probe/`. Находки (проверены руками):
-  - **mc2** — клубок из **56 компонент** (`mclib/stuff/*.hpp`, 47 hpp↔hpp пар).
-  - **acts** — **45 `hpp↔ipp`** пар поимённо (тот же класс, что §7.2).
-  - **`[SELF]` вскрыл баг резолвера → исправлен в #058**: угловой
-    `#include <basename.h>` схлопывался на одноимённый проектный заголовок →
-    ложный self-loop (bitcoin `<cpuid.h>`, esphome `<md5.h>`, FastLED `<alloca.h>`).
-    Single-candidate вариант #036. Фикс: guard от self-edge в `include_resolver.cpp`
-    + 3 теста; корпус после фикса self-edges 0/68, 8 фантомных циклов ушли.
-  - Корпус: циклы у 25/68 (после фикса self-edge); backdoor (hdr→.cpp) = 0;
-    fan-in чемпион esphome `core/log.h` 1049. Кандидаты в реальные чеки — см. #057.
-  - **Границы модулей (2-й заход, закрыл 5-ю исходную метрику чата):** `[MODULE]`
-    циклы между каталогами-модулями — **10/68 реп** (≠ 25 file-циклов!), проверены
-    настоящие (FastLED src↔examples, stellar-core lib↔src). `[ENCAP]` пробой с prod/test-сплитом:
-    сырых хитов сотни (acts 124), после сплита prod→prod у 3 реп; ручная проверка:
-    **acts (13) и otel (2) — РЕАЛЬНЫЕ пробои в `Core/.../detail`**, cpprestsdk (15) —
-    artifact src↔include одной либы. Урок: детектор границ требует config-определения
-    модулей (#051), иначе путает раскладку либы с пробоем. Попутно исправлен баг
-    probe: `parse()` не снимал кавычки → числа были кривые.
-- **2026-05-31 ЧИСТКА КОРПУСА НА ДИСКЕ.** По критерию пользователя убраны клоны,
-  на которых archcheck ничего не нашёл или нашёл только ложное (вендоринг /
-  fork-in-repo / data-blob / мета-агрегатор / codegen / header-only-фантом),
-  включая пограничные; репы с высоким абс. dup или реальным сигналом сохранены.
-  Классификация по `runs_history/*.tsv` (`classify_remove.py`) → удаление
-  (`do_remove.py --apply`). Итог: **116 реп, ~6.0 ГБ** (`~/oss`
-  26→20 ГБ); high-star 29 / ~2.6 ГБ, low-star 87 / ~3.6 ГБ. Список+причины —
-  `REMOVED.md`. **Evidence-TSV и серии НЕ тронуты** — отчёты воспроизводимы,
-  удалены только re-clonable клоны. README §1 (раньше «НЕ удалять») и
-  DRIFT_RUN_REPORT §7.5bis обновлены.
-- **2026-05-31 КОРПУСНЫЙ ПРОГОН ДРЕЙФА (85 реп, для статьи).** `drift_all.sh`
-  по всем full-history репам `_aidev_run/`, 25 снапшотов/репа, обе метрики.
-  Данные: `runs_history/all/*.tsv` + `drift_summary_v2.tsv`. Отчёт §7. Итоги:
-  - **Копипаст: 39 реп растут (медиана +8.2%, макс +69%), 28 стабильны, 18 СНИЗИЛИСЬ.**
-    Дрейф преобладает, но обратим (не универсален).
-  - **Циклы: 15 реп родили циклы (0→N), 20 нарастили.**
-  - **4 категории причин** с локализованными коммитами-виновниками (проверены git show):
-    A) копипаст — opencv-mobile (600-стр JPEG-энкодер cix↔rpi), OptiScaler cc5d695e;
-    B) граф/циклы — **acts `233ba90c` (2025-06-02): «.ipp include .hpp» рефакторинг
-       замкнул hpp↔ipp → циклы 3→43 ОДНИМ коммитом**; OptiScaler d3e1c13a;
-    C) связность — stellar-core e/n 1.9→6.3, otel 2.1→5.7, FastLED 1.3→4.8;
-    D) контр-примеры — alpaka (dup 40%→19% починен, но циклы 0→3 + edges ×100):
-       копипаст и граф дрейфуют НЕЗАВИСИМО → нужны оба чека.
-  - Артефакты исключены (CnC/GacUI fork-in-repo, idx0, data-blob) — §7.5.
-  - Инфра прогона: `gc.auto=0` на тяжёлых репах, `checkout_watchdog.sh` (убил 1
-    зависший checkout на ice), baseline = первый снапшот с кодом (не idx0),
-    сортировка снапшотов по дате (first-parent ≠ хронология).
-- **2026-05-30 ПОЛНЫЙ ПРОГОН (дрейф-по-истории + discipline-vs-stars).** Отчёт:
-  `experiments/ai_repo_run/DRIFT_RUN_REPORT.md`. Кратко:
-  - **Постановка сменена:** меряем не «автор коммита (ИИ/чел)», а «в каком коммите
-    архитектура поехала» — дельта метрик по истории (граф + копипаст).
-  - **Дрейф OptiScaler (first-parent, 30 снапшотов):** dup ratio ×2.2 (12.6%→27.6%,
-    пик 31%), cross-file ×3.8, рёбра ×10 при узлах ×4, **цикл родился** —
-    локализован до коммита `d3e1c13a` (2025-04-18, «Merge refactor-hooks»):
-    распил `dllmain` на `proxies/`+`hooks/` замкнул 4-компонентный цикл.
-    Серия: `runs_history/optiscaler_n30_fp/`.
-  - **#056 diff-режим реализован** (агент): `--diff <sha>|<A>..<B> --repo` ловит
-    «коммит скопировал существующий код». 5/30 sampled-коммитов внесли partial-дубли;
-    крупнейший `cc5d695e` (23 хита, max_sim=1.0, копипаст dispatch-тел шейдер-пассов
-    DI↔FT — проверено вручную). Серия: `runs_history/optiscaler_partial/`.
-  - **Discipline-vs-stars (130 реп, 5 бакетов):** гипотеза «меньше звёзд → хуже»
-    НЕ подтвердилась — медиана dup плоская 10–15% по всем бакетам.
+- **2026-05-31 CHEAP GRAPH DETECTORS over the corpus (HEAD snapshot, 68 repos).** Report:
+  `experiments/ai_repo_run/GRAPH_PROBE_FINDINGS.md`. Without prod changes: the graph is
+  exported by the existing `--save-graph-baseline`, analysis — `graph_probe.py`
+  (8 detectors: cycle-members / mutual-pairs / self-include / backdoor / fan-in /
+  fan-out / longest-chain / orphan). The run — `graph_probe_all.sh`, raw data in
+  `runs_history/probe/`. Findings (checked by hand):
+  - **mc2** — a tangle of **56 components** (`mclib/stuff/*.hpp`, 47 hpp↔hpp pairs).
+  - **acts** — **45 `hpp↔ipp`** pairs by name (the same class as §7.2).
+  - **`[SELF]` exposed a resolver bug → fixed in #058**: an angled
+    `#include <basename.h>` collapsed onto a same-named project header →
+    a false self-loop (bitcoin `<cpuid.h>`, esphome `<md5.h>`, FastLED `<alloca.h>`).
+    The single-candidate variant of #036. Fix: a guard against self-edge in `include_resolver.cpp`
+    + 3 tests; after the fix the corpus has self-edges 0/68, 8 phantom cycles gone.
+  - Corpus: cycles in 25/68 (after the self-edge fix); backdoor (hdr→.cpp) = 0;
+    fan-in champion esphome `core/log.h` 1049. Candidates for real checks — see #057.
+  - **Module boundaries (2nd pass, closed the 5th original chat metric):** `[MODULE]`
+    cycles between module directories — **10/68 repos** (≠ 25 file cycles!), the genuine ones
+    were verified (FastLED src↔examples, stellar-core lib↔src). `[ENCAP]` breach with a prod/test split:
+    hundreds of raw hits (acts 124), after the split prod→prod in 3 repos; manual check:
+    **acts (13) and otel (2) — REAL breaches in `Core/.../detail`**, cpprestsdk (15) —
+    an artifact of src↔include of one lib. Lesson: the boundary detector requires a config definition
+    of modules (#051), otherwise it confuses a lib's layout with a breach. Along the way a
+    probe bug was fixed: `parse()` did not strip quotes → the numbers were off.
+- **2026-05-31 CLEANUP OF THE CORPUS ON DISK.** By the user's criterion, clones were removed
+  on which archcheck found nothing or found only false positives (vendoring /
+  fork-in-repo / data-blob / meta-aggregator / codegen / header-only phantom),
+  including borderline ones; repos with high absolute dup or a real signal were kept.
+  Classification by `runs_history/*.tsv` (`classify_remove.py`) → removal
+  (`do_remove.py --apply`). Result: **116 repos, ~6.0 GB** (`~/oss`
+  26→20 GB); high-star 29 / ~2.6 GB, low-star 87 / ~3.6 GB. List+reasons —
+  `REMOVED.md`. **Evidence TSVs and series were NOT touched** — the reports are reproducible,
+  only re-clonable clones were removed. README §1 (previously "DO NOT delete") and
+  DRIFT_RUN_REPORT §7.5bis were updated.
+- **2026-05-31 CORPUS DRIFT RUN (85 repos, for the article).** `drift_all.sh`
+  over all full-history repos in `_aidev_run/`, 25 snapshots/repo, both metrics.
+  Data: `runs_history/all/*.tsv` + `drift_summary_v2.tsv`. Report §7. Outcomes:
+  - **Copy-paste: 39 repos grow (median +8.2%, max +69%), 28 stable, 18 DECREASED.**
+    Drift prevails, but is reversible (not universal).
+  - **Cycles: 15 repos gave birth to cycles (0→N), 20 grew them.**
+  - **4 categories of causes** with localized culprit commits (verified with git show):
+    A) copy-paste — opencv-mobile (600-line JPEG encoder cix↔rpi), OptiScaler cc5d695e;
+    B) graph/cycles — **acts `233ba90c` (2025-06-02): ".ipp include .hpp" refactoring
+       closed hpp↔ipp → cycles 3→43 in ONE commit**; OptiScaler d3e1c13a;
+    C) connectivity — stellar-core e/n 1.9→6.3, otel 2.1→5.7, FastLED 1.3→4.8;
+    D) counter-examples — alpaka (dup 40%→19% fixed, but cycles 0→3 + edges ×100):
+       copy-paste and graph drift INDEPENDENTLY → both checks are needed.
+  - Artifacts excluded (CnC/GacUI fork-in-repo, idx0, data-blob) — §7.5.
+  - Run infra: `gc.auto=0` on heavy repos, `checkout_watchdog.sh` (killed 1
+    hung checkout on ice), baseline = the first snapshot with code (not idx0),
+    snapshots sorted by date (first-parent ≠ chronology).
+- **2026-05-30 FULL RUN (history drift + discipline-vs-stars).** Report:
+  `experiments/ai_repo_run/DRIFT_RUN_REPORT.md`. In brief:
+  - **The framing was changed:** we measure not "the commit author (AI/human)", but "in which commit
+    the architecture went off" — the delta of metrics over history (graph + copy-paste).
+  - **OptiScaler drift (first-parent, 30 snapshots):** dup ratio ×2.2 (12.6%→27.6%,
+    peak 31%), cross-file ×3.8, edges ×10 with nodes ×4, **a cycle was born** —
+    localized to commit `d3e1c13a` (2025-04-18, "Merge refactor-hooks"):
+    splitting `dllmain` into `proxies/`+`hooks/` closed a 4-component cycle.
+    Series: `runs_history/optiscaler_n30_fp/`.
+  - **#056 diff mode implemented** (agent): `--diff <sha>|<A>..<B> --repo` catches
+    "a commit copied existing code". 5/30 sampled commits introduced partial clones;
+    the largest `cc5d695e` (23 hits, max_sim=1.0, copy-paste of shader-pass dispatch bodies
+    DI↔FT — verified by hand). Series: `runs_history/optiscaler_partial/`.
+  - **Discipline-vs-stars (130 repos, 5 buckets):** the "fewer stars → worse" hypothesis
+    was NOT confirmed — median dup is flat 10–15% across all buckets.
     `discipline.tsv`.
-  - **Аномалии (проверены):** sampling-артефакт (боковые ветки → фикс first-parent);
-    ggml-org-central = мета-агрегатор (80% = вендоринг); ReP_AL camera_index.h =
+  - **Anomalies (verified):** sampling artifact (side branches → fix with first-parent);
+    ggml-org-central = meta-aggregator (80% = vendoring); ReP_AL camera_index.h =
     data-blob #056.
-  - **Корпус (permanent):** `_aidev_run/` 50→119 ≥100★ с полной историей;
-    `_aidev_lowstar/` низко-звёздные по бакетам. Скрипты: `history_drift.sh`,
+  - **Corpus (permanent):** `_aidev_run/` 50→119 ≥100★ with full history;
+    `_aidev_lowstar/` low-star by buckets. Scripts: `history_drift.sh`,
     `discipline_vs_stars.sh`, `partial_history_drift.sh`, `clone_*.sh`.
-- **2026-05-30 разведка:** скачана AIDev all_repository.parquet (116211 репо);
-  C++=2445, ≥100★=119. Артефакты в `experiments/ai_repo_run/`: corpus_50.tsv
-  (50 случайных C++ ≥100★ <500МБ, seed=42), skipped_big.tsv, sample_cpp.py.
-- **2026-05-30 пилот (5 реп), реальные цифры** (бинарь
-  `/tmp/line_dup_build/line_duplication`, `--top 8`, текстовый вывод; спайк
-  НЕ поддерживает `--json`). Сырьё: `experiments/ai_repo_run/pilot_raw/*.txt`.
+- **2026-05-30 reconnaissance:** downloaded AIDev all_repository.parquet (116211 repos);
+  C++=2445, ≥100★=119. Artifacts in `experiments/ai_repo_run/`: corpus_50.tsv
+  (50 random C++ ≥100★ <500MB, seed=42), skipped_big.tsv, sample_cpp.py.
+- **2026-05-30 pilot (5 repos), real numbers** (binary
+  `/tmp/line_dup_build/line_duplication`, `--top 8`, text output; the spike
+  does NOT support `--json`). Raw data: `experiments/ai_repo_run/pilot_raw/*.txt`.
 
   | repo | eligible files | sigLOC | dupLOC | ratio% | blocks | cross-file |
   |------|---:|---:|---:|---:|---:|---:|
@@ -220,221 +220,221 @@ microsoft/onnxruntime, …
   | pict | 42 | 8027 | 485 | 6.04 | 37 | 14 |
   | implot3d | 7 | 7806 | 490 | 6.27 | 32 | 1 |
 
-  Время <0.01 s/репо, RSS ~4 МБ. Пайплайн рабочий. Реальные cross-file находки
-  (дословно): mqtt_client `MqttClient.hpp:2 <-> MqttClient.cpp:2` (19 lines,
-  header↔impl, низкополезно); guetzli `jpeg_data_encoder.cc:56 <->
+  Time <0.01 s/repo, RSS ~4 MB. The pipeline works. Real cross-file findings
+  (verbatim): mqtt_client `MqttClient.hpp:2 <-> MqttClient.cpp:2` (19 lines,
+  header↔impl, low value); guetzli `jpeg_data_encoder.cc:56 <->
   jpeg_data_writer.cc:56` (5); pict `api/resource.h:7 <-> clidll/resource.h:7`
   (8) +13; implot3d `implot3d.cpp:3286 <-> implot3d_demo.cpp:1975` (10).
-- **Замечено:** (1) `rii` ratio 8.62% раздут вендоренным `src/extern/sse2neon.h`
-  — дефолтные excludes папку `extern` не ловят; (2) `mqtt_client` 13.19% — почти
-  весь дубль header↔impl одной компоненты, для cross-component не сигнал
-  (whole-tree раздувает).
-- **2026-05-30 фикс excludes (по решению «просто добавить паттерны»).** Проверено
-  эмпирически (см. `PILOT_NOTES.md`): nested-git=0 во всех 5 репах, .gitignore
-  вендоринг не ловит (закоммичен) — поэтому только паттерны. В
-  `experiments/line_duplication/main.cpp` к дефолтам добавлены: `extern`,
+- **Noted:** (1) `rii` ratio 8.62% is inflated by the vendored `src/extern/sse2neon.h`
+  — the default excludes don't catch the `extern` folder; (2) `mqtt_client` 13.19% — almost
+  the entire dup is header↔impl of one component, no signal for cross-component
+  (whole-tree inflates it).
+- **2026-05-30 excludes fix (per the decision "just add patterns").** Verified
+  empirically (see `PILOT_NOTES.md`): nested-git=0 in all 5 repos, .gitignore doesn't catch
+  vendoring (it's committed) — so patterns only. In
+  `experiments/line_duplication/main.cpp` the defaults gained: `extern`,
   `external`, `external_libs`, `vendor`, `vendored`, `deps`, `3rdparty`,
-  `3rd_party`. Пересобрано (бинарь mtime 15:35), перепрогон (сырьё
+  `3rd_party`. Rebuilt (binary mtime 15:35), re-run (raw data
   `pilot_raw/*_v2.txt`):
 
-  | repo | eligible | sigLOC | ratio% | blocks | cross-file | Δ к v1 |
+  | repo | eligible | sigLOC | ratio% | blocks | cross-file | Δ vs v1 |
   |------|---:|---:|---:|---:|---:|---|
-  | mqtt_client | 2 | 1395 | 13.19 | 13 | 1 | без изм. |
-  | rii | 5 | 769 | 3.90 | 2 | 0 | было 6798 sigLOC / 8.62% |
-  | guetzli | 47 | 5982 | 4.83 | 18 | 1 | без изм. |
-  | pict | 42 | 8027 | 6.04 | 37 | 14 | без изм. |
-  | implot3d | 7 | 7806 | 6.27 | 32 | 1 | без изм. |
+  | mqtt_client | 2 | 1395 | 13.19 | 13 | 1 | unchanged |
+  | rii | 5 | 769 | 3.90 | 2 | 0 | was 6798 sigLOC / 8.62% |
+  | guetzli | 47 | 5982 | 4.83 | 18 | 1 | unchanged |
+  | pict | 42 | 8027 | 6.04 | 37 | 14 | unchanged |
+  | implot3d | 7 | 7806 | 6.27 | 32 | 1 | unchanged |
 
-  Фикс валиден: изменился только rii. Показательно: его sigLOC упал 6798→**769**
-  — `extern/sse2neon.h` составлял ~90% «кода» репо.
+  The fix is valid: only rii changed. Telling: its sigLOC dropped 6798→**769**
+  — `extern/sse2neon.h` made up ~90% of the repo's "code".
 
-- **2026-05-30 корпус склонирован полностью.** Все 50 реп в
-  `~/oss/_aidev_run/` (2.8 ГБ, 0 фейлов, `git clone --depth 1
-  --filter=blob:none`). Лог: `experiments/ai_repo_run/clone.log`.
+- **2026-05-30 corpus cloned in full.** All 50 repos in
+  `~/oss/_aidev_run/` (2.8 GB, 0 failures, `git clone --depth 1
+  --filter=blob:none`). Log: `experiments/ai_repo_run/clone.log`.
 
-- **2026-05-30 инфраструктура многократного прогона** в `experiments/ai_repo_run/`:
-  `run_dup.sh <tag>` (прогон по всему корпусу → `runs/<tag>/` сырьё+summary+контекст),
-  `diff_runs.sh <a> <b>` (сравнение прогонов), `README.md` (пошаговая инструкция).
+- **2026-05-30 infrastructure for repeated runs** in `experiments/ai_repo_run/`:
+  `run_dup.sh <tag>` (run over the whole corpus → `runs/<tag>/` raw+summary+context),
+  `diff_runs.sh <a> <b>` (comparison of runs), `README.md` (step-by-step instruction).
 
-- **2026-05-30 первый полный прогон `v1_excludes` (50 реп).** Сводка:
-  `runs/v1_excludes/summary.tsv`, сырьё `runs/v1_excludes/<repo>.txt`. Перф ок
-  (секунды на репо). Видны выбросы: CnC_Generals_Zero_Hour 90.56%,
-  ReP_AL-3D-Lawn-Mower 84.55%, ncnn 68.40%, alpaka 62.58% — кандидаты на
-  невычищенный вендоринг/генерёнку (проверять по `<repo>.txt`).
+- **2026-05-30 first full run `v1_excludes` (50 repos).** Summary:
+  `runs/v1_excludes/summary.tsv`, raw `runs/v1_excludes/<repo>.txt`. Perf is fine
+  (seconds per repo). Outliers visible: CnC_Generals_Zero_Hour 90.56%,
+  ReP_AL-3D-Lawn-Mower 84.55%, ncnn 68.40%, alpaka 62.58% — candidates for
+  uncleaned vendoring/codegen (check via `<repo>.txt`).
 
-- **🐞 РЕАЛЬНЫЙ БАГ спайка (доказан на данных, блокер достоверности).**
-  `isCommentOnly` (main.cpp:275) фильтрует комментарии **построчно** по началу
-  строки (`//`, `/*`, `*`), но НЕ отслеживает состояние внутри блока `/* ... */`.
-  Лицензионные шапки `/* ... */`, где строки начинаются с обычного текста
-  (`MIT License`, `Copyright...`), проходят как «значимый код».
-  Доказательство: `mqtt_client` top-блок «19 lines MqttClient.hpp:2 <->
-  MqttClient.cpp:2» = дословно текст MIT-лицензии (проверено `sed`), строки 1=`/*`,
-  25=`*/`. Раздувает sigLOC и cross-file. Это тот же класс бага, что чинили в
-  боевом SF.7 (#038 block-comment stripping) — спайк его не унаследовал.
+- **🐞 REAL spike BUG (proven on data, a credibility blocker).**
+  `isCommentOnly` (main.cpp:275) filters comments **line by line** by the start
+  of the line (`//`, `/*`, `*`), but does NOT track state inside a `/* ... */` block.
+  License headers `/* ... */`, where lines start with ordinary text
+  (`MIT License`, `Copyright...`), pass as "significant code".
+  Proof: the `mqtt_client` top block "19 lines MqttClient.hpp:2 <->
+  MqttClient.cpp:2" = verbatim the MIT license text (verified with `sed`), lines 1=`/*`,
+  25=`*/`. Inflates sigLOC and cross-file. This is the same class of bug fixed in
+  the production SF.7 (#038 block-comment stripping) — the spike did not inherit it.
 
-- **2026-05-30 фикс block-comment ЗАКРЫТ + прогон v2.** Переиспользована
-  проверенная пара из боевого SF.7 (`src/rules/sf7_using_namespace.cpp`):
-  `stripLineComment` + `updateBlockCommentState(raw, inBlockComment)` — не свой
-  велосипед. Пересобрано (mtime 16:34, exit 0; IDE-диагностики clangd были
-  ложные). Прогон `runs/v2_blockcomment/`, сравнение `diff_runs.sh v1 v2`.
-  Эффект (примеры): mqtt_client cross-file 1→0 (лицензия ушла);
+- **2026-05-30 block-comment fix CLOSED + run v2.** Reused the
+  proven pair from the production SF.7 (`src/rules/sf7_using_namespace.cpp`):
+  `stripLineComment` + `updateBlockCommentState(raw, inBlockComment)` — not a homegrown
+  reinvention. Rebuilt (mtime 16:34, exit 0; clangd IDE diagnostics were
+  false). Run `runs/v2_blockcomment/`, comparison `diff_runs.sh v1 v2`.
+  Effect (examples): mqtt_client cross-file 1→0 (license gone);
   HexRaysCodeXplorer 11.29→6.92%; itksnap 11.38→8.34%; HPCC cross-file 3066→2725.
-- **Вскрылся НОВЫЙ класс шума (доказан).** FTXUI ratio вырос 8.45→10.45% —
-  не баг: фикс теперь срезает и **хвостовые** комментарии (`foo(); // A`), а
-  старый код их оставлял. Из-за этого совпали блоки `#include` с разными
-  `// for ...` комментариями. Доказательство: новый cross-file
-  `input.cpp:9 <-> radiobox.cpp:5` (11 строк) = одинаковый список
-  `#include "ftxui/..."` с разными хвостовыми комментариями (проверено `sed`).
-  Технически дубль, архитектурно — общие зависимости, не «missing reuse edge».
-  **Отдельная задача: фильтровать include-блоки** (не блокер, но завышает сигнал).
+- **A NEW class of noise surfaced (proven).** FTXUI ratio grew 8.45→10.45% —
+  not a bug: the fix now also strips **trailing** comments (`foo(); // A`), whereas
+  the old code left them. Because of this, `#include` blocks with different
+  `// for ...` comments matched. Proof: a new cross-file
+  `input.cpp:9 <-> radiobox.cpp:5` (11 lines) = an identical list of
+  `#include "ftxui/..."` with different trailing comments (verified with `sed`).
+  Technically a clone, architecturally — shared dependencies, not a "missing reuse edge".
+  **Separate task: filter include blocks** (not a blocker, but inflates the signal).
 
-- **2026-05-30 разбор выбросов + фикс вендоринга (v3_vendor_ci).** Проверены
-  топ-блоки выбросов по `<repo>.txt` — оказались ТРИ разных класса, не один:
-  - **alpaka 62%, AMICI 28%** — вендоринг `thirdParty/catch2` и т.п. ШУМ.
-  - **ncnn 68%** — `src/layer/{loongarch,mips,arm,riscv}/` SIMD-бэкенды.
-    РЕАЛЬНЫЙ дубль кода проекта, НЕ шум — не трогать.
-  - **CnC_Generals 90%** — `Generals/` vs `GeneralsMD/` (идентичные файлы по
-    3000+ строк). Форк-в-репо (две версии игры). Реальный, не вендоринг.
-  - **ReP_AL 84%** — ESP32 camera boilerplate (Espressif), скопирован в 2 места.
-    Полу-вендоринг.
+- **2026-05-30 outlier analysis + vendoring fix (v3_vendor_ci).** Checked
+  the top blocks of the outliers via `<repo>.txt` — they turned out to be THREE different classes, not one:
+  - **alpaka 62%, AMICI 28%** — vendoring `thirdParty/catch2` and the like. NOISE.
+  - **ncnn 68%** — `src/layer/{loongarch,mips,arm,riscv}/` SIMD backends.
+    A REAL clone of the project's code, NOT noise — don't touch.
+  - **CnC_Generals 90%** — `Generals/` vs `GeneralsMD/` (identical files of
+    3000+ lines). Fork-in-repo (two versions of the game). Real, not vendoring.
+  - **ReP_AL 84%** — ESP32 camera boilerplate (Espressif), copied into 2 places.
+    Semi-vendoring.
 
-  Вывод: **по ratio резать вслепую нельзя** — ncnn 68% правда, alpaka 62% мусор.
-  Фикс — только однозначный вендоринг: матчинг excludes сделан
-  **регистронезависимым** (вендор-папки в корпусе: `thirdParty/ThirdParty/
-  3rdParty/External/Submodules` — все варианты регистра), + добавлены
-  `vendors/submodules/subprojects`. Пересобрано (mtime 16:52). Эффект (diff v2→v3):
+  Conclusion: **you cannot cut by ratio blindly** — ncnn 68% is real, alpaka 62% is junk.
+  The fix — only unambiguous vendoring: the excludes matching was made
+  **case-insensitive** (vendor folders in the corpus: `thirdParty/ThirdParty/
+  3rdParty/External/Submodules` — all case variants), + added
+  `vendors/submodules/subprojects`. Rebuilt (mtime 16:52). Effect (diff v2→v3):
   alpaka 61.9→**20.3%**, AMICI 28.1→**23.9%** (blocks 1296→297), PcapPlusPlus
-  10.6→9.4%. ncnn/CnC не сдвинулись (правильно — там не вендоринг).
+  10.6→9.4%. ncnn/CnC did not move (correctly — there is no vendoring there).
 
-- **Вскрылся ещё класс шума (доказан, НЕ чинен):** Effekseer — `ShaderHeader/
-  *.h` это GLSL-шейдеры, зашитые в C++ строкой (`static const char ...[] =
-  R"(#version 120 ...)"`). Дубли между ними — сгенерённый шейдерный код, не
-  архитектура. Универсального паттерна по имени НЕТ (у каждого проекта свои
-  имена) → нужен detect-by-content, это БОЛЬШОЕ решение, отложено. Не блокер
-  (1 репо). Зафиксировано как известное ограничение.
+- **Another class of noise surfaced (proven, NOT fixed):** Effekseer — `ShaderHeader/
+  *.h` are GLSL shaders embedded into C++ as a string (`static const char ...[] =
+  R"(#version 120 ...)"`). Clones between them are generated shader code, not
+  architecture. There is NO universal pattern by name (each project has its own
+  names) → detect-by-content is needed, that's a BIG decision, deferred. Not a blocker
+  (1 repo). Recorded as a known limitation.
 
-## Состояние v3 (после 3 фиксов: excludes+comment+vendor-CI)
+## State of v3 (after 3 fixes: excludes+comment+vendor-CI)
 
-Распределение ratio по 50 репам: ≥40% — 3 (CnC/ReP_AL/ncnn, все объяснены),
-20-40% — 8, 10-20% — 18, 3-10% — 17, <3% — 4. Сводка `runs/v3_vendor_ci/summary.tsv`.
-Известные остаточные искажения: shader-headers (Effekseer), форк-в-репо (CnC),
-include-блоки (FTXUI), header↔impl (cross-file proxy, не cross-component).
+Distribution of ratio over 50 repos: ≥40% — 3 (CnC/ReP_AL/ncnn, all explained),
+20-40% — 8, 10-20% — 18, 3-10% — 17, <3% — 4. Summary `runs/v3_vendor_ci/summary.tsv`.
+Known residual distortions: shader-headers (Effekseer), fork-in-repo (CnC),
+include blocks (FTXUI), header↔impl (cross-file proxy, not cross-component).
 
-- **2026-05-30 фиксы v4: skip `#include` + выкус raw-string `R"(...)"`.**
-  По указанию пользователя: include-строки — зависимости, не код (одинаковые
-  include-блоки и header↔impl-шапки = общие deps, не reuse-edge); raw-string
-  содержимое — данные (shader/SQL/script), не код. Helper'ы по аналогии с
-  block-comment (`updateRawStringState`, `isIncludeLine`), порядок:
-  raw-string → comment → include-skip. Пересобрано (mtime 17:14).
-  Эффект (diff v3→v4): opentelemetry cross-file 608→349; scenario_simulator
+- **2026-05-30 fixes v4: skip `#include` + carve out raw-string `R"(...)"`.**
+  Per the user's instruction: include lines are dependencies, not code (identical
+  include blocks and header↔impl headers = shared deps, not a reuse edge); raw-string
+  content is data (shader/SQL/script), not code. Helpers by analogy with
+  block-comment (`updateRawStringState`, `isIncludeLine`), order:
+  raw-string → comment → include-skip. Rebuilt (mtime 17:14).
+  Effect (diff v3→v4): opentelemetry cross-file 608→349; scenario_simulator
   19.5→15.3%; AMICI 24→17.3% (xfile 179→88); FTXUI xfile 61→28; acts 723→569.
-  Контроль: ncnn 68% / CnC 90% не тронуты (реальный код). Прогон `runs/v4_include_rawstr/`.
-- **header↔impl разобран (по запросу пользователя — это НЕ сигнатуры).** Проверка
-  на исходниках: AMICI `rdata.h↔cpp` = многострочный список параметров
-  конструктора; opentelemetry `.h↔.cc` = блок `#include` (ушёл в v4); acts
-  `SurfaceArray` = целые тела функций. include-часть лечится v4; параметры/тела
-  остаются — нужен cross-**component** mapping (#053 P0-B), не быстрый фикс.
-- **Effekseer-DX остаётся (ещё класс, НЕ чинен).** GL-шейдеры = raw-string
-  (v4 ловит), но DX11/12/Metal/Vulkan = вывод `fxc` — байткод массивами чисел
-  (`0, 0, 124, 6, ...`) внутри `#if 0` disassembly. R"( там нет. Ловить
-  «массивы чисел» эвристикой рискованно (зацепит таблицы-константы); чистый ход
-  — пропускать `#if 0` мёртвый код. Отложено (1 репо, не блокер).
+  Control: ncnn 68% / CnC 90% untouched (real code). Run `runs/v4_include_rawstr/`.
+- **header↔impl analyzed (at the user's request — these are NOT signatures).** Check
+  on sources: AMICI `rdata.h↔cpp` = a multiline list of constructor
+  parameters; opentelemetry `.h↔.cc` = an `#include` block (gone in v4); acts
+  `SurfaceArray` = whole function bodies. The include part is cured by v4; parameters/bodies
+  remain — a cross-**component** mapping is needed (#053 P0-B), not a quick fix.
+- **Effekseer-DX remains (another class, NOT fixed).** GL shaders = raw-string
+  (v4 catches), but DX11/12/Metal/Vulkan = `fxc` output — bytecode as arrays of numbers
+  (`0, 0, 124, 6, ...`) inside `#if 0` disassembly. There's no R"( there. Catching
+  "arrays of numbers" with a heuristic is risky (it would snag constant tables); the clean move
+  — skip `#if 0` dead code. Deferred (1 repo, not a blocker).
 
-## Итог чистки шума (5 фиксов, все проверены на исходниках)
+## Noise cleanup result (5 fixes, all verified on sources)
 
-| Фикс | Класс шума | Доказательство |
+| Fix | Noise class | Proof |
 |------|-----------|----------------|
-| excludes вендор-папки | sse2neon, catch2 | rii sigLOC 6798→769 |
-| block-comment stripping (из SF.7) | лицензии `/* MIT */` | mqtt cross-file 1→0 |
-| регистронезависимый матчинг | thirdParty/ThirdParty/3rdParty | alpaka 62→20% |
-| skip `#include` | include-блоки, header-шапки | otel xfile 608→349 |
-| raw-string `R"(...)"` | embedded GL-шейдеры | Effekseer 33→29% |
+| excludes vendor folders | sse2neon, catch2 | rii sigLOC 6798→769 |
+| block-comment stripping (from SF.7) | licenses `/* MIT */` | mqtt cross-file 1→0 |
+| case-insensitive matching | thirdParty/ThirdParty/3rdParty | alpaka 62→20% |
+| skip `#include` | include blocks, header headers | otel xfile 608→349 |
+| raw-string `R"(...)"` | embedded GL shaders | Effekseer 33→29% |
 
-НЕ тронуто намеренно (реальный сигнал): ncnn 68% (SIMD-бэкенды), CnC 90%
-(форк Generals/GeneralsMD). Остаточные известные искажения: Effekseer-DX
-(fxc-байткод), header↔impl тела/параметры (нужен cross-component #053 P0-B).
+Deliberately NOT touched (real signal): ncnn 68% (SIMD backends), CnC 90%
+(fork Generals/GeneralsMD). Residual known distortions: Effekseer-DX
+(fxc bytecode), header↔impl bodies/parameters (cross-component #053 P0-B needed).
 
-- **2026-05-30 фикс v5: пропуск `#if 0` / `#if false` мёртвых блоков** (с учётом
-  вложенности `#if`/`#endif`). По указанию пользователя. Helper
-  `isDeadPreprocessorLine`, проверка на сырой строке до raw-string/comment.
-  Пересобрано (mtime 17:28). Эффект (diff v4→v5): Effekseer 28.85→27.92%
-  (cross-file 1660→1486, ушли fxc disassembly-листинги под `#if 0`);
-  onnxruntime-genai 10.55→9.50%; rocky/HPCC мелко. ncnn/CnC стабильны.
-  Прогон `runs/v5_if0/`.
-- **Числовые data-массивы переданы в #056.** Остаток Effekseer (196-стр.
-  cross-file блоки) — это `const BYTE g_main[] = { 69, 70, 88, ... }` (fxc
-  байт-код, НЕ под `#if 0`). По решению пользователя «числа сравнивать не надо,
-  но это #056». Отметка добавлена в `backlog/wip/056` §«Числовые data-блоки».
-  В #053/#054 line-based это не лечится (числа неотличимы от кода без токенизации).
+- **2026-05-30 fix v5: skip `#if 0` / `#if false` dead blocks** (accounting for
+  `#if`/`#endif` nesting). Per the user's instruction. Helper
+  `isDeadPreprocessorLine`, the check on the raw line before raw-string/comment.
+  Rebuilt (mtime 17:28). Effect (diff v4→v5): Effekseer 28.85→27.92%
+  (cross-file 1660→1486, fxc disassembly listings under `#if 0` gone);
+  onnxruntime-genai 10.55→9.50%; rocky/HPCC minor. ncnn/CnC stable.
+  Run `runs/v5_if0/`.
+- **Numeric data arrays handed off to #056.** The remainder of Effekseer (196-line
+  cross-file blocks) is `const BYTE g_main[] = { 69, 70, 88, ... }` (fxc
+  bytecode, NOT under `#if 0`). Per the user's decision "no need to compare numbers,
+  but it's #056". A note was added in `backlog/wip/056` §"Numeric data blocks".
+  In #053/#054 line-based this is not curable (numbers are indistinguishable from code without tokenization).
 
-## Итог чистки (v1→v5, актуальный baseline = v5_if0)
+## Cleanup result (v1→v5, current baseline = v5_if0)
 
-5 фиксов спайка, все проверены на исходниках; контроль (ncnn 68% SIMD-бэкенды,
-CnC 90% форк-в-репо) намеренно не тронут — там реальный дубль кода.
-Остаточные известные искажения, вынесенные за рамки #054: числовые data-блоки
-(#056), header↔impl тела/параметры (cross-component, #053 P0-B).
+5 spike fixes, all verified on sources; the control (ncnn 68% SIMD backends,
+CnC 90% fork-in-repo) deliberately untouched — there's a real code clone there.
+Residual known distortions, placed out of scope of #054: numeric data blocks
+(#056), header↔impl bodies/parameters (cross-component, #053 P0-B).
 
-## В работе (2026-05-31)
+## In progress (2026-05-31)
 
-- **Прогон дрейфа ×3** на 160 низко-звёздных репах (`runs_history/lowstar/`) —
-  идёт, расширяет корпусную статистику с 85 до ~245 проектов.
-- **Скачаны PR-таблицы AIDev** (`/tmp/aidev_pr/`: pull_request 17MB,
-  human_pull_request, pr_task_type) — ground-truth метки AI-PR/human-PR для
-  следующего этапа (within-repo тест ИИ-дрейфа).
+- **Drift run ×3** on 160 low-star repos (`runs_history/lowstar/`) —
+  in progress, expanding the corpus statistics from 85 to ~245 projects.
+- **AIDev PR tables downloaded** (`/tmp/aidev_pr/`: pull_request 17MB,
+  human_pull_request, pr_task_type) — ground-truth labels of AI-PR/human-PR for
+  the next stage (within-repo test of AI drift).
 
-## ⚠️ Честная рамка (зафиксировано 2026-05-31)
+## ⚠️ Honest framing (recorded 2026-05-31)
 
-**Доказано:** инструмент ловит дрейф; дрейф реален (39/85 растут по копипасту,
-15/85 родили циклы) и локализуется до коммита. **НЕ доказано:** что причина —
-ИИ. Whole-tree прогон мерит дрейф проекта целиком, не отделяя ИИ-код. Атрибуция
-по git невозможна (0/11 коммитов-виновников с AI-маркерами — это отказ метода,
-не вывод про ИИ). Чтобы доказать ИИ-дрейф — нужен within-repo AI-PR vs human-PR
-тест на ground-truth метках AIDev (следующий этап, метки уже скачаны).
+**Proven:** the tool catches drift; the drift is real (39/85 grow in copy-paste,
+15/85 gave birth to cycles) and is localized to a commit. **NOT proven:** that the cause is
+AI. The whole-tree run measures the drift of the project as a whole, without separating AI code. Attribution
+by git is impossible (0/11 culprit commits with AI markers — that's a method failure,
+not a conclusion about AI). To prove AI drift — a within-repo AI-PR vs human-PR
+test on the ground-truth labels of AIDev is needed (the next stage, the labels are already downloaded).
 
-## Смена стратегии и почему (2026-05-31) — для истории и статьи
+## Strategy change and why (2026-05-31) — for history and the article
 
-Три замечания пользователя подряд развернули подход. Фиксирую и причины, и
-вскрытые ими факты — это и есть нарратив исследования.
+Three user remarks in a row turned the approach around. I record both the reasons and
+the facts they exposed — this is the research narrative itself.
 
-### Замечание 1: «мы размазываем цель — ИИ-дрейф не доказан»
+### Remark 1: "we're blurring the goal — AI drift is not proven"
 
-Я в §0 отчёта сменил постановку на «какой коммит сломал, неважно кто автор» —
-это доказало работу инструмента, но **сняло исходную гипотезу проекта**
-(constraint decay ОТ ИИ). Развёл два вопроса: (1) инструмент ловит дрейф —
-доказано; (2) виноват ли ИИ — НЕ проверено. Результат «0/11 коммитов-виновников
-с AI-маркерами» — это **отказ git-атрибуции**, не оправдание ИИ. Вывод: нужен
-within-repo тест AI-PR vs human-PR на ground-truth метках, а не git-trailer'ах.
+In §0 of the report I changed the framing to "which commit broke it, regardless of who the author is" —
+this proved the tool works, but **removed the project's original hypothesis**
+(constraint decay FROM AI). I split two questions: (1) the tool catches drift —
+proven; (2) is AI to blame — NOT verified. The result "0/11 culprit commits
+with AI markers" is a **failure of git attribution**, not an exoneration of AI. Conclusion: a
+within-repo test AI-PR vs human-PR on ground-truth labels is needed, not on git trailers.
 
-### Замечание 2: «выбраны проекты с высокими требованиями к качеству — там не ИИ»
+### Remark 2: "projects with high quality requirements were chosen — it's not AI there"
 
-Проверено данными (AI-маркеры × звёзды по локальным репам): bitcoin (84k★),
-keepassxc (23k★), z3 (11k★), acts (CERN) — флагманы со строгим ревью, где
-ИИ-вклад **вычищается** до мержа → дрейф от ИИ там не увидеть. Объективные
-критерии отбора вместо «известности»: **(а) много AI-PR** (ИИ реально работал),
-**(б) не флагман** (звёзды как грубый прокси строгости ревью). В текущем корпусе
-этому почти никто не удовлетворял — у большинства AI-доля 0-2%, а где массовая
-(gizmosql 23%) — единичные репы.
+Verified with data (AI markers × stars over local repos): bitcoin (84k★),
+keepassxc (23k★), z3 (11k★), acts (CERN) — flagships with strict review, where
+the AI contribution is **cleaned out** before merge → AI drift can't be seen there. Objective
+selection criteria instead of "fame": **(a) many AI PRs** (AI actually worked),
+**(b) not a flagship** (stars as a rough proxy for review strictness). In the current corpus
+almost nobody satisfied this — most have an AI share of 0-2%, and where it's high
+(gizmosql 23%) — single repos.
 
-### Замечание 3: смена стратегии отбора (главная)
+### Remark 3: the change of selection strategy (the main one)
 
-1. **Окно ≥ май 2025** — считаем началом массовой агентской разработки; брать
-   только PR/коммиты этого периода (раньше — «доагентский» код, шум).
-2. **Увеличить охват** — смотреть ВСЕ C++ репы AIDev, не только скачанные 50/160.
-3. **Сначала быстрый триаж по метаданным** (БЕЗ скачивания) → оценить «насколько
-   агентская там разработка» → потом решать, качать ли. Цель первого прогона —
-   найти, какие репы вообще интересны для исследования.
+1. **Window ≥ May 2025** — we treat it as the start of mass agentic development; take
+   only PRs/commits of this period (earlier — "pre-agentic" code, noise).
+2. **Increase coverage** — look at ALL C++ repos of AIDev, not only the downloaded 50/160.
+3. **First a quick triage by metadata** (WITHOUT downloading) → assess "how
+   agentic the development is there" → then decide whether to download. The goal of the first run is to
+   find which repos are interesting for the research at all.
 
-### Триаж выполнен read-only на скачанных PR-таблицах AIDev (2026-05-31)
+### Triage done read-only on the downloaded AIDev PR tables (2026-05-31)
 
-Метки AI берём из `pull_request.parquet` (33596 агентских PR; колонка `agent`:
+AI labels are taken from `pull_request.parquet` (33596 agentic PRs; column `agent`:
 OpenAI_Codex 21799, Copilot 4970, Devin 4827, Cursor 1541, Claude_Code 459).
-Фильтр `merged_at ≥ 2025-05-01` + язык репы = C++ (из `all_repository`).
+Filter `merged_at ≥ 2025-05-01` + repo language = C++ (from `all_repository`).
 
-**Найденные факты (все — реальный вывод pandas, не оценка):**
-- Агентских PR с мая 2025: **22 786** из 33 596; но в **C++** репах — только
-  **208** (66 реп). C++ — тонкий срез агентской активности AIDev.
-- Реп с **≥8 AI-PR** (порог для статистики): всего **6**:
-  | репа | AI-PR | ★ |
+**Facts found (all — real pandas output, not estimates):**
+- Agentic PRs since May 2025: **22,786** of 33,596; but in **C++** repos — only
+  **208** (66 repos). C++ is a thin slice of AIDev's agentic activity.
+- Repos with **≥8 AI PRs** (the threshold for statistics): only **6**:
+  | repo | AI-PR | ★ |
   |---|---|---|
   | forntoh/LcdMenu | 18 | 216 |
   | shader-slang/slang | 17 | 4349 |
@@ -442,94 +442,94 @@ OpenAI_Codex 21799, Copilot 4970, Devin 4827, Cursor 1541, Claude_Code 459).
   | miguel5612/MQSensorsLib | 9 | 196 |
   | zeroc-ice/ice-demos | 9 | 333 |
   | log4cplus/log4cplus | 8 | 1701 |
-- **`human_pull_request.parquet` — НЕ полный человеческий базлайн** (6618 строк /
-  818 реп, разрежённая выборка; у всех 6 кандидатов 0 human-PR в окне). Вывод:
-  для within-repo контраста человеческую сторону брать из **git-истории**
-  (не-AI-коммиты той же репы), AI-сторону — из PR-таблицы (ground truth).
-- **`pr_task_type` даёт тип задачи** (feat/fix/docs/refactor/test/chore) и для AI,
-  и для human PR → конфаундер «ИИ сажают на бойлерплейт» закрывается данными
-  (сравнивать внутри типа).
+- **`human_pull_request.parquet` — NOT a full human baseline** (6618 rows /
+  818 repos, a sparse sample; all 6 candidates have 0 human PRs in the window). Conclusion:
+  for the within-repo contrast, take the human side from the **git history**
+  (non-AI commits of the same repo), the AI side — from the PR table (ground truth).
+- **`pr_task_type` gives the task type** (feat/fix/docs/refactor/test/chore) for both AI
+  and human PRs → the confounder "AI is put on boilerplate" is closed by data
+  (compare within a type).
 
-**Главный вывод триажа (для статьи):** датасет AIDev смещён к не-C++ языкам;
-плотных «агентских» C++ реп мало. Это само по себе результат — нельзя было
-увидеть, не сделав быстрый метаданными-триаж вместо слепого скачивания. Порог
-≥8 AI-PR + окно май-2025 даёт управляемый shortlist из 6 реп.
+**Main triage conclusion (for the article):** the AIDev dataset is biased toward non-C++ languages;
+there are few dense "agentic" C++ repos. This is a result in itself — it couldn't have been
+seen without doing a quick metadata triage instead of blind downloading. The threshold
+≥8 AI PRs + the May-2025 window gives a manageable shortlist of 6 repos.
 
-### Прорыв: вышли за потолок AIDev — рабочий метод поиска (2026-05-31, вечер)
+### Breakthrough: we went past the AIDev ceiling — a working search method (2026-05-31, evening)
 
-Замечание пользователя «12 мало, надо минимум 100; поищи как вообще ищут по
-GitHub, может не знаешь параметров» сняло потолок. AIDev — лишь срез; живой поиск
-через `gh search` даёт на порядок больше. Метод выработан и валидирован, см.
+The user's remark "12 is too few, we need at least 100; look up how people actually search
+GitHub, maybe you don't know the parameters" lifted the ceiling. AIDev is just a slice; a live search
+via `gh search` gives an order of magnitude more. The method was worked out and validated, see
 [METHODOLOGY_FINDINGS.md](../../experiments/ai_repo_run/METHODOLOGY_FINDINGS.md).
 
-- **Что НЕ работает:** `gh search commits` для широты бесполезен — индекс
-  кластеризует (62 из 100 коммитов из одной репы), нет фильтра по языку,
-  secondary rate-limit. Годится лишь подсветить уже-плотные vibe-репы.
-- **Что работает (масштабируемо):** `gh search prs` поддерживает `--language=cpp`
-  И `--author=app/<bot>` одновременно. Ловушка: поле репы у PR-search —
-  `repository.nameWithOwner` (не `fullName`, как у commit-search).
-- **Охват по облачным агентам** (merged, created>2025-05-01): Copilot **230**,
-  Devin **143**, Jules 20, Cursor 13, Codegen 6 → **410 уникальных C++ реп**.
-  Порог «≥100 кандидатов» взят с запасом.
-- **Ограничение:** Codex (крупнейший в AIDev, 21799 PR) bot-search НЕ ловит —
-  Codex-cloud открывает PR под аккаунтом человека, не от бота.
-- **Концентрация** считается по git-истории blobless-клона: числитель — AI-коммиты
-  через нативные `--author/--committer/--grep` (union по SHA, метод D),
-  знаменатель — все коммиты после мая 2025; порог **> 50%**. На первых 39 из 410
-  порог прошли 11 реп (~28%) → ожидаемо ~100+ из 410.
+- **What does NOT work:** `gh search commits` is useless for breadth — the index
+  clusters (62 of 100 commits from one repo), there's no language filter,
+  secondary rate-limit. It's only good for highlighting already-dense vibe repos.
+- **What works (scalable):** `gh search prs` supports `--language=cpp`
+  AND `--author=app/<bot>` simultaneously. Trap: the repo field in PR-search is
+  `repository.nameWithOwner` (not `fullName`, as in commit-search).
+- **Coverage by cloud agents** (merged, created>2025-05-01): Copilot **230**,
+  Devin **143**, Jules 20, Cursor 13, Codegen 6 → **410 unique C++ repos**.
+  The "≥100 candidates" threshold is taken with margin.
+- **Limitation:** Codex (the largest in AIDev, 21799 PRs) bot-search does NOT catch —
+  Codex-cloud opens PRs under a human account, not from a bot.
+- **Concentration** is computed over the git history of a blobless clone: numerator — AI commits
+  via native `--author/--committer/--grep` (union by SHA, method D),
+  denominator — all commits after May 2025; threshold **> 50%**. On the first 39 of 410
+  the threshold was passed by 11 repos (~28%) → expected ~100+ of 410.
 
-## Следующие шаги
+## Next steps
 
-1. Дождаться завершения ×3 прогона → пересчитать корпусную сводку на ~245 проектах.
-2. Скачать shortlist (6 реп с ≥8 AI-PR), сматчить AI-PR по номеру PR с
-   мерж-коммитами; человеческий базлайн — из git-истории (≥май-2025).
-3. Дизайн-документ within-repo теста (метод + конфаундеры: размер PR, тип задачи
-   из `pr_task_type`, selection bias, время-окно) → пилот, обе метрики.
-4. Расширить триаж: при желании понизить порог AI-PR или включить «майские+»
-   коммиты по git-trailer'ам поверх PR-таблицы (добрать кандидатов).
+1. Wait for the ×3 run to finish → recompute the corpus summary on ~245 projects.
+2. Download the shortlist (6 repos with ≥8 AI PRs), match AI PRs by PR number with
+   merge commits; the human baseline — from the git history (≥May-2025).
+3. A design document for the within-repo test (method + confounders: PR size, task type
+   from `pr_task_type`, selection bias, time window) → pilot, both metrics.
+4. Expand the triage: if desired, lower the AI-PR threshold or include "May+"
+   commits by git trailers on top of the PR table (to gather more candidates).
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Корпус из AIDev, не grep | поле уже собрало списки; самодельный grep смещён к «аккуратным» (подписывающим) репо; AIDev даёт точный язык + stars |
-| Мерим ОБЕ метрики (граф + дубли) | граф на первом корпусе молчал, но корпус был узкий; на несмещённом надо перепроверить граф И сравнить с дублированием на одном наборе |
-| Сначала whole-tree, within-repo потом | дёшево и есть инструмент; AI/human-срез дороже (commit-level) — отдельный этап при наличии сигнала |
-| Только цифры, выводы отдельно | держать данные нейтральными; интерпретация — отдельная задача |
-| Корпус хранится локально, не пересоздаётся | инструмент (спайк excludes/ratio) будем дорабатывать и прогонять по корпусу МНОГОКРАТНО; качать 50 реп заново каждый прогон расточительно. Канонический путь: `~/oss/_aidev_run/` (постоянное хранилище). |
-| Прогоны версионируются (`runs/<tag>/`) | правка инструмента → новый tag → `diff_runs` показывает сдвиг; не затирать прошлые цифры |
+| Corpus from AIDev, not grep | the field already assembled the lists; a homemade grep is biased toward "tidy" (signing) repos; AIDev gives exact language + stars |
+| Measure BOTH metrics (graph + clones) | the graph was silent on the first corpus, but the corpus was narrow; on an unbiased one we need to re-check the graph AND compare with duplication on one set |
+| First whole-tree, within-repo later | cheap and the tool exists; the AI/human slice is more expensive (commit-level) — a separate stage if a signal is present |
+| Only numbers, conclusions separately | keep the data neutral; interpretation — a separate task |
+| The corpus is stored locally, not recreated | we will keep refining the tool (the excludes/ratio spike) and run it over the corpus MANY times; re-downloading 50 repos every run is wasteful. Canonical path: `~/oss/_aidev_run/` (permanent storage). |
+| Runs are versioned (`runs/<tag>/`) | a tool change → a new tag → `diff_runs` shows the shift; don't overwrite past numbers |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `experiments/line_duplication/main.cpp` | excludes: добавлены extern/vendor/deps/3rdparty/...; (далее) фикс block-comment stripping |
-| `experiments/ai_repo_run/corpus_50.tsv` | список корпуса (AIDev C++, 50 реп, seed=42) |
-| `experiments/ai_repo_run/sample_cpp.py`, `skipped_big.tsv`, `clone.log` | сэмплер, отсев, лог клонирования |
-| `experiments/ai_repo_run/run_dup.sh`, `diff_runs.sh`, `README.md` | раннер, сравнение прогонов, инструкция |
-| `experiments/ai_repo_run/runs/v1_excludes/` | первый полный прогон (50 реп): summary + сырьё |
-| `experiments/ai_repo_run/PILOT_NOTES.md` | рабочие заметки/восстановление контекста |
-| `docs/research/ai_code_detection_landscape.md` | справочник поля (методы/датасеты/цифры) |
-| `experiments/ai_repo_run/DRIFT_RUN_REPORT.md` | **полный отчёт** (§7 корпус, §8 AI/человек, §9 дедуп, §10 ссылки) |
-| `experiments/ai_repo_run/SUMMARY.md` | краткий отчёт (1 стр.) с честной рамкой что доказано/нет |
-| `experiments/ai_repo_run/DRIFT_COMMITS_AUTHORSHIP.md` | 11 коммитов-виновников: AI/человек + тексты (0 AI, 9 человек, 2 неясно) |
-| `experiments/ai_repo_run/DEDUP_TECHNIQUES.md` | приёмы дедупликации (топ: вынос в общий заголовок) |
-| `experiments/ai_repo_run/drift_all.sh` | корпусный прогон дрейфа (параметризуем ROOT/GLOB/TAGDIR) |
-| `experiments/ai_repo_run/history_drift.sh` | дрейф одного проекта по истории (first-parent, обе метрики) |
-| `experiments/ai_repo_run/checkout_watchdog.sh` | watchdog против зависших git checkout |
-| `experiments/ai_repo_run/{discipline_vs_stars,clone_lowstar,unshallow_*}.sh` | discipline-vs-stars + докачка/история корпуса |
-| `experiments/ai_repo_run/runs_history/{all,lowstar}/*.tsv`, `drift_summary_v2.tsv` | серии метрик по проектам + корпусная сводка |
-| `experiments/ai_repo_run/METHODOLOGY_FINDINGS.md` | **рабочий метод поиска AI-реп** (PR-search по bot-автору + концентрация метод D) |
-| `experiments/ai_repo_run/graph_probe.py` | дешёвые граф-детекторы по выгрузке `--save-graph-baseline` (8 шт.) |
-| `experiments/ai_repo_run/graph_probe_all.sh` | прогон детекторов по корпусу → `runs_history/probe/` |
-| `experiments/ai_repo_run/GRAPH_PROBE_FINDINGS.md` | находки граф-детекторов (mc2 56-клубок, acts hpp↔ipp, баг резолвера) |
-| `experiments/ai_repo_run/DENSITY_SIGNALS.md` | признаки плотной агентской разработки + закрытый порог >50% |
-| `/tmp/airepo/` (не в гите) | 410 кандидатов, `conc_one.sh`/`run_conc.sh`, `conc_results.tsv` |
+| `experiments/line_duplication/main.cpp` | excludes: added extern/vendor/deps/3rdparty/...; (later) block-comment stripping fix |
+| `experiments/ai_repo_run/corpus_50.tsv` | corpus list (AIDev C++, 50 repos, seed=42) |
+| `experiments/ai_repo_run/sample_cpp.py`, `skipped_big.tsv`, `clone.log` | sampler, filtering, clone log |
+| `experiments/ai_repo_run/run_dup.sh`, `diff_runs.sh`, `README.md` | runner, run comparison, instruction |
+| `experiments/ai_repo_run/runs/v1_excludes/` | first full run (50 repos): summary + raw |
+| `experiments/ai_repo_run/PILOT_NOTES.md` | working notes/context restoration |
+| `docs/research/ai_code_detection_landscape.md` | field reference (methods/datasets/numbers) |
+| `experiments/ai_repo_run/DRIFT_RUN_REPORT.md` | **full report** (§7 corpus, §8 AI/human, §9 dedup, §10 links) |
+| `experiments/ai_repo_run/SUMMARY.md` | short report (1 page) with the honest framing of what's proven/not |
+| `experiments/ai_repo_run/DRIFT_COMMITS_AUTHORSHIP.md` | 11 culprit commits: AI/human + texts (0 AI, 9 human, 2 unclear) |
+| `experiments/ai_repo_run/DEDUP_TECHNIQUES.md` | deduplication techniques (top: extraction into a shared header) |
+| `experiments/ai_repo_run/drift_all.sh` | corpus drift run (parametrizable ROOT/GLOB/TAGDIR) |
+| `experiments/ai_repo_run/history_drift.sh` | drift of one project over history (first-parent, both metrics) |
+| `experiments/ai_repo_run/checkout_watchdog.sh` | watchdog against hung git checkout |
+| `experiments/ai_repo_run/{discipline_vs_stars,clone_lowstar,unshallow_*}.sh` | discipline-vs-stars + corpus download/history |
+| `experiments/ai_repo_run/runs_history/{all,lowstar}/*.tsv`, `drift_summary_v2.tsv` | metric series by project + corpus summary |
+| `experiments/ai_repo_run/METHODOLOGY_FINDINGS.md` | **working method for finding AI repos** (PR-search by bot author + concentration method D) |
+| `experiments/ai_repo_run/graph_probe.py` | cheap graph detectors over the `--save-graph-baseline` export (8 of them) |
+| `experiments/ai_repo_run/graph_probe_all.sh` | run detectors over the corpus → `runs_history/probe/` |
+| `experiments/ai_repo_run/GRAPH_PROBE_FINDINGS.md` | graph-detector findings (mc2 56-tangle, acts hpp↔ipp, resolver bug) |
+| `experiments/ai_repo_run/DENSITY_SIGNALS.md` | signs of dense agentic development + the closed >50% threshold |
+| `/tmp/airepo/` (not in git) | 410 candidates, `conc_one.sh`/`run_conc.sh`, `conc_results.tsv` |
 
 ## Pointers
 
-- Справочник поля: [docs/research/ai_code_detection_landscape.md](../../docs/research/ai_code_detection_landscape.md)
-- Датасет: [hao-li/AIDev](https://huggingface.co/datasets/hao-li/AIDev) (HF; `all_repository.parquet` скачан в `/tmp/aidev_repo.parquet` на момент разведки; нужен `pyarrow` для чтения)
-- Детектор дублей: `experiments/line_duplication/main.cpp` (standalone, в git-истории — см. #053) / #053 (порт в `src/`)
-- Детектор графа: DRIFT.1/DRIFT.2 (#009) + абсолютные граф-метрики в `src/`
-- Прошлый корпус и методология: [ai_drift_runlog.md](../../docs/research/ai_drift_runlog.md), #048
+- Field reference: [docs/research/ai_code_detection_landscape.md](../../docs/research/ai_code_detection_landscape.md)
+- Dataset: [hao-li/AIDev](https://huggingface.co/datasets/hao-li/AIDev) (HF; `all_repository.parquet` downloaded to `/tmp/aidev_repo.parquet` at the time of reconnaissance; `pyarrow` is needed to read it)
+- Clone detector: `experiments/line_duplication/main.cpp` (standalone, in git history — see #053) / #053 (port into `src/`)
+- Graph detector: DRIFT.1/DRIFT.2 (#009) + absolute graph metrics in `src/`
+- Past corpus and methodology: [ai_drift_runlog.md](../../docs/research/ai_drift_runlog.md), #048

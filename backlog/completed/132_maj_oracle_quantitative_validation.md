@@ -1,98 +1,98 @@
-# [DUPLICATION][RESEARCH] Количественная валидация по внешним оракулам (отложено из #107)
+# [DUPLICATION][RESEARCH] Quantitative validation against external oracles (deferred from #107)
 
-**Дата создания:** 2026-06-11
-**Дата старта:** 2026-06-19
-**Дата завершения:** 2026-06-19
-**Статус:** completed
-**Related:** #107 (методология + данные), #106 (фикстуры), #070/#059 (precision)
+**Created:** 2026-06-11
+**Started:** 2026-06-19
+**Completed:** 2026-06-19
+**Status:** completed
+**Related:** #107 (methodology + data), #106 (fixtures), #070/#059 (precision)
 
-**Итог:** цель (количественная валидация против внешних оракулов) достигнута через
-ДВА оракула. Шаг 1 (NiCad/monit) — числа + disagreement-triage, 0 recall-багов.
-Шаг 3 (POJ-104) — FP-граница Type-4 подтверждена (0 cross-label на 39582 кандидатах).
-Шаг 4 (триаж-ширина) — 0-FP за пределами LibreSprite (vmecpp 42/42 + корпус 18 реп).
-Шаг 2 (Bellon) — descoped: канонический источник 2002-исходников мёртв (не долг).
-Сводный отчёт под статью: `reports/clone_detection_comparison.md`.
-Сырьё прогонов: `experiments/clone_oracle_validation/` (gitignored).
+**Outcome:** the goal (quantitative validation against external oracles) was achieved through
+TWO oracles. Step 1 (NiCad/monit) — numbers + disagreement triage, 0 recall bugs.
+Step 3 (POJ-104) — Type-4 FP boundary confirmed (0 cross-label across 39582 candidates).
+Step 4 (triage width) — 0-FP beyond LibreSprite (vmecpp 42/42 + corpus of 18 repos).
+Step 2 (Bellon) — descoped: the canonical source of the 2002 sources is dead (not debt).
+Consolidated report for the paper: `reports/clone_detection_comparison.md`.
+Raw run data: `experiments/clone_oracle_validation/` (gitignored).
 
-Отложенный остаток #107 — получить ЧИСЛА (precision/recall) против внешнего ground truth:
+Deferred remainder of #107 — to obtain NUMBERS (precision/recall) against an external ground truth:
 
-1. **NiCad/monit**: поставить TXL (txl.ca) + собрать NiCad → снять XML-оракул на
-   `examples/monit-4.2` → сравнить с нашим выводом по перекрытию `file:line`
-   через disagreement-triage (#071 extractability). Оценка setup: 0.5–1 день.
-2. **Bellon**: блокеры — нет исходников cook/weltab версии 2002 (ISO содержит только
-   результаты) и оракул в бинарном RCF (нужен Bauhaus-ридер или CSV-переиздание).
-   Текстовые CPF per-tool кандидаты парсятся тривиально.
-3. (опц.) POJ-104 как FP-граница (Type-4 мы НЕ должны метить).
+1. **NiCad/monit**: install TXL (txl.ca) + build NiCad → take an XML oracle on
+   `examples/monit-4.2` → compare with our output by `file:line` overlap
+   via disagreement triage (#071 extractability). Setup estimate: 0.5–1 day.
+2. **Bellon**: blockers — no cook/weltab sources for the 2002 version (the ISO contains only
+   results) and the oracle is in binary RCF (needs a Bauhaus reader or a CSV re-release).
+   The textual per-tool CPF candidates parse trivially.
+3. (opt.) POJ-104 as an FP boundary (Type-4 we must NOT flag).
 
-Данные уже скачаны: `experiments/clone_oracle_validation/{downloads,bellon,nicad,pmd}`.
-Методология и вся история — в `backlog/completed/107_*.md` и
+Data already downloaded: `experiments/clone_oracle_validation/{downloads,bellon,nicad,pmd}`.
+Methodology and the full history — in `backlog/completed/107_*.md` and
 `experiments/clone_oracle_validation/FINDINGS.md`.
 
-4. (из #071) Триаж-ширина: прогнать `experiments/triage_dup_commits.py` на vmecpp и
-   corpus-репах — подтвердить 0-FP за пределами LibreSprite.
+4. (from #071) Triage width: run `experiments/triage_dup_commits.py` on vmecpp and
+   corpus repos — confirm 0-FP beyond LibreSprite.
 
 ---
 
-## Прогресс (2026-06-19)
+## Progress (2026-06-19)
 
-### Шаг 1 — NiCad/monit ✅ ЗАКРЫТ (есть числа + триаж)
+### Step 1 — NiCad/monit ✅ CLOSED (numbers + triage in place)
 
-**Блокер TXL из #107 был ложным:** TXL установлен (`~/bin/txl` v10.8b),
-просто не в PATH. NiCad собран после 2 правок окружения (в распакованном NiCad, не в
+**The TXL blocker from #107 was false:** TXL is installed (`~/bin/txl` v10.8b),
+it was simply not on PATH. NiCad was built after 2 environment fixes (in the unpacked NiCad, not in
 archcheck): version-guard `10.[56]`→`10.[5-9]`; `tools/Makefile` `-m32`→`-m64`.
 
-Результаты в `experiments/clone_oracle_validation/NICAD_QUANT.md` (+ `nicad_join.py`,
-`results/archcheck_monit.txt`). Ключевое:
-- NiCad: 27 пар / 12 классов; archcheck: 21 пара.
-- Naive edge-recall 12/27=0.44 — **вводит в заблуждение** (NiCad перечисляет полные
-  клики, мы — звёзды + nameренные guard'ы).
-- **Класс-уровневый recall = 8/12 = 0.667.**
-- Триаж 4 непокрытых классов: 1× whole-file suppression (категория a, by design),
-  3× ниже нашего floor 0.75+P0.6 / benign read-write-сиблинги (категория b).
-  **Настоящих recall-багов (c) — 0.**
-- archcheck-only 9 пар — **0 FP**: все реальные клоны ниже NiCad `minsize=10`
-  (мелкий same-file копипаст, который мы ловим, а NiCad — нет).
+Results in `experiments/clone_oracle_validation/NICAD_QUANT.md` (+ `nicad_join.py`,
+`results/archcheck_monit.txt`). Key points:
+- NiCad: 27 pairs / 12 classes; archcheck: 21 pairs.
+- Naive edge-recall 12/27=0.44 — **misleading** (NiCad enumerates full
+  cliques, we report stars + intentional guards).
+- **Class-level recall = 8/12 = 0.667.**
+- Triage of the 4 uncovered classes: 1× whole-file suppression (category a, by design),
+  3× below our floor 0.75+P0.6 / benign read-write siblings (category b).
+  **Real recall bugs (c) — 0.**
+- archcheck-only 9 pairs — **0 FP**: all real clones below NiCad `minsize=10`
+  (small same-file copy-paste that we catch but NiCad does not).
 
-### Шаг 4 — триаж-ширина ✅ ЗАКРЫТ (0-FP подтверждён за пределами LibreSprite)
+### Step 4 — triage width ✅ CLOSED (0-FP confirmed beyond LibreSprite)
 
-Результаты в `experiments/clone_oracle_validation/TRIAGE_WIDTH.md`
+Results in `experiments/clone_oracle_validation/TRIAGE_WIDTH.md`
 (+ `dup_triage_vmecpp.md`, `corpus_pairs.txt`, `corpus_sample.txt`).
-- Разобран скачок 8→42 пары: июньский отчёт **протекал тест-файлами**; тесты
-  исключаются из duplication намеренно с #070 (подтверждено `git show ec5988b^`).
-  **Не регрессия.** v1-отчёт удалён, v2 — канонический.
-- **vmecpp: все 42 пары размечены** (extractability #071): 12 TP + 14 TP-variant +
+- The 8→42 pair jump was explained: the June report **leaked test files**; tests
+  are excluded from duplication on purpose since #070 (confirmed by `git show ec5988b^`).
+  **Not a regression.** The v1 report was deleted, v2 is canonical.
+- **vmecpp: all 42 pairs classified** (extractability #071): 12 TP + 14 TP-variant +
   16 benign, **0 FP**.
-- **Корпус: 18 C++-реп по HEAD, 8094 пары.** Разобрана зона риска (22 пары с
-  наименьшим weight 0.51–0.55) — все настоящие дубли, **0 FP**. Floor 0.6 режет
-  перед зоной случайных совпадений.
-- Наблюдение: генерёные Rcpp-биндинги (tulpa) — реальные дубли, кандидаты на
-  @generated-исключение (#127/#131), не FP.
+- **Corpus: 18 C++ repos at HEAD, 8094 pairs.** The risk zone was analyzed (22 pairs with
+  the lowest weight 0.51–0.55) — all real duplicates, **0 FP**. The 0.6 floor cuts
+  just before the zone of random coincidences.
+- Observation: generated Rcpp bindings (tulpa) — real duplicates, candidates for
+  a @generated exclusion (#127/#131), not FP.
 
-### Шаг 2 — Bellon 🔴 BLOCKED ОКОНЧАТЕЛЬНО (внешний источник мёртв)
+### Step 2 — Bellon 🔴 BLOCKED PERMANENTLY (external source dead)
 
-Перепроверено: `.rcf` = текстовая XML-схема + **бинарные кортежи** (нужен RCF-ридер,
-нет). ISO = только `results/` + `*-dummydeclarations.h`, **нет исходников cook/weltab
-2002** → ключ join по `file:line` не восстановить.
-- Попытка добыть исходники из сети (2026-06-19): канонический сайт Bellon
-  `bauhaus-stuttgart.de/clones/` **умер** — 303-редирект на domain-parking
-  (`ts.domainname.de`). Источника 2002-версий в открытом доступе нет.
-- В отличие от TXL (нашёлся локально), Bellon доделать нечем. **Descoped окончательно**
-  — не «долг», а отсутствие внешнего артефакта (ср. [[feedback_task_blocked_vs_completed]]).
+Re-verified: `.rcf` = textual XML schema + **binary tuples** (needs an RCF reader,
+none available). ISO = only `results/` + `*-dummydeclarations.h`, **no cook/weltab
+2002 sources** → the `file:line` join key cannot be reconstructed.
+- Attempt to fetch the sources from the network (2026-06-19): the canonical Bellon site
+  `bauhaus-stuttgart.de/clones/` **is dead** — a 303 redirect to domain parking
+  (`ts.domainname.de`). No public source of the 2002 versions exists.
+- Unlike TXL (found locally), there is nothing to finish Bellon with. **Descoped permanently**
+  — not "debt", but the absence of an external artifact (cf. [[feedback_task_blocked_vs_completed]]).
 
-### Шаг 3 — POJ-104 ✅ ЗАКРЫТ (FP-граница Type-4 подтверждена)
+### Step 3 — POJ-104 ✅ CLOSED (Type-4 FP boundary confirmed)
 
-Результаты в `experiments/clone_oracle_validation/POJ_FP_BOUNDARY.md`
-(+ `poj104/train.parquet`, `poj104/archcheck_poj.txt`). Датасет с HuggingFace
+Results in `experiments/clone_oracle_validation/POJ_FP_BOUNDARY.md`
+(+ `poj104/train.parquet`, `poj104/archcheck_poj.txt`). Dataset from HuggingFace
 (`google/code_x_glue_cc_clone_detection_poj104`).
-- 1950 программ / 65 классов задач / 39582 кандидата → **15 пар, все same-label,
-  0 cross-label**. Type-4 (одна задача, текстуально разные реализации) НЕ метим.
-- 15 same-label пар — настоящие текстуальные клоны (Type-1/2/3: шаренный код,
-  rename), не семантические. Соответствует «Type-4 — нет, осознанно».
+- 1950 programs / 65 problem classes / 39582 candidates → **15 pairs, all same-label,
+  0 cross-label**. Type-4 (one problem, textually different implementations) we do NOT flag.
+- The 15 same-label pairs — real textual clones (Type-1/2/3: shared code,
+  rename), not semantic ones. Matches "Type-4 — no, deliberately".
 
-### Сводный отчёт под статью
+### Consolidated report for the paper
 
-`reports/clone_detection_comparison.md` — консолидирует: корпус-C++ head-to-head
-(reports/nicad_vs_archcheck.md), новый monit-pure-C прогон (NICAD_QUANT.md) и
-ландшафт по другим тулам (docs/research/clone_tools_landscape.md). Главный тезис:
-NiCad ≠ ground truth; на чистом C мы на паритете с precision-эталоном, на C++ —
-единственный, кто даёт actionable-сигнал. Исправляет чтение «recall 0.667 = хуже».
+`reports/clone_detection_comparison.md` — consolidates: corpus C++ head-to-head
+(reports/nicad_vs_archcheck.md), the new monit-pure-C run (NICAD_QUANT.md) and
+the landscape across other tools (docs/research/clone_tools_landscape.md). Main thesis:
+NiCad ≠ ground truth; on pure C we are at parity with the precision reference, on C++ —
+the only one that gives an actionable signal. Corrects the reading of "recall 0.667 = worse".

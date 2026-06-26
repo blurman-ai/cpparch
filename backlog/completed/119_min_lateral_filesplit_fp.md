@@ -1,158 +1,158 @@
-# [SCAN] lateral_drift_scan: file-split не должен рождать NEW-событие
+# [SCAN] lateral_drift_scan: a file-split must not give birth to a NEW event
 
-**Дата создания:** 2026-06-12
-**Дата старта:** 2026-06-12
-**Дата завершения:** 2026-06-12
-**Статус:** done
-**Модуль:** SCAN
-**Приоритет:** minor
-**Сложность:** small
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #115 (полный прогон, источник FP — §8.3/§8.6 отчёта), #117 (back-edge confirm — образец чтения исходников на sha)
+**Created:** 2026-06-12
+**Started:** 2026-06-12
+**Completed:** 2026-06-12
+**Status:** done
+**Module:** SCAN
+**Priority:** minor
+**Difficulty:** small
+**Blocks:** —
+**Blocked by:** —
+**Related:** #115 (full run, source of the FP — §8.3/§8.6 of the report), #117 (back-edge confirm — example of reading sources at a sha)
 
-> Якоря в `experiments/ai_repo_run/lateral_drift_scan.py` сняты 2026-06-12.
+> Anchors in `experiments/ai_repo_run/lateral_drift_scan.py` taken on 2026-06-12.
 
-## Цель
+## Goal
 
-Убрать класс FP «file-split»: вынос типов из существующего заголовка в НОВЫЙ заголовок
-+ реинклюд потребителями даёт ложное LATERAL.NEW (1 из 3 FP в eyeball #115, §8.3
+Remove the "file-split" FP class: moving types out of an existing header into a NEW header
++ re-include by consumers gives a false LATERAL.NEW (1 of 3 FPs in eyeball #115, §8.3
 [lateral_module_drift_corpus_run.md](../../docs/research/lateral_module_drift_corpus_run.md)).
 
-## Контекст
+## Context
 
-Механика FP: коммит выносит содержимое из `B/old.h` в новорожденный `B2/new.h`
-(другой модуль-каталог), потребители из модуля A переключают include. Ребро
-`A → B2` формально первое — но это переезд контента, не новая связность.
+FP mechanics: a commit moves the contents of `B/old.h` into the newborn `B2/new.h`
+(another module directory), consumers from module A switch their include. The edge
+`A → B2` is formally new — but this is content relocation, not new connectivity.
 
-Текущая rename-эвристика (`IncrementalGraph`, строки 308-347) ловит только переезд
-**с сохранением basename**: `looks_like_move()` (строка 325) проверяет
-`Path(to_f).name in self.target_basenames.get(from_f, ())` — т.е. «from_f уже включал
-цель с таким же именем». Когда заголовок при выносе получает НОВОЕ имя — эвристика
-бессильна (тот же корень, что у scylladb-FP `compress.hh → sstables/compressor.hh`
-из #111 eyeball).
+The current rename heuristic (`IncrementalGraph`, lines 308-347) catches only a relocation
+**that preserves the basename**: `looks_like_move()` (line 325) checks
+`Path(to_f).name in self.target_basenames.get(from_f, ())` — i.e. "from_f already included
+a target with the same name". When the header gets a NEW name during the move — the heuristic
+is powerless (the same root cause as the scylladb FP `compress.hh → sstables/compressor.hh`
+from #111 eyeball).
 
-В скане уже есть готовые строительные блоки:
-- `touched_files(repo_dir, sha)` (строка 164) — список файлов коммита
+The scan already has ready building blocks:
+- `touched_files(repo_dir, sha)` (line 164) — list of files in the commit
   (`git show --no-renames --name-only`);
-- `confirm_backedge()` (строка 181) — образец чтения живых исходников на ревизии
-  (`git show <sha>:<path>`), там же `_INCLUDE_RE` (строка 178).
+- `confirm_backedge()` (line 181) — example of reading live sources at a revision
+  (`git show <sha>:<path>`), and `_INCLUDE_RE` is there too (line 178).
 
-## Алгоритм (детектор split-сигнатуры)
+## Algorithm (split-signature detector)
 
-Новая функция `detect_splits(repo_dir, sha, candidate_targets) -> dict[to_f, origin_f]`:
+New function `detect_splits(repo_dir, sha, candidate_targets) -> dict[to_f, origin_f]`:
 
-1. Кандидат — событие, чья цель `to_f` **не существовала** на `sha~1`
-   (проверка: `git cat-file -e <sha>~1:<to_f>`; rc != 0 → файл новый).
-2. Взять `touched = touched_files(repo_dir, sha)`; отобрать из них **изменённые**
-   (не новые) заголовки `H_old` (по `_HEADER_EXTS`, строка 73, и существованию
-   на `sha~1`).
-3. Для каждой пары (`H_old`, `to_f`):
-   - `old_lines = set(непустых строк git show sha~1:H_old)`;
-   - `new_lines = list(непустых строк git show sha:to_f)`;
-   - доля `|new_lines ∩ old_lines| / |new_lines| >= 0.5` → **split**:
-     контент нового заголовка наполовину жил в старом.
-4. При найденном split: пара модулей `(areaOf(consumer), module(to_f))` НЕ рождает
-   событие, если пара `(areaOf(consumer), module(H_old))` уже существовала в графе —
-   т.е. событие «наследует» существование пары от файла-донора. Если донор в том же
-   модуле, что и to_f — ничего не меняется (пара и так та же).
-5. Зарегистрировать в `IncrementalGraph` алиас `to_f ≈ H_old` (добавить
-   `self.split_origin: dict[str, str]`), чтобы последующие коммиты-потребители
-   тоже не рождали событий по этой паре.
+1. Candidate — an event whose target `to_f` **did not exist** at `sha~1`
+   (check: `git cat-file -e <sha>~1:<to_f>`; rc != 0 → file is new).
+2. Take `touched = touched_files(repo_dir, sha)`; select from them the **modified**
+   (not new) headers `H_old` (by `_HEADER_EXTS`, line 73, and existence
+   at `sha~1`).
+3. For each pair (`H_old`, `to_f`):
+   - `old_lines = set(non-empty lines of git show sha~1:H_old)`;
+   - `new_lines = list(non-empty lines of git show sha:to_f)`;
+   - ratio `|new_lines ∩ old_lines| / |new_lines| >= 0.5` → **split**:
+     the content of the new header used to live half in the old one.
+4. When a split is found: the module pair `(areaOf(consumer), module(to_f))` does NOT give birth to
+   an event if the pair `(areaOf(consumer), module(H_old))` already existed in the graph —
+   i.e. the event "inherits" the existence of the pair from the donor file. If the donor is in the same
+   module as to_f — nothing changes (the pair is the same anyway).
+5. Register in `IncrementalGraph` an alias `to_f ≈ H_old` (add
+   `self.split_origin: dict[str, str]`), so that subsequent consumer commits
+   also do not give birth to events on this pair.
 
-Стоимость: 2 git-вызова на кандидата + по одному на изменённый заголовок коммита —
-выполняется ТОЛЬКО для коммитов, уже родивших событие-кандидат (сотни на корпус,
-не тысячи), как и confirm_backedge.
+Cost: 2 git calls per candidate + one per modified header of the commit —
+executed ONLY for commits that already gave birth to a candidate event (hundreds on the corpus,
+not thousands), same as confirm_backedge.
 
-## Точки врезки
+## Insertion points
 
-- `scan_repo()` (строка 390): события собираются по ходу replay — фильтр split
-  вставить там же, где работают остальные пост-фильтры кандидатов
-  (system-basename — строка ~502, untouched-resolution — строка ~506);
-  split-проверку делать ПОСЛЕ дешёвых фильтров (она git-дорогая).
-- Порог 0.5 — константа `SPLIT_CONTENT_RATIO = 0.50` рядом с остальными
-  (строки 35-38), с комментарием.
+- `scan_repo()` (line 390): events are collected during the replay — insert the split filter
+  in the same place where the other candidate post-filters work
+  (system-basename — line ~502, untouched-resolution — line ~506);
+  do the split check AFTER the cheap filters (it is git-expensive).
+- Threshold 0.5 — constant `SPLIT_CONTENT_RATIO = 0.50` near the others
+  (lines 35-38), with a comment.
 
-## Валидация
+## Validation
 
-- [ ] Юнит на синтетическом репо (3 коммита): (а) вынос половины строк old.h →
-      new.h в другом каталоге + переключение потребителя → событий 0;
-      (б) настоящий новый заголовок с уникальным контентом → событие есть;
-      (в) вынос в new.h БЕЗ переключения потребителей, потребитель приходит через
-      5 коммитов → событий 0 (алиас работает через время).
-- [ ] Перепрогон полного корпуса (479 jsonl, baseline-дир тот же):
-      сравнить `lateral_drift_new.csv` до/после — diff событий.
-      Ожидание: исчезает file-split FP из #115 §8.3; CYCLE-события не теряются
-      (split влияет только на существование пары, не на back-edge).
-- [ ] Каждое исчезнувшее событие глазами (их будет немного): все — настоящие split.
-- [ ] Числа в `lateral_module_drift_corpus_run.md` §8.2 обновить, дописать
-      строку об изменении (по образцу врезки #117 в §8.3).
+- [ ] Unit on a synthetic repo (3 commits): (a) move half the lines of old.h →
+      new.h in another directory + consumer switches → 0 events;
+      (b) a genuinely new header with unique content → event present;
+      (c) move into new.h WITHOUT consumers switching, the consumer arrives after
+      5 commits → 0 events (the alias works across time).
+- [ ] Re-run the full corpus (479 jsonl, same baseline dir):
+      compare `lateral_drift_new.csv` before/after — diff of events.
+      Expectation: the file-split FP from #115 §8.3 disappears; CYCLE events are not lost
+      (split affects only the existence of the pair, not the back-edge).
+- [ ] Every disappeared event by eye (there will be few): all are genuine splits.
+- [ ] Update the numbers in `lateral_module_drift_corpus_run.md` §8.2, add a
+      line about the change (following the #117 callout in §8.3).
 
-## Сделано
+## Done
 
-- Константа `SPLIT_CONTENT_RATIO = 0.50` добавлена (строка 39).
-- `IncrementalGraph.split_origin: dict[str, str]` добавлен в `__init__`.
-- `detect_splits(repo_dir, sha, candidate_targets)` реализована (строки 260-330):
-  - lazy git cat-file -e на sha~1 для проверки новизны to_f
-  - donor = изменённые (не новые) заголовки из touched_files
+- Constant `SPLIT_CONTENT_RATIO = 0.50` added (line 39).
+- `IncrementalGraph.split_origin: dict[str, str]` added in `__init__`.
+- `detect_splits(repo_dir, sha, candidate_targets)` implemented (lines 260-330):
+  - lazy git cat-file -e on sha~1 to check the novelty of to_f
+  - donor = modified (not new) headers from touched_files
   - overlap ≥ 50% → split
-- split_cache (sha → dict) добавлен перед основным циклом
-- Фильтр в scan_repo() после touched-guard: lazy `detect_splits` при первом кандидате,
-  `split_origin` алиас для будущих коммитов, проверка donor-pair в mod_edges/mod_pair_first.
+- split_cache (sha → dict) added before the main loop
+- Filter in scan_repo() after the touched-guard: lazy `detect_splits` on the first candidate,
+  `split_origin` alias for future commits, donor-pair check in mod_edges/mod_pair_first.
 
-## В работе
+## In progress
 
-- Ожидание Boxedwine64 jsonl для проверки removed-поля (#120 валидация).
+- Waiting for Boxedwine64 jsonl to check the removed field (#120 validation).
 
-## Следующие шаги
+## Next steps
 
-1. Синтетический тест (3 сценария из задачи) — опциональный.
-2. Полный перепрогон уже выполнен (см. ниже) совместно с #121.
+1. Synthetic test (the 3 scenarios from the task) — optional.
+2. The full re-run is already done (see below) together with #121.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Контентная сигнатура (≥50% строк из донора), не эвристика имён | Имя при split произвольное — basename-эвристика принципиально не ловит |
-| Проверка только для кандидатов-событий | git-вызовы дорогие; кандидатов сотни, коммитов десятки тысяч |
-| Наследование пары от донора + алиас на будущее | Потребители переключаются не одним коммитом — алиас гасит хвост |
+| Content signature (≥50% of lines from the donor), not a name heuristic | The name during a split is arbitrary — the basename heuristic fundamentally cannot catch it |
+| Check only for candidate events | git calls are expensive; candidates number in the hundreds, commits in the tens of thousands |
+| Pair inheritance from the donor + alias for the future | Consumers do not switch in a single commit — the alias suppresses the tail |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `experiments/ai_repo_run/lateral_drift_scan.py` | `detect_splits()` + `split_origin` в IncrementalGraph + фильтр в scan_repo |
-| `experiments/ai_repo_run/lateral_drift_new.csv` | Перегенерация |
-| `docs/research/lateral_module_drift_corpus_run.md` | Обновление чисел + врезка |
+| `experiments/ai_repo_run/lateral_drift_scan.py` | `detect_splits()` + `split_origin` in IncrementalGraph + filter in scan_repo |
+| `experiments/ai_repo_run/lateral_drift_new.csv` | Regeneration |
+| `docs/research/lateral_module_drift_corpus_run.md` | Number update + callout |
 
-## Как работает (итог)
+## How it works (summary)
 
-**Принцип.** `detect_splits(repo_dir, sha, candidate_targets)` распознаёт «вынос контента»:
-новый заголовок `to_f` (не существовал на `sha~1`), ≥50% непустых строк которого жили в
-изменённом заголовке-доноре `H_old` того же коммита. Это переезд кода, а не новая связность —
-событие LATERAL.NEW не рождается, если пара `(consumer_module, donor_module)` уже была в графе.
+**Principle.** `detect_splits(repo_dir, sha, candidate_targets)` recognizes "content relocation":
+a new header `to_f` (did not exist at `sha~1`), ≥50% of whose non-empty lines used to live in
+a modified donor header `H_old` of the same commit. This is a code relocation, not new connectivity —
+a LATERAL.NEW event is not born if the pair `(consumer_module, donor_module)` was already in the graph.
 
-**Алиас на будущее.** `IncrementalGraph.split_origin[to_f] = H_old`: потребители часто
-переключают include не одним коммитом, поэтому пара наследует существование от донора и в
-последующих коммитах (хвост подавляется через время).
+**Alias for the future.** `IncrementalGraph.split_origin[to_f] = H_old`: consumers often
+switch the include not in a single commit, so the pair inherits its existence from the donor in
+subsequent commits too (the tail is suppressed across time).
 
-**Стоимость.** git-вызовы (`cat-file -e`, `show`) только для коммитов, уже родивших
-событие-кандидат, и только для header-целей. Кэш `split_cache[sha]` — один прогон на коммит.
+**Cost.** git calls (`cat-file -e`, `show`) only for commits that already gave birth to a
+candidate event, and only for header targets. The `split_cache[sha]` cache — one pass per commit.
 
-## Чем управляется
+## What controls it
 
-`SPLIT_CONTENT_RATIO = 0.50` (доля общих строк) и `_HEADER_EXTS` в
-`experiments/ai_repo_run/lateral_drift_scan.py`. Фильтр врезан в `scan_repo()` после
-дешёвых пост-фильтров (split git-дорогой).
+`SPLIT_CONTENT_RATIO = 0.50` (share of shared lines) and `_HEADER_EXTS` in
+`experiments/ai_repo_run/lateral_drift_scan.py`. The filter is inserted into `scan_repo()` after the
+cheap post-filters (split is git-expensive).
 
-## С чем связана
+## What it relates to
 
-Часть корпусного сканера lateral-дрейфа (Python-двойник C++ DRIFT.4 #118). Соседи по
-батчу: #120 (removed-списки — точный rename-сигнал) и #121 (грейс-период). Источник
-класса FP — eyeball #115 §8.3 (scylladb `compress.hh → sstables/compressor.hh`).
+Part of the lateral-drift corpus scanner (Python twin of C++ DRIFT.4 #118). Batch neighbors:
+#120 (removed lists — precise rename signal) and #121 (grace period). The source of the
+FP class — eyeball #115 §8.3 (scylladb `compress.hh → sstables/compressor.hh`).
 
-## Диагностика
+## Diagnostics
 
-Перепрогон совместно с #121: корпус 479 репо. Контрибуция #119+#121 вместе: NEW −97,
-SDP −21 (раздельный вклад не разводился — оба гасят через «незрелость пары»). Проверка
-конкретного split: сравнить `git show sha~1:H_old` и `git show sha:to_f` на ≥50% общих строк.
+Re-run together with #121: corpus of 479 repos. Combined #119+#121 contribution: NEW −97,
+SDP −21 (the separate contribution was not split out — both suppress via "pair immaturity"). Checking a
+specific split: compare `git show sha~1:H_old` and `git show sha:to_f` for ≥50% shared lines.

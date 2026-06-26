@@ -1,30 +1,30 @@
-# [SCAN] UTF-8 BOM перед первым `#include` не распознаётся, ломает DRIFT.1
+# [SCAN] UTF-8 BOM before the first `#include` is not recognized, breaks DRIFT.1
 
-**Дата создания:** 2026-05-29
-**Дата старта:** 2026-05-29
-**Дата завершения:** 2026-05-29
-**Статус:** done
-**Модуль:** SCAN/include_scanner
-**Приоритет:** critical (даёт false-positive в DRIFT и, вероятно, в SF.8)
-**Сложность:** S (≤ 15 мин: strip BOM на старте scan'а файла)
-**Целевой релиз:** v0.1
-**Блокирует:** надёжность DRIFT.1 на реальных репо
+**Created:** 2026-05-29
+**Started:** 2026-05-29
+**Completed:** 2026-05-29
+**Status:** done
+**Module:** SCAN/include_scanner
+**Priority:** critical (produces a false-positive in DRIFT and, probably, in SF.8)
+**Complexity:** S (≤ 15 min: strip BOM at the start of scanning a file)
+**Target release:** v0.1
+**Blocks:** reliability of DRIFT.1 on real repos
 **Related:** #033 (ai_drift_dataset)
 
-## Симптом
+## Symptom
 
-Прогон DRIFT.1 на BambuStudio PR #10794 (2026-05-29, см. milestones.md прогон 13)
-выдал ложное срабатывание:
+A DRIFT.1 run on BambuStudio PR #10794 (2026-05-29, see milestones.md run 13)
+produced a false positive:
 
 ```
 slic3r/GUI/MsgDialog.cpp: [DRIFT.1] shortcut edge: slic3r/GUI/MsgDialog.cpp -> slic3r/GUI/MsgDialog.hpp
 ```
 
-Проверено вручную: `MsgDialog.cpp` в **обоих** ревизиях начинается с `#include "MsgDialog.hpp"`.
+Checked manually: `MsgDialog.cpp` in **both** revisions starts with `#include "MsgDialog.hpp"`.
 
-## Причина
+## Cause
 
-Файл в before-ревизии имеет **UTF-8 BOM** на старте:
+The file in the before-revision has a **UTF-8 BOM** at the start:
 
 ```bash
 $ git show 2263815...:src/slic3r/GUI/MsgDialog.cpp | head -1 | od -c | head -1
@@ -32,23 +32,23 @@ $ git show 2263815...:src/slic3r/GUI/MsgDialog.cpp | head -1 | od -c | head -1
         \---BOM---/
 ```
 
-В after-ревизии BOM был удалён. Наш `include_scanner` не зачищает BOM
-перед регулярным выражением `#include` → первая строка с BOM не матчится
-→ include "MsgDialog.hpp" пропущен в baseline → в новой версии тот же
-include видится как "новое ребро" → DRIFT.1 false-positive.
+In the after-revision the BOM was removed. Our `include_scanner` doesn't strip the BOM
+before the `#include` regular expression → the first line with the BOM doesn't match
+→ include "MsgDialog.hpp" is missed in the baseline → in the new version the same
+include is seen as a "new edge" → DRIFT.1 false-positive.
 
-## Влияние
+## Impact
 
-1. **DRIFT.1 / DRIFT.2** теряют доверие на реальных репозиториях — Windows-style
-   файлы с BOM встречаются массово (особенно в legacy C++ проектах,
-   wxWidgets-based приложениях, MSVC-сгенерированных файлах).
-2. **SF.8** (no_include_guard): тот же баг должен поражать SF.8 — `#pragma once`
-   на первой строке с BOM пропускается → ложное "no guard".
-3. **Граф зависимостей** в целом теряет рёбра у BOM-файлов.
+1. **DRIFT.1 / DRIFT.2** lose trust on real repositories — Windows-style
+   files with a BOM are common (especially in legacy C++ projects,
+   wxWidgets-based applications, MSVC-generated files).
+2. **SF.8** (no_include_guard): the same bug should affect SF.8 — `#pragma once`
+   on the first line with a BOM is skipped → false "no guard".
+3. **The dependency graph** as a whole loses edges for BOM files.
 
-## Фикс
+## Fix
 
-В `include_scanner::scan()` (или `scan_text()`) — на старте файла:
+In `include_scanner::scan()` (or `scan_text()`) — at the start of the file:
 
 ```cpp
 constexpr std::string_view kUtf8Bom = "\xEF\xBB\xBF";
@@ -56,55 +56,55 @@ if (content.starts_with(kUtf8Bom))
     content.remove_prefix(kUtf8Bom.size());
 ```
 
-Аналогично проверить UTF-16 BOM (`FF FE` / `FE FF`) и UTF-32 — но эти
-сильно реже в C++ исходниках.
+Likewise check the UTF-16 BOM (`FF FE` / `FE FF`) and UTF-32 — but those
+are much rarer in C++ sources.
 
-## Фикстура
+## Fixture
 
 `fixtures/scan/utf8_bom/`:
-- `with_bom.h` — файл начинается с BOM + `#pragma once` + `#include "other.h"`
-- `without_bom.h` — тот же контент без BOM
-- Тест: оба должны давать одинаковый набор includes и одинаковый результат SF.8.
+- `with_bom.h` — file starts with a BOM + `#pragma once` + `#include "other.h"`
+- `without_bom.h` — the same content without a BOM
+- Test: both must produce the same set of includes and the same SF.8 result.
 
-## Сделано
+## Done
 
-- Баг найден на BambuStudio PR #10794 (см. `/tmp/bambustudio_drift.txt`).
-- Strip UTF-8 BOM добавлен в начало `scanIncludes()` в
+- Bug found on BambuStudio PR #10794 (see `/tmp/bambustudio_drift.txt`).
+- UTF-8 BOM strip added at the start of `scanIncludes()` in
   [src/scan/include_scanner.cpp](../../src/scan/include_scanner.cpp).
-  Реализация через `string_view::compare` (не `starts_with`) —
-  `GCC8-COMPAT`, libstdc++ 8 не имеет метода.
-- Unit-тесты добавлены: 3 кейса в `[scan][scanner][bom]` —
-  (1) strip перед первым `#include`, (2) эквивалентность результата
-  с/без BOM, (3) embedded BOM в середине не считается first-significant.
-- Фикстуры `fixtures/scan/utf8_bom/{with_bom.h, without_bom.h, other.h, README.md}`
-  для документации и будущих integration-тестов.
-- **SF.8 проверен и оказался невосприимчив к BOM**: `hasPragmaOnce`/
-  `hasIfndefGuard` используют substring-`find()`, который находит
-  ключевое слово даже после BOM. Тем не менее добавлены 2 регрессионных
-  кейса в `[rules][sf8][bom]` — на случай, если кто-то перепишет
-  предикаты через `starts_with`.
-- Полный прогон: `archcheck_tests` 229 case / 754 assertions — green.
-- Lizard: `--CCN 15 --length 30 --arguments 5 --warnings_only` — чисто.
+  Implemented via `string_view::compare` (not `starts_with`) —
+  `GCC8-COMPAT`, libstdc++ 8 doesn't have the method.
+- Unit tests added: 3 cases in `[scan][scanner][bom]` —
+  (1) strip before the first `#include`, (2) equivalence of the result
+  with/without BOM, (3) embedded BOM in the middle is not counted as first-significant.
+- Fixtures `fixtures/scan/utf8_bom/{with_bom.h, without_bom.h, other.h, README.md}`
+  for documentation and future integration tests.
+- **SF.8 checked and turned out to be immune to the BOM**: `hasPragmaOnce`/
+  `hasIfndefGuard` use a substring `find()`, which finds the
+  keyword even after a BOM. Nonetheless, 2 regression
+  cases were added in `[rules][sf8][bom]` — in case someone rewrites
+  the predicates via `starts_with`.
+- Full run: `archcheck_tests` 229 case / 754 assertions — green.
+- Lizard: `--CCN 15 --length 30 --arguments 5 --warnings_only` — clean.
 
-## Изменённые файлы
+## Changed files
 
-- `src/scan/include_scanner.cpp` — strip BOM в `scanIncludes()`.
-- `tests/unit/scan/include_scanner_test.cpp` — +3 BOM-теста.
-- `tests/unit/rules/sf8_include_guard_test.cpp` — +2 регрессионных BOM-теста.
-- `fixtures/scan/utf8_bom/` — новая фикстура.
+- `src/scan/include_scanner.cpp` — strip BOM in `scanIncludes()`.
+- `tests/unit/scan/include_scanner_test.cpp` — +3 BOM tests.
+- `tests/unit/rules/sf8_include_guard_test.cpp` — +2 regression BOM tests.
+- `fixtures/scan/utf8_bom/` — new fixture.
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. ~~Strip BOM в `include_scanner`~~ ✅
-2. ~~Фикстура `fixtures/scan/utf8_bom/`~~ ✅
-3. ~~Прогнать DRIFT повторно на BambuStudio PR #10794~~ ✅
-   **2026-05-29 повтор на свежем clone `~/oss/BambuStudio`** (см.
-   milestones.md «Прогон 14 — DRIFT re-run после BOM-фикса»): DRIFT.1 3 → **2**.
-   FP `MsgDialog.cpp -> MsgDialog.hpp` исчез, два реальных hit'а сохранились.
-4. Перепроверить SF.8 reports из прежних milestones (abseil, folly) —
-   нет ли там скрытых BOM, формально не нужно после фикса, но полезно
-   для уверенности. (Низкий приоритет — substring-find SF.8 был устойчив.)
+1. ~~Strip BOM in `include_scanner`~~ ✅
+2. ~~Fixture `fixtures/scan/utf8_bom/`~~ ✅
+3. ~~Re-run DRIFT on BambuStudio PR #10794~~ ✅
+   **2026-05-29 re-run on a fresh clone `~/oss/BambuStudio`** (see
+   milestones.md "Run 14 — DRIFT re-run after the BOM fix"): DRIFT.1 3 → **2**.
+   The FP `MsgDialog.cpp -> MsgDialog.hpp` disappeared, the two real hits remained.
+4. Recheck SF.8 reports from earlier milestones (abseil, folly) —
+   whether there are hidden BOMs there, formally not needed after the fix, but useful
+   for confidence. (Low priority — the substring-find SF.8 was robust.)

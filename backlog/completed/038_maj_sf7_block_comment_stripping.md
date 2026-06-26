@@ -1,45 +1,45 @@
-# [RULES] SF.7: не убираются блочные /* */ комментарии → ложные срабатывания в Doxygen \code
+# [RULES] SF.7: block /* */ comments are not stripped → false positives in Doxygen \code
 
-**Дата создания:** 2026-05-28
-**Дата старта:** —
-**Статус:** completed
-**Модуль:** RULES
-**Приоритет:** major
-**Сложность:** S
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-05-28
+**Started:** —
+**Status:** completed
+**Module:** RULES
+**Priority:** major
+**Difficulty:** S
+**Blocks:** —
+**Blocked by:** —
 **Related:** #035 (sf7_brace_depth_tracking), #028 (rules_engine_mvp)
 
-## Цель
+## Goal
 
-SF.7 не должен репортить `using namespace` внутри `/* ... */` комментариев.
+SF.7 must not report `using namespace` inside `/* ... */` comments.
 
-## Контекст
+## Context
 
-Прогон на folly (commit `acc9ce5`) выявил ложные срабатывания в Doxygen-комментариях:
+A run on folly (commit `acc9ce5`) revealed false positives in Doxygen comments:
 
 ```cpp
-// folly/FixedString.h:447 — внутри /** \code ... \endcode */:
+// folly/FixedString.h:447 — inside /** \code ... \endcode */:
  * \code
- *   using namespace folly;           ← строка с "using namespace", но это комментарий!
+ *   using namespace folly;           ← line with "using namespace", but it is a comment!
  *   return makeFixedString("****");
  * \endcode
 ```
 
 ```cpp
-// folly/FixedString.h:2897 — аналогично:
+// folly/FixedString.h:2897 — likewise:
  * \code
  * using namespace folly::string_literals;
  * \endcode
 ```
 
-Текущая реализация `sf7_using_namespace.cpp` убирает только `//` однострочные комментарии (`stripLineComment`). Многострочные `/* ... */` блоки не фильтруются — любая строка внутри блочного комментария с `using namespace` даёт нарушение.
+The current implementation `sf7_using_namespace.cpp` strips only `//` single-line comments (`stripLineComment`). Multi-line `/* ... */` blocks are not filtered — any line inside a block comment with `using namespace` produces a violation.
 
-Паттерн распространён в документированных библиотеках (folly, LLVM, Abseil): авторы показывают примеры использования в Doxygen `@code`/`\code` блоках.
+The pattern is common in documented libraries (folly, LLVM, Abseil): authors show usage examples in Doxygen `@code`/`\code` blocks.
 
-## Решение
+## Solution
 
-Добавить отслеживание `block_comment_depth` в `scanFile` параллельно с `brace_depth` (задача #035):
+Add `block_comment_depth` tracking in `scanFile` alongside `brace_depth` (task #035):
 
 ```cpp
 bool inBlockComment = false;
@@ -51,30 +51,30 @@ for (each line) {
 }
 ```
 
-Ограничение: построчный подход не обрабатывает `/* ... */` на одной строке корректно без FSM. Достаточная точность — исключить строки где `/*` открыт и `*/` ещё не закрыт.
+Limitation: the line-by-line approach does not handle `/* ... */` on a single line correctly without an FSM. Sufficient accuracy — exclude lines where `/*` is open and `*/` is not yet closed.
 
-## Совмещение с #035
+## Combining with #035
 
-Задачи #035 и #038 меняют один и тот же файл `sf7_using_namespace.cpp`. Имеет смысл выполнять вместе одним PR.
+Tasks #035 and #038 modify the same file `sf7_using_namespace.cpp`. It makes sense to do them together in one PR.
 
 ## Plan
 
-- [ ] `sf7_using_namespace.cpp`: добавить `inBlockComment` state в `scanFile`
-- [ ] Проверить: folly/FixedString.h → 0 ложных в `\code` блоках
-- [ ] Проверить: fmt, spdlog, Catch2, abseil — нет регрессий
-- [ ] Фикстура: `fixtures/sf7/pass_using_in_block_comment/`
-- [ ] Unit-тест: `using namespace` в `/* ... */` → pass
+- [ ] `sf7_using_namespace.cpp`: add `inBlockComment` state to `scanFile`
+- [ ] Verify: folly/FixedString.h → 0 false positives in `\code` blocks
+- [ ] Verify: fmt, spdlog, Catch2, abseil — no regressions
+- [ ] Fixture: `fixtures/sf7/pass_using_in_block_comment/`
+- [ ] Unit test: `using namespace` in `/* ... */` → pass
 
-## Сделано
+## Done
 
-- Реализованы совместно с #035 в одном коммите `71e4fa3`
-- `updateBlockCommentState()` обрабатывает `/* */` блоки; строки внутри комментария возвращают пустой `string_view`
-- Тест: `using namespace` в Doxygen `\code` блоке → нет нарушения
+- Implemented together with #035 in a single commit `71e4fa3`
+- `updateBlockCommentState()` handles `/* */` blocks; lines inside a comment return an empty `string_view`
+- Test: `using namespace` in a Doxygen `\code` block → no violation
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `src/rules/sf7_using_namespace.cpp` | `inBlockComment` state в `updateBlockCommentState()` |
-| `tests/unit/rules/sf7_using_namespace_test.cpp` | тесты block comment |
-| `fixtures/sf7_using_namespace/pass_using_in_block_comment/a.h` | новый |
+| File | Change |
+|------|--------|
+| `src/rules/sf7_using_namespace.cpp` | `inBlockComment` state in `updateBlockCommentState()` |
+| `tests/unit/rules/sf7_using_namespace_test.cpp` | block comment tests |
+| `fixtures/sf7_using_namespace/pass_using_in_block_comment/a.h` | new |

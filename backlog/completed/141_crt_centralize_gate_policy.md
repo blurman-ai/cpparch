@@ -1,79 +1,78 @@
-# [CLI][RULES] Централизовать gate/advisory policy для check/drift/diff
+# [CLI][RULES] Centralize gate/advisory policy for check/drift/diff
 
-**Дата создания:** 2026-06-23
-**Дата старта:** 2026-06-23
-**Статус:** completed
-**Модуль:** CLI / RULES / DIFF
-**Приоритет:** critical
-**Сложность:** M
-**Блокирует:** устойчивость CLI-контракта: один источник истины вместо ручной синхронизации кода, help и comments; код-предпосылка для #140 и код-части #136
-**Заблокирован:** —
+**Created:** 2026-06-23
+**Started:** 2026-06-23
+**Status:** completed
+**Module:** CLI / RULES / DIFF
+**Priority:** critical
+**Blocks:** robustness of the CLI contract: one source of truth instead of manual sync of code, help and comments; code prerequisite for #140 and code parts of #136
+**Blocked by:** —
 
-> **Приоритет поднят major→critical (2026-06-23):** задача жёстко блокирует два `critical` (#140, #136); `major`-предпосылка двух critical мислейблена. Если решено, что #140/#136 не обязаны ждать helper — вернуть major и снять их блок-статус.
+> **Priority raised major→critical (2026-06-23):** the task hard-blocks two `critical` tasks (#140, #136); a `major` prerequisite of two criticals is mislabeled. If it is decided that #140/#136 need not wait for the helper — revert to major and drop their block status.
 **Related:** #075 (mvp_v1_trusted_diff_workflow), #118 (drift4_lateral_rule), #133 (first_run_noise_floor), #136 (cli_docs_contract_after_advisory_wave), #140 (check_json_gate_advisory_schema)
 
-## Цель
+## Goal
 
-Убрать размазанную gate/advisory логику из разных мест кода и завести один небольшой code-level источник истины для того, какие finding-и ломают CI в каждом режиме.
+Remove the smeared-out gate/advisory logic from various places in the code and set up one small code-level source of truth for which findings break CI in each mode.
 
-## Контекст
+## Context
 
-Сейчас gate policy уже не простая, но живёт строковыми проверками и комментариями в разных местах.
+Right now the gate policy is no longer simple, but lives in string checks and comments scattered across various places.
 
-- Check-mode гейтит только `SF.9`:
+- Check-mode gates only `SF.9`:
   [src/cli/check_command.cpp#L90-L107](../../src/cli/check_command.cpp#L90-L107).
-- Drift-baseline гейтит `DRIFT.1`, `DRIFT.2`, `DRIFT.4.CYCLE`:
+- Drift-baseline gates `DRIFT.1`, `DRIFT.2`, `DRIFT.4.CYCLE`:
   [src/cli/check_command.cpp#L74-L87](../../src/cli/check_command.cpp#L74-L87).
-- Diff-mode гейтит grown cycles и new god-headers:
+- Diff-mode gates grown cycles and new god-headers:
   [include/archcheck/diff/regression_report.h#L77-L79](../../include/archcheck/diff/regression_report.h#L77-L79).
-- Help и headers уже отстали от кода:
+- Help and headers have already fallen behind the code:
   [src/main.cpp#L31-L47](../../src/main.cpp#L31-L47),
   [include/archcheck/rules/rule_set.h#L15-L21](../../include/archcheck/rules/rule_set.h#L15-L21),
   [src/cli/check_command.h#L25-L31](../../src/cli/check_command.h#L25-L31).
 
-Это ровно тот механизм, который уже породил `#136`: DRIFT.4.CYCLE добавили в код, но не во
-все описания. Если оставить строковые проверки россыпью, следующий rule-wave повторит дрейф.
+This is exactly the mechanism that already produced `#136`: DRIFT.4.CYCLE was added to the code, but not to
+all the descriptions. If the string checks are left scattered around, the next rule-wave will repeat the drift.
 
-## План выполнения
+## Execution plan
 
-- [ ] Ввести маленький helper/тип для classification: `gating` vs `advisory` по режиму (`check`, `drift`, `diff`).
-- [ ] Перевести `reportCheckGate` и `reportDriftGate` на этот helper.
-- [ ] Дать JSON-репортёру из #140 готовую classification, а не заставлять его знать rule IDs.
-- [ ] Обновить stale comments в `rule_set.h` и `check_command.h`.
-- [ ] Добавить unit-тесты policy: `SF.9` gates check, `SF.7` advisory; `DRIFT.4.CYCLE` gates drift, `DRIFT.4.NEW` advisory.
-- [ ] Убедиться, что diff-mode не смешан с rule-id policy: у него structural `RegressionReport::gates()`, это отдельная ветка.
-- [ ] Развести в helper-е и комментариях НЕоднородный gate: check/drift гейтят только циклы, а diff гейтит ещё и new god-headers ([include/archcheck/diff/regression_report.h#L79](../../include/archcheck/diff/regression_report.h#L79)). Поправить врущий комментарий [src/cli/check_command.cpp#L95](../../src/cli/check_command.cpp#L95) («Mirrors the --diff/drift gating model (gate = cycles)» — для diff это неверно). Централизация не должна зафиксировать ложную симметрию (синхронно с #139).
+- [ ] Introduce a small helper/type for classification: `gating` vs `advisory` per mode (`check`, `drift`, `diff`).
+- [ ] Migrate `reportCheckGate` and `reportDriftGate` to this helper.
+- [ ] Give the JSON reporter from #140 a ready-made classification, rather than making it know rule IDs.
+- [ ] Update stale comments in `rule_set.h` and `check_command.h`.
+- [ ] Add policy unit tests: `SF.9` gates check, `SF.7` advisory; `DRIFT.4.CYCLE` gates drift, `DRIFT.4.NEW` advisory.
+- [ ] Make sure diff-mode is not mixed with rule-id policy: it has a structural `RegressionReport::gates()`, that is a separate branch.
+- [ ] Separate in the helper and comments the NON-uniform gate: check/drift gate only cycles, while diff additionally gates new god-headers ([include/archcheck/diff/regression_report.h#L79](../../include/archcheck/diff/regression_report.h#L79)). Fix the lying comment [src/cli/check_command.cpp#L95](../../src/cli/check_command.cpp#L95) ("Mirrors the --diff/drift gating model (gate = cycles)" — for diff this is wrong). Centralization must not lock in a false symmetry (in sync with #139).
 
-## Сделано
+## Done
 
-- Добавлен `rules/gate_policy`: единая classification `gating` / `advisory` для `check` и `drift`.
-- `check` gate теперь централизованно считает только `SF.9`.
-- `drift` gate теперь централизованно считает `DRIFT.1`, `DRIFT.2`, `DRIFT.4.CYCLE`.
-- Обновлены stale-comments в `rule_set.h` и `check_command.h`.
-- Добавлены unit-тесты gate policy.
+- Added `rules/gate_policy`: unified classification `gating` / `advisory` for `check` and `drift`.
+- The `check` gate now centrally counts only `SF.9`.
+- The `drift` gate now centrally counts `DRIFT.1`, `DRIFT.2`, `DRIFT.4.CYCLE`.
+- Updated stale comments in `rule_set.h` and `check_command.h`.
+- Added gate policy unit tests.
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-- Нет. Diff-mode gate остаётся отдельным `RegressionReport::gates()` по структурным полям.
+- None. Diff-mode gate stays a separate `RegressionReport::gates()` over structural fields.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Это не generic rule engine | нужна только CI-severity classification, не новая архитектура правил |
-| Diff-mode оставить отдельным structural report | там gate определяется не ruleId, а структурными полями report-а |
-| Комментарии обновлять вместе с helper-ом | stale comments уже стали частью проблемы |
+| Decision | Reason |
+|----------|--------|
+| This is not a generic rule engine | only CI-severity classification is needed, not a new rule architecture |
+| Keep diff-mode as a separate structural report | there the gate is determined not by ruleId but by structural fields of the report |
+| Update comments together with the helper | stale comments have already become part of the problem |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `include/archcheck/cli/` или `include/archcheck/rules/` | новый минимальный helper для gate/advisory policy |
-| `src/cli/check_command.cpp` | использовать helper вместо inline string checks |
-| `include/archcheck/rules/rule_set.h` | обновить drift-rule комментарий |
-| `src/cli/check_command.h` | обновить baseline/drift комментарий |
-| `tests/unit/cli/` или `tests/unit/rules/` | unit-тесты policy |
+| File | Change |
+|------|--------|
+| `include/archcheck/cli/` or `include/archcheck/rules/` | new minimal helper for gate/advisory policy |
+| `src/cli/check_command.cpp` | use the helper instead of inline string checks |
+| `include/archcheck/rules/rule_set.h` | update drift-rule comment |
+| `src/cli/check_command.h` | update baseline/drift comment |
+| `tests/unit/cli/` or `tests/unit/rules/` | policy unit tests |

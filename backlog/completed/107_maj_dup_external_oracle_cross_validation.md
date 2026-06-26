@@ -1,274 +1,274 @@
-# [DUPLICATION][RESEARCH] Кросс-валидация дубликат-детектора по внешним оракулам (NiCad + Bellon)
+# [DUPLICATION][RESEARCH] Cross-validation of the duplicate detector against external oracles (NiCad + Bellon)
 
-**Дата создания:** 2026-06-11
-**Дата старта:** 2026-06-11
-**Статус:** wip — данные собраны, количественное сравнение blocked (см. Прогресс)
-**Модуль:** DUPLICATION / RESEARCH / EXPERIMENTS
-**Приоритет:** major
-**Сложность:** L
-**Блокирует:** уверенное заявление precision/recall дубликат-слоёв
-**Заблокирован:** —
+**Created:** 2026-06-11
+**Started:** 2026-06-11
+**Status:** wip — data collected, quantitative comparison blocked (see Progress)
+**Module:** DUPLICATION / RESEARCH / EXPERIMENTS
+**Priority:** major
+**Complexity:** L
+**Blocks:** a confident precision/recall claim for the duplication layers
+**Blocked by:** —
 **Related:** #053/#056/#052/#059/#054 (duplication layers), #106 (PMD known-answer fixtures)
 
-## Цель
+## Goal
 
-Прогнать наш дубликат-детектор на эталонных корпусах из мира clone detection и
-сравнить с их размеченными оракулами, чтобы получить **числа** (TP/FP, грубо
-precision/recall), а не только «работает на наших фикстурах». Нужен внешний,
-не-нами-сделанный ground truth.
+Run our duplicate detector on reference corpora from the clone-detection world and
+compare against their labeled oracles, to get **numbers** (TP/FP, roughly
+precision/recall), not just "works on our fixtures". We need an external,
+not-made-by-us ground truth.
 
-## Контекст
+## Context
 
-Два независимых внешних источника с реальным C-кодом:
+Two independent external sources with real C code:
 
-1. **NiCad** (тот самый клон-детектор) — поставляется с реальной C-системой
-   `monit-4.2` как примером:
+1. **NiCad** (the clone detector itself) — ships with a real C system
+   `monit-4.2` as an example:
    https://github.com/bumper-app/nicad/tree/main/examples
-   Сценарий: прогнать NiCad (functions/blocks, Type-1/2/3) → его XML-разметка клонов
-   как оракул → прогнать наш детектор → сравнить. NiCad ставится через TXL
+   Scenario: run NiCad (functions/blocks, Type-1/2/3) → its XML clone markup
+   as the oracle → run our detector → compare. NiCad is installed via TXL
    (download: http://www.txl.ca/txl-nicaddownload.html).
 
-2. **Bellon benchmark** — академический золотой стандарт: вручную размеченный
-   reference corpus клонов в C-системах (cook, weltab и др.), 4319 валидированных
-   клон-пар. На нём 20 лет меряют recall клон-детекторов. Скачивается с группы
-   Кошке (Бремен), ссылки проверены живыми 2026-06-11:
-   - оракул + результаты детекторов (RCF, ~18 МБ):
+2. **Bellon benchmark** — the academic gold standard: a manually labeled
+   reference corpus of clones in C systems (cook, weltab, etc.), 4319 validated
+   clone pairs. Recall of clone detectors has been measured against it for 20 years. Downloaded from
+   Koschke's group (Bremen), links verified live 2026-06-11:
+   - oracle + detector results (RCF, ~18 MB):
      https://www.softwareclones.de/download/bellon_benchmark.tar.gz
-   - исходники систем (ISO, ~167 МБ):
+   - system sources (ISO, ~167 MB):
      https://www.softwareclones.de/download/bellon_sources.iso
-   - формат/скрипты описаны на https://www.softwareclones.de/research-data.php
-   Минус: формат RCF + своя метрика «good/ok match» — нужен адаптер из нашего
-   JSON-вывода клон-пар в их схему сравнения.
+   - format/scripts described at https://www.softwareclones.de/research-data.php
+   Downside: the RCF format + its own "good/ok match" metric — we need an adapter from our
+   JSON output of clone pairs into their comparison schema.
 
-3. (граница, не recall) **POJ-104 / IBM CodeNet (C++)** — Type-4 семантические клоны.
-   Наш токеновый слой их по дизайну НЕ должен ловить. Полезно как тест на FP-границу
-   («мы это не помечаем»), а не на recall. Опционально, в конце.
+3. (boundary, not recall) **POJ-104 / IBM CodeNet (C++)** — Type-4 semantic clones.
+   Our token layer by design must NOT catch them. Useful as a test of the FP boundary
+   ("we don't flag this"), not of recall. Optional, at the end.
 
-Контекст по нашим слоям и классам FP — docs/duplication_architecture.md.
+Context on our layers and FP classes — docs/duplication_architecture.md.
 
-## Что сделать
+## What to do
 
-1. **NiCad first (дешевле):** склонировать `monit-4.2`, поставить NiCad/TXL,
-   снять его клон-оракул; прогнать наш детектор на тех же исходниках;
-   написать сравнение в `experiments/` (наш JSON ↔ NiCad XML, по перекрытию диапазонов
-   `file:line`). Зафиксировать TP/FP и классы расхождений.
-2. **Bellon:** скачать tarball+ISO, разобрать RCF-оракул, написать адаптер
-   нашего вывода → их формат, посчитать recall на cook/weltab по их метрике
-   (учесть «good» vs «ok» порог перекрытия). Всё под `experiments/`, воспроизводимо
-   скриптом.
-3. Свести отчёт: на каких классах клонов мы сильны/слабы, где FP, как влияет
-   selective normalization. Связать выводы с #059 (precision).
-4. (опц.) POJ-104 sanity: подтвердить, что Type-4 мы НЕ помечаем массово.
+1. **NiCad first (cheaper):** clone `monit-4.2`, install NiCad/TXL,
+   capture its clone oracle; run our detector on the same sources;
+   write the comparison in `experiments/` (our JSON ↔ NiCad XML, by overlap of
+   `file:line` ranges). Record TP/FP and the classes of discrepancies.
+2. **Bellon:** download the tarball+ISO, parse the RCF oracle, write an adapter from
+   our output → their format, compute recall on cook/weltab by their metric
+   (account for the "good" vs "ok" overlap threshold). All under `experiments/`, reproducible
+   by a script.
+3. Summarize a report: on which clone classes we're strong/weak, where the FP are, how
+   selective normalization affects things. Tie the conclusions to #059 (precision).
+4. (opt.) POJ-104 sanity: confirm that we do NOT flag Type-4 en masse.
 
 ## Definition of Done
 
-- Воспроизводимый прогон по NiCad/monit с числами TP/FP и разбором расхождений.
-- (Желательно) recall по Bellon cook/weltab через адаптер, либо явно
-  задокументированный блокер, если RCF-адаптер окажется дороже бюджета задачи.
-- Отчёт в `docs/research/` или `experiments/` с выводами по слоям и связью с #059.
-- Внешние корпуса НЕ коммитим в репо (большие/лицензии) — только скрипты загрузки
-  + наши результаты; пути и команды загрузки зафиксированы в задаче/скрипте.
+- A reproducible run on NiCad/monit with TP/FP numbers and an analysis of the discrepancies.
+- (Desirable) recall on Bellon cook/weltab via the adapter, or an explicitly
+  documented blocker, if the RCF adapter turns out to be more expensive than the task budget.
+- A report in `docs/research/` or `experiments/` with conclusions about the layers and a tie to #059.
+- We do NOT commit the external corpora to the repo (large/licenses) — only download scripts
+  + our results; the paths and download commands recorded in the task/script.
 
-## Заметки
+## Notes
 
-- Лицензии: NiCad-примеры и Bellon-исходники тащим локально, в наш git не кладём.
-- Bellon-метрика нетривиальна (good/ok match, gaps) — заложить время на разбор их
-  скриптов сравнения, не изобретать свою метрику поверх их оракула.
+- Licenses: we pull the NiCad examples and Bellon sources locally, we don't put them in our git.
+- The Bellon metric is non-trivial (good/ok match, gaps) — budget time to study their
+  comparison scripts, don't invent our own metric on top of their oracle.
 
-## Прогресс (2026-06-11)
+## Progress (2026-06-11)
 
-Полный разбор: `experiments/clone_oracle_validation/FINDINGS.md`.
+Full analysis: `experiments/clone_oracle_validation/FINDINGS.md`.
 
-### Сделано
-- Данные скачаны (`experiments/clone_oracle_validation/`): NiCad-репо + пример
-  `monit-4.2`; Bellon benchmark (RCF-оракулы cook/weltab/snns/postgresql) + sources ISO;
-  ключевые PMD-файлы.
-- **Наша сторона сравнения работает**: `--duplication monit-4.2` → 21 осмысленная пара
-  (EXACT/RENAMED/LITERAL/STRUCTURAL), платформенные sysdep-двойняшки ловятся.
-- Форматы декодированы: per-tool кандидаты Bellon — **текстовый CPF**
-  (`file s e file s e type`, парсится тривиально); reference-оракул — **бинарный RCF 2.1**.
+### Done
+- Data downloaded (`experiments/clone_oracle_validation/`): NiCad repo + example
+  `monit-4.2`; Bellon benchmark (RCF oracles cook/weltab/snns/postgresql) + sources ISO;
+  key PMD files.
+- **Our side of the comparison works**: `--duplication monit-4.2` → 21 meaningful pairs
+  (EXACT/RENAMED/LITERAL/STRUCTURAL), platform sysdep twins are caught.
+- Formats decoded: per-tool Bellon candidates — **text CPF**
+  (`file s e file s e type`, parses trivially); the reference oracle — **binary RCF 2.1**.
 
-### Блокеры количественного сравнения
-- **NiCad oracle blocked на TXL**: NiCad работает поверх TXL, его в системе нет.
-  Нужно поставить TXL (free tarball txl.ca) + собрать NiCad. Оценка: 0.5–1 день setup.
-- **Bellon blocked на (а) исходниках и (б) RCF-ридере**:
-  - в `bellon_sources.iso` только результаты + 5 `.c` (dummy decls); реальные исходники
-    cook/weltab нужной версии 2002 г. отсутствуют, а номера строк в CPF — ключ join;
-  - валидированный оракул (`ok`/`good`) — в бинарном RCF, нужен Bauhaus-ридер или
-    переопубликованный CSV-оракул из поздних статей.
+### Blockers of the quantitative comparison
+- **NiCad oracle blocked on TXL**: NiCad runs on top of TXL, which isn't on the system.
+  We need to install TXL (free tarball txl.ca) + build NiCad. Estimate: 0.5–1 day of setup.
+- **Bellon blocked on (a) sources and (b) an RCF reader**:
+  - in `bellon_sources.iso` there are only results + 5 `.c` (dummy decls); the real sources
+    cook/weltab of the needed 2002 version are missing, and the line numbers in CPF are the join key;
+  - the validated oracle (`ok`/`good`) — in binary RCF, needs a Bauhaus reader or
+    a re-published CSV oracle from later papers.
 
-### §4 Аномалия (вынести в отдельный under-investigation шаг, блокирует #106)
-Точная копия литерало-богатой функции с distinctive raw-string литералом (df=2, редкий)
-НЕ репортится в корпусе, хотя по архитектуре candidacy должна. Репро:
-`experiments/clone_oracle_validation/pmd/ka_literals_funcs/`. Нужен инструментованный
-прогон (какой floor срезал: minSharedRare / minDiversity / weighted / line).
+### §4 Anomaly (move to a separate under-investigation step, blocks #106)
+An exact copy of a literal-rich function with a distinctive raw-string literal (df=2, rare)
+is NOT reported in the corpus, although by the candidacy architecture it should be. Repro:
+`experiments/clone_oracle_validation/pmd/ka_literals_funcs/`. An instrumented
+run is needed (which floor cut it: minSharedRare / minDiversity / weighted / line).
 
-### Рекомендация по приоритету
-- Near-term ROI: **NiCad/monit** (один TXL-install до внешнего ground truth).
-- **Bellon — descope** до «формат разобран, источники в ожидании»; не вести активным,
-  пока нет точных исходников + RCF-ридера.
-- Перед любой known-answer suite разобрать §4.
+### Priority recommendation
+- Near-term ROI: **NiCad/monit** (one TXL install away from external ground truth).
+- **Bellon — descope** to "format parsed, sources pending"; don't pursue actively
+  until there are exact sources + an RCF reader.
+- Before any known-answer suite, resolve §4.
 
-## Обновление (2026-06-11, вечер) — §4 разрешена + методология пересмотрена
+## Update (2026-06-11, evening) — §4 resolved + methodology revised
 
-- **§4 аномалия разрешена**: чистый RENAMED не репортился из-за P0.6 joint-floor
-  (line≥0.50 по сырым строкам) — намеренный precision/recall tradeoff, НЕ баг.
-  Доказано чтением (similarity.cpp lineOverlap + phase8) и эмпирикой
+- **§4 anomaly resolved**: a pure RENAMED wasn't reported due to the P0.6 joint-floor
+  (line≥0.50 over raw strings) — a deliberate precision/recall tradeoff, NOT a bug.
+  Proven by reading (similarity.cpp lineOverlap + phase8) and empirics
   (EXACT line=1 / light-rename 0.86 / heavy-rename <0.5 / monit-RENAMED 0.913).
-  Закреплено `tests/duplication_renamed_recall_test.cpp`. Детектор не менялся.
-- **Методология валидации пересмотрена** (после чтения истории настройки правил):
-  не recall-vs-oracle, а **disagreement-triage**. Детектор оперт на Kapser & Godfrey
-  (#071): наши guard'ы намеренно давят benign-клоны, которые NiCad/Bellon метят как
-  true. Каждое расхождение → (a) намеренное подавление / (b) документированная граница
-  arch-spec §9 / (c) настоящий recall-баг. Actionable только (c); пока (c) нет.
-- Открытый дизайн-вопрос (в #070/#059): ослаблять ли P0.6 line-floor при lcs==1, чтобы
-  ловить тяжёлые Type-2. Это precision/recall-решение, не правится наспех.
+  Locked in by `tests/duplication_renamed_recall_test.cpp`. The detector wasn't changed.
+- **Validation methodology revised** (after reading the history of rule tuning):
+  not recall-vs-oracle, but **disagreement-triage**. The detector rests on Kapser & Godfrey
+  (#071): our guards deliberately suppress benign clones that NiCad/Bellon mark as
+  true. Each discrepancy → (a) deliberate suppression / (b) documented boundary
+  arch-spec §9 / (c) a real recall bug. Only (c) is actionable; so far there is no (c).
+- Open design question (in #070/#059): whether to relax the P0.6 line-floor at lcs==1, to
+  catch heavy Type-2. This is a precision/recall decision, not to be fixed in a hurry.
 
-## Обновление (2026-06-11, поздно) — найден настоящий recall-баг класса (c)
+## Update (2026-06-11, late) — a real recall bug of class (c) found
 
-Disagreement-triage дал первый actionable результат: **phase9FunctionBoundaryAnchor
-подавляет copy-paste функции, вставленной вплотную под оригиналом** (зазор ≤5 строк —
-типичный случай). Тот же клон с зазором 8 строк репортится. Эвристика phase9 защищает
-от boundary-straddle окон, но наши фрагменты — брейс-анкерные тела функций, straddle
-невозможен → эвристика только режет TP. Фикс-кандидат: удалить phase9 / сузить;
-перед этим прогон fp_corpus_r2 + monit до/после. См. FINDINGS §7.
+Disagreement-triage gave the first actionable result: **phase9FunctionBoundaryAnchor
+suppresses a copy-pasted function inserted right below the original** (gap ≤5 lines —
+the typical case). The same clone with an 8-line gap is reported. The phase9 heuristic guards
+against boundary-straddle windows, but our fragments are brace-anchored function bodies, straddle
+is impossible → the heuristic only cuts TP. Fix candidate: remove phase9 / narrow it;
+before that, a run of fp_corpus_r2 + monit before/after. See FINDINGS §7.
 
-## ФИКС phase9/P0.4 — полная хронология (2026-06-11, для статьи и истории)
+## FIX phase9/P0.4 — full chronology (2026-06-11, for the article and history)
 
-### Что было
-`phase9FunctionBoundaryAnchor` (P0.4) в `duplication_scanner.cpp` дропал same-file
-пары с зазором ≤5 строк между фрагментами. Замысел: защита от «скользящее окно
-зацепило хвост функции A + голову функции B». Покрытие: два TEST_CASE в
+### What it was
+`phase9FunctionBoundaryAnchor` (P0.4) in `duplication_scanner.cpp` dropped same-file
+pairs with a gap ≤5 lines between fragments. Intent: protection against "the sliding window
+caught the tail of function A + the head of function B". Coverage: two TEST_CASE in
 `duplication_fp_guards_test.cpp`.
 
-### Как нашли (цепочка)
-1. Кросс-валидация по внешним оракулам: Bellon weltab.cpf полон same-file пар
-   (`spol.c:234-250 ↔ 275-291` и т.п.) → вопрос «а мы same-file вообще ловим?».
-2. Сначала рамка была «оракул прав» → пользователь поправил: «читай историю
-   настройки наших правил, возможно у нас правильнее, а в эталонах FP» →
-   переход на disagreement-triage (Kapser & Godfrey, benign clones).
-3. Проверка same-file: в monit gc.c копипаст-тройка `_gcperm/_gcuid/_gcgid`
-   репортится (зазоры ~7 строк) → «в целом ловим».
-4. Пользователь: «копию вставляют ВПЛОТНУЮ под оригиналом — это главный кейс».
-   Контрольный эксперимент: идентичный клон, зазор 1 строка → подавлен;
-   тот же клон, зазор 8 строк → репортится. Дыра подтверждена.
-5. Анализ кода: фрагментер брейс-анкерный → фрагмент не может пересечь границу
-   функции → целевой FP-класс phase9 НЕ СУЩЕСТВУЕТ → гард = чистый налог на recall.
+### How it was found (the chain)
+1. Cross-validation against external oracles: Bellon weltab.cpf is full of same-file pairs
+   (`spol.c:234-250 ↔ 275-291` etc.) → the question "do we catch same-file at all?".
+2. The frame was first "the oracle is right" → the user corrected: "read the history
+   of tuning our rules, maybe we're more correct and the references have FP" →
+   switch to disagreement-triage (Kapser & Godfrey, benign clones).
+3. Same-file check: in monit gc.c the copy-paste triple `_gcperm/_gcuid/_gcgid`
+   is reported (gaps ~7 lines) → "in general we catch it".
+4. User: "the copy is pasted RIGHT below the original — that's the main case".
+   Control experiment: an identical clone, 1-line gap → suppressed;
+   the same clone, 8-line gap → reported. The hole confirmed.
+5. Code analysis: the fragmenter is brace-anchored → a fragment cannot cross a function
+   boundary → the target FP class of phase9 DOES NOT EXIST → the guard = pure recall tax.
 
-### На чём попалось (почему баг жил)
-Оба «теста» P0.4 были пустышками: первый — `REQUIRE(true)` в цикле, второй
-конструировал пары, но НЕ вызывал фильтр (он в anonymous namespace) и ассертил
-только `pairs.size()==1` до фильтрации. Гард не имел ни одного реального ассерта.
-Урок: «есть TEST_CASE с именем гарда» ≠ «гард протестирован».
+### What it got caught on (why the bug lived)
+Both P0.4 "tests" were dummies: the first — `REQUIRE(true)` in a loop, the second
+constructed pairs but did NOT call the filter (it's in an anonymous namespace) and asserted
+only `pairs.size()==1` before filtering. The guard had not a single real assert.
+Lesson: "there's a TEST_CASE named after the guard" ≠ "the guard is tested".
 
-### Что правили (TDD-порядок)
-1. **Красный тест сначала**: новый TEST_CASE «Same-file copy-paste pasted directly
-   below the original is reported» (3 функции: копия вплотную + unrelated filler,
-   чтобы idf не вырождался). Прогнан ДО фикса — честно падает (reported=false).
-2. **Фикс**: удалены `phase9FunctionBoundaryAnchor` целиком + вызов в
-   `applyCandidateFilters` (−44 строки). На месте — NOTE-комментарий с причиной
-   (по образцу удаления P0.7/P0.8 от 2026-06-03).
-3. Оба no-op P0.4-теста заменены настоящей фикстурой (не «замазаны» — старые
-   ничего не проверяли, см. выше).
+### What was fixed (TDD order)
+1. **Red test first**: a new TEST_CASE "Same-file copy-paste pasted directly
+   below the original is reported" (3 functions: the copy right below + an unrelated filler,
+   so idf doesn't degenerate). Run BEFORE the fix — honestly fails (reported=false).
+2. **Fix**: removed `phase9FunctionBoundaryAnchor` entirely + the call in
+   `applyCandidateFilters` (−44 lines). In its place — a NOTE comment with the reason
+   (modeled on the removal of P0.7/P0.8 from 2026-06-03).
+3. Both no-op P0.4 tests replaced with a real fixture (not "papered over" — the old ones
+   checked nothing, see above).
 
-### Верификация (before/after на тех же корпусах)
-- Тестовая сюита: 457 кейсов / 1551 assertions — все зелёные; ни один существующий
-  тест не правился под фикс.
-- **monit-4.2: 21 пара → 21 пара** (байт-в-байт тот же отчёт) — ноль новых FP.
-- **Self-scan src/: 1 → 2 пары.** Новая: `token_normalizer.cpp:228-253 ↔ 258-278`
+### Verification (before/after on the same corpora)
+- Test suite: 457 cases / 1551 assertions — all green; not a single existing
+  test was adjusted for the fix.
+- **monit-4.2: 21 pairs → 21 pairs** (byte-for-byte the same report) — zero new FP.
+- **Self-scan src/: 1 → 2 pairs.** New: `token_normalizer.cpp:228-253 ↔ 258-278`
   (STRUCTURAL, w=0.695, line=0.526) = `tryConsumeString` ↔ `tryConsumeChar` —
-  соседние функции, зазор 5 строк, ровно сценарий бага. По extractability-тесту
-  #071 — настоящий TP (выносимый общий хелпер «consume quoted with escapes»).
-  Фикс окупился немедленно на нашем же коде.
-- dogfood-правила: `archcheck src include tests` → 0 нарушений; clang-format чист;
-  lizard: мои файлы чисты (5 оставшихся warnings — до-существующие чужие TEST_CASE).
-- Артефакты прогонов: `experiments/clone_oracle_validation/results/{monit,self_src}_{before,after}_fix.txt`.
+  neighboring functions, 5-line gap, exactly the bug scenario. By the extractability test
+  #071 — a real TP (an extractable shared helper "consume quoted with escapes").
+  The fix paid off immediately on our own code.
+- dogfood rules: `archcheck src include tests` → 0 violations; clang-format clean;
+  lizard: my files clean (5 remaining warnings — pre-existing other TEST_CASE).
+- Run artifacts: `experiments/clone_oracle_validation/results/{monit,self_src}_{before,after}_fix.txt`.
 
-### Документация
-- `docs/duplication_architecture.md`: P0.4 вычеркнут из списка гардов §3.7,
-  добавлена секция «История P0.4 (удалён 2026-06-11)» рядом с историей P0.7/P0.8.
+### Documentation
+- `docs/duplication_architecture.md`: P0.4 struck from the guard list in §3.7,
+  added a section "History of P0.4 (removed 2026-06-11)" next to the history of P0.7/P0.8.
 
-### Открытое (НЕ сделано, кандидат на следующий шаг)
-- Найденный TP в token_normalizer (`tryConsumeString`/`tryConsumeChar`) — решить:
-  выносить общий хелпер или принять (там есть реальное отличие: string трекает
-  `line`, char — нет). Отдельным коммитом, если решим.
-- P0.6 line-floor vs тяжёлые Type-2 переименования — по-прежнему открытый
-  дизайн-вопрос (#070/#059), НЕ часть этого фикса.
+### Open (NOT done, candidate for the next step)
+- The TP found in token_normalizer (`tryConsumeString`/`tryConsumeChar`) — decide:
+  extract a shared helper or accept (there's a real difference: string tracks
+  `line`, char doesn't). A separate commit, if we decide.
+- P0.6 line-floor vs heavy Type-2 renames — still an open
+  design question (#070/#059), NOT part of this fix.
 
-## Находка-дивиденд фикса и её устранение (2026-06-11)
+## A dividend finding of the fix and its resolution (2026-06-11)
 
-**Находка:** первый же прогон после удаления phase9 нашёл настоящий TP в нашем же
-лексере: `tryConsumeString ↔ tryConsumeChar` (token_normalizer.cpp:228↔258) —
-соседние функции, зазор 5 строк, ровно сценарий бага («скопипастил вплотную,
-поменял пару строк»). Фикс окупился в первый же прогон.
+**Finding:** the very first run after removing phase9 found a real TP in our own
+lexer: `tryConsumeString ↔ tryConsumeChar` (token_normalizer.cpp:228↔258) —
+neighboring functions, 5-line gap, exactly the bug scenario ("pasted right below,
+changed a couple of lines"). The fix paid off on the very first run.
 
-**Устранение (дедуп):** обе функции слиты в один `tryConsumeQuoted(source, i, line,
-delim, out)` — общий скан «до закрывающего ограничителя со скипом эскейпов», разница
-была только в символе кавычки. Идею декомпозиции на микро-примитивы (step/skip/next)
-отклонили: общий кусок ровно один, три одноразовые микрофункции — преждевременная
-грануляция; хватило одного параметризованного хелпера. Побочное улучшение: char-ветка
-теперь тоже трекает `\n` (раньше malformed-литерал с переносом сбивал нумерацию строк).
+**Resolution (dedup):** both functions merged into one `tryConsumeQuoted(source, i, line,
+delim, out)` — a shared scan "to the closing delimiter with escape skipping", the difference
+was only in the quote character. The idea of decomposing into micro-primitives (step/skip/next)
+was rejected: there's exactly one shared piece, three one-off micro-functions are premature
+granulation; one parameterized helper was enough. Side improvement: the char branch
+now also tracks `\n` (previously a malformed literal with a newline threw off line numbering).
 
-**Верификация:** сюита 457/1551 зелёная (поведение лексера не изменилось);
-self-scan src/ **2 → 1 пара** — пара лексера исчезла из отчёта детектора;
-monit неизменен (21); dogfood 0 нарушений; lizard/clang-format чисты.
+**Verification:** suite 457/1551 green (lexer behavior unchanged);
+self-scan src/ **2 → 1 pair** — the lexer pair disappeared from the detector report;
+monit unchanged (21); dogfood 0 violations; lizard/clang-format clean.
 
-**Оставшаяся 1 пара self-scan** (`drift_bidirectional_coupling.cpp:48-49 ↔
-duplication_scanner.cpp:168-169`, EXACT 2 строки — `toLowerCopy`) — существовала и до
-всех правок; кандидат на общий хелпер, отдельным решением (не в этом фиксе).
+**The remaining 1 self-scan pair** (`drift_bidirectional_coupling.cpp:48-49 ↔
+duplication_scanner.cpp:168-169`, EXACT 2 lines — `toLowerCopy`) — existed before
+all the edits; a candidate for a shared helper, by a separate decision (not in this fix).
 
-## Вторая находка-дивиденд: мёртвый `++line` внутри литералов (2026-06-11)
+## Second dividend finding: a dead `++line` inside literals (2026-06-11)
 
-Вопрос пользователя «а line++?» к слитому `tryConsumeQuoted` вскрыл баг глубже самого
-дедупа. Пин-тест на новое поведение (перенос строки внутри quoted-рана должен двигать
-нумерацию) упал с line=3 вместо 4 — расследование показало:
+The user's question "what about line++?" on the merged `tryConsumeQuoted` exposed a bug deeper than the
+dedup itself. A pin test for the new behavior (a newline inside a quoted run should advance
+the numbering) failed with line=3 instead of 4 — the investigation showed:
 
-- `consumeToken` принимал `line` **по значению**; все consumers литералов
-  (`tryConsumeString`, `tryConsumeRawString`, новый `tryConsumeQuoted`) инкрементили
-  локальную копию, которая выбрасывалась при возврате.
-- => `++line` внутри строковых/raw-литералов был **мёртв всегда** (со времён порта):
-  многострочный raw-string уже сдвигал номера строк всех последующих токенов —
-  а `file:line` это продуктовый контракт.
-- Почему не ловили: существующие тесты ассертят `.line` только для переносов
-  **между** токенами (путь `consumeTrivia`, там `line` по ссылке). Переноса **внутри**
-  литерала не было ни в одном тесте.
+- `consumeToken` took `line` **by value**; all literal consumers
+  (`tryConsumeString`, `tryConsumeRawString`, the new `tryConsumeQuoted`) incremented
+  a local copy, which was thrown away on return.
+- => `++line` inside string/raw literals was **always dead** (since the port):
+  a multiline raw-string already shifted the line numbers of all subsequent tokens —
+  and `file:line` is a product contract.
+- Why it wasn't caught: existing tests assert `.line` only for newlines
+  **between** tokens (the `consumeTrivia` path, where `line` is by reference). A newline **inside**
+  a literal wasn't in any test.
 
-**Фикс:** `consumeToken(..., int line, ...)` → `int &line` (один символ).
-**Пин:** новый TEST_CASE «newline inside a quoted run keeps later line numbers».
-**Верификация:** сюита 458/1553 зелёная (ни один тест не держался за баговое
-поведение); monit-отчёт идентичен; dogfood 0; lizard/format чисты.
+**Fix:** `consumeToken(..., int line, ...)` → `int &line` (one character).
+**Pin:** a new TEST_CASE "newline inside a quoted run keeps later line numbers".
+**Verification:** suite 458/1553 green (not a single test relied on the buggy
+behavior); the monit report is identical; dogfood 0; lizard/format clean.
 
-Цепочка для статьи: дедуп → вопрос ревьюера про семантику `++line` → пин-тест →
-тест падает → раскопка → найден и починен старший баг. Два бага наружу за один день
-валидации, оба — через написание настоящих фикстур вместо `REQUIRE(true)`.
+The chain for the article: dedup → reviewer's question about the semantics of `++line` → pin test →
+test fails → digging → a senior bug found and fixed. Two bugs out in one day
+of validation, both — via writing real fixtures instead of `REQUIRE(true)`.
 
-## Как работает
+## How it works
 
-Валидация = disagreement-triage против внешних корпусов (NiCad monit, Bellon CPF):
-каждое расхождение классифицируется (benign-подавление / документированная граница /
-recall-баг) через extractability-тест #071. Прогоны before/after сохраняются в
-`experiments/clone_oracle_validation/results/` и сравниваются diff-ом.
+Validation = disagreement-triage against external corpora (NiCad monit, Bellon CPF):
+each discrepancy is classified (benign suppression / documented boundary / a
+recall bug) via the extractability test #071. Before/after runs are saved in
+`experiments/clone_oracle_validation/results/` and compared by diff.
 
-## Ключевые решения
+## Key decisions
 
-- **Отказ от рамки «оракул = истина»** (правка пользователя): наши гарды намеренно
-  давят benign-клоны; actionable только класс (c) — настоящий recall-баг.
-- **P0.4 удалён, а не ослаблен**: его целевой FP-класс невозможен при брейс-анкерном
-  фрагментере — гард был чистым налогом на recall.
-- **P0.6 line-floor против тяжёлых Type-2 оставлен как есть** — осознанный tradeoff,
-  решение об ослаблении (lcs==1 → пропуск) вынесено в #070/#059.
-- **Количественная часть (NiCad/TXL, Bellon) отложена** решением пользователя
+- **Rejection of the "oracle = truth" frame** (user's correction): our guards deliberately
+  suppress benign clones; only class (c) — a real recall bug — is actionable.
+- **P0.4 removed, not relaxed**: its target FP class is impossible with a brace-anchored
+  fragmenter — the guard was a pure recall tax.
+- **P0.6 line-floor against heavy Type-2 left as is** — a conscious tradeoff, the decision
+  to relax it (lcs==1 → skip) is moved to #070/#059.
+- **The quantitative part (NiCad/TXL, Bellon) deferred** by the user's decision
   2026-06-11 → #132 (`backlog/new/132_maj_oracle_quantitative_validation.md`;
-  расконсервирована из future 2026-06-19).
+  un-mothballed from future 2026-06-19).
 
-## Изменённые файлы
+## Changed files
 
-- `src/scan/duplication/duplication_scanner.cpp` — удалён phase9/P0.4 (commit 1fbc9f4)
+- `src/scan/duplication/duplication_scanner.cpp` — removed phase9/P0.4 (commit 1fbc9f4)
 - `src/scan/duplication/token_normalizer.cpp` — tryConsumeQuoted + `int &line` (1fbc9f4)
-- `tests/duplication_fp_guards_test.cpp` — no-op P0.4 тесты → настоящая фикстура (1fbc9f4)
-- `tests/duplication_token_normalizer_test.cpp` — пин line-tracking (1fbc9f4)
-- `docs/duplication_architecture.md` — история P0.4 (1fbc9f4)
+- `tests/duplication_fp_guards_test.cpp` — no-op P0.4 tests → a real fixture (1fbc9f4)
+- `tests/duplication_token_normalizer_test.cpp` — pin line-tracking (1fbc9f4)
+- `docs/duplication_architecture.md` — history of P0.4 (1fbc9f4)
 
-## Итог
-**Статус:** completed (количественная oracle-валидация descoped → future)
-**Дата завершения:** 2026-06-11
+## Outcome
+**Status:** completed (quantitative oracle validation descoped → future)
+**Completed:** 2026-06-11

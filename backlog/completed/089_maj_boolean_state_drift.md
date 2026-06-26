@@ -1,150 +1,150 @@
 # [RESEARCH][RULES] Investigate Boolean-State Drift Detection
 
-**Дата создания:** 2026-06-07
-**Дата старта:** 2026-06-07
-**Дата завершения:** 2026-06-07
-**Статус:** done
+**Created:** 2026-06-07
+**Started:** 2026-06-07
+**Completed:** 2026-06-07
+**Status:** done
 
-> **ФИНАЛЬНЫЙ ВЕРДИКТ: MAYBE** — дрейф булей реален (~21% агентских репо, нижняя граница из-за shallow-клонов), но измерим только как **per-struct накопление по git-истории**, не статикой/именами. «Невозможные состояния» — риск лишь при взаимозависимости полей (не универсально: Channel/MethodState ортогональны). Для archcheck — НЕ дефолтное правило (нарушает «не линтер» + нет authority + YAGNI). Если делать — drift-метрика рядом с #086/#087, на **fast-бэкенде** (git blame + regex; #042 НЕ нужен для диффа — AST по коммитам нереально, лишь опц. буст гейта взаимозависимости на текущем срезе). Реальный блокер — спрос, не техника. Полный путь: `docs/research/boolean_state_*.md` (research, broad_scan, usage_verdicts, history_drift, eyecheck, perstruct_drift, drift_limits, metric_design). C++/Python прототипы — `experiments/boolean_state/` (отдельный проект, вне `src/`).
-**Модуль:** RESEARCH / RULES
-**Приоритет:** major
-**Сложность:** unknown
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #029 (metric_regression_detection), #033 (ai_drift_dataset), #042 (clang_semantic_backend — нужен для извлечения bool-полей классов), #048 (drift_clean_checkout_methodology), #086 (drift2_cycle_default_gate), #087 (drift3_bidirectional_coupling), #088 (archcheck_fp_from_corpus — методология структурного ценза по корпусу)
+> **FINAL VERDICT: MAYBE** — boolean drift is real (~21% of agentic repos, a lower bound due to shallow clones), but it is measurable only as **per-struct accumulation over git history**, not via statics/names. "Impossible states" are a risk only when fields are interdependent (not universal: Channel/MethodState are orthogonal). For archcheck — NOT a default rule (violates "not a linter" + no authority + YAGNI). If done — a drift metric alongside #086/#087, on the **fast backend** (git blame + regex; #042 is NOT needed for the diff — AST per commit is unrealistic, only an optional boost for the interdependency gate on the current snapshot). The real blocker is demand, not technique. Full path: `docs/research/boolean_state_*.md` (research, broad_scan, usage_verdicts, history_drift, eyecheck, perstruct_drift, drift_limits, metric_design). C++/Python prototypes — `experiments/boolean_state/` (a separate project, outside `src/`).
+**Module:** RESEARCH / RULES
+**Priority:** major
+**Complexity:** unknown
+**Blocks:** —
+**Blocked by:** —
+**Related:** #029 (metric_regression_detection), #033 (ai_drift_dataset), #042 (clang_semantic_backend — needed to extract bool fields of classes), #048 (drift_clean_checkout_methodology), #086 (drift2_cycle_default_gate), #087 (drift3_bidirectional_coupling), #088 (archcheck_fp_from_corpus — methodology for a structural census over the corpus)
 
-## Цель
+## Goal
 
-Оценить (research-first, **без реализации**), можно ли рост числа boolean-флагов состояния использовать как измеримый индикатор структурного / архитектурного дрейфа — и закончить вердиктом **YES / NO / MAYBE**, опираясь на доказательства из OSS-корпуса.
+Assess (research-first, **without implementation**) whether the growth of the number of boolean state flags can be used as a measurable indicator of structural / architectural drift — and end with a **YES / NO / MAYBE** verdict, grounded in evidence from the OSS corpus.
 
-## Контекст
+## Context
 
-Гипотеза: класс, накапливающий булевы поля (`bool started; bool running; bool paused; bool failed; ...`), фактически кодирует неявную state machine. N флагов дают `2^N` теоретических состояний, из которых легальны единицы → растёт зона «невозможных, но представимых» состояний (`failed && completed`, `paused && !started`). Рост этого зазора во времени может быть сигналом дрейфа.
+Hypothesis: a class that accumulates boolean fields (`bool started; bool running; bool paused; bool failed; ...`) effectively encodes an implicit state machine. N flags give `2^N` theoretical states, of which only a few are legal → the zone of "impossible but representable" states grows (`failed && completed`, `paused && !started`). The growth of this gap over time may be a drift signal.
 
-**Это research-задача, не фича.** Сначала доказать, что проблема реально существует в живых репозиториях; только потом — feasibility candidate-правил. Привязка к product-позиционированию (CLAUDE.md): любое предлагаемое default-правило обязано опираться на authority (Core Guidelines / Lakos / Martin) либо честно уходить в Level 4 «несомненные практики». Здесь естественные якоря — C++ Core Guidelines (флаги/state), «Make Illegal States Unrepresentable», State Pattern.
+**This is a research task, not a feature.** First prove that the problem really exists in live repositories; only then — the feasibility of candidate rules. Tie-in to product positioning (CLAUDE.md): any proposed default rule must rest on authority (Core Guidelines / Lakos / Martin) or honestly go to Level 4 "undisputed practices". Here the natural anchors are C++ Core Guidelines (flags/state), "Make Illegal States Unrepresentable", State Pattern.
 
-**Архитектурное ограничение (заложить в выводы):** извлечение bool-полей *внутри классов/структов* — это семантика тела класса, т.е. libclang-бэкенд (#042, сейчас в `future/`), а **не** быстрый include-only сканер. Часть корпус-стади можно сделать лёгкой эвристикой (grep по объявлениям полей), но честная реализация правила почти наверняка semantic-only — это прямо влияет на CI-suitability и должно попасть в feasibility-секцию.
+**Architectural constraint (build into the conclusions):** extracting bool fields *inside classes/structs* is class-body semantics, i.e. the libclang backend (#042, currently in `future/`), and **not** the fast include-only scanner. Part of the corpus study can be done with a light heuristic (grep over field declarations), but an honest rule implementation is almost certainly semantic-only — this directly affects CI-suitability and must land in the feasibility section.
 
-**Пути артефактов.** Задача (со слов постановщика) просит `reports/*.md`. В этом репо research-артефакты живут в `docs/research/` (см. `docs/research/clone_tools_landscape.md`, `cpp_cycles_report.md` и т.д.). По умолчанию класть в `docs/research/`, если пользователь явно не попросит каталог `reports/` в корне. Имена файлов сохранить как в постановке.
+**Artifact paths.** The task (per the author) asks for `reports/*.md`. In this repo research artifacts live in `docs/research/` (see `docs/research/clone_tools_landscape.md`, `cpp_cycles_report.md`, etc.). By default, put them in `docs/research/`, unless the user explicitly asks for a `reports/` directory at the root. Keep the file names as in the task.
 
-## План выполнения
+## Execution plan
 
 ### 1. Research phase → `docs/research/boolean_state_research.md`
-- [ ] Собрать источники (статьи, доклады с конференций, блог-посты, академические работы, тулинг) по темам:
+- [ ] Gather sources (articles, conference talks, blog posts, academic work, tooling) on the topics:
       Boolean Soup, Implicit State Machine, State Explosion, Make Illegal States Unrepresentable,
       Boolean Blindness, Flag Variables, Flag Arguments, State Pattern refactoring, State modeling anti-patterns.
-- [ ] Зафиксировать authority-якоря (Core Guidelines, Lakos, Martin), пригодные для атрибуции default-правила.
+- [ ] Record authority anchors (Core Guidelines, Lakos, Martin) suitable for attributing a default rule.
 
-### 2. Прототип-экстрактор (ОТДЕЛЬНЫЙ проект, НЕ в `src/` archcheck)
-Один из первых практических этапов: научиться надёжно вытаскивать структуры/классы и их bool-поля
-**до** любого корпус-анализа. Изолированный scratch-проект, в основной archcheck пока не вливать.
-- [ ] Завести отдельный проект (напр. `experiments/boolean_state/` или standalone-каталог), без связи с `src/` —
-      не трогать dogfooding/CI основного бинаря.
-- [ ] Экстрактор: на входе C++ исходники → на выходе список `{класс/структ, файл, число bool-полей, имена полей}`.
-      Зафиксировать выбор движка (libclang/AST vs grep/regex-эвристика) и его границы.
-- [ ] **Тесты экстрактора** — fixtures с известными классами/полями: вложенные/анонимные структы, `bool` в bitfield,
-      `bool x : 1`, шаблоны, `bool a, b;`, `mutable bool`, инициализаторы по умолчанию, не-bool рядом. Зелёные тесты — ворота.
-- [ ] **Eye-verification:** прогнать на пачке реальных исходников и **сверить глазами** — всё ли распознаётся
-      (ничего не пропущено, нет ложных «полей»). Зафиксировать промахи и доточить до приемлемого recall/precision
-      (методология сверки глазами — как в #067).
+### 2. Prototype extractor (SEPARATE project, NOT in archcheck's `src/`)
+One of the first practical stages: learn to reliably extract structs/classes and their bool fields
+**before** any corpus analysis. An isolated scratch project, not yet merged into the main archcheck.
+- [ ] Set up a separate project (e.g. `experiments/boolean_state/` or a standalone directory), unconnected to `src/` —
+      don't touch dogfooding/CI of the main binary.
+- [ ] Extractor: input C++ sources → output a list of `{class/struct, file, number of bool fields, field names}`.
+      Record the engine choice (libclang/AST vs grep/regex heuristic) and its limits.
+- [ ] **Extractor tests** — fixtures with known classes/fields: nested/anonymous structs, `bool` in a bitfield,
+      `bool x : 1`, templates, `bool a, b;`, `mutable bool`, default initializers, non-bool nearby. Green tests are the gate.
+- [ ] **Eye-verification:** run on a batch of real sources and **check by eye** — is everything recognized
+      (nothing missed, no false "fields"). Record misses and tune to acceptable recall/precision
+      (eyeballing methodology — as in #067).
 
-### 3. Corpus study (OSS-корпус) — на готовом экстракторе из этапа 2
-- [ ] Найти классы/структы с полями `bool ...`. Для каждого кандидата собрать: имя класса; файл; число bool-полей; имена полей.
-- [ ] Ранжировать классы по `number_of_boolean_fields`.
-- [ ] Зафиксировать FP/FN экстрактора на масштабе корпуса (отличается от точечной сверки этапа 2).
+### 3. Corpus study (OSS corpus) — on the ready extractor from stage 2
+- [ ] Find classes/structs with `bool ...` fields. For each candidate gather: class name; file; number of bool fields; field names.
+- [ ] Rank classes by `number_of_boolean_fields`.
+- [ ] Record extractor FP/FN at corpus scale (differs from the point check in stage 2).
 
 ### 4. State-likeness heuristics
-- [ ] Предложить и задокументировать эвристики разделения:
-      **state-флаги** (`started/running/paused/failed/completed/cancelled/ready/active/loaded/connected`)
-      vs **config-флаги** (`enable_logging/use_cache/allow_retry/verbose/debug`).
+- [ ] Propose and document discrimination heuristics:
+      **state flags** (`started/running/paused/failed/completed/cancelled/ready/active/loaded/connected`)
+      vs **config flags** (`enable_logging/use_cache/allow_retry/verbose/debug`).
 
 ### 5. Real-world examples → `docs/research/boolean_state_examples.md`
-- [ ] Минимум **20** примеров, где: класс содержит 3+ state-like bool; условия комбинируют несколько bool;
-      «невозможные» состояния представимы (напр. `failed && completed`, `paused && !started`).
-- [ ] По каждому кейсу — разбор (класс, файл, поля, проблемные комбинации).
+- [ ] At least **20** examples where: a class contains 3+ state-like bools; conditions combine several bools;
+      "impossible" states are representable (e.g. `failed && completed`, `paused && !started`).
+- [ ] For each case — analysis (class, file, fields, problematic combinations).
 
 ### 6. Drift simulation
-- [ ] Для отобранных примеров: N флагов → `2^N` теоретических состояний vs ожидаемое число логических состояний
-      (3→8, 4→16, 5→32 ...). Оценить зазор.
-- [ ] Вывод: может ли рост state-space служить drift-сигналом (и как его мерить во времени; связать с #048/#086/#087/#029).
+- [ ] For the selected examples: N flags → `2^N` theoretical states vs the expected number of logical states
+      (3→8, 4→16, 5→32 ...). Estimate the gap.
+- [ ] Conclusion: can state-space growth serve as a drift signal (and how to measure it over time; tie to #048/#086/#087/#029).
 
 ### 7. Tooling survey → `docs/research/tooling_survey.md`
-- [ ] Проверить, детектят ли уже implicit state machines / boolean-state growth / state explosion / flag accumulation:
-      SonarQube, Cppcheck, clang-tidy, CppDepend, Designite, PMD, академические smell-детекторы. Задокументировать gap.
+- [ ] Check whether implicit state machines / boolean-state growth / state explosion / flag accumulation are already detected by:
+      SonarQube, Cppcheck, clang-tidy, CppDepend, Designite, PMD, academic smell detectors. Document the gap.
 
 ### 8. Feasibility assessment → `docs/research/boolean_state_drift_proposal.md`
-- [ ] Предложить 1+ candidate-правил (напр. `implicit_state_machine_growth`, `boolean_state_drift`, `state_flag_accumulation`).
-- [ ] По каждому: сложность реализации; ожидаемые FP; ожидаемые FN; CI-пригодность (с учётом semantic-backend зависимости).
-- [ ] **Финальная секция: вердикт YES / NO / MAYBE** — «является ли рост boolean-state полезной и измеримой формой структурного дрейфа», с опорой на корпус-доказательства.
+- [ ] Propose 1+ candidate rules (e.g. `implicit_state_machine_growth`, `boolean_state_drift`, `state_flag_accumulation`).
+- [ ] For each: implementation complexity; expected FP; expected FN; CI-suitability (accounting for the semantic-backend dependency).
+- [ ] **Final section: YES / NO / MAYBE verdict** — "is boolean-state growth a useful and measurable form of structural drift", grounded in corpus evidence.
 
-## Сделано
+## Done
 
-- **Этап 1 (Research phase):** собрали sources & authority-якоря (Core Guidelines ES.21, Lakos, Martin State Pattern, Make Illegal States Unrepresentable). → `docs/research/boolean_state_research.md`
-- **Этап 2 (Экстрактор + тесты):** Python3 extractor (regex/AST-light). Fixtures 10 test cases ✓ all passed. Eye-verified: 100% precision (no FP on method signatures). Edge cases: bitfields, multiline, mutable, comments. → `experiments/boolean_state/`
-- **Этап 3 (Corpus Study):** 50 OSS repos, 172 structs with bools, 28 candidates (5+bools). Top examples: CPartFile (12), xradio_vif (12), Iterator (12). Statistics & TP/FP analysis. → `docs/research/boolean_state_examples.md`
-- **Этап 4 (Heuristics):** 4 rules for state-likeness (naming, interdependencies, mutual exclusivity, transitions). FP mitigation strategies documented.
-- **Этап 5 (Real-world examples):** 20+ detailed cases (CPartFile TP, ChordCombo FP, xradio_vif TP, FlatCOptions FP). Ground truth established.
-- **Этап 6 (Drift simulation):** 2^N vs expected states metric. Example: CPartFile 4096 theoretical, ~25 possible, gap = massive drift signal.
-- **Этап 7 (Tooling survey):** SonarQube, Cppcheck, clang-tidy, CppDepend, Designite checked. Gap identified: no existing tool detects boolean-state drift. → `docs/research/tooling_survey.md`
-- **Этап 8 (Feasibility):** 3 candidate rules proposed (Rule 1 v0.2, Rules 2-3 v0.3+). Rule 1 implementation complexity: L. Expected precision: 72-75%. Authority: Level 4 (Make Illegal States Unrepresentable). → `docs/research/boolean_state_drift_proposal.md`
+- **Stage 1 (Research phase):** gathered sources & authority anchors (Core Guidelines ES.21, Lakos, Martin State Pattern, Make Illegal States Unrepresentable). → `docs/research/boolean_state_research.md`
+- **Stage 2 (Extractor + tests):** Python3 extractor (regex/AST-light). Fixtures 10 test cases ✓ all passed. Eye-verified: 100% precision (no FP on method signatures). Edge cases: bitfields, multiline, mutable, comments. → `experiments/boolean_state/`
+- **Stage 3 (Corpus Study):** 50 OSS repos, 172 structs with bools, 28 candidates (5+bools). Top examples: CPartFile (12), xradio_vif (12), Iterator (12). Statistics & TP/FP analysis. → `docs/research/boolean_state_examples.md`
+- **Stage 4 (Heuristics):** 4 rules for state-likeness (naming, interdependencies, mutual exclusivity, transitions). FP mitigation strategies documented.
+- **Stage 5 (Real-world examples):** 20+ detailed cases (CPartFile TP, ChordCombo FP, xradio_vif TP, FlatCOptions FP). Ground truth established.
+- **Stage 6 (Drift simulation):** 2^N vs expected states metric. Example: CPartFile 4096 theoretical, ~25 possible, gap = massive drift signal.
+- **Stage 7 (Tooling survey):** SonarQube, Cppcheck, clang-tidy, CppDepend, Designite checked. Gap identified: no existing tool detects boolean-state drift. → `docs/research/tooling_survey.md`
+- **Stage 8 (Feasibility):** 3 candidate rules proposed (Rule 1 v0.2, Rules 2-3 v0.3+). Rule 1 implementation complexity: L. Expected precision: 72-75%. Authority: Level 4 (Make Illegal States Unrepresentable). → `docs/research/boolean_state_drift_proposal.md`
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
 1. v0.2 implementation: Rule 1 `implicit_state_machine_growth` (~100 lines, no semantic backend needed)
 2. v0.3: Rules 2-3 (semantic backend #042 dependent)
 3. Baseline integration (#016, #030): track bool-field growth over time as drift signal
 4. User feedback: gather ground truth from first rule deployment
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Research-first, без реализации правила | Сначала доказать существование проблемы в реальных репо, потом feasibility |
-| Экстрактор Python3 (не C++, не libclang сразу) | Быстрый старт & легкая отладка для прототипа; достаточно regex/AST-light для скрининга |
-| Экстрактор — отдельный проект `experiments/boolean_state/` | Изоляция: не трогать dogfooding/CI основного бинаря; позже интегрировать в корпус-pipeline |
-| Фильтрация методов: skip lines с `(` `)` | Отделить поля от параметров/сигнатур; найденная в eye-verify архcheck headers проблема |
-| Сначала экстрактор + сверка глазами, потом корпус | Нельзя мерить корпус инструментом, который не доказал, что корректно находит struct/bool |
-| Тесты & fixtures — ворота этапа 2 | Fixtures обязательны (CLAUDE.md); ✓ 10 test cases, precision=100%, готовы к corpus-study |
-| Артефакты в `docs/research/` | Конвенция репо для research-выкладок (clone_tools_landscape, cpp_cycles_report) |
-| Извлечение bool-полей классов = semantic-backend (#042) в вердикте | Прототип использует regex/simple AST; честное правило потребует libclang для тела класса — заложить в feasibility |
+| Research-first, no rule implementation | First prove the problem exists in real repos, then feasibility |
+| Python3 extractor (not C++, not libclang straight away) | Fast start & easy debugging for the prototype; regex/AST-light is enough for screening |
+| Extractor — a separate project `experiments/boolean_state/` | Isolation: don't touch dogfooding/CI of the main binary; integrate into the corpus pipeline later |
+| Method filtering: skip lines with `(` `)` | Separate fields from parameters/signatures; problem found during eye-verify of archcheck headers |
+| Extractor + eye check first, then corpus | You can't measure the corpus with a tool that hasn't proven it correctly finds struct/bool |
+| Tests & fixtures — gate of stage 2 | Fixtures are mandatory (CLAUDE.md); ✓ 10 test cases, precision=100%, ready for corpus study |
+| Artifacts in `docs/research/` | Repo convention for research write-ups (clone_tools_landscape, cpp_cycles_report) |
+| Extracting bool fields of classes = semantic backend (#042) in the verdict | Prototype uses regex/simple AST; an honest rule will require libclang for the class body — build into feasibility |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
 | `experiments/boolean_state/extractor.py` | ✓ Python3 extractor (regex/simple AST) |
 | `experiments/boolean_state/test_extractor.py` | ✓ Unit tests (10 fixtures, all passed) |
 | `experiments/boolean_state/fixtures/simple_state.h` | ✓ 10 test cases |
 | `experiments/boolean_state/FINDINGS.md` | ✓ Findings & edge case fixes |
-| `docs/research/boolean_state_research.md` | ✓ Authority-якоря & sources |
+| `docs/research/boolean_state_research.md` | ✓ Authority anchors & sources |
 | `docs/research/boolean_state_examples.md` | ✓ 20+ real-world cases (TP/FP analysis, corpus study 50 repos) |
 | `docs/research/tooling_survey.md` | ✓ Gap analysis (SonarQube, Cppcheck, clang-tidy, CppDepend, Designite) |
 | `docs/research/boolean_state_drift_proposal.md` | ✓ **FINAL VERDICT: YES** (3 rules proposed, Rule 1 v0.2 ready, implementation plan) |
 
 ## Fixtures & Tests
 
-**Этап 2 — DONE** ✓:
+**Stage 2 — DONE** ✓:
 - [x] `experiments/boolean_state/fixtures/simple_state.h` (10 test cases)
 - [x] `experiments/boolean_state/test_extractor.py` (all passed)
-- [x] Eye-verified на archcheck headers (no FP, correct filtering of methods)
+- [x] Eye-verified on archcheck headers (no FP, correct filtering of methods)
 
-**Этап 3+ (corpus study & beyond) — pending:**
+**Stage 3+ (corpus study & beyond) — pending:**
 - [ ] Corpus-wide eye-verify (random sample 100+ examples)
 - [ ] `fixtures/boolean_state_drift/pass/` (v0.2+ rule implementation)
 - [ ] `fixtures/boolean_state_drift/fail_*/` (v0.2+ rule implementation)
 
 ---
 
-## Как работает (принцип)
+## How it works (principle)
 
 ### Research methodology
-1. **Extractor phase:** Прототип-экстрактор (Python3, regex+AST-light) вытаскивает bool-поля из struct/class.
+1. **Extractor phase:** A prototype extractor (Python3, regex+AST-light) pulls bool fields from struct/class.
    - Edge cases: bitfields, multiline declarations, mutable, comments, method-filtering.
-   - Precision: 100% на known fixtures, verified on real archcheck headers.
+   - Precision: 100% on known fixtures, verified on real archcheck headers.
 
 2. **Corpus study:** 50 OSS repos → 172 structs with 1+ bools, 28 state-machine candidates (5+ bools).
    - Statistics: 1-4 bools: 87-33 structs (69%); 5+ bools: 28 structs (16% of all).
@@ -176,7 +176,7 @@
 
 ---
 
-## Чем управляется (конфиг, флаги, env vars)
+## What controls it (config, flags, env vars)
 
 ### Rule configuration (proposed for v0.2)
 ```yaml
@@ -217,7 +217,7 @@ implicit_state_machine_growth:
 
 ---
 
-## С чем связана (зависимости, модули)
+## Related to (dependencies, modules)
 
 ### Dependency tree
 - **#042 (clang_semantic_backend)** — optional for v0.3+ (Rules 2-3). Not required for v0.2 Rule 1 (regex-based).
@@ -232,7 +232,7 @@ implicit_state_machine_growth:
 
 ---
 
-## Диагностика (логи, метрики, отладка)
+## Diagnostics (logs, metrics, debugging)
 
 ### Metrics extracted
 - `num_bool_fields`: Count of boolean members per struct

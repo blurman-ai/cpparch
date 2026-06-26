@@ -1,153 +1,153 @@
-# [RESEARCH][DRIFT] Единый per-commit drift-датасет + поиск корреляций
+# [RESEARCH][DRIFT] Unified per-commit drift dataset + correlation search
 
-**Дата создания:** 2026-06-12
-**Дата старта:** 2026-06-25
-**Дата завершения:** 2026-06-25
-**Статус:** done
-**Модуль:** RESEARCH][DRIFT
-**Приоритет:** major
-**Сложность:** large
-**Блокирует:** —
-**Заблокирован:** — (датасет уже готов: `experiments/per_commit/results_full.jsonl`, 1188 реп, окно 2024-06 — см. `docs/research/agent_drift_within_repo.md`; #122 grow+measure по факту выполнен)
-**Related:** #111/#115/#117 (lateral), #103 (copypaste per-commit), #089/#090 (boolean state), #109 (lcx), #093/#094 (flag-arg/param accretion), #077 (per-commit export), #066 (докачка корпуса)
-**Примечание:** #119 зависит от ДАТАСЕТА #122 (готов), НЕ от #131. #131 (partial re-mer vendored-несущих реп) лишь уточняет их — для корреляций несущественно. Можно запускать на наличных данных; работа #119 по данным = развернуть `n_other` в lateral/coupling-колонки (сигналы уже в датасете) — см. ниже.
+**Date created:** 2026-06-12
+**Date started:** 2026-06-25
+**Date completed:** 2026-06-25
+**Status:** done
+**Module:** RESEARCH][DRIFT
+**Priority:** major
+**Difficulty:** large
+**Blocks:** —
+**Blocked by:** — (the dataset is already ready: `experiments/per_commit/results_full.jsonl`, 1188 repos, window 2024-06 — see `docs/research/agent_drift_within_repo.md`; #122 grow+measure is de facto done)
+**Related:** #111/#115/#117 (lateral), #103 (copypaste per-commit), #089/#090 (boolean state), #109 (lcx), #093/#094 (flag-arg/param accretion), #077 (per-commit export), #066 (corpus top-up)
+**Note:** #119 depends on the DATASET of #122 (ready), NOT on #131. #131 (partial re-measure of vendored load-bearing repos) only refines them — immaterial for correlations. Can be run on the data at hand; the #119 work on the data = unfold `n_other` into lateral/coupling columns (the signals are already in the dataset) — see below.
 
-## Цель
+## Goal
 
-Свести ВСЕ per-commit drift-сигналы в один датасет (**1 строка = 1 коммит**) и
-поискать кросс-сигнальные корреляции: есть ли вообще «подпись дрейф-склонного
-коммита», коррелируют ли сигналы между собой, и связано ли что-либо с agentic-
-авторством — за вычетом композиционного эффекта (#115 §8.4).
+Bring ALL per-commit drift signals into one dataset (**1 row = 1 commit**) and
+search for cross-signal correlations: does a "signature of a drift-prone
+commit" exist at all, do the signals correlate with each other, and is anything tied to agentic
+authorship — net of the compositional effect (#115 §8.4).
 
-## Контекст
+## Context
 
-Мы хотим мерить дрейф ПРИ КОММИТЕ. Написали кучу проверок, но мерили их
-**поодиночке** и на несогласованных данных/окнах. Пора прогнать всё вместе на
-одних и тех же коммитах и посмотреть, не найдётся ли корреляция.
+We want to measure drift AT COMMIT TIME. We wrote a pile of checks, but measured them
+**one at a time** and on inconsistent data/windows. It's time to run everything together on
+the same commits and see whether a correlation shows up.
 
-Главный открытый вопрос всей волны: существует ли «дрейф-склонный коммит» как
-наблюдаемое явление, и отличим ли он у агентов. По lateral отдельно (#115) per-commit
-agentic-эффекта НЕТ (композиция). Совместный прогон проверяет это на всех сигналах
-сразу + ищет, не предсказывают ли одни сигналы другие.
+The main open question of the whole wave: does a "drift-prone commit" exist as an
+observable phenomenon, and is it distinguishable for agents? On lateral alone (#115) there's
+NO per-commit agentic effect (composition). A joint run checks this on all signals
+at once + searches whether some signals predict others.
 
-## Предусловие — полный реген со всеми фичами сессии
+## Precondition — full regen with all session features
 
-Текущие jsonl/baselines/CSV сгенерены ДО фиксов и на окне 2025-05. Без регена
-сигналы считаются на грязных/разных данных:
+The current jsonl/baselines/CSV were generated BEFORE the fixes and on the 2025-05 window. Without a regen
+the signals are computed on dirty/different data:
 
-| Фича | Где | В данных сейчас |
+| Feature | Where | In the data now |
 |---|---|---|
-| #113 Apache-баннер ≠ вендор | бинарь archcheck | ❌ Apache-репы теряли ~90% файлов |
-| #114 `-test`/`testutil` фильтр | бинарь archcheck | ❌ тест-код протекал в граф |
-| #117 lateral back-edge confirm | lateral-скрипт | ✅ уже в последнем CSV |
-| 24-мес окно `--since=2024-06-01` | `generate_per_commit_graph_drift.py` | ❌ нигде |
+| #113 Apache banner ≠ vendor | archcheck binary | ❌ Apache repos lost ~90% of files |
+| #114 `-test`/`testutil` filter | archcheck binary | ❌ test code leaked into the graph |
+| #117 lateral back-edge confirm | lateral script | ✅ already in the latest CSV |
+| 24-month window `--since=2024-06-01` | `generate_per_commit_graph_drift.py` | ❌ nowhere |
 
-## План выполнения
+## Execution plan
 
-### Фаза 0a — дорастить корпус до ~1000 → **задача #122** (предусловие, решение B 2026-06-12)
-Сейчас измерительный корпус = **481** реп; рост до ~1000 вынесен в отдельную #122
-(включая разрешение конфликта shallow-границы с 24-мес окном). Растить ДО регена,
-чтобы не гнать дорогой per-commit дважды.
+### Phase 0a — grow the corpus to ~1000 → **task #122** (precondition, decision B 2026-06-12)
+The measurement corpus is currently = **481** repos; growth to ~1000 is moved out to a separate #122
+(including resolving the conflict of the shallow boundary with the 24-month window). Grow BEFORE the regen,
+so as not to run the expensive per-commit twice.
 
-### Фаза 0b — реген (предусловие)
-- [ ] Пересобрать archcheck (подхватит #113/#114).
-- [ ] Перегенерить `*_graph_drift.jsonl` всех ~1000 реп с `--since=2024-06-01`; baselines.
-      Это дорого (per-commit `archcheck --diff`, ~часы–сутки, параллелить).
+### Phase 0b — regen (precondition)
+- [ ] Rebuild archcheck (picks up #113/#114).
+- [ ] Regenerate `*_graph_drift.jsonl` for all ~1000 repos with `--since=2024-06-01`; baselines.
+      This is expensive (per-commit `archcheck --diff`, ~hours–days, parallelize).
 
-### Фаза 1 — сигналы, ключ (repo, sha)
+### Phase 1 — signals, key (repo, sha)
 - [ ] graph: `added_edges`, `removed_edges`, `grown_cycles`, `new_area_deps` (jsonl)
-- [ ] lateral: grade-флаг CYCLE/SDP/NEW (`lateral_drift_scan.py`)
+- [ ] lateral: grade flag CYCLE/SDP/NEW (`lateral_drift_scan.py`)
 - [ ] boolean: `new_bools` (`boolean_state/bool_history_scan.py`)
-- [ ] local complexity: Σ Δcomplexity, max ΔCCN, рост arity (`lcx_corpus_run/`)
-- [ ] duplication: новые клоны, введённые коммитом (#103 — если готов; иначе gap)
-- [ ] flag-args / param accretion (#093/#094) — ВКЛЮЧИТЬ если реализованы, иначе пометить пропуск (`log` дроп)
+- [ ] local complexity: Σ Δcomplexity, max ΔCCN, arity growth (`lcx_corpus_run/`)
+- [ ] duplication: new clones introduced by the commit (#103 — if ready; else gap)
+- [ ] flag-args / param accretion (#093/#094) — INCLUDE if implemented, else mark the gap (`log` drop)
 - [ ] `author_kind` (agent/human), `repo_kind`
 
-### Фаза 2 — джойн
-- [ ] Широкая таблица: `repo, sha, date, author_kind, repo_kind, <все сигналы>`.
-      Одна строка = коммит. Покрытие = коммиты, прошедшие ВСЕ семейства (intersection);
-      явно залогировать, сколько и почему выпало (не молчаливый truncation).
+### Phase 2 — join
+- [ ] Wide table: `repo, sha, date, author_kind, repo_kind, <all signals>`.
+      One row = a commit. Coverage = commits that passed ALL families (intersection);
+      explicitly log how many and why dropped (no silent truncation).
 
-### Фаза 3 — корреляционный анализ (дисциплина обязательна)
-- [ ] Парные корреляции — **Spearman**, не Pearson (распределения тяжёлохвостые).
-- [ ] **Контроль на размер коммита** (тронутые файлы/строки): почти все сигналы
-      растут с размером — это общий драйвер. Считать частную корреляцию при контроле
-      на size, иначе «всё коррелирует со всем» = артефакт.
-- [ ] **Repo fixed effects / within-repo** обязательно (иначе Симпсон — урок #115).
-      Смотреть, не тащат ли корреляцию 1–2 выброса (топ-доля вклада).
-- [ ] **Каждую заметную связь проверить поштучно** на 3–5 коммитах
-      ([[feedback_verify_each_case_over_aggregate]]) — реальна или артефакт.
-- [ ] Agentic-срез — нормированный within-repo, не пулинг (как #115).
+### Phase 3 — correlation analysis (discipline mandatory)
+- [ ] Pairwise correlations — **Spearman**, not Pearson (distributions heavy-tailed).
+- [ ] **Control for commit size** (touched files/lines): almost all signals
+      grow with size — this is a common driver. Compute partial correlation controlling
+      for size, otherwise "everything correlates with everything" = artifact.
+- [ ] **Repo fixed effects / within-repo** mandatory (otherwise Simpson — the #115 lesson).
+      Check whether 1–2 outliers carry the correlation (top-share of contribution).
+- [ ] **Verify every notable link case by case** on 3–5 commits
+      ([[feedback_verify_each_case_over_aggregate]]) — real or artifact.
+- [ ] Agentic slice — within-repo normalized, not pooled (as in #115).
 
-### Фаза 4 — отчёт
-- [ ] Корреляционная матрица; какие связи переживают (а) size-контроль (б) repo FE
-      (в) поштучную сверку. Есть ли «дрейф-подпись»? Agentic-вывод.
+### Phase 4 — report
+- [ ] Correlation matrix; which links survive (a) size control (b) repo FE
+      (c) case-by-case verification. Is there a "drift signature"? Agentic conclusion.
       → `docs/research/unified_per_commit_drift.md`.
 
-## Не делать
+## Don't do
 
-- НЕ выводить причинность из корреляции — observational, описательно/advisory.
-- НЕ показывать пулинговые корреляции без within-repo и size-контроля.
-- НЕ молча резать коммиты на джойне — логировать дроп и его причину.
+- DON'T infer causation from correlation — observational, descriptive/advisory.
+- DON'T show pooled correlations without within-repo and size control.
+- DON'T silently cut commits at the join — log the drop and its reason.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Полный реген — предусловие, не опция | Сигналы на разных окнах/грязных данных несравнимы; #113/#114 меняют граф |
-| Spearman + size-control + within-repo | Без них корреляция = артефакт размера коммита и композиции реп |
-| Поштучная верификация заметных связей | Стандарт волны drift-метрик; агрегат врёт ([[feedback_verify_each_case_over_aggregate]]) |
-| #093/#094 опциональны | Cheap-drift сигналы усилят матрицу, но не блокируют прогон |
+| Full regen — a precondition, not an option | Signals on different windows/dirty data are incomparable; #113/#114 change the graph |
+| Spearman + size-control + within-repo | Without them a correlation = artifact of commit size and repo composition |
+| Case-by-case verification of notable links | The standard of the drift-metric wave; the aggregate lies ([[feedback_verify_each_case_over_aggregate]]) |
+| #093/#094 optional | Cheap-drift signals strengthen the matrix but don't block the run |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `analysis/graph_drift/generate_per_commit_graph_drift.py` | реген с 24-мес окном (дефолт уже стоит) |
-| `experiments/ai_repo_run/unified_drift_join.py` | новый: джойн сигналов в широкую таблицу |
-| `experiments/ai_repo_run/drift_correlation.py` | новый: Spearman + size-control + within-repo + agentic |
-| `docs/research/unified_per_commit_drift.md` | отчёт: матрица + что переживает контроли |
+| `analysis/graph_drift/generate_per_commit_graph_drift.py` | regen with the 24-month window (default already set) |
+| `experiments/ai_repo_run/unified_drift_join.py` | new: join of signals into a wide table |
+| `experiments/ai_repo_run/drift_correlation.py` | new: Spearman + size-control + within-repo + agentic |
+| `docs/research/unified_per_commit_drift.md` | report: matrix + what survives the controls |
 
-## Сделано (2026-06-25 — первый полный прогон)
+## Done (2026-06-25 — first full run)
 
-**Предусловия (фазы 0-2) сняты supersession'ом:** датасет уже широкий — корпус-прогон #090
-(`results_full.boolrule.jsonl`, 517 975 ok-коммитов, 1188 реп) даёт КАЖДЫЙ drift-сигнал
-отдельной колонкой. Джойн (фаза 2) уже встроен; отдельный `unified_drift_join.py` не понадобился.
-Реген (#113/#114/окно) — данные свежие (бинарь с фильтрами, июнь-2026).
+**Preconditions (phases 0-2) removed by supersession:** the dataset is already wide — corpus run #090
+(`results_full.boolrule.jsonl`, 517,975 ok-commits, 1188 repos) gives EVERY drift signal
+as a separate column. The join (phase 2) is already built in; a separate `unified_drift_join.py` wasn't needed.
+The regen (#113/#114/window) — the data is fresh (binary with the filters, June 2026).
 
-**Фаза 3 — корреляции (`experiments/ai_repo_run/drift_correlation.py`):**
-- [x] Базовая Spearman-матрица всех сигналов.
-- [x] Контроль на размер коммита (partial Spearman, control=`added_total`).
-- [x] within-repo / repo FE (демин рангов within-repo → partial).
-- [x] Config-bag/выбросы: bool×complexity держится .12–.13 при выкидывании n_bool_field≥15/10/5/3.
-- [x] Поштучная сверка bool×complexity (6 коммитов): 5/6 — буль и сложность в одном модуле, флаг→ветвление.
-- [x] Agentic-срез within-repo size-banded sign-тест (632 репы): ни одного agent↑.
+**Phase 3 — correlations (`experiments/ai_repo_run/drift_correlation.py`):**
+- [x] Base Spearman matrix of all signals.
+- [x] Control for commit size (partial Spearman, control=`added_total`).
+- [x] within-repo / repo FE (within-repo rank demeaning → partial).
+- [x] Config-bag/outliers: bool×complexity holds at .12–.13 when dropping n_bool_field≥15/10/5/3.
+- [x] Case-by-case check of bool×complexity (6 commits): 5/6 — bool and complexity in one module, flag→branching.
+- [x] Agentic slice within-repo size-banded sign test (632 repos): not a single agent↑.
 
-**Фаза 4 — отчёт:** [docs/research/unified_per_commit_drift.md](../../docs/research/unified_per_commit_drift.md).
+**Phase 4 — report:** [docs/research/unified_per_commit_drift.md](../../docs/research/unified_per_commit_drift.md).
 
-**Вердикт:** (A) сильной «дрейф-подписи» нет, размер — универсальный драйвер; (B) горстка слабых-но-
-устойчивых структурных сцеплений переживают size+repo FE; (C) **bool_field × complexity** — устойчивое
-сцепление, подтверждённое поштучно («флаг→ветвление в том же модуле», механизм #089); (D) **agentic-
-подписи дрейфа нет** (после within-repo+size ни один сигнал не выше у агентов; с оговоркой разметки).
+**Verdict:** (A) there's no strong "drift signature", size is the universal driver; (B) a handful of weak-but-
+robust structural couplings survive size+repo FE; (C) **bool_field × complexity** — a robust
+coupling, confirmed case by case ("flag→branching in the same module", mechanism #089); (D) **there's no agentic
+drift signature** (after within-repo+size no signal is higher for agents; with the labeling caveat).
 
-**Добивка 2026-06-25 (оба follow-up закрыты):**
-- [x] `n_other` — **тождественно 0** во всех 517 975 строках (катч-олл пуст: каждый сигнал archcheck
-  в именованной колонке). Разворачивать нечего — заметка в шапке устарела под старый бинарь, где
-  bool-нарушения текли в n_other.
-- [x] **Agentic relabel sensitivity:** full-sample human↑ — артефакт разметки (необъявленный AI
-  раздувает human-ведро); в AI-насыщенных репах (agent≥30%, 356 реп) human↑ **гаснет по всем
-  сигналам**, единственный сдвиг complexity AGENT↑ (p=0.032) не выживает Bonferroni. Вывод D
-  уточнён: **робастной agentic-подписи нет**, направление зависит от классификации авторства.
-- Граница покрытия зафиксирована в отчёте без молчаливого усечения: lateral grade-флаги (#115) —
-  отдельное семейство, в advisory-выводе бинаря их нет (n_other=0), сюда не джойнились.
+**Follow-up 2026-06-25 (both follow-ups closed):**
+- [x] `n_other` — **identically 0** across all 517,975 rows (the catch-all is empty: every archcheck signal
+  is in a named column). Nothing to unfold — the note in the header is stale relative to the old binary, where
+  bool violations leaked into n_other.
+- [x] **Agentic relabel sensitivity:** full-sample human↑ — a labeling artifact (undeclared AI
+  inflates the human bucket); in AI-saturated repos (agent≥30%, 356 repos) human↑ **fades across all
+  signals**, the single complexity AGENT↑ shift (p=0.032) doesn't survive Bonferroni. Verdict D
+  refined: **there's no robust agentic signature**, the direction depends on the authorship classification.
+- The coverage boundary is locked in the report without silent truncation: lateral grade flags (#115) —
+  a separate family, not in the binary's advisory output (n_other=0), not joined in here.
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги (опционально, НЕ блокируют — задача закрыта)
+## Next steps (optional, NOT blocking — task closed)
 
-1. Доджойн lateral grade-флагов (#115 `lateral_drift_scan.py` CSV) — апгрейд матрицы графовыми
-   деталями; по lateral вывод об agentic уже есть (гибнет под repo FE), нового вряд ли даст.
-2. #134 (per-struct ИСТОРИЯ) — другая ось, отдельный «топ структур-накопителей» для constraint-decay
-   нарратива; дёшево из 10 735 bool-коммитов #090, без полного перепрогона.
+1. Join in the lateral grade flags (#115 `lateral_drift_scan.py` CSV) — an upgrade of the matrix with graph
+   detail; on lateral the agentic conclusion is already in (dies under repo FE), unlikely to give anything new.
+2. #134 (per-struct HISTORY) — a different axis, a separate "top struct accumulators" for the constraint-decay
+   narrative; cheap from the 10,735 bool-commits of #090, without a full re-run.

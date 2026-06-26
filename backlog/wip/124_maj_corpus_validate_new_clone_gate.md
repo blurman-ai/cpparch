@@ -1,158 +1,158 @@
-# [SCAN][DUPLICATION] Корпусная валидация new-clone-gate: archcheck --diff по выборке клон-коммитов
+# [SCAN][DUPLICATION] Corpus validation of the new-clone-gate: archcheck --diff over a sample of clone commits
 
-**Дата создания:** 2026-06-13
-**Дата старта:** 2026-06-14
-**Статус:** wip
-**Модуль:** SCAN][DUPLICATION
-**Приоритет:** major
-**Сложность:** medium
-**Блокирует:** —
-**Заблокирован:** #123 (нужен shipped --diff new-clone-gate + parent-guard)
-**Related:** #123 (продуктовый детектор+гейт), #103 (питон-разведка локализовала клон-коммиты → источник выборки)
-**Верификация:** #131 (Группа 2: Part B — fire-rate `DRIFT.NEW_CLONE` по всему корпусу)
+**Creation date:** 2026-06-13
+**Start date:** 2026-06-14
+**Status:** wip
+**Module:** SCAN][DUPLICATION
+**Priority:** major
+**Difficulty:** medium
+**Blocks:** —
+**Blocked by:** #123 (needs a shipped --diff new-clone-gate + parent-guard)
+**Related:** #123 (product detector+gate), #103 (the Python recon localized the clone commits → the sample's source)
+**Verification:** #131 (Group 2: Part B — fire-rate `DRIFT.NEW_CLONE` across the whole corpus)
 
-## Цель
+## Goal
 
-Получить **продуктовые** числа precision/recall для new-clone-gate, прогнав
-shipped `archcheck --diff` на **выборке реальных клон-коммитов** корпуса — а не
-питоновским MD5-детектором (#103) и не реплеем всей истории. Эти же числа идут в
-презентацию.
+Obtain **product** precision/recall numbers for the new-clone-gate by running
+the shipped `archcheck --diff` on a **sample of real clone commits** from the corpus — not
+with the Python MD5 detector (#103) and not via a replay of the whole history. These same numbers go into
+the presentation.
 
-## Почему это правильный путь (развилка «walk vs реальные PR» — ложная)
+## Why this is the right path (the "walk vs real PR" fork is a false one)
 
-Изначально казалось, что варианта два: (а) строить инкрементальный corpus-walk
-(обработать каждый коммит дёшево), либо (б) ждать реальные PR (бесконечно долго).
-**Оба не нужны.**
+At first it seemed there were two options: (a) build an incremental corpus-walk
+(process every commit cheaply), or (b) wait for real PRs (endlessly long).
+**Neither is needed.**
 
-Ключ: в CI git **сам выкладывает полный код** на диск (`actions/checkout` →
-рабочее дерево), а `archcheck --diff before..after` читает готовое дерево
-(`DiskFileSource`, current=WORKTREE) + git-объекты для parent. archcheck **не
-реконструирует слепок** — код подаётся «снаружи». Значит валидация = эмулировать
-ровно это на выборке клон-коммитов:
+Key: in CI, git itself **lays out the full code** on disk (`actions/checkout` →
+working tree), and `archcheck --diff before..after` reads the ready tree
+(`DiskFileSource`, current=WORKTREE) + git objects for the parent. archcheck **does not
+reconstruct a snapshot** — the code is fed "from outside". So validation = emulate
+exactly this on a sample of clone commits:
 
-- репы уже на диске (`~/oss`, с `.git`) → `--diff-mode=memory`
-  читает оба состояния из объектов, **без checkout**;
-- `archcheck --diff (N-1)..N` на десятках клон-коммитов = **минуты**, не десятки
-  часов;
-- обрабатывать КАЖДЫЙ коммит не нужно (нужна выборка) → инкрементальный walk
-  избыточен (YAGNI). Эксперимент 1 (`experiments/incremental_state_check.py`,
-  gitignored) доказал, что инкрементальная реконструкция состояния точна
-  (0 mismatch / 304 коммита, ~45× меньше фрагментации, DF — точный аддитивный
-  счётчик, без аппроксимации) — механизм рабочий, но для этой цели не требуется.
+- the repos are already on disk (`~/oss`, with `.git`) → `--diff-mode=memory`
+  reads both states from objects, **without checkout**;
+- `archcheck --diff (N-1)..N` over dozens of clone commits = **minutes**, not dozens of
+  hours;
+- processing EVERY commit isn't needed (a sample is needed) → the incremental walk is
+  redundant (YAGNI). Experiment 1 (`experiments/incremental_state_check.py`,
+  gitignored) proved that incremental state reconstruction is accurate
+  (0 mismatch / 304 commits, ~45× less fragmentation, DF — an exact additive
+  counter, no approximation) — the mechanism works, but isn't required for this purpose.
 
-## План выполнения
+## Execution plan
 
-- [x] Источник выборки: из #103 CSV — `gen_sample.py`, стратификация по
-      target_kind × token-bucket, 109 коммитов / 20 реп.
-- [x] Для каждого: `archcheck --diff <sha>^..<sha> --diff-mode=memory --format=json`
-      через resumable parallel runner (`run_worklist.py`), собрать `DRIFT.NEW_CLONE`
-      + все остальные категории.
-- [x] Сводка + eyeball + сверка с питоном (`analyze_sample.py`).
-- [x] Числа → `experiments/FINDINGS.md` (Part A).
+- [x] Sample source: from the #103 CSV — `gen_sample.py`, stratification by
+      target_kind × token-bucket, 109 commits / 20 repos.
+- [x] For each: `archcheck --diff <sha>^..<sha> --diff-mode=memory --format=json`
+      via a resumable parallel runner (`run_worklist.py`), collect `DRIFT.NEW_CLONE`
+      + all other categories.
+- [x] Summary + eyeball + cross-check with Python (`analyze_sample.py`).
+- [x] Numbers → `experiments/FINDINGS.md` (Part A).
 
-## Прогресс (2026-06-14)
+## Progress (2026-06-14)
 
-**Harness:** `experiments/per_commit/` (gitignored) — один тонкий runner поверх
-shipped-бинаря, ни одна проверка не переписана. `archcheck --diff` бандлит ВСЕ
-категории (граф-гейтинг + граф-дрифт + complexity + new-clone + SATD + test-coevo)
-за один вызов. Скрипты: `gen_sample.py`, `run_worklist.py`, `analyze_sample.py`,
+**Harness:** `experiments/per_commit/` (gitignored) — one thin runner over the
+shipped binary, no check rewritten. `archcheck --diff` bundles ALL
+categories (graph-gating + graph-drift + complexity + new-clone + SATD + test-coevo)
+in one call. Scripts: `gen_sample.py`, `run_worklist.py`, `analyze_sample.py`,
 `gen_full.py`, `launch_full.sh`, `status.sh`.
 
-**Валидация (#124, выборка 109 коммитов):**
-- Пайплайн надёжен: 109/109 без падений; все категории срабатывают покоммитно
-  (кроме grown-cycles — выборка клон-коммитов их не провоцирует, покрыто фикстурами).
-- new-clone fires на 17/108 eligible питоновских клон-коммитов (16%), растёт до
-  **40%** на existing_file >300 токенов — продуктовый детектор строго **чище**
-  питоновского MD5-по-6-строкам (ожидаемо).
-- Eyeball: TP подтверждён (FastLED `02274f1a5` — 10 EXACT-копий, спаны буквально
-  сверены); крупнейший silent (gtk `25c7bd54` — split/move) = корректный
-  non-detection + питоновский FP; большинство silent = diff-scope артефакты питона
-  (added=0/merge/форк-история).
-- Нашли gap: diff-**JSON** не отдаёт факт bulk-import-skip (#117) — только text.
-  Runner обходит через `git numstat`; продукту стоит положить маркер в JSON.
+**Validation (#124, sample of 109 commits):**
+- The pipeline is robust: 109/109 without crashes; all categories fire per-commit
+  (except grown-cycles — a sample of clone commits doesn't provoke them, covered by fixtures).
+- new-clone fires on 17/108 eligible Python clone commits (16%), growing to
+  **40%** on existing_file >300 tokens — the product detector is strictly **cleaner** than
+  the Python MD5-over-6-lines (as expected).
+- Eyeball: TP confirmed (FastLED `02274f1a5` — 10 EXACT copies, spans literally
+  verified); the largest silent (gtk `25c7bd54` — split/move) = a correct
+  non-detection + a Python FP; most silents = diff-scope artifacts of Python
+  (added=0/merge/fork-history).
+- Found a gap: the diff **JSON** doesn't report the bulk-import-skip fact (#117) — only text.
+  The runner works around it via `git numstat`; the product ought to put a marker in JSON.
 
-**Расширение скоупа (запрос пользователя 2026-06-14):** запущен **полнокорпусный**
-покоммитный прогон ВСЕХ проверок — 1 051 194 коммита / 1 685 реп, C++ с 2024-06,
-`--no-merges`. Detached (`setsid nohup`, 64 воркера, 120с timeout, slow-repo
-blacklist). Bottleneck = спавн процессов (CPU простаивает), не CPU/RAM. ETA полного
-прохода ~1.5–2.5 дня, resumable. Числа Part B в `experiments/FINDINGS.md`.
+**Scope expansion (user request 2026-06-14):** launched a **full-corpus**
+per-commit run of ALL checks — 1,051,194 commits / 1,685 repos, C++ since 2024-06,
+`--no-merges`. Detached (`setsid nohup`, 64 workers, 120s timeout, slow-repo
+blacklist). Bottleneck = process spawn (CPU idles), not CPU/RAM. ETA of the full
+pass ~1.5–2.5 days, resumable. Part B numbers in `experiments/FINDINGS.md`.
 
-## Свежий прогон на текущем бинаре (2026-06-20)
+## Fresh run on the current binary (2026-06-20)
 
-Прошлый full-прогон (`worklist_light`, 520177 коммитов) завершён 18.06, но на
-**старом бинаре** — до полного приземления #127/#129 (vendored/generated exclusion
-меняет набор сканируемых файлов → new-clone и graph fire-rate сдвигаются) и до
-пересборки. Старые результаты сохранены: `results_full.oldbin_20260618.jsonl`.
+The previous full run (`worklist_light`, 520177 commits) finished 18.06, but on the
+**old binary** — before the full landing of #127/#129 (vendored/generated exclusion
+changes the set of scanned files → new-clone and graph fire-rate shift) and before
+the rebuild. Old results saved: `results_full.oldbin_20260618.jsonl`.
 
-**Перезапущен начисто на HEAD `4ec4445`** (debug-бинарь, runner default):
+**Restarted from scratch on HEAD `4ec4445`** (debug binary, runner default):
 `launch_full.sh 8 60`, worklist_light (520177), detached/resumable, baloo suspended.
-Старт здоров: done растёт, все категории fire (`new_clone`/`graph_edges`/`complexity`/
-`bulk_skip`), parentless-guard 1307 skip. ETA @8w ~5.5–6.5 дн (cheapest-first →
-1000-floor рано). Мониторинг: `status.sh`; стоп: `os.killpg` PID из `run_full.pid`.
-Heavy-корпус (`worklist_heavy.tsv`, 226060) — отдельно после light.
+The start is healthy: done is growing, all categories fire (`new_clone`/`graph_edges`/`complexity`/
+`bulk_skip`), parentless-guard 1307 skip. ETA @8w ~5.5–6.5 days (cheapest-first →
+1000-floor early). Monitoring: `status.sh`; stop: `os.killpg` of the PID from `run_full.pid`.
+Heavy corpus (`worklist_heavy.tsv`, 226060) — separately after light.
 
-## Следующие шаги
+## Next steps
 
-- [ ] Дождаться покрытия корпуса, написать Part B summary (corpus-wide fire rates
-      по категориям, доля slow-repo-skip, топ-находки) — НА ТЕКУЩЕМ бинаре.
-- [x] продукт: bulk-import-skip маркер в diff-JSON (`complexity_skipped_added_lines`)
-      — сделано этой сессией (DiffJsonContext → diff_json_report.cpp, 2 e2e-теста,
-      528/528 зелёные, dogfood 0). Закрыт пункт в `backlog/DEBT.md`.
+- [ ] Wait for corpus coverage, write the Part B summary (corpus-wide fire rates
+      by category, the share of slow-repo-skip, top findings) — ON THE CURRENT binary.
+- [x] product: bulk-import-skip marker in the diff JSON (`complexity_skipped_added_lines`)
+      — done this session (DiffJsonContext → diff_json_report.cpp, 2 e2e tests,
+      528/528 green, dogfood 0). Closed the item in `backlog/DEBT.md`.
 
-## Операционка длинного прогона (важно для resume)
+## Operations of the long run (important for resume)
 
-- Запуск/resume: `bash experiments/per_commit/launch_full.sh [workers] [timeout]`
-  (дефолт **8 воркеров**, 60с — машина юзера, не переподписывать ядра, см.
+- Launch/resume: `bash experiments/per_commit/launch_full.sh [workers] [timeout]`
+  (default **8 workers**, 60s — the user's machine, don't oversubscribe cores, see
   [[project_archcheck_diff_git_orphans]]).
-- Статус: `bash experiments/per_commit/status.sh`. Стоп: `os.killpg` PID из
-  `run_full.pid` + добить archcheck/git по PID (pkill заблокирован).
-- На время прогона: `balooctl suspend` (транзиентный, может возобновиться; при
-  ≤8 воркерах безвреден). `--diff-mode=memory` не делает checkout → oss-деревья
-  на диске не меняются.
-- ETA полного прохода @8w ~10–11 дней (throughput ~1.1/с); resumable, 347 медленных
-  реп уже преблокированы.
+- Status: `bash experiments/per_commit/status.sh`. Stop: `os.killpg` of the PID from
+  `run_full.pid` + finish off archcheck/git by PID (pkill is blocked).
+- During the run: `balooctl suspend` (transient, may resume; at
+  ≤8 workers it's harmless). `--diff-mode=memory` doesn't do a checkout → the oss trees
+  on disk don't change.
+- ETA of the full pass @8w ~10–11 days (throughput ~1.1/s); resumable, 347 slow
+  repos already pre-blocked.
 
-## Нюанс для реального CI (для #123 Ступень 2)
+## Nuance for real CI (for #123 Stage 2)
 
-`actions/checkout` по умолчанию **shallow (fetch-depth: 1)** — parent-блоб
-недоступен, diff пустой. В workflow нужен `fetch-depth: 2` (PR) или `0` (push на
-диапазон). Зафиксировать в примере workflow.
+`actions/checkout` by default is **shallow (fetch-depth: 1)** — the parent blob is
+unavailable, the diff is empty. In the workflow you need `fetch-depth: 2` (PR) or `0` (push on
+a range). Lock this down in the example workflow.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Выборка клон-коммитов, не вся история | для валидации/чисел репрезентативной выборки достаточно; реплей всей истории — десятки часов впустую |
-| `--diff-mode=memory` (из `.git`, без checkout) | репы уже на диске; не плодим worktree-материализации на каждый коммит |
-| Продуктовый `archcheck --diff`, не питон | питоновский MD5-детектор ≠ shipped токеновый; числа должны быть продуктовыми |
-| Инкрементальный walk отменён | нужна выборка, не каждый коммит → механизм избыточен (доказан рабочим, но не нужен) |
+| A sample of clone commits, not the whole history | for validation/numbers a representative sample is enough; replaying the whole history — dozens of hours wasted |
+| `--diff-mode=memory` (from `.git`, no checkout) | the repos are already on disk; don't proliferate worktree materializations per commit |
+| The product `archcheck --diff`, not Python | the Python MD5 detector ≠ the shipped token one; the numbers must be product numbers |
+| Incremental walk canceled | a sample is needed, not every commit → the mechanism is redundant (proven working, but not needed) |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `experiments/` (gitignored) | скрипт-обёртка: выборка → `archcheck --diff` per-commit → сводка |
-| `experiments/FINDINGS.md` | продуктовые числа new-clone-gate на корпусе |
-| `src/git/git_object_file_source.cpp`, `.h` | **фикс empty-blob десинка** (ждёт `/commit`) |
-| `tests/unit/git/git_object_file_source_test.cpp` | тест: пустой блоб не десинкает batch |
+| `experiments/` (gitignored) | wrapper script: sample → `archcheck --diff` per-commit → summary |
+| `experiments/FINDINGS.md` | product numbers of the new-clone-gate on the corpus |
+| `src/git/git_object_file_source.cpp`, `.h` | **empty-blob desync fix** (awaits `/commit`) |
+| `tests/unit/git/git_object_file_source_test.cpp` | test: an empty blob doesn't desync the batch |
 
-## Автономный длинный прогон + 2 бага (2026-06-14)
+## Autonomous long run + 2 bugs (2026-06-14)
 
-Длинный покоммитный прогон всего корпуса (1200 дешёвых реп, 520k коммитов, все
-категории, memory-режим) выявил **два бага корректности**, оба пойманы скептик-проверкой
-до показа чисел:
+The long per-commit run of the whole corpus (1200 cheap repos, 520k commits, all
+categories, memory mode) revealed **two correctness bugs**, both caught by the skeptic-check
+before showing the numbers:
 
-1. **Беспарентные коммиты (артефакт харнесса).** Корпус склонирован shallow → граничный
-   коммит беспарентный → `archcheck --diff sha^..sha` дифит против пустого дерева → весь
-   репозиторий «добавлен» → ~50-62% граф-находок фейковые. Фикс: skip беспарентных
-   (`--min-parents=1` + precompute-guard в раннере). Леджер вычищен.
+1. **Parentless commits (a harness artifact).** The corpus is cloned shallow → the boundary
+   commit is parentless → `archcheck --diff sha^..sha` diffs against an empty tree → the whole
+   repository is "added" → ~50-62% of graph findings are fake. Fix: skip parentless
+   (`--min-parents=1` + a precompute-guard in the runner). The ledger was cleaned out.
 
-2. **empty-blob десинк (баг ПРОДУКТА, dogfooding).** `GitObjectFileSource::read()` на
-   0-байтном блобе не вычитывал хвостовой `\n` от `cat-file --batch` → сдвиг потока →
-   битый include-граф в memory-режиме (memory 102/118/3 vs disk 0/0/0 на коммите, не
-   трогавшем циклические файлы). Фикс: `parseBlobSize` → `optional<size_t>`. Verified
-   memory==disk на 3 коммитах, 530/530, +юнит-тест. **Ждёт `/commit`** (продуктовое).
+2. **empty-blob desync (a PRODUCT bug, dogfooding).** `GitObjectFileSource::read()` on a
+   0-byte blob didn't read out the trailing `\n` from `cat-file --batch` → stream shift →
+   a corrupted include graph in memory mode (memory 102/118/3 vs disk 0/0/0 on a commit that
+   didn't touch cyclic files). Fix: `parseBlobSize` → `optional<size_t>`. Verified
+   memory==disk on 3 commits, 530/530, +unit test. **Awaits `/commit`** (product).
 
-Прогон перезапущен начисто с обоими фиксами. Граф-категории теперь надёжны; числа — после
-накопления. Доказательства: `experiments/FINDINGS.md` (Part B, fix #1/#2); открытые
-продуктовые вопросы: `backlog/DEBT.md` (silent empty-baseline; graph vs bulk-гейт).
+The run was restarted from scratch with both fixes. Graph categories are now reliable; the
+numbers — after accumulation. Evidence: `experiments/FINDINGS.md` (Part B, fix #1/#2); open
+product questions: `backlog/DEBT.md` (silent empty-baseline; graph vs bulk-gate).

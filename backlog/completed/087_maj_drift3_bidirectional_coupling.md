@@ -1,102 +1,102 @@
-# [RULES][DRIFT] DRIFT.3 — bidirectional area coupling (взаимная связность)
+# [RULES][DRIFT] DRIFT.3 — bidirectional area coupling (mutual connectivity)
 
-**Дата создания:** 2026-06-06
-**Дата старта:** 2026-06-06
-**Дата завершения:** 2026-06-06
-**Статус:** completed
-**Модуль:** RULES/DRIFT + GRAPH
-**Приоритет:** major
-**Сложность:** L
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #009 (DRIFT-правила), #082 (alignment umbrella), [docs/research/drift_signal_validation.md](../../docs/research/drift_signal_validation.md) (corpus-доказательство)
+**Created:** 2026-06-06
+**Started:** 2026-06-06
+**Completed:** 2026-06-06
+**Status:** completed
+**Module:** RULES/DRIFT + GRAPH
+**Priority:** major
+**Complexity:** L
+**Blocks:** —
+**Blocked by:** —
+**Related:** #009 (DRIFT rules), #082 (alignment umbrella), [docs/research/drift_signal_validation.md](../../docs/research/drift_signal_validation.md) (corpus proof)
 
-## Цель
+## Goal
 
-Добавить узкое правило DRIFT.3, ловящее **появление взаимной зависимости между
-модулями/областями на АГРЕГАТНОМ уровне** — когда модуль `A` начинает зависеть от
-модуля `B`, при том что `B` уже зависит от `A`, **но через разные файлы**, так что
-циклического include-пути НЕТ.
+Add a narrow rule DRIFT.3 that catches the **appearance of a mutual dependency between
+modules/areas at the AGGREGATE level** — when module `A` starts depending on
+module `B`, while `B` already depends on `A`, **but through different files**, so that
+there is NO cyclic include path.
 
-### Чем это НЕ DRIFT.2 (важно — иначе правило редундантно)
+### How this is NOT DRIFT.2 (important — otherwise the rule is redundant)
 
-На уровне файлов/компонент `A→B` + `B→A` = 2-node цикл, и его **уже ловят SF.9 /
-DRIFT.2**. DRIFT.3 — строго про **area/module-уровень**: разные файлы в каждом модуле
-(`hal/gpio.h → ui/x.h` и `ui/btn.cpp → hal/gpio.h`) дают взаимную зависимость модулей
-`hal ↔ ui` **без** циклического include. Это Lakos «не-levelizable design»: модули
-нельзя собрать/тестировать раздельно, хотя ни один компонент не в цикле.
+At the file/component level `A→B` + `B→A` = a 2-node cycle, and it is **already caught by SF.9 /
+DRIFT.2**. DRIFT.3 is strictly about the **area/module level**: different files in each module
+(`hal/gpio.h → ui/x.h` and `ui/btn.cpp → hal/gpio.h`) produce a mutual dependency of modules
+`hal ↔ ui` **without** a cyclic include. This is Lakos "non-levelizable design": the modules
+can't be built/tested separately, even though no component is in a cycle.
 
-**DRIFT.3 обязан НЕ перекрывать DRIFT.2:** если взаимность образует реальный
-file-cycle — это домен DRIFT.2, DRIFT.3 молчит (не двойной репорт).
+**DRIFT.3 must NOT overlap DRIFT.2:** if the mutuality forms a real
+file-cycle — that's DRIFT.2's domain, DRIFT.3 stays silent (no double report).
 
-## Обоснование (данными)
+## Rationale (by data)
 
-Corpus-валидация ([drift_signal_validation.md](../../docs/research/drift_signal_validation.md)):
-из 1903 cross-area событий **294 (15%) — bidirectional `A↔B`**, и это **реальный
-actionable-сигнал** (в отличие от сырой cross-area, где ~50% — норма). Примеры из
-корпуса: `src/hal ↔ src/ui` (HAL не должен взаимно зависеть от UI), `Source/Game ↔
-Source/Renderer`, `core ↔ inspect`, `editor ↔ engine`. Узкие правила DRIFT.1/DRIFT.2
-этот класс сейчас НЕ покрывают.
+Corpus validation ([drift_signal_validation.md](../../docs/research/drift_signal_validation.md)):
+of 1903 cross-area events, **294 (15%) are bidirectional `A↔B`**, and this is a **real
+actionable signal** (unlike raw cross-area, where ~50% is normal). Examples from
+the corpus: `src/hal ↔ src/ui` (HAL must not mutually depend on UI), `Source/Game ↔
+Source/Renderer`, `core ↔ inspect`, `editor ↔ engine`. The narrow rules DRIFT.1/DRIFT.2
+currently do NOT cover this class.
 
-**Доказательство не-редундантности с DRIFT.2 (corpus):** из **65 коммитов** с
-bidirectional area-парой только **9** имели реальный file-cycle (`grown_cycles>0`,
-уже пойманы DRIFT.2). Остальные **56 (86%)** — `grown_cycles==0`: взаимная связь
-модулей через разные файлы, без циклического include → **DRIFT.2 их пропускает**.
-Значит DRIFT.3 ловит 56 коммитов, которые DRIFT.2 не видит. (Перепроверяемо:
-скрипт в `experiments/ai_repo_run/*_graph_drift.jsonl`, фильтр bidirectional ∧ grown_cycles==0.)
+**Proof of non-redundancy with DRIFT.2 (corpus):** of **65 commits** with
+a bidirectional area-pair only **9** had a real file-cycle (`grown_cycles>0`,
+already caught by DRIFT.2). The remaining **56 (86%)** are `grown_cycles==0`: mutual coupling
+of modules through different files, without a cyclic include → **DRIFT.2 misses them**.
+So DRIFT.3 catches 56 commits that DRIFT.2 doesn't see. (Reproducible:
+script in `experiments/ai_repo_run/*_graph_drift.jsonl`, filter bidirectional ∧ grown_cycles==0.)
 
-## Что нужно
+## What's needed
 
-1. Определить «область» (area) для графа. **ПЕРЕД правилом** — починить area-detection:
-   - не считать `src↔include` cross-area (заголовки своей же области);
-   - исключить build/output/vendor/test/generated-каталоги;
-   - не плодить fantom-деп от переименований каталогов.
-   (Без этого DRIFT.3 утонет в шуме — см. валидацию.)
-2. Реализовать DRIFT.3: новое ребро `A → B`, когда в baseline уже есть путь `B → A`
-   на уровне областей → bidirectional coupling. Один класс = один файл (OCP).
-3. Решить режим: advisory (репорт) vs gate. Рекомендация — стартовать **advisory**,
-   поднять до gate после прогона по корпусу и замера precision (как DRIFT.2).
+1. Define an "area" for the graph. **BEFORE the rule** — fix area-detection:
+   - don't count `src↔include` as cross-area (headers of the same area);
+   - exclude build/output/vendor/test/generated directories;
+   - don't spawn phantom deps from directory renames.
+   (Without this DRIFT.3 will drown in noise — see the validation.)
+2. Implement DRIFT.3: a new edge `A → B`, when the baseline already has a path `B → A`
+   at the area level → bidirectional coupling. One class = one file (OCP).
+3. Decide the mode: advisory (report) vs gate. Recommendation — start **advisory**,
+   raise to gate after a corpus run and a precision measurement (like DRIFT.2).
 4. Fixtures: `fixtures/drift_bidirectional/pass|fail_*`.
 
 ## Acceptance criteria
 
-- [x] Area-detection не даёт `src↔include`/build/vendor/rename ложных cross-area.
-- [x] DRIFT.3 ловит появление `A↔B` и НЕ срабатывает на однонаправленных `→base`.
-- [x] **DRIFT.3 НЕ дублирует DRIFT.2:** если взаимность = file-cycle, репортит только DRIFT.2.
-- [x] Fixtures: есть кейс «area-coupling без file-cycle» (DRIFT.3 fires, DRIFT.2 молчит) и «file-cycle» (наоборот).
-- [x] Fixtures pass/fail; правило — отдельный класс/файл.
-- [x] Прогон по корпусу: DRIFT.3 провалидирован на реальном коммите; решение — **advisory** (как DRIFT.1/.2 сейчас), gate-вопрос отдельно.
+- [x] Area-detection doesn't produce `src↔include`/build/vendor/rename false cross-area.
+- [x] DRIFT.3 catches the appearance of `A↔B` and does NOT fire on unidirectional `→base`.
+- [x] **DRIFT.3 does NOT duplicate DRIFT.2:** if the mutuality = file-cycle, it reports only DRIFT.2.
+- [x] Fixtures: there's a case "area-coupling without file-cycle" (DRIFT.3 fires, DRIFT.2 silent) and "file-cycle" (vice versa).
+- [x] Fixtures pass/fail; the rule is a separate class/file.
+- [x] Corpus run: DRIFT.3 validated on a real commit; decision — **advisory** (like DRIFT.1/.2 currently), gate question separate.
 
-## Заметки
+## Notes
 
-- Это **не** «cross-area gate» (тот ~50% FP, не делаем). DRIFT.3 узкий — только bidirectional.
-- Реюзать граф/levelization из существующего `graph/` слоя, не строить новый движок.
+- This is **not** a "cross-area gate" (that's ~50% FP, we don't do it). DRIFT.3 is narrow — bidirectional only.
+- Reuse the graph/levelization from the existing `graph/` layer, don't build a new engine.
 
-## Как сделано + validation (2026-06-06)
+## How it was done + validation (2026-06-06)
 
-**Реализация** (один класс = один файл, OCP):
+**Implementation** (one class = one file, OCP):
 - `include/archcheck/rules/drift_bidirectional_coupling.h` + `src/rules/drift_bidirectional_coupling.cpp`
-  — класс `DriftBidirectionalCoupling`, id `DRIFT.3`. Подключён в `makeDriftRuleSet`
-  (после DRIFT.1, до DRIFT.2) и в `src/CMakeLists.txt`.
-- **area-функция:** первый сегмент пути после strip wrapper-каталогов (`src/include/lib/..`),
-  игнор build/vendor/test/generated → `src↔include` и шум не считаются cross-area.
-- **семантика:** DRIFT.3 fires, когда после диффа модули A и B зависят друг от друга
-  (`A→B` и `B→A` на area-уровне), а в baseline мутуальными НЕ были. Исключает прямой
-  two-file cycle (`hasEdge(to,from)`) — это домен DRIFT.2.
+  — class `DriftBidirectionalCoupling`, id `DRIFT.3`. Wired into `makeDriftRuleSet`
+  (after DRIFT.1, before DRIFT.2) and into `src/CMakeLists.txt`.
+- **area function:** the first path segment after stripping wrapper directories (`src/include/lib/..`),
+  ignoring build/vendor/test/generated → `src↔include` and noise are not counted as cross-area.
+- **semantics:** DRIFT.3 fires when, after the diff, modules A and B depend on each other
+  (`A→B` and `B→A` at the area level), and were NOT mutual in the baseline. Excludes a direct
+  two-file cycle (`hasEdge(to,from)`) — that's DRIFT.2's domain.
 
-**Важная коррекция при прогоне (born-coupled vs incremental):** первая версия требовала,
-чтобы обратное ребро `B→A` уже было в baseline (только инкрементальная эрозия). Прогон
-по pulp показал, что коммит «Add plugin inspector» добавил **обе** стороны разом (модуль
-родился связанным) — и правило молчало. Переписал на «мутуальность есть СЕЙЧАС и не было
-в baseline» → ловит и incremental, и born-coupled.
+**Important correction during the run (born-coupled vs incremental):** the first version required
+that the reverse edge `B→A` already be in the baseline (only incremental erosion). The run
+on pulp showed that the commit "Add plugin inspector" added **both** sides at once (the module
+was born coupled) — and the rule stayed silent. Rewrote it to "mutuality exists NOW and didn't exist
+in the baseline" → catches both incremental and born-coupled.
 
 **Fixtures** (`fixtures/drift_bidirectional/`): `fail_new_coupling` (core↔ui → DRIFT.3),
-`pass_one_directional` (однонаправленно → молчит), `pass_file_cycle` (two-file cycle →
-DRIFT.3 молчит, DRIFT.2 fires). Тесты в `drift_fixtures_test.cpp`.
+`pass_one_directional` (unidirectional → silent), `pass_file_cycle` (two-file cycle →
+DRIFT.3 silent, DRIFT.2 fires). Tests in `drift_fixtures_test.cpp`.
 
-**Боевой прогон:** `danielraffel/pulp` @ `705f86e` («Add plugin inspector») — archcheck
-выдал `[DRIFT.3] bidirectional module coupling: 'core' <-> 'inspect'` (совпало с тем,
-что python-проба отметила как bidirectional), рядом DRIFT.1 ×2 + GodHeader. Прогон 60
-старых коммитов pulp: 0 ложных DRIFT.3 (не спамит).
+**Live run:** `danielraffel/pulp` @ `705f86e` ("Add plugin inspector") — archcheck
+emitted `[DRIFT.3] bidirectional module coupling: 'core' <-> 'inspect'` (matched what
+the python probe flagged as bidirectional), alongside DRIFT.1 ×2 + GodHeader. A run of 60
+old pulp commits: 0 false DRIFT.3 (no spam).
 
-**Gate:** clang-format/cppcheck/lizard чисто, 347 тестов (+3 DRIFT.3), coverage 95.6/57.1 — PASS.
+**Gate:** clang-format/cppcheck/lizard clean, 347 tests (+3 DRIFT.3), coverage 95.6/57.1 — PASS.

@@ -1,213 +1,213 @@
-# [DOCS] Sync roadmap/MVP/spec/ADR с реальным скоупом v0.1/v0.2
+# [DOCS] Sync roadmap/MVP/spec/ADR with the real scope of v0.1/v0.2
 
-**Дата создания:** 2026-05-29
-**Дата старта:** 2026-06-11
-**Дата завершения:** 2026-06-11
-**Статус:** completed
-**Модуль:** DOCS
-**Приоритет:** major
-**Сложность:** M (1–2 дня; MVP.md проще переписать с нуля)
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #6 (gh — audit Issues 3, 4, 5, 9), #028 (rules_engine_mvp — решение про config→v0.2), #006 (spec_refactor — fast-backend default), #044 (docs_readme_sync_shipped — внешний срез той же синхронизации)
+**Created:** 2026-05-29
+**Started:** 2026-06-11
+**Completed:** 2026-06-11
+**Status:** completed
+**Module:** DOCS
+**Priority:** major
+**Complexity:** M (1–2 days; MVP.md is easier to rewrite from scratch)
+**Blocks:** —
+**Blocked by:** —
+**Related:** #6 (gh — audit Issues 3, 4, 5, 9), #028 (rules_engine_mvp — the decision about config→v0.2), #006 (spec_refactor — fast-backend default), #044 (docs_readme_sync_shipped — the external slice of the same synchronization)
 
-## Цель
+## Goal
 
-Привести `docs/MVP.md`, `docs/architecture-spec.md` и логику decisions-доков к фактически принятому скоупу: config-правила и SF.21 отложены в v0.2 (#028), fast-backend — дефолт в v0.1 (#006), drift/git уже шипятся. Зафиксировать решения отдельно от backlog/completed, чтобы их видели читатели и агенты.
+Bring `docs/MVP.md`, `docs/architecture-spec.md` and the logic of the decisions docs into line with the actually accepted scope: config rules and SF.21 deferred to v0.2 (#028), fast-backend is the default in v0.1 (#006), drift/git already ships. Record the decisions separately from backlog/completed, so that readers and agents can see them.
 
-## Контекст
+## Context
 
-Аудит #6 показал четыре пересекающихся расхождения между документами и реальностью. Сам факт, что аудит долго не находил решение #028 (оно спрятано в `backlog/completed/`), — отдельный сигнал: deferral-решения должны быть видны там, где живёт роадмап, а не в архиве задач.
+Audit #6 showed four overlapping discrepancies between the documents and reality. The very fact that the audit took a long time to find decision #028 (it's hidden in `backlog/completed/`) is itself a signal: deferral decisions should be visible where the roadmap lives, not in the task archive.
 
-### Issue 3 — `docs/MVP.md` описывает отвергнутый pre-#006 дизайн
+### Issue 3 — `docs/MVP.md` describes the rejected pre-#006 design
 
-`docs/MVP.md` предшествует рефакторингу #006 и решению #028. Описывает архитектуру, которая отвергнута:
-- Core Feature #1 = «`compile_commands.json` support», но #006 сделал препроцессорный fast-backend дефолтом и отложил libclang/`compile_commands` в v0.2.
-- #4 Module Mapping и #5 Dependency Rules как core MVP — отложены в v0.2 (#028).
-- Acceptance: «enforces 1 dependency rule»; Success: `archcheck check --config arch.yaml` — ничего из шипящегося zero-config продукта.
+`docs/MVP.md` predates the #006 refactoring and the #028 decision. It describes an architecture that has been rejected:
+- Core Feature #1 = "`compile_commands.json` support", but #006 made the preprocessor fast-backend the default and deferred libclang/`compile_commands` to v0.2.
+- #4 Module Mapping and #5 Dependency Rules as core MVP — deferred to v0.2 (#028).
+- Acceptance: "enforces 1 dependency rule"; Success: `archcheck check --config arch.yaml` — none of which is in the shipping zero-config product.
 
-Документ протух end-to-end. Дешевле переписать с нуля (или удалить и сложить в `architecture-spec.md`), чем патчить по строкам.
+The document is stale end-to-end. It's cheaper to rewrite from scratch (or delete it and fold it into `architecture-spec.md`) than to patch it line by line.
 
-### Issue 4 — `architecture-spec.md` roadmap всё ещё пишет config+SF.21 в v0.1
+### Issue 4 — the `architecture-spec.md` roadmap still puts config+SF.21 in v0.1
 
-- Строка 636: «YAML-конфиг: `forbidden_deps` / `allowed_deps`» как v0.1 core — отложено в v0.2 (#028).
-- Строка 163: SF.21 (approx text-scan) как v0.1 — отложено в v0.2 (#028); нет реализации.
-- Строка 408 называет modules + `forbidden_deps`/`allowed_deps` «the thing users install archcheck for» — headline-фича, которая отложена. Спек фреймит отложенную фичу как core reason-to-exist.
+- Line 636: "YAML config: `forbidden_deps` / `allowed_deps`" as v0.1 core — deferred to v0.2 (#028).
+- Line 163: SF.21 (approx text-scan) as v0.1 — deferred to v0.2 (#028); no implementation.
+- Line 408 calls modules + `forbidden_deps`/`allowed_deps` "the thing users install archcheck for" — a headline feature that has been deferred. The spec frames the deferred feature as the core reason-to-exist.
 
-### Issue 5 — Config→v0.2 решение похоронено в completed-таске
+### Issue 5 — the Config→v0.2 decision is buried in a completed task
 
-Обоснование живёт только в `backlog/completed/028_maj_rules_engine_mvp.md` (line 18 + decisions). Не выведено ни в roadmap, ни в `architecture-spec.md`, ни в `CLAUDE.md`. Читатель/агент, сравнивающий код с роадмапом, повторно выводит «core feature missing» — аудит сам в это попался.
+The justification lives only in `backlog/completed/028_maj_rules_engine_mvp.md` (line 18 + decisions). It is not surfaced in the roadmap, nor in `architecture-spec.md`, nor in `CLAUDE.md`. A reader/agent comparing the code against the roadmap re-derives "core feature missing" — the audit itself fell into this.
 
-### Issue 9 — Roadmap занижает поставленный прогресс
+### Issue 9 — the roadmap understates the delivered progress
 
-DRIFT.1/2 расписаны в v0.3, но drift-правила уже шипятся (`src/rules/drift_no_cycle_growth.cpp`, `drift_no_shortcut_edge.cpp`) вместе с инфраструктурой git/diff/graph-baseline (#009, #015–018, #022–025). Роадмап протух в обе стороны: drift приехал раньше, v0.1 config-headline так и не приехал (by design).
+DRIFT.1/2 are written up in v0.3, but the drift rules already ship (`src/rules/drift_no_cycle_growth.cpp`, `drift_no_shortcut_edge.cpp`) along with the git/diff/graph-baseline infrastructure (#009, #015–018, #022–025). The roadmap is stale in both directions: drift arrived earlier, while the v0.1 config headline never arrived (by design).
 
-## План выполнения
+## Execution plan
 
 ### MVP.md (Issue 3)
-- [ ] Принять решение: переписать с нуля или удалить и сложить в `architecture-spec.md`. По умолчанию — переписать.
-- [ ] Новый `docs/MVP.md` декларирует: zero-config intrinsic rules, fast-backend only, no `compile_commands` required, config + AST rules = v0.2.
-- [ ] Acceptance criteria и Success Condition отражают `archcheck [path]`, не `archcheck check --config`.
+- [ ] Make a decision: rewrite from scratch or delete and fold into `architecture-spec.md`. Default — rewrite.
+- [ ] The new `docs/MVP.md` declares: zero-config intrinsic rules, fast-backend only, no `compile_commands` required, config + AST rules = v0.2.
+- [ ] Acceptance criteria and Success Condition reflect `archcheck [path]`, not `archcheck check --config`.
 
 ### architecture-spec.md (Issues 4 + 9)
-- [ ] Удалить «YAML-конфиг: forbidden_deps/allowed_deps» из v0.1, перенести в v0.2 (строка 636).
-- [ ] Переместить SF.21 из v0.1 в v0.2 в таблице правил (строка 163).
-- [ ] Разрулить «headline value» противоречие (строка 408): зафиксировать, что v0.1 = intrinsic-ценность (cycles, god-headers, chains), а config-contract headline уезжает в v0.2.
-- [ ] Подтянуть drift/git в роадмап как «delivered in v0.1 (pulled forward from v0.3)» — таски #015–018, #022–025, #009.
+- [ ] Remove "YAML config: forbidden_deps/allowed_deps" from v0.1, move it to v0.2 (line 636).
+- [ ] Move SF.21 from v0.1 to v0.2 in the rules table (line 163).
+- [ ] Resolve the "headline value" contradiction (line 408): record that v0.1 = intrinsic value (cycles, god-headers, chains), and the config-contract headline moves to v0.2.
+- [ ] Pull drift/git into the roadmap as "delivered in v0.1 (pulled forward from v0.3)" — tasks #015–018, #022–025, #009.
 
 ### ADR / decisions (Issue 5)
-- [ ] Решить место: `docs/decisions/` (ADR per file) или секция `## Принятые решения` в `architecture-spec.md`. По умолчанию — отдельная папка `docs/decisions/`, легче расширять.
-- [ ] ADR-001 «config rules → v0.2» (entry barrier, zero-config adoption, ссылка на #028).
-- [ ] ADR-002 «SF.21 → v0.2» (требует libclang; text-scan ненадёжен, ссылка на #028 и #042).
-- [ ] ADR-003 «compile_commands optional, fast backend default» (#006).
-- [ ] Линк из `CLAUDE.md` § «Design docs» на `docs/decisions/`, чтобы агенты видели.
+- [ ] Decide the place: `docs/decisions/` (ADR per file) or a `## Accepted decisions` section in `architecture-spec.md`. Default — a separate `docs/decisions/` folder, easier to extend.
+- [ ] ADR-001 "config rules → v0.2" (entry barrier, zero-config adoption, link to #028).
+- [ ] ADR-002 "SF.21 → v0.2" (requires libclang; text-scan is unreliable, link to #028 and #042).
+- [ ] ADR-003 "compile_commands optional, fast backend default" (#006).
+- [ ] A link from `CLAUDE.md` § "Design docs" to `docs/decisions/`, so that agents see it.
 
-## Критерий приёмки
+## Acceptance criterion
 
-- Любое правило / фича упомянуто ровно в одной фазе роадмапа (нет конфликтующих статусов).
-- Решения про deferral discoverable из спека и `CLAUDE.md` без чтения `backlog/completed/`.
-- `MVP.md` соответствует тому, что реально шипится сегодня.
+- Any rule / feature is mentioned in exactly one roadmap phase (no conflicting statuses).
+- The deferral decisions are discoverable from the spec and `CLAUDE.md` without reading `backlog/completed/`.
+- `MVP.md` matches what is really shipping today.
 
-## Сделано
+## Done
 
-- **2026-06-11** (срез по запросу владельца — актуализация MVP):
-  - `docs/MVP.md` переписан с нуля: zero-config критерии приёмки (9 пунктов с фактическими
-    статусами), non-goals со ссылками на решения, success condition = 4 команды без YAML,
-    секция «Why these criteria» с evidence из исследования. «enforces 1 dependency rule»
-    убран как противоречащий решению #028.
-  - Создана `docs/decisions/`: ADR-001 (config→v0.2, усилен данными 2026-06: Figma/Chrome
-    прецедент, JetBrains 30% без анализа), ADR-002 (SF.21→v0.2), ADR-003 (fast backend
-    default, числа спайка #043 + clang-tidy/clangd референсы).
-  - architecture-spec: «конфиг — то, ради чего ставят archcheck» (Issue 4, бывш. стр. 408)
-    переформулирован как v0.2-headline со ссылкой на ADR-001. SF.21 (стр. 173) и roadmap
-    drift pull-forward были закрыты ранее правками v2.2 (2026-06-11).
-  - README: статус-строка ссылается на ADR-001 и MVP.md; открытый release-итем = #105.
-  - CLAUDE.md: ссылка на docs/decisions/ в Design docs («сверяйся перед объявлением гэпа»).
+- **2026-06-11** (a slice on the owner's request — bringing MVP up to date):
+  - `docs/MVP.md` rewritten from scratch: zero-config acceptance criteria (9 items with actual
+    statuses), non-goals with links to the decisions, success condition = 4 commands without YAML,
+    a "Why these criteria" section with evidence from the research. "enforces 1 dependency rule"
+    removed as contradicting decision #028.
+  - Created `docs/decisions/`: ADR-001 (config→v0.2, reinforced with 2026-06 data: the Figma/Chrome
+    precedent, JetBrains 30% without analysis), ADR-002 (SF.21→v0.2), ADR-003 (fast backend
+    default, the spike numbers from #043 + clang-tidy/clangd references).
+  - architecture-spec: "config — the thing users install archcheck for" (Issue 4, formerly line 408)
+    reformulated as a v0.2 headline with a link to ADR-001. SF.21 (line 173) and the roadmap
+    drift pull-forward were closed earlier by the v2.2 edits (2026-06-11).
+  - README: the status line references ADR-001 and MVP.md; the open release item = #105.
+  - CLAUDE.md: a link to docs/decisions/ in Design docs ("check before declaring a gap").
 
-## В работе
+## In progress
 
-- Остаток: решить судьбу старых формулировок Issue 9 в спеке (drift pull-forward отмечен,
-  но сквозную вычитку roadmap-секции стоит сделать одним проходом перед v0.1-тегом).
+- Remainder: decide the fate of the old Issue 9 wording in the spec (the drift pull-forward is marked,
+  but a thorough read-through of the roadmap section is worth doing in a single pass before the v0.1 tag).
 
-## Следующие шаги
+## Next steps
 
-1. ✅ ADR-папка создана (2026-06-11).
-2. ✅ MVP.md переписан (2026-06-11).
-3. ✅ architecture-spec точечные правки (2026-06-11).
-4. ✅ README согласован (2026-06-11).
-5. Остаток — сквозная вычитка roadmap-секции: план для Haiku ниже (Haiku делает только сверку-отчёт; правки спека — старшая модель).
+1. ✅ The ADR folder is created (2026-06-11).
+2. ✅ MVP.md rewritten (2026-06-11).
+3. ✅ architecture-spec pinpoint edits (2026-06-11).
+4. ✅ README reconciled (2026-06-11).
+5. Remainder — a thorough read-through of the roadmap section: the plan for Haiku is below (Haiku does only the reconciliation report; spec edits are for the senior model).
 
-## План для Haiku (2026-06-11) — read-only сверка roadmap
+## Plan for Haiku (2026-06-11) — read-only reconciliation of the roadmap
 
-Перед стартом ОБЯЗАН прочитать: эту задачу, [docs/dev/haiku_task_guide.md](../../docs/dev/haiku_task_guide.md) §2.
+Before starting, MUST read: this task, [docs/dev/haiku_task_guide.md](../../docs/dev/haiku_task_guide.md) §2.
 
-**Это read-only задача.** Haiku НЕ редактирует ни один документ, кроме дописывания таблицы-результата в ЭТОТ файл. Правки спека по итогам таблицы делает старшая модель отдельным заходом — это намеренное разделение механической сверки и редакторских решений.
+**This is a read-only task.** Haiku does NOT edit any document except appending the result table to THIS file. The spec edits based on the table are done by the senior model in a separate pass — this is a deliberate separation of mechanical reconciliation and editorial decisions.
 
-### Объект сверки
+### Object of reconciliation
 
-`docs/architecture-spec.md`, секция `## Roadmap` (строка 615 на 2026-06-11) — до конца документа или следующей H2-секции. Все подсекции v0.1…v0.5.
+`docs/architecture-spec.md`, the `## Roadmap` section (line 615 as of 2026-06-11) — to the end of the document or the next H2 section. All subsections v0.1…v0.5.
 
-### Источники истины (в порядке приоритета)
+### Sources of truth (in priority order)
 
-1. `CHANGELOG.md` — авторитетен по тому, что реально shipped (зафиксировано в CLAUDE.md).
+1. `CHANGELOG.md` — authoritative for what is really shipped (recorded in CLAUDE.md).
 2. `docs/decisions/` — ADR-001 (config→v0.2), ADR-002 (SF.21→v0.2), ADR-003 (fast backend default).
-3. `~/projects/cpparch/build/debug/src/archcheck --help` — фактические флаги и правила (бинарь собран; если нет — `cmake --build build/debug`).
+3. `~/projects/cpparch/build/debug/src/archcheck --help` — the actual flags and rules (the binary is built; if not — `cmake --build build/debug`).
 
-### Процедура
+### Procedure
 
-Для КАЖДОГО пункта-обещания roadmap-секции (каждый bullet / упоминание правила, флага, фичи с фазой) — одна строка таблицы:
+For EACH promise-item in the roadmap section (each bullet / mention of a rule, flag, feature with a phase) — one table row:
 
-| Спек (строка) | Обещание | Фаза в спеке | Факт | Источник факта | Вердикт |
-|---------------|----------|--------------|------|----------------|---------|
+| Spec (line) | Promise | Phase in spec | Fact | Source of fact | Verdict |
+|-------------|---------|---------------|------|----------------|---------|
 
-Вердикт — строго один из двух: `OK` (фаза в спеке соответствует факту) или `КОНФЛИКТ` (shipped, но числится в будущей фазе; или обещано в v0.1, но не shipped и нет ADR). «Почти ок» не бывает — сомневаешься → `КОНФЛИКТ` с пояснением.
+The verdict is strictly one of two: `OK` (the phase in the spec matches the fact) or `CONFLICT` (shipped, but listed in a future phase; or promised in v0.1, but not shipped and no ADR). There is no "almost OK" — if in doubt → `CONFLICT` with an explanation.
 
-Готовую таблицу дописать в этот файл новой секцией `## Сверка roadmap (2026-06-XX)` с итоговой строкой: «N пунктов, из них K конфликтов».
+Append the finished table to this file as a new section `## Roadmap reconciliation (2026-06-XX)` with a final line: "N items, of which K conflicts".
 
 ### Definition of done
 
-- Каждый bullet roadmap-секции имеет строку в таблице (полнота: число строк таблицы = числу пунктов, выборочно перепроверяемо).
-- У каждого `КОНФЛИКТ` — конкретный источник факта (файл/строка CHANGELOG, имя ADR или строка `--help`).
-- Ни один файл, кроме этого, не изменён (`git status` показывает только `backlog/wip/045_*.md`).
+- Every bullet of the roadmap section has a row in the table (completeness: number of table rows = number of items, spot-checkable).
+- Every `CONFLICT` has a concrete source of fact (file/line of CHANGELOG, an ADR name, or a `--help` line).
+- No file other than this one is changed (`git status` shows only `backlog/wip/045_*.md`).
 
-### Не делать
+### Do not do
 
-- НЕ править спек, CHANGELOG, ADR, README — вообще ничего, кроме этого файла.
-- НЕ предлагать формулировки правок — только факты и вердикты.
-- НЕ коммитить без явной команды.
+- Do NOT edit the spec, CHANGELOG, ADR, README — nothing at all except this file.
+- Do NOT propose edit wordings — only facts and verdicts.
+- Do NOT commit without an explicit command.
 
-### Эскалация (когда остановиться и передать старшей модели)
+### Escalation (when to stop and hand off to the senior model)
 
-Остановись и доложи, если: CHANGELOG и ADR противоречат друг другу по одному и тому же пункту (запиши оба источника в таблицу с вердиктом `КОНФЛИКТ-ИСТОЧНИКОВ`); roadmap-секция структурно не соответствует описанию (нет `## Roadmap` на ~615 строке). Правки спека по таблице — в любом случае работа старшей модели (Sonnet/Opus), это не сбой, а конец Haiku-скоупа.
+Stop and report if: CHANGELOG and ADR contradict each other on the same item (record both sources in the table with the verdict `CONFLICT-OF-SOURCES`); the roadmap section structurally does not match the description (no `## Roadmap` near line 615). Spec edits per the table are in any case the senior model's (Sonnet/Opus) work, this is not a failure but the end of the Haiku scope.
 
-## Сверка roadmap (2026-06-11)
+## Roadmap reconciliation (2026-06-11)
 
-| Спек (строка) | Обещание | Фаза в спеке | Факт | Источник факта | Вердикт |
+| Spec (line) | Promise | Phase in spec | Fact | Source of fact | Verdict |
 |---|---|---|---|---|---|
-| 621 | Fast backend (preprocessor-only) — единственный | v0.1 | Shipped: default backend, libclang opt-in v0.2 | CHANGELOG (L67) + ADR-003 + `--help` | OK |
-| 622 | YAML-конфиг: парсинг и валидация v1-схемы шипнуты | v0.1 | Shipped: Config loader v1 phase 1+2 | CHANGELOG (L70) | OK |
-| 622 | Enforcement модульных правил перенесён в v0.2 | v0.2 | Shipped: config parsed but not enforced in v0.1 | CHANGELOG (L70), ADR-001 | OK |
+| 621 | Fast backend (preprocessor-only) — the only one | v0.1 | Shipped: default backend, libclang opt-in v0.2 | CHANGELOG (L67) + ADR-003 + `--help` | OK |
+| 622 | YAML config: parsing and validation of the v1 schema shipped | v0.1 | Shipped: Config loader v1 phase 1+2 | CHANGELOG (L70) | OK |
+| 622 | Enforcement of module rules moved to v0.2 | v0.2 | Shipped: config parsed but not enforced in v0.1 | CHANGELOG (L70), ADR-001 | OK |
 | 622 | `--config` validate-only + `thresholds:` | v0.1 | Shipped: `--config` validates schema, `thresholds:` overrides apply | CHANGELOG (L71) + `--help` | OK |
-| 624 | Циклы зависимостей (SF.9) | v0.1 | Shipped: SF.9 rule in default set | CHANGELOG (L58) + `--help` | OK |
+| 624 | Dependency cycles (SF.9) | v0.1 | Shipped: SF.9 rule in default set | CHANGELOG (L58) + `--help` | OK |
 | 625 | God-headers (Lakos), in-degree > threshold (default 50) | v0.1 | Shipped: Lakos.GodHeader in default set, threshold 50 | CHANGELOG (L59) + `--help` | OK |
-| 626 | Длина include-цепочек (Lakos), > threshold (default 10) | v0.1 | Shipped: Lakos.ChainLength in default set | CHANGELOG (L60) + `--help` | OK |
-| 627 | SF.7 (using namespace в `.h` — text-scan, approximate) | v0.1 | Shipped: SF.7 rule in default set | CHANGELOG (L56) + `--help` | OK |
+| 626 | Length of include chains (Lakos), > threshold (default 10) | v0.1 | Shipped: Lakos.ChainLength in default set | CHANGELOG (L60) + `--help` | OK |
+| 627 | SF.7 (using namespace in `.h` — text-scan, approximate) | v0.1 | Shipped: SF.7 rule in default set | CHANGELOG (L56) + `--help` | OK |
 | 628 | SF.8 (include guards / `#pragma once`) | v0.1 | Shipped: SF.8 rule in default set | CHANGELOG (L57) + `--help` | OK |
-| 629 | `--baseline` с day one | v0.1 | Shipped: `--baseline`, `--save-baseline` modes | CHANGELOG (L64) + `--help` | OK |
-| 630 | Text-репорт с цветным выводом в TTY + JSON-репорт | v0.1 | Shipped: JSON reporter, text output with colors | CHANGELOG (L66) + `--help` | OK |
-| 631 | Exit codes (см. §Exit codes) | v0.1 | Shipped: exit code contract (0/1/2/3) | CHANGELOG (L66) | OK |
-| 632 | Базовая CI на GitHub Actions для самого archcheck | v0.1 | Shipped: CI smoke assertion in github/workflows | CHANGELOG (L73) | OK |
-| 638 | libclang backend opt-in mainline (через `--with-clang`) | v0.2 | Not shipped; planned for v0.2 | No evidence of `--with-clang` in `--help` | OK |
-| 639 | SF.2, SF.5, SF.10, SF.11 правила | v0.2 | Not shipped; planned for v0.2 | `--help` shows SF.7/8/9 only | OK |
-| 640 | Точная версия SF.7 (через AST вместо text-scan) | v0.2 | Not shipped; planned for v0.2 via libclang | ADR-002 | OK |
-| 641 | SARIF output для GitHub Code Scanning | v0.2 | Not shipped; planned for v0.2 | No SARIF in `--help` | OK |
-| 647 | C правила (C.121, C.133, C.134) | v0.3 | Not shipped; planned for v0.3 | No C-rules in `--help` | OK |
-| 648 | I правила (I.2, I.3, I.22) | v0.3 | Not shipped; planned for v0.3 | No I-rules in `--help` | OK |
-| 649 | NL правила (NL.27) | v0.3 | Not shipped; planned for v0.3 | No NL-rules in `--help` | OK |
-| 650 | SF.21 (anonymous namespace в `.h`), default-ON в v0.3, preview в v0.2 через `--with-clang` | v0.2/v0.3 | Not shipped; deferred per ADR-002 | ADR-002, `--help` shows no SF.21 | OK |
-| 651 | Bloomberg BDE правила (no-inter-component-friendship, external-linkage) | v0.3 | Not shipped; planned for v0.3 | No BDE-rules in `--help` | OK |
+| 629 | `--baseline` from day one | v0.1 | Shipped: `--baseline`, `--save-baseline` modes | CHANGELOG (L64) + `--help` | OK |
+| 630 | Text report with colored output in a TTY + JSON report | v0.1 | Shipped: JSON reporter, text output with colors | CHANGELOG (L66) + `--help` | OK |
+| 631 | Exit codes (see §Exit codes) | v0.1 | Shipped: exit code contract (0/1/2/3) | CHANGELOG (L66) | OK |
+| 632 | Basic CI on GitHub Actions for archcheck itself | v0.1 | Shipped: CI smoke assertion in github/workflows | CHANGELOG (L73) | OK |
+| 638 | libclang backend opt-in mainline (via `--with-clang`) | v0.2 | Not shipped; planned for v0.2 | No evidence of `--with-clang` in `--help` | OK |
+| 639 | SF.2, SF.5, SF.10, SF.11 rules | v0.2 | Not shipped; planned for v0.2 | `--help` shows SF.7/8/9 only | OK |
+| 640 | Exact version of SF.7 (via AST instead of text-scan) | v0.2 | Not shipped; planned for v0.2 via libclang | ADR-002 | OK |
+| 641 | SARIF output for GitHub Code Scanning | v0.2 | Not shipped; planned for v0.2 | No SARIF in `--help` | OK |
+| 647 | C rules (C.121, C.133, C.134) | v0.3 | Not shipped; planned for v0.3 | No C-rules in `--help` | OK |
+| 648 | I rules (I.2, I.3, I.22) | v0.3 | Not shipped; planned for v0.3 | No I-rules in `--help` | OK |
+| 649 | NL rules (NL.27) | v0.3 | Not shipped; planned for v0.3 | No NL-rules in `--help` | OK |
+| 650 | SF.21 (anonymous namespace in `.h`), default-ON in v0.3, preview in v0.2 via `--with-clang` | v0.2/v0.3 | Not shipped; deferred per ADR-002 | ADR-002, `--help` shows no SF.21 | OK |
+| 651 | Bloomberg BDE rules (no-inter-component-friendship, external-linkage) | v0.3 | Not shipped; planned for v0.3 | No BDE-rules in `--help` | OK |
 | 652 | Forward-decl-of-std, deep-nested-namespace | v0.3 | Not shipped; planned for v0.3 | No such rules in `--help` | OK |
-| 653 | DRIFT.1 + DRIFT.2 уже шипнуты в v0.1 (с advisory DRIFT.3) | v0.1 (pulled forward from v0.3 plan) | Shipped: DRIFT.1/2 gating, DRIFT.3 advisory | CHANGELOG (L61, L62, L63, L65) + `--help` shows DRIFT rules | OK |
+| 653 | DRIFT.1 + DRIFT.2 already shipped in v0.1 (with advisory DRIFT.3) | v0.1 (pulled forward from v0.3 plan) | Shipped: DRIFT.1/2 gating, DRIFT.3 advisory | CHANGELOG (L61, L62, L63, L65) + `--help` shows DRIFT rules | OK |
 | 654 | AI-assisted rule synthesis contract (`archcheck synthesize` subcommand) | v0.3 | Not shipped; contract planned for v0.3 | No `synthesize` in `--help` | OK |
-| 658 | Martin metrics (Ce, Ca, I, A, D) opt-in по флагу | v0.4 | Not shipped; planned for v0.4 | No Martin metrics in `--help` | OK |
-| 659 | Кастомные pattern-правила (regex) | v0.4 | Not shipped; planned for v0.4 | No pattern rules in `--help` | OK |
-| 660 | Pre-commit hook из коробки | v0.4 | Not shipped; planned for v0.4 | Not in `--help` | OK |
+| 658 | Martin metrics (Ce, Ca, I, A, D) opt-in via a flag | v0.4 | Not shipped; planned for v0.4 | No Martin metrics in `--help` | OK |
+| 659 | Custom pattern rules (regex) | v0.4 | Not shipped; planned for v0.4 | No pattern rules in `--help` | OK |
+| 660 | Pre-commit hook out of the box | v0.4 | Not shipped; planned for v0.4 | Not in `--help` | OK |
 | 661 | Docker image | v0.4 | Not shipped; planned for v0.4 | Not mentioned in `--help` | OK |
-| 662 | Static binary в release-артефактах (Linux x86_64/arm64, macOS arm64, Windows x64) | v0.4 | Not shipped; planned for v0.4 | Not in `--help` | OK |
+| 662 | Static binary in release artifacts (Linux x86_64/arm64, macOS arm64, Windows x64) | v0.4 | Not shipped; planned for v0.4 | Not in `--help` | OK |
 | 663 | GitHub Actions workflow example | v0.4 | Not shipped; planned for v0.4 | Not in `--help` | OK |
-| 667 | Templates под clean / hexagonal / onion / layered архитектуры | v0.5 | Not shipped; planned for v0.5 | Not mentioned in `--help` | OK |
-| 668 | Регрессионная проверка на топ-N OSS проектов | v0.5 | Not shipped; planned for v0.5 | Not in `--help` | OK |
-| 669 | Полная документация (getting started, reference, all rules, comparison) | v0.5 | Not shipped; planned for v0.5 | Not in `--help` | OK |
-| 670 | Гайд по миграции с CppDepend и Tomtom/cpp-dependencies | v0.5 | Not shipped; planned for v0.5 | Not in `--help` | OK |
-| 674 | Plugin API для кастомных правил | Long-term | Not shipped; planned for long-term | Not in `--help` | OK |
-| 675 | Опциональная визуализация графа (graphviz, не GUI) | Long-term | Not shipped; planned for long-term | Not in `--help` | OK |
-| 676 | Поддержка C (если будет спрос) | Long-term | Not shipped; planned for long-term | Not in `--help` | OK |
-| 677 | Метрики Lakos hierarchical reuse | Long-term | Not shipped; planned for long-term | Not in `--help` | OK |
-| 678 | Опциональный bridge к clangd index | Long-term | Not shipped; planned for long-term | Not in `--help` | OK |
+| 667 | Templates for clean / hexagonal / onion / layered architectures | v0.5 | Not shipped; planned for v0.5 | Not mentioned in `--help` | OK |
+| 668 | Regression check on the top-N OSS projects | v0.5 | Not shipped; planned for v0.5 | Not in `--help` | OK |
+| 669 | Full documentation (getting started, reference, all rules, comparison) | v0.5 | Not shipped; planned for v0.5 | Not in `--help` | OK |
+| 670 | Migration guide from CppDepend and Tomtom/cpp-dependencies | v0.5 | Not shipped; planned for v0.5 | Not in `--help` | OK |
+| 674 | Plugin API for custom rules | Long-term | Not shipped; planned for long-term | Not in `--help` | OK |
+| 675 | Optional graph visualization (graphviz, not a GUI) | Long-term | Not shipped; planned for long-term | Not in `--help` | OK |
+| 676 | C support (if there is demand) | Long-term | Not shipped; planned for long-term | Not in `--help` | OK |
+| 677 | Lakos hierarchical reuse metrics | Long-term | Not shipped; planned for long-term | Not in `--help` | OK |
+| 678 | Optional bridge to the clangd index | Long-term | Not shipped; planned for long-term | Not in `--help` | OK |
 
-**Итого:** 40 пунктов (развёрнуты подбуллеты в отдельные строки для правил SF.*/C.*/I.*/NL.*/DRIFT.*), конфликтов: 0.
+**Total:** 40 items (sub-bullets expanded into separate rows for the SF.*/C.*/I.*/NL.*/DRIFT.* rules), conflicts: 0.
 
-### Комментарий к сверке
+### Comment on the reconciliation
 
-Таблица включает все упоминания правил и фич из roadmap-секции, в том числе развёрнутые подбуллеты под "Core правила:", "C:", "I:", "NL:", "Bloomberg BDE:" и "Прочие:" — инструкция запрашивает "каждый bullet / упоминание правила, флага, фичи с фазой", так что каждое правило считается отдельным пунктом-обещанием.
+The table includes all mentions of rules and features from the roadmap section, including the expanded sub-bullets under "Core rules:", "C:", "I:", "NL:", "Bloomberg BDE:" and "Other:" — the instructions request "each bullet / mention of a rule, flag, feature with a phase", so each rule is counted as a separate promise-item.
 
-Все пункты, обещанные в v0.1, либо уже shipped (fast backend, 9 core rules, baseline modes, reporters, exit codes, CI), либо корректно перенесены в v0.2+ по решениям ADR (config enforcement → v0.2 per ADR-001, SF.21 и прочие semantic rules → v0.2+ per ADR-002). DRIFT правила (DRIFT.1/2/3) успешно pulled forward из v0.3 плана и fully shipped в v0.1, что фиксируется в спеке на строке 653. Все v0.2+ обещания остаются в будущих фазах и не противоречат сегодняшнему состоянию (no overcommit, no shipped-early gaps).
+All items promised in v0.1 are either already shipped (fast backend, 9 core rules, baseline modes, reporters, exit codes, CI), or correctly moved to v0.2+ by ADR decisions (config enforcement → v0.2 per ADR-001, SF.21 and other semantic rules → v0.2+ per ADR-002). The DRIFT rules (DRIFT.1/2/3) were successfully pulled forward from the v0.3 plan and are fully shipped in v0.1, which is recorded in the spec on line 653. All v0.2+ promises remain in future phases and do not contradict today's state (no overcommit, no shipped-early gaps).
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Один зонтик-таск, а не четыре | findings 3/4/5/9 — один deferral-нарратив, дробить = повторять контекст 4 раза |
-| ADR в `docs/decisions/`, а не в спеке | расширяемо, не раздувает спек, легче ссылаться |
-| MVP.md перепис, а не патч | стало быстрее с нуля, чем синхронизировать постранично |
+| Decision | Reason |
+|----------|--------|
+| One umbrella task, not four | findings 3/4/5/9 are one deferral narrative; splitting = repeating context 4 times |
+| ADR in `docs/decisions/`, not in the spec | extensible, doesn't bloat the spec, easier to reference |
+| MVP.md rewrite, not patch | it turned out faster from scratch than to synchronize page by page |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `docs/MVP.md` | rewrite (или delete + fold в spec) |
-| `docs/architecture-spec.md` | удалить config-rules и SF.21 из v0.1, разрулить headline-конфликт, поднять drift до delivered |
+| File | Change |
+|------|--------|
+| `docs/MVP.md` | rewrite (or delete + fold into spec) |
+| `docs/architecture-spec.md` | remove config-rules and SF.21 from v0.1, resolve the headline conflict, raise drift to delivered |
 | `docs/decisions/0001-config-rules-v02.md` | new ADR |
 | `docs/decisions/0002-sf21-v02.md` | new ADR |
 | `docs/decisions/0003-fast-backend-default.md` | new ADR |
-| `CLAUDE.md` | ссылка на `docs/decisions/` в § Design docs |
+| `CLAUDE.md` | a link to `docs/decisions/` in § Design docs |

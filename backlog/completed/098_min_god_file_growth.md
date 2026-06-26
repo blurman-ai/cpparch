@@ -1,81 +1,81 @@
 # [CHEAP-DRIFT][HISTORY] God-File Growth
 
-**Дата создания:** 2026-06-10
-**Дата старта:** 2026-06-11
-**Статус:** wip
-**Модуль:** GIT / HISTORY / REPORT
-**Приоритет:** minor
-**Сложность:** medium
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-06-10
+**Started:** 2026-06-11
+**Status:** wip
+**Module:** GIT / HISTORY / REPORT
+**Priority:** minor
+**Complexity:** medium
+**Blocks:** —
+**Blocked by:** —
 **Related:** #048 (drift_clean_checkout_methodology), #075 (trusted_diff_workflow), #097 (test_co_evolution)
 
-## Цель
+## Goal
 
-Находить файлы, которые по истории коммитов устойчиво надуваются и становятся кандидатами в будущий god file.
+Find files that, by commit history, steadily inflate and become candidates for a future god file.
 
-Это report-only аналитика. Не путать с уже shipped `Lakos.GodHeader`, который измеряет fan-in заголовков в include graph.
+This is report-only analytics. Not to be confused with the already-shipped `Lakos.GodHeader`, which measures the fan-in of headers in the include graph.
 
-## Контекст
+## Context
 
-- Источник постановки: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 6.
-- Название похоже на `GodHeader`, но смысл другой: здесь речь не о графовом хабе, а о файле-аккумуляторе по размеру и истории изменений.
-- Для сигнала нужен `git log --numstat` плюс текущий LOC. Значит, задача лежит ближе к history/report слою, чем к обычным `IRule`.
-- По позиции продукта это вероятностная аналитика. Default gate здесь противопоказан.
+- Source of the task: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 6.
+- The name resembles `GodHeader`, but the meaning is different: here it's not about a graph hub, but about an accumulator file by size and change history.
+- The signal needs `git log --numstat` plus current LOC. So the task lies closer to the history/report layer than to a regular `IRule`.
+- By product positioning this is probabilistic analytics. A default gate is contraindicated here.
 
-## План выполнения
+## Execution plan
 
 ### Detection contract
 
-- Файл подозрителен, если одновременно выполнены условия:
-  - уже достаточно большой;
-  - за окно истории заметно вырос;
-  - рос в нескольких подряд touching commits;
-  - meaningful shrink не наблюдался.
-- Конкретные дефолты v1 (алгоритм по `git log --numstat`, окно = последние
-  `N=200` коммитов или 12 месяцев, что меньше):
-  - «уже большой»: current LOC ≥ P75 по production-файлам репо (адаптивный порог,
-    не абсолют — как пороги Arcan по частотному анализу проекта);
-  - «заметно вырос»: net growth за окно ≥ +30% ИЛИ ≥ +300 строк;
-  - «рос подряд»: ≥ 5 последних touching-коммитов с `added > deleted`;
-  - «без shrink»: ни одного коммита с `deleted - added >= 50` в окне;
-  - все четыре условия — И; редкость по построению, иначе поднять пороги.
-- Итоговый finding:
+- A file is suspicious if all conditions hold simultaneously:
+  - it is already big enough;
+  - it grew noticeably over the history window;
+  - it grew across several consecutive touching commits;
+  - no meaningful shrink was observed.
+- Concrete v1 defaults (algorithm over `git log --numstat`, window = the last
+  `N=200` commits or 12 months, whichever is smaller):
+  - "already big": current LOC ≥ P75 over the repo's production files (an adaptive threshold,
+    not an absolute — like Arcan's thresholds from frequency analysis of the project);
+  - "grew noticeably": net growth over the window ≥ +30% OR ≥ +300 lines;
+  - "grew consecutively": ≥ 5 most recent touching commits with `added > deleted`;
+  - "no shrink": not a single commit with `deleted - added >= 50` in the window;
+  - all four conditions — AND; rare by construction, otherwise raise the thresholds.
+- Final finding:
   - `SIZE.1.god_file_growth`
   - `file = <path>`
   - `line = 0`
-  - message с current LOC, net growth и числом growth touches.
+  - message with current LOC, net growth, and number of growth touches.
 
 ### Runtime shape
 
-- Делать один repository-wide проход по `git log --numstat`, а не отдельный вызов на каждый файл.
-- Текущий LOC брать из current tree.
-- Vendor/generated/test code исключать через уже существующую классификацию, где это применимо.
-- Если история слишком дорогая на больших репо, задача должна зафиксировать лимиты окна и graceful degradation.
+- Do one repository-wide pass over `git log --numstat`, not a separate call per file.
+- Take current LOC from the current tree.
+- Exclude vendor/generated/test code via the existing classification where applicable.
+- If history is too expensive on large repos, the task must fix window limits and graceful degradation.
 
 ### Scope discipline
 
-- Первый проход — только report/advisory analytics.
-- Без line-level blame.
-- Без ownership / bus-factor / SZZ.
-- Без попытки вывести "истинную архитектурную причину" роста файла.
+- First pass — only report/advisory analytics.
+- No line-level blame.
+- No ownership / bus-factor / SZZ.
+- No attempt to derive the "true architectural reason" for a file's growth.
 
-### Конкретный план в текущем коде
+### Concrete plan in the current code
 
-1. Историю не читать через N вызовов `git log` на файл:
-   нужен один shared parser `include/archcheck/git/history_query.h` + `src/git/history_query.cpp` поверх вынесенного `git_exec.cpp`.
-2. Формат запроса зафиксировать сразу:
-   `git log --numstat --format=%H%x1f%s` с лимитом по числу коммитов.
-   Этого достаточно и для #098, и для #100.
-3. Current LOC считать один раз по текущему дереву:
-   `DiskFileSource` + `collectNonVendoredSources()` дают уже очищенный от vendor/test список, по которому можно построить `path -> currentLoc`.
-4. Сам сигнал держать отдельным file-level detector-ом, который агрегирует историю по path и на выходе даёт `Violation { ruleId, file, line=0, message }`.
-5. Не пытаться впихнуть это в `RegressionReport`:
-   история не связана с current structural diff model, а `RegressionReport` сейчас заточен под graph-vs-graph.
-6. В `src/main.cpp` это лучше вешать как отдельный report path рядом с existing diff/duplication helpers.
-   Если задачка реализуется раньше общего history CLI, допустим временный text-only subpath, но не через `IRule`.
-7. Интеграционные git-сценарии сначала можно держать в [tests/integration/diff/git_diff_test.cpp](~/projects/cpparch/tests/integration/diff/git_diff_test.cpp), потому что там уже есть `TempDir`, `initRepo`, `commitAll`.
-   Вынос общего test helper делать только если history suite реально разрастётся.
+1. Don't read history via N `git log` calls per file:
+   a single shared parser `include/archcheck/git/history_query.h` + `src/git/history_query.cpp` over the extracted `git_exec.cpp` is needed.
+2. Fix the query format right away:
+   `git log --numstat --format=%H%x1f%s` with a limit on the number of commits.
+   This is enough for both #098 and #100.
+3. Compute current LOC once over the current tree:
+   `DiskFileSource` + `collectNonVendoredSources()` already give a list cleaned of vendor/test, from which a `path -> currentLoc` can be built.
+4. Keep the signal itself as a separate file-level detector that aggregates history by path and outputs `Violation { ruleId, file, line=0, message }`.
+5. Don't try to cram this into `RegressionReport`:
+   history is unrelated to the current structural diff model, and `RegressionReport` is currently tailored to graph-vs-graph.
+6. In `src/main.cpp` it's better to hang this as a separate report path next to the existing diff/duplication helpers.
+   If the task is implemented before the general history CLI, a temporary text-only subpath is acceptable, but not via `IRule`.
+7. Integration git scenarios can first be kept in [tests/integration/diff/git_diff_test.cpp](~/projects/cpparch/tests/integration/diff/git_diff_test.cpp), because it already has `TempDir`, `initRepo`, `commitAll`.
+   Extract a shared test helper only if the history suite really grows.
 
 ## Fixtures & Tests
 
@@ -84,65 +84,65 @@
 - `fixtures/god_file_growth/pass/vendor_ignored.log`
 - `fixtures/god_file_growth/pass/small_file.log`
 
-Обязательные проверки:
+Required checks:
 
-- steady growth over history даёт finding;
-- рост с последующим meaningful shrink не даёт false positive;
-- vendor/generated/test файлы исключаются;
-- message показывает window/growth summary;
-- правило не влияет на exit code по умолчанию.
+- steady growth over history produces a finding;
+- growth followed by a meaningful shrink does not produce a false positive;
+- vendor/generated/test files are excluded;
+- message shows the window/growth summary;
+- the rule does not affect the exit code by default.
 
-## Критерии готовности
+## Acceptance criteria
 
-- Report-only или advisory-only, но не gate.
-- Ясно разведено по терминологии с `Lakos.GodHeader`.
-- Нет N shell-вызовов `git log` на каждый файл.
-- Есть synthetic fixtures на parser истории.
+- Report-only or advisory-only, but not a gate.
+- Clearly disambiguated in terminology from `Lakos.GodHeader`.
+- No N `git log` shell calls per file.
+- There are synthetic fixtures for the history parser.
 
-## Не делать
+## Don't do
 
 - SZZ.
 - Blame/ownership map.
-- AI scoring "насколько файл опасный".
-- Попытку навешивать этот сигнал на default CI fail.
+- AI scoring "how dangerous the file is".
+- An attempt to hang this signal on a default CI fail.
 
-## Сделано
+## Done
 
 - `include/archcheck/git/history_query.h` + `src/git/history_query.cpp`: queryCommitHistory + parseHistoryOutput (single git log pass)
-- `include/archcheck/scan/god_file_growth.h` + `src/scan/god_file_growth.cpp`: GodFileGrowthDetector с 4 условиями
-- CLI: `archcheck --history <path>` (advisory-only, всегда return 0)
-- Tests: 5 unit-тестов parseHistoryOutput + 1 end-to-end GodFileGrowthDetector + интеграционный тест
-- Все 402 тестов green, archcheck self-check clean, форматирование OK
-- Found real god-file: src/config/config_loader.cpp (413 LOC, +160 net, 5 growth commits)
+- `include/archcheck/scan/god_file_growth.h` + `src/scan/god_file_growth.cpp`: GodFileGrowthDetector with 4 conditions
+- CLI: `archcheck --history <path>` (advisory-only, always returns 0)
+- Tests: 5 unit tests for parseHistoryOutput + 1 end-to-end GodFileGrowthDetector + an integration test
+- All 402 tests green, archcheck self-check clean, formatting OK
+- Found a real god-file: src/config/config_loader.cpp (413 LOC, +160 net, 5 growth commits)
 
-## Следующие шаги
+## Next steps
 
-1. Спроектировать history parser на одном проходе `git log --numstat`.
-2. Зафиксировать thresholds и окно истории для первого прохода.
-3. Добавить fixtures steady-growth vs grow-then-shrink.
-4. Проверить стоимость на среднем OSS-репо.
+1. Design the history parser on a single `git log --numstat` pass.
+2. Fix the thresholds and history window for the first pass.
+3. Add fixtures steady-growth vs grow-then-shrink.
+4. Check the cost on an average OSS repo.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Repository-wide history pass | Иначе правило станет слишком дорогим |
-| Разводить с `Lakos.GodHeader` и по id, и по docs | Это два разных класса сигнала |
-| Только report/advisory | Метрика вероятностная, не gate-grade |
-| `line = 0` | Это file-level history signal без точной строки |
+| Repository-wide history pass | Otherwise the rule becomes too expensive |
+| Disambiguate from `Lakos.GodHeader` both by id and in docs | These are two different classes of signal |
+| Report/advisory only | The metric is probabilistic, not gate-grade |
+| `line = 0` | This is a file-level history signal with no precise line |
 
-## Планируемые файлы
+## Planned files
 
-| Область | Изменение |
+| Area | Change |
 |---------|-----------|
-| `src/git/` или history analytics | Parser `git log --numstat` |
-| `src/main.cpp` / optional report path | Подключение report-only сигнала |
+| `src/git/` or history analytics | Parser `git log --numstat` |
+| `src/main.cpp` / optional report path | Wiring of the report-only signal |
 | `tests/unit/` | History aggregation |
-| `tests/integration/` | Стоимостные и end-to-end сценарии |
+| `tests/integration/` | Cost and end-to-end scenarios |
 | `fixtures/god_file_growth/` | Synthetic history fixtures |
 
-## Итог
-**Статус:** completed — HIST-сигнал: 5+ последовательных growth-коммитов файла,
+## Outcome
+**Status:** completed — HIST signal: 5+ consecutive growth commits of a file,
 CLI `--history` (advisory) (commit cb6e09d: `src/scan/god_file_growth.cpp` +
-unit-тесты на синтетической истории — file-фикстуры не нужны, сигнал history-based).
-**Дата завершения:** 2026-06-11
+unit tests on synthetic history — file fixtures not needed, the signal is history-based).
+**Completed:** 2026-06-11

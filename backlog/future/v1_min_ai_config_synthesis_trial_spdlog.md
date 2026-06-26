@@ -1,86 +1,86 @@
-# [AI][EVAL][V1] Пилотный прогон AI-генерации конфига на `spdlog`
+# [AI][EVAL][V1] Pilot run of AI config generation on `spdlog`
 
-**Дата создания:** 2026-05-28
-**Дата старта:** —
-**Статус:** new
-**Модуль:** DOCS
-**Приоритет:** minor
-**Сложность:** S (один практический эксперимент)
-**Целевой релиз:** v1 phase 1 (post-MVP)
-**Блокирует:** —
-**Заблокирован:** future/v1_maj_agent_config_authoring_rules.md, future/v1_maj_ai_config_synthesis_eval_protocol.md
+**Created:** 2026-05-28
+**Started:** —
+**Status:** new
+**Module:** DOCS
+**Priority:** minor
+**Complexity:** S (one practical experiment)
+**Target release:** v1 phase 1 (post-MVP)
+**Blocks:** —
+**Blocked by:** future/v1_maj_agent_config_authoring_rules.md, future/v1_maj_ai_config_synthesis_eval_protocol.md
 **Related:** future/v1_maj_ai_config_synthesis_eval_protocol.md
 
-## Цель
+## Goal
 
-Проверить на одном репо: может ли агент выдать полезный `.archcheck.yml.draft` который человек
-не переписывает с нуля.
+Check on one repo: can an agent produce a useful `.archcheck.yml.draft` that a human
+doesn't rewrite from scratch.
 
-## Репозиторий: spdlog
+## Repository: spdlog
 
 Repo: https://github.com/gabime/spdlog
 
-Причины выбора: C++, известный, обозримый, нетривиальная структура.
+Reasons for the choice: C++, well-known, manageable, non-trivial structure.
 
-Ожидаемая структура модулей для draft (observed, проверить на актуальном коммите):
+Expected module structure for the draft (observed, verify on the current commit):
 
 ```
-include/spdlog/          → core (основные заголовки)
+include/spdlog/          → core (main headers)
 include/spdlog/sinks/    → sinks (output backends)
-include/spdlog/details/  → details (low-level, не для публичного include)
+include/spdlog/details/  → details (low-level, not for public include)
 include/spdlog/fmt/      → fmt (embedded fmt library)
 ```
 
-Ожидаемые правила (inferred, без запуска):
-- `details` — самый низкий уровень, sinks и core могут его включать
-- `sinks` и `core` — не должны зависеть друг от друга (independence?)
-- `fmt` — изолированная embedded lib, никто её не должен включать напрямую кроме details
+Expected rules (inferred, without running):
+- `details` — the lowest level, sinks and core may include it
+- `sinks` and `core` — should not depend on each other (independence?)
+- `fmt` — an isolated embedded lib, no one should include it directly except details
 
-Это гипотезы — агент должен их подтвердить или опровергнуть по include-графу.
+These are hypotheses — the agent must confirm or refute them against the include graph.
 
-## Входные артефакты для прогона
+## Input artifacts for the run
 
-1. `find include/ -type f -name "*.h" | sort` — файловая структура
-2. Include-граф (запустить archcheck или python include-scanner)
+1. `find include/ -type f -name "*.h" | sort` — the file structure
+2. The include graph (run archcheck or the python include scanner)
 3. `head -100 README.md`
-4. Системный prompt из `docs/ai_config_authoring_rules.md`
+4. The system prompt from `docs/ai_config_authoring_rules.md`
 
-## Что зафиксировать по результату
+## What to record from the result
 
-- Конкретный `git rev-parse HEAD` spdlog на котором шёл прогон
-- `.draft` от Claude — `docs/research/ai_eval/spdlog_claude_draft.yml`
-- `.draft` от Codex — `docs/research/ai_eval/spdlog_codex_draft.yml`
-- Заполненный human review sheet — `docs/research/ai_eval/spdlog_review.md`
-- Финальный usable config после правок — `docs/research/ai_eval/spdlog_final.yml`
+- The exact `git rev-parse HEAD` of spdlog the run was performed on
+- Claude's `.draft` — `docs/research/ai_eval/spdlog_claude_draft.yml`
+- Codex's `.draft` — `docs/research/ai_eval/spdlog_codex_draft.yml`
+- Filled-in human review sheet — `docs/research/ai_eval/spdlog_review.md`
+- The final usable config after edits — `docs/research/ai_eval/spdlog_final.yml`
 
-## Вывод по итогу (заполнить после)
+## Conclusion at the end (fill in afterwards)
 
 ```
 Verdict Claude: ___
 Verdict Codex: ___
 Edit distance Claude: ___  Codex: ___
-Главные ошибки: ___
+Main mistakes: ___
 Hypothesis: synthesis useful / not useful / useful with heavy review
 ```
 
-## План выполнения
+## Execution plan
 
-- [ ] Зафиксировать конкретный commit spdlog
-- [ ] Собрать входные артефакты
-- [ ] Запустить Claude по протоколу, сохранить `.draft`
-- [ ] Запустить Codex по тому же протоколу, сохранить `.draft`
-- [ ] Заполнить review sheet по метрикам из eval_protocol
-- [ ] Написать вывод: synthesis useful / not useful / useful with heavy review
+- [ ] Record the exact spdlog commit
+- [ ] Gather the input artifacts
+- [ ] Run Claude per the protocol, save the `.draft`
+- [ ] Run Codex per the same protocol, save the `.draft`
+- [ ] Fill in the review sheet using the metrics from eval_protocol
+- [ ] Write the conclusion: synthesis useful / not useful / useful with heavy review
 
-## Сделано
+## Done
 
-- (пусто)
+- (empty)
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| docs/research/ai_eval/spdlog_claude_draft.yml | артефакт прогона Claude |
-| docs/research/ai_eval/spdlog_codex_draft.yml | артефакт прогона Codex |
-| docs/research/ai_eval/spdlog_review.md | сравнение и выводы |
-| docs/research/ai_eval/spdlog_final.yml | финальный config после правок |
+| File | Change |
+|------|--------|
+| docs/research/ai_eval/spdlog_claude_draft.yml | Claude run artifact |
+| docs/research/ai_eval/spdlog_codex_draft.yml | Codex run artifact |
+| docs/research/ai_eval/spdlog_review.md | comparison and conclusions |
+| docs/research/ai_eval/spdlog_final.yml | final config after edits |

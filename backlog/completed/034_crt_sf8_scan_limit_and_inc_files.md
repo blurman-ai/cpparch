@@ -1,65 +1,65 @@
-# [RULES] SF.8: kScanLines слишком мал + .inc файлы не должны проверяться
+# [RULES] SF.8: kScanLines too small + .inc files should not be checked
 
-**Дата создания:** 2026-05-28
-**Дата старта:** —
-**Статус:** completed
-**Модуль:** RULES
-**Приоритет:** critical
-**Сложность:** S
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-05-28
+**Started:** —
+**Status:** completed
+**Module:** RULES
+**Priority:** critical
+**Difficulty:** S
+**Blocks:** —
+**Blocked by:** —
 **Related:** #028 (rules_engine_mvp)
 
-## Цель
+## Goal
 
-Устранить два бага SF.8, превращающих весь abseil-cpp (85 заголовков) в ложные срабатывания.
+Eliminate two SF.8 bugs that turn all of abseil-cpp (85 headers) into false positives.
 
-## Контекст
+## Context
 
-Прогон на abseil-cpp (commit `e7a10c8`) выдал 85 нарушений SF.8 — все ложные. Два независимых бага:
+A run on abseil-cpp (commit `e7a10c8`) produced 85 SF.8 violations — all false. Two independent bugs:
 
-### Баг 1 — kScanLines = 30 слишком мал
+### Bug 1 — kScanLines = 30 too small
 
-Abseil использует Apache 2.0 лицензионный заголовок перед include guard:
+Abseil uses an Apache 2.0 license header before the include guard:
 
 ```cpp
 // Copyright 2017 The Abseil Authors.
 // Licensed under the Apache License, Version 2.0 ...
-// ... 16 строк лицензии + пустые строки ...
-// (итого 47 непустых строк до #ifndef)
-#ifndef ABSL_BASE_CONFIG_H_    ← строка 48, вне лимита!
+// ... 16 lines of license + empty lines ...
+// (47 non-empty lines in total before #ifndef)
+#ifndef ABSL_BASE_CONFIG_H_    ← line 48, beyond the limit!
 #define ABSL_BASE_CONFIG_H_
 ```
 
-Наш лимит `kScanLines = 30` в `sf8_include_guard.cpp`. Guard реально есть — мы его не видим. Любой проект с Apache/MIT copyright (большинство OSS) имеет аналогичную проблему.
+Our limit `kScanLines = 30` in `sf8_include_guard.cpp`. The guard really is there — we just don't see it. Any project with an Apache/MIT copyright (most OSS) has the same problem.
 
-**Фикс:** поднять `kScanLines` до 60 (покрывает все реальные copyright блоки, не замедляет сканирование заметно).
+**Fix:** raise `kScanLines` to 60 (covers all real copyright blocks, does not noticeably slow scanning).
 
-### Баг 2 — .inc файлы проверяются как заголовки
+### Bug 2 — .inc files are checked as headers
 
-`src/scan/project_files.cpp` строка 20: `".inc"` входит в список header-расширений и проверяется SF.8. Но `.inc` файлы (например `spinlock_linux.inc`, `spinlock_posix.inc` в abseil) — это платформенные фрагменты без guard по дизайну: они подключаются ровно один раз через `#if PLATFORM ... #include "spinlock_linux.inc" #endif`. Guard в них противоречил бы назначению.
+`src/scan/project_files.cpp` line 20: `".inc"` is in the list of header extensions and is checked by SF.8. But `.inc` files (e.g. `spinlock_linux.inc`, `spinlock_posix.inc` in abseil) are platform fragments without a guard by design: they are included exactly once via `#if PLATFORM ... #include "spinlock_linux.inc" #endif`. A guard in them would contradict their purpose.
 
-**Фикс:** убрать `.inc` из списка расширений, проверяемых SF.8 (оставить в `isHeaderFile` для сканирования include-графа — они участвуют в нём правомерно).
+**Fix:** remove `.inc` from the list of extensions checked by SF.8 (keep it in `isHeaderFile` for scanning the include graph — they participate in it legitimately).
 
-## План выполнения
+## Execution plan
 
-- [ ] `sf8_include_guard.cpp`: поднять `kScanLines` с 30 до 60
-- [ ] `sf8_include_guard.cpp`: добавить проверку — пропускать файлы с расширением `.inc`
-- [ ] Убедиться: прогон на abseil → 0 SF.8 ложных срабатываний
-- [ ] Убедиться: прогон на Catch2, fmt, spdlog не регрессирует
-- [ ] Unit-тест: заголовок с Apache 2.0 copyright (>30 непустых строк) + корректным guard → pass
+- [ ] `sf8_include_guard.cpp`: raise `kScanLines` from 30 to 60
+- [ ] `sf8_include_guard.cpp`: add a check — skip files with the `.inc` extension
+- [ ] Confirm: run on abseil → 0 SF.8 false positives
+- [ ] Confirm: run on Catch2, fmt, spdlog does not regress
+- [ ] Unit test: a header with an Apache 2.0 copyright (>30 non-empty lines) + a correct guard → pass
 
-## Сделано
+## Done
 
-- `kScanLines` 30 → 60: покрывает Apache 2.0 copyright блоки (~47 непустых строк)
-- `isIncFile()` хелпер + `if (isIncFile(path)) continue;` в `check()` — `.inc` пропускаются SF.8, но остаются в include-графе
-- 2 новых unit-теста + фикстура `fixtures/sf8_include_guard/pass/long_copyright_guard.h`
-- Коммит: `d9b74c2` `fix(rules/sf8): raise kScanLines to 60 and skip .inc fragments (#034)`
+- `kScanLines` 30 → 60: covers Apache 2.0 copyright blocks (~47 non-empty lines)
+- `isIncFile()` helper + `if (isIncFile(path)) continue;` in `check()` — `.inc` are skipped by SF.8, but stay in the include graph
+- 2 new unit tests + fixture `fixtures/sf8_include_guard/pass/long_copyright_guard.h`
+- Commit: `d9b74c2` `fix(rules/sf8): raise kScanLines to 60 and skip .inc fragments (#034)`
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `src/rules/sf8_include_guard.cpp` | `kScanLines` 30→60; `isIncFile()` + skip в `check()` |
-| `tests/unit/rules/sf8_include_guard_test.cpp` | 2 новых теста: long-copyright guard, .inc fragment |
-| `fixtures/sf8_include_guard/pass/long_copyright_guard.h` | новый — Apache 2.0 copyright + guard на строке 32 |
+| `src/rules/sf8_include_guard.cpp` | `kScanLines` 30→60; `isIncFile()` + skip in `check()` |
+| `tests/unit/rules/sf8_include_guard_test.cpp` | 2 new tests: long-copyright guard, .inc fragment |
+| `fixtures/sf8_include_guard/pass/long_copyright_guard.h` | new — Apache 2.0 copyright + guard on line 32 |

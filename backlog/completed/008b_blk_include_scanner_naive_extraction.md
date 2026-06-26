@@ -1,71 +1,71 @@
-# [SCAN] Include scanner — наивная line-based экстракция
+# [SCAN] Include scanner — naive line-based extraction
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** SCAN
-**Приоритет:** blocker
-**Сложность:** S (< 1 дня)
-**Блокирует:** #008c (include_scanner_skip_comments)
-**Заблокирован:** #008a (include_scanner_api_skeleton)
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** SCAN
+**Priority:** blocker
+**Difficulty:** S (< 1 day)
+**Blocks:** #008c (include_scanner_skip_comments)
+**Blocked by:** #008a (include_scanner_api_skeleton)
 **Related:** #008 (dependency_graph_foundation)
 
-## Цель
+## Goal
 
-Распознавать простейшие `#include "x"` и `#include <x>` в исходнике, по одной
-директиве на строку, без учёта комментариев, строковых литералов и line
+Recognize the simplest `#include "x"` and `#include <x>` in a source file, one
+directive per line, without accounting for comments, string literals, or line
 continuation.
 
-## Сделано
+## Done
 
-- **2026-05-26** — line iteration через скан `\n` с подсчётом line_no.
-- **2026-05-26** — `skip_ws` для leading whitespace.
-- **2026-05-26** — детектор префикса `#include`, выбор delimiter `"` / `<`, поиск closing delimiter.
-- **2026-05-26** — 7 unit-тестов для happy path: quote, angle, multi, без include, leading spaces/tabs, no trailing newline. Все зелёные (9/9 общий счёт).
+- **2026-05-26** — line iteration by scanning for `\n` while counting line_no.
+- **2026-05-26** — `skip_ws` for leading whitespace.
+- **2026-05-26** — `#include` prefix detector, delimiter choice `"` / `<`, closing delimiter search.
+- **2026-05-26** — 7 unit tests for the happy path: quote, angle, multi, no include, leading spaces/tabs, no trailing newline. All green (9/9 overall).
 
-## Как работает
+## How it works
 
-`scan_includes(source)` идёт по `source` посимвольно, нарезая на logical lines по `\n`. Для каждой строки вызывается `try_extract(line, line_no, out)`:
+`scan_includes(source)` walks `source` character by character, slicing it into logical lines by `\n`. For each line it calls `try_extract(line, line_no, out)`:
 
-1. `skip_ws` — пропустить leading пробелы и табы.
-2. сравнить префикс с `#include`; если нет — выйти.
-3. снова `skip_ws` после ключевого слова.
-4. посмотреть на первый символ: `"` → `Quote`, `<` → `Angle`, иначе — выйти.
-5. найти closing delimiter (`"` или `>`).
-6. собрать `IncludeDirective{kind, token, line_no}` и положить в out.
+1. `skip_ws` — skip leading spaces and tabs.
+2. compare the prefix with `#include`; if no match — bail out.
+3. `skip_ws` again after the keyword.
+4. look at the first character: `"` → `Quote`, `<` → `Angle`, otherwise — bail out.
+5. find the closing delimiter (`"` or `>`).
+6. assemble `IncludeDirective{kind, token, line_no}` and push it into out.
 
-Все этапы без regex, без аллокаций кроме итогового `std::string` для токена.
+All steps are regex-free, with no allocations beyond the final `std::string` for the token.
 
-## Чем управляется
+## Controlled by
 
-- Без флагов / env.
-- Поведение полностью детерминировано входной строкой.
+- No flags / env.
+- Behavior is fully determined by the input string.
 
-## С чем связана
+## Related to
 
-- Тот же translation unit `src/scan/include_scanner.cpp`, расширяется в 008c…g.
-- Public API не изменился — все клиенты 008a продолжают работать.
+- Same translation unit `src/scan/include_scanner.cpp`, extended in 008c…g.
+- Public API unchanged — all 008a clients keep working.
 
-## Диагностика
+## Diagnostics
 
-- Если директива не находится, проверить:
-  - есть ли что-то нестандартное между `#` и `include` (не поддерживается, добавится позже только если потребуется);
-  - закрыт ли delimiter на той же строке (multi-line кейс — задача 008e).
-- Юнит-тесты в `tests/unit/scan/include_scanner_test.cpp` дублируют ожидания и удобны как живой контракт.
+- If a directive isn't found, check:
+  - whether there's something non-standard between `#` and `include` (not supported, will be added later only if needed);
+  - whether the delimiter is closed on the same line (the multi-line case is task 008e).
+- Unit tests in `tests/unit/scan/include_scanner_test.cpp` mirror the expectations and serve as a live contract.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Никакой регулярки | Зависимостей минимум, разбор тривиальный |
-| Не валидируем содержимое токена | Это работа resolver-а на следующих этапах |
-| Closing delimiter ищется через `find`, а не покадровый цикл | Короче и понятнее, перфоманс не критичен |
-| Helper `try_extract` возвращает `bool` | Готовая точка для будущих ветвлений (macro-include в 008g) |
+| No regex | Minimum dependencies, parsing is trivial |
+| Don't validate token contents | That's the resolver's job in later stages |
+| Closing delimiter found via `find`, not a frame-by-frame loop | Shorter and clearer, performance isn't critical |
+| Helper `try_extract` returns `bool` | A ready branching point for the future (macro-include in 008g) |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `src/scan/include_scanner.cpp` | реализация happy path (line iteration + `try_extract` + `skip_ws`) |
-| `tests/unit/scan/include_scanner_test.cpp` | 6 новых кейсов поверх smoke |
+| `src/scan/include_scanner.cpp` | happy-path implementation (line iteration + `try_extract` + `skip_ws`) |
+| `tests/unit/scan/include_scanner_test.cpp` | 6 new cases on top of smoke |

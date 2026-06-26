@@ -1,73 +1,73 @@
-# [DOCS][PRODUCT] Пересобрать позиционирование вокруг core gate и advisory-слоя
+# [DOCS][PRODUCT] Rebuild the positioning around the core gate and the advisory layer
 
-**Дата создания:** 2026-06-23
-**Дата старта:** 2026-06-23
-**Статус:** completed
-**Модуль:** DOCS / PRODUCT / CLI
-**Приоритет:** major
-**Сложность:** M
-**Блокирует:** непротиворечивый внешний нарратив о том, что такое archcheck и чем он не является
-**Заблокирован:** —
+**Created:** 2026-06-23
+**Start date:** 2026-06-23
+**Status:** completed
+**Module:** DOCS / PRODUCT / CLI
+**Priority:** major
+**Complexity:** M
+**Blocks:** a consistent external narrative about what archcheck is and what it is not
+**Blocked by:** —
 **Related:** #075 (mvp_v1_trusted_diff_workflow), #093 (flag_argument), #096 (satd_delta), #097 (test_co_evolution), #098 (god_file_growth), #100 (defect_attractor), #101 (local_complexity_drift), #123 (diff_new_clone_gate)
 
-## Цель
+## Goal
 
-Определить и зафиксировать честную продуктовую рамку: как объяснять `archcheck`, если core gate остаётся архитектурным, но рядом уже живёт широкий advisory-слой по новому коду и истории.
+Define and record an honest product frame: how to explain `archcheck` when the core gate stays architectural, but next to it there already lives a broad advisory layer over new code and history.
 
-## Контекст
+## Context
 
-Старое позиционирование было простым: «Lakos physical design + Core Guidelines SF.* checks в CI», не линтер, не багфайндер, не IDE-tool. Код уже сложнее этой формулы.
+The old positioning was simple: "Lakos physical design + Core Guidelines SF.* checks in CI", not a linter, not a bug finder, not an IDE tool. The code is already more complex than this formula.
 
-- В `--diff` сегодня есть не только graph drift, но и SATD, test co-evolution,
-  local complexity drift, new clone drift и flag-argument drift:
+- In `--diff` today there is not only graph drift, but also SATD, test co-evolution,
+  local complexity drift, new clone drift and flag-argument drift:
   [src/cli/diff_command.cpp#L165-L211](../../src/cli/diff_command.cpp#L165-L211).
-- В CLI уже есть отдельный advisory-режим `--history`:
+- The CLI already has a separate advisory mode `--history`:
   [src/main.cpp#L36-L42](../../src/main.cpp#L36-L42).
-- Changelog честно показывает эту эволюцию, но README и spec всё ещё в основном
-  говорят языком «architecture only»:
+- The changelog honestly shows this evolution, but README and the spec still mostly
+  speak the language of "architecture only":
   [CHANGELOG.md#L31-L62](../../CHANGELOG.md#L31-L62),
   [README.md#L123-L131](../../README.md#L123-L131).
 
-Пока это не оформлено, у пользователя возникает естественное ощущение противоречия:
-инструмент говорит «не лinter», но при этом сигналит про TODO/HACK, тесты, флаги-були и копипаст.
+Until this is framed, the user naturally feels a contradiction:
+the tool says "not a linter", yet signals about TODO/HACK, tests, boolean flags and copy-paste.
 
-## План выполнения
+## Execution plan
 
-- [ ] Разложить текущие сигналы на слои: core gate, structural advisory, hygiene advisory, history analytics.
-- [ ] Решить, что входит в headline продукта, а что живёт как secondary/advisory capability.
-- [ ] Переписать README/spec/CI copy так, чтобы advisory-слой не выглядел scope creep или случайным набором smell-checks.
-- [ ] Явно объяснить, почему это всё ещё не clang-tidy replacement: diff-scoped, advisory-first, regression-oriented, без претензии на style/semantic linting.
-- [ ] Проверить названия секций и терминов: возможно, нужен устойчивый термин для не-гейтящих сигналов (`advisories`, `delta heuristics`, `PR hygiene layer`).
-- [ ] Зафиксировать в нарративе, что gate НЕ однороден между режимами: check/drift гейтят только циклы (SF.9 / DRIFT.1·2·4.CYCLE), а `--diff` гейтит ещё и new god-headers ([include/archcheck/diff/regression_report.h#L79](../../include/archcheck/diff/regression_report.h#L79)). Комментарий [src/cli/check_command.cpp#L95](../../src/cli/check_command.cpp#L95) сейчас врёт («gate = cycles» про diff) — позиционирование не должно повторить эту ложную симметрию (синхронно с #141).
+- [ ] Break down the current signals into layers: core gate, structural advisory, hygiene advisory, history analytics.
+- [ ] Decide what goes into the product headline and what lives as a secondary/advisory capability.
+- [ ] Rewrite README/spec/CI copy so that the advisory layer does not look like scope creep or a random set of smell-checks.
+- [ ] Explain explicitly why this is still not a clang-tidy replacement: diff-scoped, advisory-first, regression-oriented, with no claim to style/semantic linting.
+- [ ] Review section names and terms: a stable term for the non-gating signals may be needed (`advisories`, `delta heuristics`, `PR hygiene layer`).
+- [ ] Record in the narrative that the gate is NOT uniform across modes: check/drift gate only on cycles (SF.9 / DRIFT.1·2·4.CYCLE), while `--diff` also gates on new god-headers ([include/archcheck/diff/regression_report.h#L79](../../include/archcheck/diff/regression_report.h#L79)). The comment [src/cli/check_command.cpp#L95](../../src/cli/check_command.cpp#L95) currently lies ("gate = cycles" about diff) — the positioning must not repeat this false symmetry (in sync with #141).
 
-## Сделано
+## Done
 
-- README и architecture spec получили явную модель слоёв: core gate, structural advisories, PR hygiene advisories, history analytics.
-- Объяснено, почему advisory-layer не делает archcheck заменой clang-tidy: diff-scoped, regression-oriented, advisory-first.
-- Gate различен по режимам: check = `SF.9`, drift = `DRIFT.1/2/4.CYCLE`, diff = new/grown cycles + new god-headers.
-- CI-док описывает advisory blocks vs gating verdict.
+- README and the architecture spec got an explicit layer model: core gate, structural advisories, PR hygiene advisories, history analytics.
+- Explained why the advisory layer does not make archcheck a clang-tidy replacement: diff-scoped, regression-oriented, advisory-first.
+- The gate differs by mode: check = `SF.9`, drift = `DRIFT.1/2/4.CYCLE`, diff = new/grown cycles + new god-headers.
+- The CI doc describes advisory blocks vs the gating verdict.
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-- Нет. Новые signal waves должны явно выбирать слой: gate или advisory.
+- None. New signal waves must explicitly choose a layer: gate or advisory.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Не прятать advisory-слой под ковёр | он уже shipped и виден пользователю в `--diff`/`--history` |
-| Держать core gate отдельно от advisory | именно узкий gate сохраняет trust floor и отличает archcheck от broad smell-lint |
-| Аргументировать рамку через режим работы, а не через список тем | SATD/clone/test сигналы допустимы, если остаются diff-scoped и advisory-only |
+| Don't sweep the advisory layer under the rug | it is already shipped and visible to the user in `--diff`/`--history` |
+| Keep the core gate separate from the advisory | it is exactly the narrow gate that preserves the trust floor and distinguishes archcheck from broad smell-lint |
+| Argue the frame through the operating mode, not through a list of topics | SATD/clone/test signals are acceptable as long as they stay diff-scoped and advisory-only |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `README.md` | переписать headline / feature framing |
-| `docs/architecture-spec.md` | развести core product и advisory layers |
-| `docs/MVP.md` | при необходимости уточнить acceptance language вокруг trusted narrow gates |
-| `docs/ci_integration.md` | объяснить advisory blocks vs gating verdict |
+| `README.md` | rewrite the headline / feature framing |
+| `docs/architecture-spec.md` | separate the core product and the advisory layers |
+| `docs/MVP.md` | if needed, refine the acceptance language around trusted narrow gates |
+| `docs/ci_integration.md` | explain advisory blocks vs the gating verdict |

@@ -1,73 +1,73 @@
-# [SCAN] Include scanner — macro include как diagnostic
+# [SCAN] Include scanner — macro include as diagnostic
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** SCAN
-**Приоритет:** blocker
-**Сложность:** S (< 1 дня)
-**Блокирует:** #008 (dependency_graph_foundation) — закрывает ветку scanner
-**Заблокирован:** #008f (include_scanner_first_significant_char)
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** SCAN
+**Priority:** blocker
+**Complexity:** S (< 1 day)
+**Blocks:** #008 (dependency_graph_foundation) — closes the scanner branch
+**Blocked by:** #008f (include_scanner_first_significant_char)
 **Related:** #008 (dependency_graph_foundation)
 
-## Цель
+## Goal
 
-`#include SOMETHING` (macro-based include) не порождает `IncludeDirective`, но
-возвращается отдельной diagnostic-записью `macro_include`.
+`#include SOMETHING` (macro-based include) does not produce an `IncludeDirective`, but
+is returned as a separate `macro_include` diagnostic record.
 
-## Сделано
+## Done
 
-- **2026-05-26** — в `include/archcheck/scan/include_directive.h` добавлены `enum class DiagnosticKind { MacroInclude }`, `struct IncludeScanDiagnostic`, `struct ScanResult`.
-- **2026-05-26** — сигнатура `scan_includes` сменилась: `std::vector<IncludeDirective>` → `ScanResult`.
-- **2026-05-26** — `try_extract` сильно перестроен: ветка `"`/`<` строит directive, ветка `is_ident_start` собирает identifier и пушит diagnostic, иначе — ничего.
-- **2026-05-26** — пустой `#include` без токена → ничего не возвращается (зафиксировано как «игнор»).
-- **2026-05-26** — все 25 существующих тестов перешли на helper `extract_directives(...)`, добавлены 4 новых для macro-include. 33/33 зелёные.
+- **2026-05-26** — added `enum class DiagnosticKind { MacroInclude }`, `struct IncludeScanDiagnostic`, `struct ScanResult` to `include/archcheck/scan/include_directive.h`.
+- **2026-05-26** — the `scan_includes` signature changed: `std::vector<IncludeDirective>` → `ScanResult`.
+- **2026-05-26** — `try_extract` heavily reworked: the `"`/`<` branch builds a directive, the `is_ident_start` branch collects an identifier and pushes a diagnostic, otherwise nothing.
+- **2026-05-26** — an empty `#include` without a token → nothing returned (fixed as "ignore").
+- **2026-05-26** — all 25 existing tests moved to the helper `extract_directives(...)`, 4 new ones added for macro-include. 33/33 green.
 
-## Как работает
+## How it works
 
 `try_extract(line, line_no, ScanResult& out)`:
 
-1. `skip_ws` → ищет `#include` → `skip_ws` снова.
-2. Смотрит на `line[i]`:
-   - `"` → quote include: ищет closing `"`, кладёт `IncludeDirective{Quote, ...}`.
-   - `<` → angle include: ищет closing `>`, кладёт `IncludeDirective{Angle, ...}`.
-   - identifier start (`_` или буква) → расширяет до конца identifier (`is_ident_cont`), кладёт `IncludeScanDiagnostic{MacroInclude, "FOO", line_no}`.
-   - всё остальное (включая EOL сразу после `#include`) → return без записи.
+1. `skip_ws` → looks for `#include` → `skip_ws` again.
+2. Looks at `line[i]`:
+   - `"` → quote include: finds the closing `"`, emits `IncludeDirective{Quote, ...}`.
+   - `<` → angle include: finds the closing `>`, emits `IncludeDirective{Angle, ...}`.
+   - identifier start (`_` or a letter) → expands to the end of the identifier (`is_ident_cont`), emits `IncludeScanDiagnostic{MacroInclude, "FOO", line_no}`.
+   - everything else (including EOL right after `#include`) → return without recording.
 
-`ScanResult` — простая пара двух vector-ов. Клиенты разделяют edges и предупреждения по делу: edges идут в граф, diagnostics — в отчёт.
+`ScanResult` is a simple pair of two vectors. Clients split edges and warnings by purpose: edges go to the graph, diagnostics to the report.
 
-В тестах добавлен helper `extract_directives(s) → vector<IncludeDirective>` для обратной совместимости с уже написанными ассертами на `.size()` / `[0]`.
+A helper `extract_directives(s) → vector<IncludeDirective>` was added in the tests for backward compatibility with already-written assertions on `.size()` / `[0]`.
 
-## Чем управляется
+## What controls it
 
-- Без флагов / env. Поведение полностью детерминировано входной строкой.
+- No flags / env. Behavior is fully deterministic from the input string.
 
-## С чем связана
+## What it relates to
 
-- Public-типы: `IncludeDirective`, `IncludeKind`, `IncludeScanDiagnostic`, `DiagnosticKind`, `ScanResult` — все в `archcheck::scan::`.
-- Будущий resolver (#012) будет потреблять `ScanResult.directives`; reporter — `ScanResult.diagnostics`.
+- Public types: `IncludeDirective`, `IncludeKind`, `IncludeScanDiagnostic`, `DiagnosticKind`, `ScanResult` — all in `archcheck::scan::`.
+- The future resolver (#012) will consume `ScanResult.directives`; the reporter — `ScanResult.diagnostics`.
 
-## Диагностика
+## Diagnostics
 
-- Если ожидаемая директива внезапно стала diagnostic — проверить, не съели ли кавычки/угловые скобки раньше по pipeline (комментарии/raw strings).
-- Если diagnostic не возникает на `#include FOO` — проверить `is_ident_start` (нет ли там whitespace, который проглотил начало identifier-а).
-- `#include 123` сейчас игнорируется (не identifier, не `"`, не `<`). Это намеренно — токен начинающийся с цифры не легальный preprocessor token и не имеет смысла.
+- If an expected directive suddenly became a diagnostic — check whether quotes/angle brackets were eaten earlier in the pipeline (comments/raw strings).
+- If a diagnostic does not appear on `#include FOO` — check `is_ident_start` (no whitespace there that swallowed the start of the identifier).
+- `#include 123` is currently ignored (not an identifier, not `"`, not `<`). This is intentional — a token starting with a digit is not a legal preprocessor token and makes no sense.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Diagnostic, а не директива для macro include | Edge в графе должен строиться только из resolved project include (см. §5 mini-design в #008) |
-| Возврат структуры `ScanResult`, не пары | Будущие категории (token pasting, conditional includes) расширят `DiagnosticKind` без breaking changes |
-| Пустой `#include` → ничего | Не директива и не macro-форма; добавление diagnostic-категории «MalformedInclude» — лишнее на этом этапе |
-| Helper `extract_directives` в тестах | Меньше шума в существующих ассертах при breaking change сигнатуры |
+| Diagnostic, not a directive, for macro include | A graph edge must be built only from a resolved project include (see §5 mini-design in #008) |
+| Return a `ScanResult` struct, not a pair | Future categories (token pasting, conditional includes) will extend `DiagnosticKind` without breaking changes |
+| Empty `#include` → nothing | Neither a directive nor a macro form; adding a "MalformedInclude" diagnostic category is unnecessary at this stage |
+| Helper `extract_directives` in tests | Less noise in existing assertions on a breaking signature change |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
 | `include/archcheck/scan/include_directive.h` | + `DiagnosticKind`, `IncludeScanDiagnostic`, `ScanResult` |
-| `include/archcheck/scan/include_scanner.h` | новая сигнатура `scan_includes` |
-| `src/scan/include_scanner.cpp` | `try_extract` поддерживает macro-include branch + `is_ident_*` |
-| `tests/unit/scan/include_scanner_test.cpp` | helper `extract_directives`, 4 кейса macro-include |
+| `include/archcheck/scan/include_scanner.h` | new `scan_includes` signature |
+| `src/scan/include_scanner.cpp` | `try_extract` supports the macro-include branch + `is_ident_*` |
+| `tests/unit/scan/include_scanner_test.cpp` | helper `extract_directives`, 4 macro-include cases |

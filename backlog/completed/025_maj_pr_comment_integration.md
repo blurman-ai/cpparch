@@ -1,138 +1,138 @@
-# [CI][DOC] PR-видимость отчёта: sticky-comment + Check annotations + merge_group в example workflow
+# [CI][DOC] PR visibility of the report: sticky-comment + Check annotations + merge_group in the example workflow
 
-**Дата создания:** 2026-05-27
-**Дата старта:** 2026-05-28
-**Дата завершения:** 2026-05-28
-**Статус:** completed
-**Модуль:** CI, DOC
-**Приоритет:** major
-**Сложность:** S (1-2 часа)
-**Блокирует:** —
-**Заблокирован:** — (#018 даёт текстовый отчёт; этого достаточно)
+**Date created:** 2026-05-27
+**Date started:** 2026-05-28
+**Date completed:** 2026-05-28
+**Status:** completed
+**Module:** CI, DOC
+**Priority:** major
+**Complexity:** S (1-2 hours)
+**Blocks:** —
+**Blocked by:** — (#018 provides the text report; that's enough)
 **Related:** #018 (git_diff_analysis), [docs/ci_integration.md](docs/ci_integration.md)
 
-## Цель
+## Goal
 
-Превратить [.github/workflows/example_archcheck_pr.yml](.github/workflows/example_archcheck_pr.yml)
-из «здесь лежит artifact с отчётом» в **эталонный** CI-сниппет, который
-показывает результат прямо в UI PR-а без download-artifact-step-а:
+Turn [.github/workflows/example_archcheck_pr.yml](.github/workflows/example_archcheck_pr.yml)
+from "here is an artifact with the report" into a **reference** CI snippet that
+shows the result right in the PR UI without a download-artifact step:
 
-1. archcheck-output → `$GITHUB_STEP_SUMMARY` (виден одним кликом из
-   run-страницы).
-2. archcheck-output → sticky PR-comment через
+1. archcheck-output → `$GITHUB_STEP_SUMMARY` (visible with a single click from
+   the run page).
+2. archcheck-output → sticky PR-comment via
    [marocchino/sticky-pull-request-comment](https://github.com/marocchino/sticky-pull-request-comment)
-   (виден прямо в conversation-tab PR-а; update-in-place при push-ах).
-3. Workflow триггерится **и** на `pull_request`, **и** на `merge_group` —
-   иначе merge queue зависает в ожидании check-а ([docs.github.com — merge
+   (visible right in the PR conversation tab; update-in-place on pushes).
+3. Workflow triggers **both** on `pull_request` **and** on `merge_group` —
+   otherwise the merge queue hangs waiting for the check ([docs.github.com — merge
    queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)).
-4. Скрыть от draft-PR через `if: github.event.pull_request.draft == false`
-   (опционально).
+4. Hide from draft PRs via `if: github.event.pull_request.draft == false`
+   (optional).
 
-## Контекст
+## Context
 
-Текущий пример просто uploads-artifact (1 строка `tee archcheck-diff.txt`
-+ upload-step). Чтобы увидеть отчёт, ревьюер должен открыть Actions-tab,
-найти прогон, скачать zip, распаковать. UX — никакой.
+The current example simply uploads-artifact (1 line `tee archcheck-diff.txt`
++ upload-step). To see the report, the reviewer has to open the Actions tab,
+find the run, download the zip, unpack it. The UX is nonexistent.
 
-Research индустрии (см. отчёт research-агента 2026-05-27 в истории):
+Industry research (see the research-agent report 2026-05-27 in history):
 
-- **Sonar PR decoration** — Quality Gate как именованный Check, не комментарий.
-- **dependency-cruiser** — `depcruise-pr-check` action, рисует mermaid-граф
-  изменённых зависимостей прямо в PR-comment.
-- **reviewdog таксономия** — `github-pr-check` (Checks-tab, file-level)
-  подходит для архитектурного отчёта; `github-pr-review` (по строкам) —
-  принципиально не подходит, т.к. новый цикл A→B→C→A может появиться от
-  merge-from-main без правок в самих строках.
-- **ArchUnit FreezingArchRule** — baseline-файл, не комментарий; ортогонально.
+- **Sonar PR decoration** — Quality Gate as a named Check, not a comment.
+- **dependency-cruiser** — `depcruise-pr-check` action, draws a mermaid graph
+  of changed dependencies right in the PR comment.
+- **reviewdog taxonomy** — `github-pr-check` (Checks tab, file-level)
+  fits an architectural report; `github-pr-review` (per-line) is
+  fundamentally unsuitable, because a new cycle A→B→C→A can appear from a
+  merge-from-main without edits in the lines themselves.
+- **ArchUnit FreezingArchRule** — a baseline file, not a comment; orthogonal.
 
-Sticky-comment — де-факто стандарт для tool-output в PR (CodeClimate,
+Sticky-comment is the de facto standard for tool-output in a PR (CodeClimate,
 size-limit-action, bundlewatch). `marocchino/sticky-pull-request-comment`
-использует `header:` как идентификатор для update-in-place и обходится
-`GITHUB_TOKEN` без PAT.
+uses `header:` as the identifier for update-in-place and gets by with
+`GITHUB_TOKEN` without a PAT.
 
-archcheck сам **не должен** ходить в GitHub API — это нарушит
-git-host-agnostic свойство. Вся публикация — на стороне CI-шага.
+archcheck itself **must not** call the GitHub API — that would break the
+git-host-agnostic property. All publishing is on the CI-step side.
 
-## План выполнения
+## Execution plan
 
-- [x] Расширить `example_archcheck_pr.yml`:
-  - [x] Триггеры `pull_request` + `merge_group` с одним и тем же job-name (для merge queue).
-  - [x] Step: capture archcheck output в файл + tee в stdout.
-  - [x] Step: append `archcheck-diff.txt` в `$GITHUB_STEP_SUMMARY` через `cat archcheck-diff.txt >> "$GITHUB_STEP_SUMMARY"`.
-  - [x] Step: post sticky-comment через `marocchino/sticky-pull-request-comment@v2` с `header: archcheck-diff` и `recreate: false`. Skip на `merge_group` event.
-  - [x] `if: always()` на comment-step, чтобы регрессии (exit 1) тоже попадали в комментарий.
-  - [x] `permissions: pull-requests: write` на job-уровне (минимум для sticky-comment).
-- [x] Обновить шапку example_workflow с пояснением, какие три канала показа отчёта в нём задействованы.
-- [x] В [docs/ci_integration.md](docs/ci_integration.md) §«Каналы публикации в PR» §2 — добавить прямой `uses:` snippet.
-- [x] Smoke: PR `smoke/025-sticky-comment-test` — sticky-comment появился в conversation-tab, все 6 CI-чеков зелёные. PR закрыт.
+- [x] Extend `example_archcheck_pr.yml`:
+  - [x] Triggers `pull_request` + `merge_group` with the same job-name (for the merge queue).
+  - [x] Step: capture archcheck output to a file + tee to stdout.
+  - [x] Step: append `archcheck-diff.txt` to `$GITHUB_STEP_SUMMARY` via `cat archcheck-diff.txt >> "$GITHUB_STEP_SUMMARY"`.
+  - [x] Step: post a sticky-comment via `marocchino/sticky-pull-request-comment@v2` with `header: archcheck-diff` and `recreate: false`. Skip on `merge_group` event.
+  - [x] `if: always()` on the comment-step, so regressions (exit 1) also land in the comment.
+  - [x] `permissions: pull-requests: write` at the job level (minimum for sticky-comment).
+- [x] Update the example_workflow header with an explanation of which three report-display channels it uses.
+- [x] In [docs/ci_integration.md](docs/ci_integration.md) §"Publishing channels in a PR" §2 — add a direct `uses:` snippet.
+- [x] Smoke: PR `smoke/025-sticky-comment-test` — the sticky-comment appeared in the conversation tab, all 6 CI checks green. PR closed.
 
-## Что НЕ входит в эту задачу
+## What is NOT part of this task
 
-- **Annotations с file:line** (`::warning file=...,line=...`). Сейчас
-  `EdgeRef` location-метаданных не несёт; реальный file:line подъедет
-  когда scanner начнёт писать координаты в edge — отдельная задача.
-- **SARIF репортёр.** Третий канал из docs §«Каналы публикации»;
+- **Annotations with file:line** (`::warning file=...,line=...`). Right now
+  `EdgeRef` carries no location metadata; the real file:line will arrive
+  when the scanner starts writing coordinates into the edge — a separate task.
+- **SARIF reporter.** The third channel from docs §"Publishing channels";
   v0.2 roadmap.
-- **Distribution как marketplace composite-action** (`uses: archcheck/archcheck-action@v1`).
-  Это требует pre-built бинаря и релизного пайплайна — отдельная история
-  ближе к v0.2.
+- **Distribution as a marketplace composite-action** (`uses: archcheck/archcheck-action@v1`).
+  This requires a pre-built binary and a release pipeline — a separate story
+  closer to v0.2.
 
-## Сделано
+## Done
 
-- `example_archcheck_pr.yml` полностью переписан: `merge_group` триггер,
+- `example_archcheck_pr.yml` fully rewritten: `merge_group` trigger,
   `permissions: pull-requests: write`, `$GITHUB_STEP_SUMMARY`, sticky-comment
-  через `marocchino/sticky-pull-request-comment@v2`. Паттерн
-  `continue-on-error: true` + финальный fail-шаг — отчёт публикуется
-  даже при регрессии.
-- `docs/ci_integration.md` §2 «Sticky PR comment» — добавлен полный ready-made
-  snippet с объяснением каждого поля.
-- Локальный smoke-тест: `archcheck --diff master..HEAD` на ветке с `fixtures/smoke_025/`
-  даёт `added_edges: 1`, `exit=1` — вывод корректен для sticky-comment.
-- Баг GCC 13: `(void)::read()` не подавляет `-Wunused-result` в Release build с `-Werror`.
-  Фикс: `[[maybe_unused]] auto n = ::read(...)` (commit `d5d31db`).
-  Все 222 теста зелёные.
-- Smoke PR `smoke/025-sticky-comment-test` открыт на GitHub; второй CI-прогон
-  (с фиксом) в процессе.
+  via `marocchino/sticky-pull-request-comment@v2`. The
+  `continue-on-error: true` + final fail-step pattern — the report is published
+  even on a regression.
+- `docs/ci_integration.md` §2 "Sticky PR comment" — added a full ready-made
+  snippet explaining each field.
+- Local smoke test: `archcheck --diff master..HEAD` on a branch with `fixtures/smoke_025/`
+  gives `added_edges: 1`, `exit=1` — the output is correct for the sticky-comment.
+- GCC 13 bug: `(void)::read()` does not suppress `-Wunused-result` in a Release build with `-Werror`.
+  Fix: `[[maybe_unused]] auto n = ::read(...)` (commit `d5d31db`).
+  All 222 tests green.
+- Smoke PR `smoke/025-sticky-comment-test` opened on GitHub; the second CI run
+  (with the fix) is in progress.
 
-## В работе
-
-—
-
-## Следующие шаги
+## In progress
 
 —
 
-## Как работает (для документации)
+## Next steps
 
-Три канала видимости отчёта в GitHub PR:
-1. **Step Summary** — `cat archcheck-diff.txt >> "$GITHUB_STEP_SUMMARY"`, доступен из run-страницы одним кликом.
-2. **Sticky comment** — `marocchino/sticky-pull-request-comment@v2` с `header: archcheck-diff`, обновляется на месте при force-push, не спамит ленту.
-3. **Failed check** — job падает с exit 1 при регрессии, красный Check автоматически блокирует merge.
+—
 
-Паттерн `continue-on-error: true` + финальный fail-шаг позволяет опубликовать отчёт даже при регрессии.
-`if: github.event_name == 'pull_request'` на comment-step — sticky-comment пропускается для `merge_group` (там нет PR для комментирования).
+## How it works (for documentation)
 
-Попутные фиксы в smoke PR:
-- `(void)::read()` → `[[maybe_unused]] auto n = ::read()` — GCC 13 с `-Werror=unused-result` отвергает `(void)`-cast для `read()`.
-- `path.find(prefix) == 0` + `// cppcheck-suppress stlIfStrFind` — `starts_with` недоступен на GCC 8 (Astra Linux 1.7).
+Three channels of report visibility in a GitHub PR:
+1. **Step Summary** — `cat archcheck-diff.txt >> "$GITHUB_STEP_SUMMARY"`, available from the run page with a single click.
+2. **Sticky comment** — `marocchino/sticky-pull-request-comment@v2` with `header: archcheck-diff`, updated in place on force-push, doesn't spam the feed.
+3. **Failed check** — the job fails with exit 1 on a regression, the red Check automatically blocks the merge.
 
-## Ключевые решения
+The `continue-on-error: true` + final fail-step pattern allows the report to be published even on a regression.
+`if: github.event_name == 'pull_request'` on the comment-step — the sticky-comment is skipped for `merge_group` (there is no PR there to comment on).
 
-| Решение | Причина |
+Incidental fixes in the smoke PR:
+- `(void)::read()` → `[[maybe_unused]] auto n = ::read()` — GCC 13 with `-Werror=unused-result` rejects the `(void)`-cast for `read()`.
+- `path.find(prefix) == 0` + `// cppcheck-suppress stlIfStrFind` — `starts_with` unavailable on GCC 8 (Astra Linux 1.7).
+
+## Key decisions
+
+| Decision | Reason |
 |---------|---------|
-| Sticky-comment (а не плодящийся) | Force-push в PR-ветку не должен спамить ленту обсуждения. Header-ключ `archcheck-diff` обеспечивает update-in-place |
-| `marocchino/sticky-pull-request-comment` как named-dependency | De facto стандарт (CodeClimate, size-limit, bundlewatch используют его); обходится `GITHUB_TOKEN` без PAT |
-| `merge_group` рядом с `pull_request` | Без него GitHub Merge Queue блокируется на отсутствующем check-е. Цена — один лишний триггер, профит — поддержка merge queue из коробки |
-| `$GITHUB_STEP_SUMMARY` плюс sticky-comment | Step Summary — для read-only ревьюера, кто открывает run; sticky-comment — для PR-treda. Не дублирование, разная аудитория |
-| archcheck не публикует сам | Сохраняет git-host-agnostic (GitLab/Bitbucket/Gitea/self-hosted работают без модификации tool). Публикация — adapter-step в YAML |
-| `permissions: pull-requests: write` явно | GitHub-default workflow permissions с осени 2024 — read-only; без явного grant sticky-comment не запишется |
-| `[[maybe_unused]] auto n = ::read(...)` вместо `(void)::read(...)` | GCC 13 (-Werror=unused-result) отвергает `(void)`-cast для `read()`; `[[maybe_unused]]` — C++17-идиома, работает везде |
+| Sticky-comment (not a proliferating one) | A force-push to the PR branch must not spam the discussion feed. The header key `archcheck-diff` ensures update-in-place |
+| `marocchino/sticky-pull-request-comment` as a named-dependency | De facto standard (CodeClimate, size-limit, bundlewatch use it); gets by with `GITHUB_TOKEN` without a PAT |
+| `merge_group` alongside `pull_request` | Without it, the GitHub Merge Queue blocks on a missing check. The cost — one extra trigger, the profit — merge queue support out of the box |
+| `$GITHUB_STEP_SUMMARY` plus sticky-comment | Step Summary — for the read-only reviewer who opens the run; sticky-comment — for the PR thread. Not duplication, different audiences |
+| archcheck doesn't publish itself | Preserves git-host-agnostic (GitLab/Bitbucket/Gitea/self-hosted work without modifying the tool). Publishing — an adapter-step in the YAML |
+| `permissions: pull-requests: write` explicitly | GitHub-default workflow permissions since autumn 2024 — read-only; without an explicit grant the sticky-comment won't be written |
+| `[[maybe_unused]] auto n = ::read(...)` instead of `(void)::read(...)` | GCC 13 (-Werror=unused-result) rejects the `(void)`-cast for `read()`; `[[maybe_unused]]` — a C++17 idiom, works everywhere |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Коммит | Изменение |
-|------|--------|-----------|
-| `.github/workflows/example_archcheck_pr.yml` | prev session | расширение: triggers, step-summary, sticky-comment, permissions |
-| `docs/ci_integration.md` | prev session | §«Sticky PR comment» — готовый snippet с `marocchino/...` |
-| `src/git/git_object_file_source.cpp` | `d5d31db` | фикс GCC 13: `(void)::read` → `[[maybe_unused]] auto n` |
-| `fixtures/smoke_025/a.h`, `b.h` | `f4e8389` | smoke-фикстура для PR-верификации (временная) |
+| File | Commit | Change |
+|------|--------|--------|
+| `.github/workflows/example_archcheck_pr.yml` | prev session | extension: triggers, step-summary, sticky-comment, permissions |
+| `docs/ci_integration.md` | prev session | §"Sticky PR comment" — ready-made snippet with `marocchino/...` |
+| `src/git/git_object_file_source.cpp` | `d5d31db` | GCC 13 fix: `(void)::read` → `[[maybe_unused]] auto n` |
+| `fixtures/smoke_025/a.h`, `b.h` | `f4e8389` | smoke fixture for PR verification (temporary) |

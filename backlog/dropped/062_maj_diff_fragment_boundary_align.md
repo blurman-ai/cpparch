@@ -1,33 +1,32 @@
-# [SCAN] #056: выравнивание фрагментов по границам функций (FP-segmentation)
+# [SCAN] #056: align fragments to function boundaries (FP-segmentation)
 
-**Дата создания:** 2026-05-31
-**Статус:** dropped (поглощена дизайном #072)
-**Модуль:** SCAN
-**Приоритет:** major
+**Created:** 2026-05-31
+**Status:** dropped (absorbed by the #072 design)
+**Module:** SCAN
+**Priority:** major
 **Related:** #060, #056
 
-## Цель
-Убрать FP-segmentation (~15% в iter1): фрагмент режет поперёк функций
-(`хвост func_A + голова func_B`) и матчится с несвязанным куском.
+## Goal
+Remove FP-segmentation (~15% in iter1): a fragment cuts across functions
+(`tail of func_A + head of func_B`) and matches an unrelated piece.
 
-## Идея фикса
-Фрагментация не должна эмитить блоки, пересекающие границу функции/верхнеуровневого
-блока. Кандидат-фрагмент = цельная функция/тело (по балансу `{}` от сигнатуры),
-не произвольное окно. Отсекать пары, где ADDED или BASE начинается/кончается
-в середине функции.
+## Fix idea
+Fragmentation must not emit blocks crossing the boundary of a function/top-level
+block. A candidate fragment = a whole function/body (by `{}` balance from the signature),
+not an arbitrary window. Cut off pairs where ADDED or BASE starts/ends
+in the middle of a function.
 
-## Проверка
-- [ ] iter-N: доля FP-segmentation падает, TP не теряются.
+## Verification
+- [ ] iter-N: the FP-segmentation share drops, TPs are not lost.
 
-## Итог
+## Outcome
 
-**Статус:** dropped — отдельная работа не нужна, цель достигнута дизайном другой задачи.
-**Дата закрытия:** 2026-06-11 (бэклог-ревью).
+**Status:** dropped — no separate work needed, the goal is achieved by another task's design.
+**Closing date:** 2026-06-11 (backlog review).
 
-FP-segmentation был артефактом line-window сегментации **спайка** #053/#056 (произвольные окна
-строк). Продуктовый фрагментер, написанный в #072 (`src/scan/duplication/fragmenter.cpp`),
-изначально режет по границам функций: блок эмитится только для `{`, которому предшествует `)`
-(тело функции/контрола), cap 600 токенов (#091) держит ~120-строчные функции целыми. Класс FP
-«хвост func_A + голова func_B» в продуктовом проходе невозможен по построению — предложенный
-здесь фикс реализован в #072 как свойство дизайна, не как отдельная правка.
-
+FP-segmentation was an artifact of the line-window segmentation of the **spike** #053/#056 (arbitrary line
+windows). The production fragmenter, written in #072 (`src/scan/duplication/fragmenter.cpp`),
+cuts along function boundaries from the start: a block is emitted only for a `{` preceded by a `)`
+(a function/control body), and the cap of 600 tokens (#091) keeps ~120-line functions whole. The FP class
+"tail of func_A + head of func_B" is impossible by construction in the production pass — the fix proposed
+here is implemented in #072 as a property of the design, not as a separate change.

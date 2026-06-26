@@ -1,112 +1,112 @@
-# [BUILD] Dogfood: cppcheck + clang-tidy + lizard в CI
+# [BUILD] Dogfood: cppcheck + clang-tidy + lizard in CI
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** BUILD
-**Приоритет:** major
-**Сложность:** S (день)
-**Блокирует:** —
-**Заблокирован:** ~~#002 (github_actions_ci)~~ — разблокировано
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** BUILD
+**Priority:** major
+**Complexity:** S (a day)
+**Blocks:** —
+**Blocked by:** ~~#002 (github_actions_ci)~~ — unblocked
 **Related:** #005 (sarif_reporter_spec)
 
-## Цель
+## Goal
 
-Не дать коду archcheck гнить — в каждом PR прогонять три дешёвые внешние тулзы поверх clang-tidy: **cppcheck**, **lizard**, и второй проход clang-tidy с расширенным набором. Полный отчёт от archcheck на самом себе — отдельной таской, когда правила появятся.
+Don't let archcheck's code rot — run three cheap external tools on top of clang-tidy in every PR: **cppcheck**, **lizard**, and a second clang-tidy pass with an extended set. A full report from archcheck on itself is a separate task, once rules exist.
 
-## Контекст
+## Context
 
-Из исследования 2026-05-26: cppcheck ловит то, что clang-tidy пропускает (UB, утечки на другом анализаторе), lizard — пороги сложности (CCN ≤ 15, функция ≤ 30 строк — совпадает с `docs/code_quality.md`). Оба бесплатные, быстрые, низкий шум. scan-build и `-fanalyzer` — позже, в nightly.
+From research 2026-05-26: cppcheck catches what clang-tidy misses (UB, leaks via a different analyzer), lizard — complexity thresholds (CCN ≤ 15, function ≤ 30 lines — matches `docs/code_quality.md`). Both are free, fast, low noise. scan-build and `-fanalyzer` — later, in nightly.
 
-## План выполнения
+## Execution plan
 
-- [x] Отдельный job `static-analysis` в `ci.yml`, параллельно сборке (один runner, ubuntu-24.04)
-- [x] **cppcheck:** `cppcheck --enable=warning,performance,portability --inline-suppr --error-exitcode=1 src/ include/` — падает на находках. Локально на нашем коде: 0 находок.
-- [x] **lizard:** `lizard --CCN 15 --length 30 --arguments 5 --warnings_only src/ include/ tests/` + grep на `warning:` / `!!!` — падает на превышении (lizard сам по себе всегда exit 0). Локально на нашем коде: 0 находок.
-- [x] **clang-tidy второй проход** с `.clang-tidy-strict` (bugprone, performance, modernize, cppcoreguidelines, readability, cert, misc, hicpp, llvm). Запускается с `continue-on-error: true` — **warning-only**, копит baseline, не валит сборку.
-- [x] Сохранять отчёты (`lizard-report.txt`, `clang-tidy-strict-report.txt`) как artifacts на 14 дней
-- [x] **Не** включать IWYU — мы сами в этой нише
-- [x] **Не** включать flawfinder — устаревает, для нас почти всё мимо
+- [x] Separate `static-analysis` job in `ci.yml`, parallel to the build (one runner, ubuntu-24.04)
+- [x] **cppcheck:** `cppcheck --enable=warning,performance,portability --inline-suppr --error-exitcode=1 src/ include/` — fails on findings. Locally on our code: 0 findings.
+- [x] **lizard:** `lizard --CCN 15 --length 30 --arguments 5 --warnings_only src/ include/ tests/` + grep for `warning:` / `!!!` — fails on threshold exceedance (lizard itself always exits 0). Locally on our code: 0 findings.
+- [x] **clang-tidy second pass** with `.clang-tidy-strict` (bugprone, performance, modernize, cppcoreguidelines, readability, cert, misc, hicpp, llvm). Runs with `continue-on-error: true` — **warning-only**, accumulates a baseline, does not fail the build.
+- [x] Save reports (`lizard-report.txt`, `clang-tidy-strict-report.txt`) as artifacts for 14 days
+- [x] Do **not** enable IWYU — we are in that niche ourselves
+- [x] Do **not** enable flawfinder — outdated, almost everything is off-target for us
 
-## Сделано
+## Done
 
-- **2026-05-26** — Завёл `.clang-tidy-strict` (cert-*, hicpp-*, misc-*, llvm-* поверх обычного набора). Шумные чеки (`llvm-header-guard`, `llvm-include-order`, `hicpp-signed-bitwise`, `cert-err58-cpp`, `cppcoreguidelines-pro-bounds-*`) выключены явно.
-- **2026-05-26** — В `.github/workflows/ci.yml` добавлен job `static-analysis` (параллелен `build`, ubuntu-24.04):
+- **2026-05-26** — Set up `.clang-tidy-strict` (cert-*, hicpp-*, misc-*, llvm-* on top of the regular set). Noisy checks (`llvm-header-guard`, `llvm-include-order`, `hicpp-signed-bitwise`, `cert-err58-cpp`, `cppcoreguidelines-pro-bounds-*`) are explicitly disabled.
+- **2026-05-26** — Added the `static-analysis` job to `.github/workflows/ci.yml` (parallel to `build`, ubuntu-24.04):
   - apt install: `cppcheck`, `clang-tidy-18`, `g++-13`, `ninja-build`, `cmake`; pip install: `lizard`.
-  - Cache `build/debug/_deps` по отдельному ключу `deps-Linux-static-...` (изолирован от build-cache, иначе race condition при параллельном write).
-  - `cmake configure` для генерации `compile_commands.json` (нужен clang-tidy).
+  - Cache `build/debug/_deps` under a separate key `deps-Linux-static-...` (isolated from the build cache, otherwise a race condition on parallel write).
+  - `cmake configure` to generate `compile_commands.json` (needed by clang-tidy).
   - **cppcheck**: gate (`--error-exitcode=1`).
-  - **lizard**: gate с grep-проверкой на `warning:`/`!!!` (lizard сам всегда exit 0).
-  - **clang-tidy strict**: `continue-on-error: true`, печатает report в лог в группе `clang-tidy strict report`, копит baseline.
-  - Upload `lizard-report.txt` + `clang-tidy-strict-report.txt` как artifact на 14 дней.
-- **2026-05-26** — **Локальная верификация**: cppcheck + lizard прогнаны на `src/`, `include/`, `tests/` — оба зелёные (exit 0, нет находок).
-  - clang-tidy локально не проверен — машина имеет clang-tidy 11, который не поддерживает `--config-file=` (это с 12+). В CI используется clang-tidy-18.
+  - **lizard**: gate with a grep check for `warning:`/`!!!` (lizard itself always exits 0).
+  - **clang-tidy strict**: `continue-on-error: true`, prints the report into the log in a `clang-tidy strict report` group, accumulates a baseline.
+  - Upload `lizard-report.txt` + `clang-tidy-strict-report.txt` as an artifact for 14 days.
+- **2026-05-26** — **Local verification**: cppcheck + lizard run on `src/`, `include/`, `tests/` — both green (exit 0, no findings).
+  - clang-tidy not checked locally — the machine has clang-tidy 11, which does not support `--config-file=` (that's from 12+). CI uses clang-tidy-18.
 
-## В работе
-- (пусто)
+## In progress
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. cppcheck job — самый дешёвый, начать с него
+1. cppcheck job — the cheapest, start with it
 2. lizard job
-3. clang-tidy strict как warning-only
+3. clang-tidy strict as warning-only
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| cppcheck + lizard как gate, clang-tidy strict как warning | Минимум шума на старте, иначе бросим |
-| scan-build/-fanalyzer — позже | Дороже по времени, в nightly когда стабилизируется CI |
+| cppcheck + lizard as a gate, clang-tidy strict as warning | Minimum noise at the start, otherwise we'll drop it |
+| scan-build/-fanalyzer — later | More expensive in time, in nightly once CI stabilizes |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение | Commit |
+| File | Change | Commit |
 |------|-----------|--------|
-| `.clang-tidy-strict` | новый — bugprone + performance + modernize + cppcoreguidelines + readability + cert + misc + hicpp + llvm | `1f06811` |
-| `.github/workflows/ci.yml` | новый job `static-analysis` параллельно с `build` | `1f06811` |
+| `.clang-tidy-strict` | new — bugprone + performance + modernize + cppcoreguidelines + readability + cert + misc + hicpp + llvm | `1f06811` |
+| `.github/workflows/ci.yml` | new `static-analysis` job parallel to `build` | `1f06811` |
 | `.github/workflows/ci.yml` | bump actions/upload-artifact@v4 → v7 (Node 24) | `0a2a619` |
 
-## Как работает
+## How it works
 
-CI workflow теперь имеет два независимых job-а, бегущих параллельно:
+The CI workflow now has two independent jobs running in parallel:
 
-1. **`build`** (gcc-13 / clang-18 matrix) — конфигурация, компиляция, ctest, smoke бинаря. Зелёный = код собрался и тесты прошли.
-2. **`static-analysis`** (single runner) — три тулзы поверх того же `compile_commands.json`:
-   - **cppcheck** — `--enable=warning,performance,portability`, `--inline-suppr`, `--error-exitcode=1`. Падает при любой находке этих категорий.
-   - **lizard** — пороги из `docs/code_quality.md`: `CCN ≤ 15`, функция ≤ 30 строк, ≤ 5 аргументов. Lizard сам по себе всегда exit 0; шаг grep-ает отчёт на `warning:` / `!!!` и явно фейлится если найдено.
-   - **clang-tidy strict** — с `.clang-tidy-strict` (extended check set), `continue-on-error: true`. Не валит build, печатает отчёт в лог в `::group::`, копит baseline для последующего ужесточения. Output также уходит в artifact.
+1. **`build`** (gcc-13 / clang-18 matrix) — configuration, compilation, ctest, binary smoke. Green = code built and tests passed.
+2. **`static-analysis`** (single runner) — three tools on top of the same `compile_commands.json`:
+   - **cppcheck** — `--enable=warning,performance,portability`, `--inline-suppr`, `--error-exitcode=1`. Fails on any finding in these categories.
+   - **lizard** — thresholds from `docs/code_quality.md`: `CCN ≤ 15`, function ≤ 30 lines, ≤ 5 arguments. Lizard itself always exits 0; the step greps the report for `warning:` / `!!!` and explicitly fails if found.
+   - **clang-tidy strict** — with `.clang-tidy-strict` (extended check set), `continue-on-error: true`. Does not fail the build, prints the report into the log in a `::group::`, accumulates a baseline for later tightening. Output also goes to an artifact.
 
-**Cache.** Static-analysis job делит cmake configure с build (нужен для compile_commands.json), но кэширует FetchContent в отдельном scope `deps-Linux-static-...` чтобы избежать write-race с build job-ом, которые могут параллельно тащить ryml/Catch2.
+**Cache.** The static-analysis job shares cmake configure with build (needed for compile_commands.json), but caches FetchContent in a separate scope `deps-Linux-static-...` to avoid a write-race with the build job, which may concurrently pull ryml/Catch2.
 
-**Artifacts.** `static-analysis-reports` (lizard + clang-tidy-strict отчёты) хранятся 14 дней. Доступны по ссылке справа от run-а на странице Actions.
+**Artifacts.** `static-analysis-reports` (lizard + clang-tidy-strict reports) are kept for 14 days. Available via the link to the right of the run on the Actions page.
 
-**Что НЕ включено:**
-- IWYU — мы сами в этой нише.
-- flawfinder — устарел, near-zero signal для наших паттернов.
-- scan-build / `-fanalyzer` — слишком медленные для per-PR, кандидаты для nightly workflow когда дойдёт.
+**What is NOT included:**
+- IWYU — we are in that niche ourselves.
+- flawfinder — outdated, near-zero signal for our patterns.
+- scan-build / `-fanalyzer` — too slow for per-PR, candidates for a nightly workflow when we get to it.
 
-## Чем управляется
+## What controls it
 
-| Параметр | Где меняется |
+| Parameter | Where it's changed |
 |---|---|
-| Пороги lizard | `--CCN`, `--length`, `--arguments` в шаге workflow. Совпадает с `docs/code_quality.md` — менять синхронно. |
-| Категории cppcheck | `--enable=...` в шаге workflow. Чтобы добавить style: `warning,performance,portability,style`. |
-| clang-tidy strict checks | `.clang-tidy-strict` — `Checks:` ключ. |
-| Шумные чеки в strict | List `-check-name` в `.clang-tidy-strict`. По мере стабилизации — переносить в обычный `.clang-tidy` как hard error. |
-| Retention отчётов | `retention-days: 14` в upload-artifact шаге. |
+| lizard thresholds | `--CCN`, `--length`, `--arguments` in the workflow step. Matches `docs/code_quality.md` — change in sync. |
+| cppcheck categories | `--enable=...` in the workflow step. To add style: `warning,performance,portability,style`. |
+| clang-tidy strict checks | `.clang-tidy-strict` — `Checks:` key. |
+| Noisy checks in strict | List `-check-name` in `.clang-tidy-strict`. As things stabilize — move them into the regular `.clang-tidy` as a hard error. |
+| Report retention | `retention-days: 14` in the upload-artifact step. |
 
-## С чем связана
+## Related to
 
-- **#002 (github_actions_ci)** — статический анализ живёт в том же workflow `.github/workflows/ci.yml`, параллельным job-ом. При изменении основного build job — проверять, что static-analysis cache не конфликтует.
-- **#004 (project_skeleton)** — статический анализ зависит от `.clang-tidy` (обычный, в build) и `.clang-tidy-strict` (новый, в static-analysis). Оба настроены под layout из #004.
-- **Будущая задача `nightly_deeper_analysis`** — для `scan-build`, `-fanalyzer`, ASan/UBSan на полноценных проектах. Не блокер, заводить когда появится боль от false negative-ов от current set.
-- **`docs/code_quality.md`** — пороги lizard прямо из этого документа. Если меняем пороги в одном месте — сразу синхронизируем второе.
+- **#002 (github_actions_ci)** — static analysis lives in the same workflow `.github/workflows/ci.yml`, as a parallel job. When changing the main build job — check that the static-analysis cache doesn't conflict.
+- **#004 (project_skeleton)** — static analysis depends on `.clang-tidy` (regular, in build) and `.clang-tidy-strict` (new, in static-analysis). Both are configured for the layout from #004.
+- **Future task `nightly_deeper_analysis`** — for `scan-build`, `-fanalyzer`, ASan/UBSan on full-scale projects. Not a blocker, set it up when pain from false negatives in the current set appears.
+- **`docs/code_quality.md`** — lizard thresholds come straight from this document. If we change thresholds in one place — sync the other immediately.
 
-## Диагностика
+## Diagnostics
 
 ```bash
-# Локальная воспроизводимость (на машине разработчика):
+# Local reproducibility (on the developer's machine):
 cppcheck --enable=warning,performance,portability --inline-suppr \
   --error-exitcode=1 --suppress=missingIncludeSystem --quiet \
   -I include src/ include/
@@ -114,15 +114,15 @@ cppcheck --enable=warning,performance,portability --inline-suppr \
 lizard --CCN 15 --length 30 --arguments 5 --warnings_only \
   src/ include/ tests/
 
-# clang-tidy strict требует CMake-configure (для compile_commands.json)
-# и clang-tidy >= 12 (поддержка --config-file=):
+# clang-tidy strict requires CMake-configure (for compile_commands.json)
+# and clang-tidy >= 12 (--config-file= support):
 cmake -B build/debug -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug
 clang-tidy --config-file=.clang-tidy-strict -p build/debug \
   $(find src/ -name '*.cpp')
 
-# Артефакт CI:
-# https://github.com/blurman-ai/cpparch/actions  ->  выбрать run  ->
-# справа "Artifacts" -> static-analysis-reports
+# CI artifact:
+# https://github.com/blurman-ai/cpparch/actions  ->  select a run  ->
+# on the right "Artifacts" -> static-analysis-reports
 ```
 
-Если cppcheck/lizard падает локально, а в CI зелено — обычно это разница версий тулзов (apt cppcheck на Astra 1.7 — 1.86, на ubuntu-24.04 — 2.13+; lizard через pip — одинаковый везде).
+If cppcheck/lizard fails locally but is green in CI — usually it's a difference in tool versions (apt cppcheck on Astra 1.7 — 1.86, on ubuntu-24.04 — 2.13+; lizard via pip — the same everywhere).

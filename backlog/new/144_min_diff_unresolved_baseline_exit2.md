@@ -1,40 +1,40 @@
-# [CLI] --diff: нерезолвящийся baseline-ref → exit 2 вместо тихого пустого дерева
+# [CLI] --diff: unresolvable baseline ref → exit 2 instead of silent empty tree
 
-**Дата создания:** 2026-06-25
-**Статус:** new
-**Модуль:** CLI / git
-**Приоритет:** minor
-**Сложность:** S
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-06-25
+**Status:** new
+**Module:** CLI / git
+**Priority:** minor
+**Complexity:** S
+**Blocks:** —
+**Blocked by:** —
 **Related:** #143 (shallow base-fetch), src/git/git_state.cpp, src/cli/diff_command.cpp
 
-## Цель / находка
+## Goal / finding
 
-Сейчас при `archcheck --diff <ref>..HEAD`, если `<ref>` **не резолвится** (typo,
-не дофетчен в shallow CI), archcheck НЕ падает с ошибкой — он печатает warning и
-сравнивает с **пустым деревом**: `baseline_nodes: 0`, всё «добавлено». На реальном
-дереве это даёт **ложный gate**: проверено — `grown_cycles: 9`, `gate: fail`,
-**exit 1**. То есть кривой checkout валит чужой билд фантомными циклами.
+Currently with `archcheck --diff <ref>..HEAD`, if `<ref>` **does not resolve** (typo,
+not fetched in shallow CI), archcheck does NOT fail with an error — it prints a warning and
+compares against an **empty tree**: `baseline_nodes: 0`, everything "added". On a real
+tree this yields a **false gate**: verified — `grown_cycles: 9`, `gate: fail`,
+**exit 1**. That is, a broken checkout fails someone else's build with phantom cycles.
 
-Документация (`docs/ci_integration.md`, таблица edge-cases) утверждает «shallow,
-baseline недоступен → exit 2» — это не соответствует фактическому поведению.
+The documentation (`docs/ci_integration.md`, edge-cases table) claims "shallow,
+baseline unavailable → exit 2" — this does not match the actual behavior.
 
-## Что обдумать / сделать
+## To consider / do
 
-- Если baseline-ref **задан явно** и не резолвится → exit 2 (config/git error),
-  как и заявлено в контракте exit-кодов. Не молчаливое пустое дерево.
-- Сохранить легитимный кейс «пустой/orphan baseline», если он есть (например,
-  сравнение с самым первым состоянием). Возможно, отличать «ref синтаксически
-  есть, но git его не знает» от «намеренно пустая сторона».
-- Обновить таблицу edge-cases в `ci_integration.md` под фактическое (новое) поведение.
+- If the baseline ref is **given explicitly** and does not resolve → exit 2 (config/git error),
+  as stated in the exit-code contract. Not a silent empty tree.
+- Preserve the legitimate "empty/orphan baseline" case, if any (e.g.,
+  comparison against the very first state). Possibly distinguish "ref is syntactically
+  present, but git doesn't know it" from "intentionally empty side".
+- Update the edge-cases table in `ci_integration.md` to match the actual (new) behavior.
 
 ## Acceptance
 
-- [ ] `--diff nonexistentref..HEAD` → exit 2, диагностика в stderr, без фантомного gate.
-- [ ] Фикстура pass/fail; интеграционный тест на реальном бинаре.
-- [ ] Доки синхронны с поведением.
+- [ ] `--diff nonexistentref..HEAD` → exit 2, diagnostics on stderr, no phantom gate.
+- [ ] pass/fail fixture; integration test on the real binary.
+- [ ] Docs consistent with behavior.
 
-## Не делать
+## Do not do
 
-- Не ломать `--baseline` / `--drift-baseline` (там baseline — файл, не git-ref).
+- Do not break `--baseline` / `--drift-baseline` (there baseline is a file, not a git ref).

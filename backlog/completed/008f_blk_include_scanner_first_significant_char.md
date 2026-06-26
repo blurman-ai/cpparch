@@ -1,64 +1,64 @@
-# [SCAN] Include scanner — правило «`#` — первый значимый символ»
+# [SCAN] Include scanner — the rule "`#` is the first significant character"
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** SCAN
-**Приоритет:** blocker
-**Сложность:** S (< 1 дня)
-**Блокирует:** #008g (include_scanner_macro_include_diagnostic)
-**Заблокирован:** #008e (include_scanner_line_continuation)
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** SCAN
+**Priority:** blocker
+**Difficulty:** S (< 1 day)
+**Blocks:** #008g (include_scanner_macro_include_diagnostic)
+**Blocked by:** #008e (include_scanner_line_continuation)
 **Related:** #008 (dependency_graph_foundation)
 
-## Цель
+## Goal
 
-Распознавать `#include` только когда `#` — первый значимый символ logical line
-(допустимы только ведущие whitespace).
+Recognize `#include` only when `#` is the first significant character of the logical line
+(only leading whitespace is allowed).
 
-## Сделано
+## Done
 
-- **2026-05-26** — анализ: правило уже неявно соблюдается комбинацией `skip_ws` + `string_view::compare`. Дополнительная проверка не требуется.
-- **2026-05-26** — добавлены 4 unit-теста, фиксирующих поведение явно: `int x; #include …`, `; #include …`, два `#include` на одной строке, splice-joined «код-через-`\`-перед-`#include`». 29/29 общий счёт.
+- **2026-05-26** — analysis: the rule is already implicitly satisfied by the combination of `skip_ws` + `string_view::compare`. No additional check required.
+- **2026-05-26** — added 4 unit tests that pin the behavior explicitly: `int x; #include …`, `; #include …`, two `#include` on one line, splice-joined "code-through-`\`-before-`#include`". 29/29 total count.
 
-## Как работает
+## How it works
 
-В `try_extract`:
+In `try_extract`:
 
 ```cpp
 std::size_t i = skip_ws(line, 0);
 if (line.compare(i, kIncludeKeyword.size(), kIncludeKeyword) != 0) return false;
 ```
 
-`skip_ws` идёт **только** через пробелы/табы. Если на первом не-ws символе стоит не `#`, compare сразу терпит fail. Таким образом:
+`skip_ws` advances **only** through spaces/tabs. If the first non-ws character is not `#`, compare fails immediately. Thus:
 
-- `int x; #include "y"` — `skip_ws` останавливается на `i`, compare видит `int` — return false.
-- `; #include "y"` — `skip_ws` останавливается на `;`, compare видит `; #i…` — return false.
-- `#include "a" #include "b"` — compare находит `#include` сразу, дальше извлекается ровно один токен и `try_extract` возвращается. Второе `#include` на той же строке игнорируется (по логике one-directive-per-line).
-- splice-joined `int x; \\\n#include "y"` — после `join_continuations` строка становится `int x; #include "y"`, и работает первый кейс.
+- `int x; #include "y"` — `skip_ws` stops at `i`, compare sees `int` — return false.
+- `; #include "y"` — `skip_ws` stops at `;`, compare sees `; #i…` — return false.
+- `#include "a" #include "b"` — compare finds `#include` immediately, then exactly one token is extracted and `try_extract` returns. The second `#include` on the same line is ignored (per the one-directive-per-line logic).
+- splice-joined `int x; \\\n#include "y"` — after `join_continuations` the line becomes `int x; #include "y"`, and the first case applies.
 
-## Чем управляется
+## What controls it
 
-- Без флагов / env.
+- No flags / env.
 
-## С чем связана
+## What it relates to
 
-- Тот же `src/scan/include_scanner.cpp`. Кода не правил, только дополнил тесты.
+- The same `src/scan/include_scanner.cpp`. No code changed, only tests added.
 
-## Диагностика
+## Diagnostics
 
-- Если кто-то когда-нибудь добавит проверки `find("#include")` вместо `compare(i, …)` — правило сломается. Тесты 008f этого не дадут пройти.
-- Если в logical line `#` не первый значимый, но scanner отдал директиву — что-то в pipeline скиснет: либо `skip_ws` повредился, либо `join_continuations` вытворил неожиданное (CRLF? unicode whitespace?).
+- If someone ever adds a `find("#include")` check instead of `compare(i, …)` — the rule will break. The 008f tests won't let that pass.
+- If in a logical line `#` is not the first significant character but the scanner still emitted a directive — something in the pipeline went sour: either `skip_ws` got corrupted, or `join_continuations` did something unexpected (CRLF? unicode whitespace?).
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Не добавлять дополнительной явной проверки — компоновки `skip_ws + compare` уже хватает | YAGNI: дополнительный if без эффекта — мусор |
-| Покрыть инвариант тестами вместо комментариев в коде | Тесты документируют поведение надёжнее, чем prose-комменты |
+| Don't add an extra explicit check — the `skip_ws + compare` composition is already enough | YAGNI: an extra no-op `if` is garbage |
+| Cover the invariant with tests instead of comments in code | Tests document behavior more reliably than prose comments |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `tests/unit/scan/include_scanner_test.cpp` | 4 кейса first-significant-char |
+| File | Change |
+|------|--------|
+| `tests/unit/scan/include_scanner_test.cpp` | 4 first-significant-char cases |

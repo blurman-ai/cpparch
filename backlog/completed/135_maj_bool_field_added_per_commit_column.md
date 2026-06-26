@@ -1,151 +1,151 @@
-# [RESEARCH][CORPUS] bool_field_added — per-commit колонка для корреляций (сайдкар + джойн)
+# [RESEARCH][CORPUS] bool_field_added — a per-commit column for correlations (sidecar + join)
 
-**Дата создания:** 2026-06-23
-**Дата старта:** 2026-06-23
-**Дата завершения:** 2026-06-25
-**Статус:** done (SUPERSEDED by #090)
-**Модуль:** RESEARCH / experiments
-**Приоритет:** major
-**Блокирует:** корреляционный анализ #119 (зависимость одних находок от других)
-**Заблокирован:** —
-**Related:** #134 (history per-struct drift — другая ось), #090 (drift-метрика в продукт — ПОГЛОТИЛА эту задачу), #124 (per-commit корпус-прогон), #119 (unified per-commit drift correlation), #093 (flag_argument — образец паттерна)
+**Created:** 2026-06-23
+**Started:** 2026-06-23
+**Completed:** 2026-06-25
+**Status:** done (SUPERSEDED by #090)
+**Module:** RESEARCH / experiments
+**Priority:** major
+**Blocks:** the correlation analysis of #119 (dependence of some findings on others)
+**Blocked by:** —
+**Related:** #134 (history per-struct drift — a different axis), #090 (drift metric into the product — ABSORBED this task), #124 (per-commit corpus run), #119 (unified per-commit drift correlation), #093 (flag_argument — a pattern exemplar)
 
-## ИТОГ (2026-06-25) — SUPERSEDED #090, цель достигнута другим путём
+## OUTCOME (2026-06-25) — SUPERSEDED by #090, the goal was achieved by a different path
 
-Эта задача выбрала **путь B (Python-сайдкар)** ради дешевизны. По ходу работы юзер отверг
-Python-дубль фильтра («почему питон-скрипт, а не наш фильтр?») и выбрал **путь A — нативное
-правило #090** (`DRIFT.BOOL_FIELD_ACCRETION`). Поэтому колонку дал нативный корпус-прогон #090
-(`results_full.boolrule.jsonl`, колонка `n_bool_field`), а НЕ сайдкар:
-- **Секция 1 (сайдкар-скрипт)** — написан и smoke-валидирован 5/5 (`bool_field_added_per_commit.py`),
-  но полный прогон по worklist'у **не нужен** (колонку дал #090).
-- **Секция 2 (джойн)** — **отпала**: нативный прогон сразу выдал полную таблицу с колонкой.
-- **Секция 4 (самопроверка)** — выполнена на нативной колонке: FP-чек 22/22 TP (каждый коммит
-  независимо через `struct_fields` на sha^/sha), распределение проверено (медиана, выбросы 105/183).
+This task chose **path B (a Python sidecar)** for cheapness. Along the way the user rejected
+the Python duplicate of the filter ("why a Python script and not our filter?") and chose **path A — the native
+rule #090** (`DRIFT.BOOL_FIELD_ACCRETION`). So the column was produced by the native corpus run of #090
+(`results_full.boolrule.jsonl`, the `n_bool_field` column), and NOT the sidecar:
+- **Section 1 (the sidecar script)** — written and smoke-validated 5/5 (`bool_field_added_per_commit.py`),
+  but a full run over the worklist is **not needed** (the column was produced by #090).
+- **Section 2 (the join)** — **dropped**: the native run immediately produced the full table with the column.
+- **Section 4 (self-check)** — performed on the native column: an FP check 22/22 TP (each commit
+  independently via `struct_fields` on sha^/sha), the distribution checked (median, outliers 105/183).
 
-**Главный вклад #135, который и пережил supersession:** ревизия определения метрики
-(added-строки → **нетто-счёт**, ловит rename/replace/реформат → 0) и поимка бага парсера #136 —
-обе вещи ушли в #090. **Секция 3 (корреляции)** — переезжает в **#119** (config-bag магнитудный
-фильтр + контроль на размер коммита). Эта задача закрыта как достигнутая иным путём.
+**The main contribution of #135 that survived the supersession:** a revision of the metric's definition
+(added lines → **net count**, catches rename/replace/reformat → 0) and the catch of the parser bug #136 —
+both went into #090. **Section 3 (correlations)** — moves to **#119** (config-bag magnitude
+filter + control for commit size). This task is closed as achieved by a different path.
 
-## Цель
+## Goal
 
-Добавить в per-commit корпус-таблицу (`experiments/per_commit/results_full.jsonl`) колонку **`n_bool_field_added`** — сколько булевых полей данный коммит добавил в тело struct/class. Это per-commit квант (как `n_flag_arg`), который встаёт рядом с `n_complexity`, `n_newclone`, `n_satd`, `n_flag_arg` и позволяет считать **корреляции** между ростом булей и copy-paste / ростом сложности — то, ради чего затевался корреляционный разбор #119.
+Add to the per-commit corpus table (`experiments/per_commit/results_full.jsonl`) a column **`n_bool_field_added`** — how many boolean fields a given commit added to the body of a struct/class. This is a per-commit quantum (like `n_flag_arg`) that sits next to `n_complexity`, `n_newclone`, `n_satd`, `n_flag_arg` and allows computing **correlations** between the growth of booleans and copy-paste / complexity growth — the very thing the correlation analysis of #119 was started for.
 
-## Почему сайдкар, а не бинарь
+## Why a sidecar and not the binary
 
-**Грануляция.** Per-struct drift (#134) — это history-метрика (структура копила були за ≥4 коммита, ось = структура). Её НЕЛЬЗЯ пришить колонкой к per-commit таблице (ось = коммит) — разные единицы.
+**Granularity.** Per-struct drift (#134) is a history metric (a structure accreted booleans over ≥4 commits, axis = the structure). It CANNOT be stitched as a column onto the per-commit table (axis = the commit) — different units.
 
-А вот «коммит добавил bool-поле в struct» — это уже per-commit квант, его в колонку можно. Два пути:
-- **Путь A (бинарь):** детектор полей в `src/` → `archcheck --diff` JSON → `categorize()` → полный перепрогон корпуса (~12ч). Де-факто кусок #090. Дорого, трогает продукт.
-- **Путь B (сайдкар) — ЭТА ЗАДАЧА:** отдельный Python-проход по worklist'у, считает added bool-поля по диффу каждого коммита, пишет в свой JSONL с ключом `(repo, sha)`, затем **джойн** в `results_full.jsonl`. Бинарь не трогаем, перепрогон не нужен. Дёшево.
+But "a commit added a bool field to a struct" is already a per-commit quantum, and it can go into a column. Two paths:
+- **Path A (the binary):** a field detector in `src/` → `archcheck --diff` JSON → `categorize()` → a full re-run of the corpus (~12h). De facto a piece of #090. Expensive, touches the product.
+- **Path B (a sidecar) — THIS TASK:** a separate Python pass over the worklist, counts added bool fields by the diff of each commit, writes them to its own JSONL keyed by `(repo, sha)`, then **joins** into `results_full.jsonl`. The binary isn't touched, no re-run needed. Cheap.
 
-Выбран **B**: цель — исследовательская колонка для корреляций, не продуктовая фича. Если корреляция окажется сильной и полезной — это аргумент для #090 (путь A) уже на продуктовом уровне.
+**B** is chosen: the goal is a research column for correlations, not a product feature. If the correlation turns out to be strong and useful — that is an argument for #090 (path A) already at the product level.
 
-## Что это НЕ
+## What this is NOT
 
-- НЕ реализация правила в `src/` (это #090, deferred по YAGNI).
-- НЕ перепрогон корпусного бинаря.
-- НЕ history-дрейф (это #134).
-- НЕ статический счётчик «много булей сейчас» (78% шум по #089). Меряем **добавление** поля коммитом — дельта, не уровень.
+- NOT a rule implementation in `src/` (that's #090, deferred per YAGNI).
+- NOT a re-run of the corpus binary.
+- NOT history drift (that's #134).
+- NOT a static counter of "lots of booleans right now" (78% noise per #089). We measure the **addition** of a field by a commit — a delta, not a level.
 
-## Входные данные (всё на месте)
+## Input data (all in place)
 
-- Worklist: `experiments/per_commit/worklist_full.tsv` (repo<TAB>sha, 1685 реп).
-- Таблица для джойна: `experiments/per_commit/results_full.jsonl` (ключ — `repo`+`sha` в каждой записи).
-- Парсер полей переиспользовать из `experiments/boolean_state/perstruct_drift.py`: `STRUCT_RE`, `BOOL_RE`, `find_body`, `struct_fields` (depth-0, без сигнатур/локальных — уже валидирован в #089, 0% грубых FP).
-- Корпус: `~/oss/<repo>/`.
+- Worklist: `experiments/per_commit/worklist_full.tsv` (repo<TAB>sha, 1685 repos).
+- The table to join into: `experiments/per_commit/results_full.jsonl` (key — `repo`+`sha` in each record).
+- Reuse the field parser from `experiments/boolean_state/perstruct_drift.py`: `STRUCT_RE`, `BOOL_RE`, `find_body`, `struct_fields` (depth-0, no signatures/locals — already validated in #089, 0% gross FP).
+- Corpus: `~/oss/<repo>/`.
 
-## Определение метрики (РЕВИЗИЯ 2026-06-23 после валидации на живых коммитах)
+## Metric definition (REVISION 2026-06-23 after validation on live commits)
 
-`n_bool_field_added` для коммита = сумма по структурам **нетто-прироста** числа
-depth-0 bool-полей в структурах, **существовавших в родителе** (`sha^`):
+`n_bool_field_added` for a commit = the sum over structures of the **net increase** of the number of
+depth-0 bool fields in structures **that existed in the parent** (`sha^`):
 
 ```
-для каждой struct/class S, чьё определение есть в sha^ (по STRUCT_RE):
-    delta(S) = |bool-поля S в sha|  −  |bool-поля S в sha^|    # depth-0, без сигнатур/локалей
+for each struct/class S whose definition exists in sha^ (by STRUCT_RE):
+    delta(S) = |bool fields of S in sha|  −  |bool fields of S in sha^|    # depth-0, no signatures/locals
 n_bool_field_added = Σ max(0, delta(S))
 ```
 
-- **Существование структуры** — по наличию её *определения* в `sha^` (`STRUCT_RE`),
-  НЕ по «были ли у неё були»: структура с 0 булей, дорастившая до N, — это дрейф.
-- Структуры нет в `sha^` (новый файл / новая struct) → **greenfield, не считаем** (не дрейф).
-- Атрибуция полей — `struct_fields` (depth-0, без сигнатур/локалей; вложенные в
-  под-struct/union поля depth>0 НЕ считаются — граница #089, консервативный недосчёт).
+- **Existence of the structure** — by the presence of its *definition* in `sha^` (`STRUCT_RE`),
+  NOT by "did it have booleans": a structure with 0 booleans that grew to N is drift.
+- The structure isn't in `sha^` (new file / new struct) → **greenfield, not counted** (not drift).
+- Field attribution — `struct_fields` (depth-0, no signatures/locals; fields nested in a
+  sub-struct/union at depth>0 are NOT counted — the #089 boundary, a conservative undercount).
 
-### Почему нетто-счёт, а НЕ added-строки (первая редакция была неверна)
+### Why a net count and NOT added lines (the first version was wrong)
 
-Исходная формулировка («считать `+bool` added-строки, отфильтрованные по diff») даёт
-**ложные срабатывания** на rename / typo-fix / replace: строка `+bool foo;` появляется,
-но число булей в структуре не растёт (старое ушло строкой `-bool`). На валидации поймано:
-- `intel/EventDescriptor`,`Event`: typo-fix `kerneMapped→kernelMapped` — 2 ложных `+1`;
-- `circt/FunctionLowering`: replace `capturesFinalized→bodyConverted` — ложный `+1`.
+The original formulation ("count `+bool` added lines filtered by the diff") gives
+**false positives** on rename / typo-fix / replace: the line `+bool foo;` appears,
+but the number of booleans in the structure doesn't grow (the old one left as a `-bool` line). Caught in validation:
+- `intel/EventDescriptor`,`Event`: a typo-fix `kerneMapped→kernelMapped` — 2 false `+1`;
+- `circt/FunctionLowering`: a replace `capturesFinalized→bodyConverted` — a false `+1`.
 
-**Нетто-дельта** (`count_after − count_before` на структуру) разом убивает rename,
-replace и переформатирование: при них счёт не меняется → 0. Меряем именно ПРИРОСТ числа
-булей, а не текстовые added-строки. (Прототип валидации: `experiments/boolean_state/_proto_bool_field_added.py`.)
+The **net delta** (`count_after − count_before` per structure) kills rename,
+replace and reformatting at once: in those cases the count doesn't change → 0. We measure exactly the INCREASE in the number of
+booleans, not the textual added lines. (Validation prototype: `experiments/boolean_state/_proto_bool_field_added.py`.)
 
-### Метрика нейтральна — не приговор
+### The metric is neutral — not a verdict
 
-`n_bool_field_added` меряет накопление булевого состояния как **нейтральный феномен**, а
-не «плохой код»: часть добавленных булей легитимно-ортогональна, часть — boolean-blindness.
-Поштучно на глаз не различить; интерпретацию даёт **корреляция** (#119), а не raw-счёт.
-Подробно с эталоном (FlashCpp `LambdaExpressionNode`, `constexpr ⊥ consteval`) —
+`n_bool_field_added` measures the accretion of boolean state as a **neutral phenomenon**, not
+"bad code": some of the added booleans are legitimately orthogonal, some are boolean-blindness.
+You can't tell them apart by eye one by one; the interpretation comes from the **correlation** (#119), not the raw count.
+In detail, with an exemplar (FlashCpp `LambdaExpressionNode`, `constexpr ⊥ consteval`) —
 [docs/research/boolean_state_accretion_good_vs_smell.md](../../docs/research/boolean_state_accretion_good_vs_smell.md).
 
-## План выполнения
+## Execution plan
 
-### 1. Сайдкар-скрипт `experiments/boolean_state/bool_field_added_per_commit.py` ✅ ГОТОВ (2026-06-23)
-Логика валидирована в прототипе `_proto_bool_field_added.py` (`bool_fields_added`), оформлена из него.
-- [x] worklist (repo, sha); на коммит `git diff --name-only <sha>^..<sha> -- '*.h'…` (added-строки НЕ парсим — метрика по нетто-счёту).
-- [x] На хедер: `struct_fields` на `sha^` и `sha`; «существование» — `STRUCT_RE` в `sha^`; `delta = |bool sha| − |bool sha^|`, сумма `max(0, delta)`.
-- [x] Resumable (`load_done`), ThreadPool (≤8 воркеров), per-commit timeout, killpg группы (`start_new_session`).
-- [x] Выход: `{"repo","sha","status","n_bool_field_added":N,"structs":[{"struct","delta","gained","file"}]}`.
+### 1. Sidecar script `experiments/boolean_state/bool_field_added_per_commit.py` ✅ DONE (2026-06-23)
+The logic is validated in the prototype `_proto_bool_field_added.py` (`bool_fields_added`), built from it.
+- [x] worklist (repo, sha); per commit `git diff --name-only <sha>^..<sha> -- '*.h'…` (we do NOT parse added lines — the metric is by net count).
+- [x] Per header: `struct_fields` on `sha^` and `sha`; "existence" — `STRUCT_RE` in `sha^`; `delta = |bool sha| − |bool sha^|`, sum `max(0, delta)`.
+- [x] Resumable (`load_done`), ThreadPool (≤8 workers), per-commit timeout, killpg of the group (`start_new_session`).
+- [x] Output: `{"repo","sha","status","n_bool_field_added":N,"structs":[{"struct","delta","gained","file"}]}`.
 - [x] Parentless/shallow — precompute `rev-list --max-parents=0` → `skipped_no_parent`.
 
-**Валидация (smoke):** 5/5 разобранных коммитов = эталон (FlashCpp=3, ovn=1, kwin=2, circt=0, intel=1); resume `done=5 todo=0`; parentless-skip ок.
-**Осталось:** прогон по полному `experiments/per_commit/worklist_full.tsv` (~1.05M) → `experiments/per_commit/bool_field_added.jsonl`.
+**Validation (smoke):** 5/5 inspected commits = reference (FlashCpp=3, ovn=1, kwin=2, circt=0, intel=1); resume `done=5 todo=0`; parentless-skip OK.
+**Remaining:** a run over the full `experiments/per_commit/worklist_full.tsv` (~1.05M) → `experiments/per_commit/bool_field_added.jsonl`.
 
-### 2. Джойн в корреляционную таблицу
-- [ ] Скрипт join: прочитать `bool_field_added.jsonl` в dict по `(repo,sha)`, пройти `results_full.jsonl`, дописать поле `n_bool_field_added` (0 если коммита нет в сайдкаре), писать в `results_full_with_bool.jsonl` (НЕ перезаписывать оригинал — он валидирован).
+### 2. Join into the correlation table
+- [ ] Join script: read `bool_field_added.jsonl` into a dict by `(repo,sha)`, walk `results_full.jsonl`, append the field `n_bool_field_added` (0 if the commit isn't in the sidecar), write to `results_full_with_bool.jsonl` (do NOT overwrite the original — it is validated).
 
-### 3. Корреляции (под #119)
-- [ ] **ПЕРЕД корреляцией почистить хвост от 3 не-дрейфовых классов** (eye-check выброса n=181 на лету показал, что верх хвоста — именно они; данных для фильтра достаточно: в каждой записи есть `file` и `struct`):
-  - **vendored** — по пути (`/vendor/`, `/third_party/`, `/extern/`, `/external/`, `/lib/`, `/examples?/`; ровно `VEND`-regex из `perstruct_drift.py`, который в сайдкаре НЕ применялся — держали прогон сырым). Пример: lobster `dev/external/SDL/` (+143).
-  - **generated** — по пути/имени (`.pb.h`, `/generated/`, `*_generated.h`). Пример: meshtastic `*.pb.h` (+51).
-  - **config-bag** — **магнитудный критерий: порог наобщее число bool-полей в структуре** (напр. >15–20 → flag-bag/config). Проверено на реальных структурах (см. ниже): config-bag выдаёт себя АБСОЛЮТНЫМ числом булей, а не формой. `CFG_NAME`-regex (`config/settings/options/...`) — слабый второй сигнал. Считать на джойне: по `(repo,sha,file,struct)` перечитать структуру на `sha`, посчитать total bools — ~9k ненулевых хитов, дёшево, без рестарта. Семантика (методы ветвятся на були = настоящий boolean-blindness) точнее, но требует libclang/.cpp → #090/v0.2.
-    - **ОТВЕРГНУТО (проверено эмпирически): «мало методов = config-bag».** PQCSettings (config) = 271 поле / **1343 метода** (геттер/сеттер на настройку) / 183 буля; а легит-дрейф `physical_ctx` = 28 полей / **0 методов** / 2 буля, `IpcEventPoolData` = 9 / 0 / 4. По методам config выглядит НАОБОРОТ от легита. bool% тоже не разделяет (IpcEventPoolData 44% ≈ config). Разделяет ТОЛЬКО абсолютное число булей: PQCSettings 183 vs легит ≤4.
-  - Считать корреляции и на полном наборе, и на очищенном — расхождение само по себе вывод.
-- [ ] Посчитать парные корреляции `n_bool_field_added` × {`n_complexity`, `n_newclone`, `n_flag_arg`, `added_total`}.
-- [ ] **Контроль на размер коммита** (`added_total`): корреляция «всё растёт вместе» — артефакт размера диффа (Симпсон, см. memory #115/#117). Считать partial corr / биннинг по added_total, не голый Пирсон.
+### 3. Correlations (under #119)
+- [ ] **BEFORE correlating, clean the tail of 3 non-drift classes** (an on-the-fly eye check of the n=181 outlier showed that the top of the tail is exactly these; the data for a filter is sufficient: each record has a `file` and `struct`):
+  - **vendored** — by path (`/vendor/`, `/third_party/`, `/extern/`, `/external/`, `/lib/`, `/examples?/`; exactly the `VEND` regex from `perstruct_drift.py`, which was NOT applied in the sidecar — we kept the run raw). Example: lobster `dev/external/SDL/` (+143).
+  - **generated** — by path/name (`.pb.h`, `/generated/`, `*_generated.h`). Example: meshtastic `*.pb.h` (+51).
+  - **config-bag** — **magnitude criterion: a threshold on the total number of bool fields in the structure** (e.g. >15–20 → flag-bag/config). Checked on real structures (see below): a config-bag gives itself away by the ABSOLUTE number of booleans, not by its form. The `CFG_NAME` regex (`config/settings/options/...`) is a weak secondary signal. Compute on the join: by `(repo,sha,file,struct)` re-read the structure at `sha`, count the total bools — ~9k non-zero hits, cheap, no restart. The semantics (methods branch on booleans = genuine boolean-blindness) is more precise, but requires libclang/.cpp → #090/v0.2.
+    - **REJECTED (verified empirically): "few methods = config-bag".** PQCSettings (config) = 271 fields / **1343 methods** (getter/setter per setting) / 183 booleans; while the legit drift `physical_ctx` = 28 fields / **0 methods** / 2 booleans, `IpcEventPoolData` = 9 / 0 / 4. By method count, config looks the OPPOSITE of legit. bool% also doesn't separate (IpcEventPoolData 44% ≈ config). The ONLY thing that separates is the absolute number of booleans: PQCSettings 183 vs legit ≤4.
+  - Compute correlations both on the full set and on the cleaned one — the divergence is itself a finding.
+- [ ] Compute pairwise correlations `n_bool_field_added` × {`n_complexity`, `n_newclone`, `n_flag_arg`, `added_total`}.
+- [ ] **Control for commit size** (`added_total`): the "everything grows together" correlation is an artifact of diff size (Simpson, see memory #115/#117). Compute partial corr / binning by added_total, not a bare Pearson.
 
-### 4. Самопроверка (обязательна — CLAUDE.md «Самопроверка выводов»)
-- [ ] Перечислить руками 10+ коммитов с `n_bool_field_added>0`: открыть дифф, убедиться, что это реально добавленное bool-**поле в struct**, а не локальная переменная / параметр / переформатирование.
-- [ ] Проверить, что переформатирование сигнатуры (как было в bpftrace `is_rawtracepoints` для ARG.1) НЕ даёт ложного `+1`.
-- [ ] Сверить распределение: сколько коммитов с >0, медиана — правдоподобно? Не «слишком гладко»?
+### 4. Self-check (mandatory — CLAUDE.md "Self-check of conclusions")
+- [ ] Manually enumerate 10+ commits with `n_bool_field_added>0`: open the diff, confirm that it is really an added bool **field in a struct**, not a local variable / parameter / reformatting.
+- [ ] Check that a signature reformatting (as was the case in bpftrace `is_rawtracepoints` for ARG.1) does NOT give a false `+1`.
+- [ ] Reconcile the distribution: how many commits with >0, the median — is it plausible? Not "too smooth"?
 
-## Критерий приёмки
+## Acceptance criterion
 
-- `bool_field_added.jsonl` покрывает весь worklist (resume-устойчиво).
-- `results_full_with_bool.jsonl` = оригинал + колонка, оригинал НЕ тронут.
-- Корреляции посчитаны С контролем на размер коммита, не голым Пирсоном.
-- Eye-check 10+ ненулевых коммитов: вердикт TP/FP по каждому, класс FP зафиксирован.
-- Вывод: коррелирует ли рост булей-полей с copy-paste / сложностью **после** контроля на размер, или это размерный артефакт.
+- `bool_field_added.jsonl` covers the entire worklist (resume-resilient).
+- `results_full_with_bool.jsonl` = the original + the column, the original NOT touched.
+- Correlations computed WITH a control for commit size, not a bare Pearson.
+- Eye check of 10+ non-zero commits: a TP/FP verdict for each, the FP class recorded.
+- Conclusion: does the growth of boolean fields correlate with copy-paste / complexity **after** controlling for size, or is it a size artifact.
 
-## Подводные камни
+## Pitfalls
 
-- **Размерный confound** — главный риск. «Большой коммит → много всего» создаёт ложную корреляцию. Без partial corr / биннинга вывод недействителен (повтор грабель #115 Симпсона).
-- **Rename / typo-fix / replace** (FP-класс, пойман на валидации) → строка `+bool foo;` есть, но число булей не растёт. **Снимается нетто-счётом** (count_after − count_before), а НЕ фильтром added-строк. Это и есть причина ревизии определения метрики (см. выше).
-- **Переформатирование** (параметры конструктора, методы) → depth-0 парсер `struct_fields` их не ловит (есть `(`/`)`), плюс нетто-счёт нечувствителен к сдвигу строк. Проверено на FlashCpp (параметры+методы рядом с полями).
-- **Вложенные struct/union** (depth>0) — bool-поля в них НЕ считаются (граница #089). Консервативный недосчёт, не FP. Подтверждено на chiaki `chiaki_session_t` (поле во вложенном `struct{}` пропущено намеренно).
-- **shallow-клоны**: parentless-коммиты дают «весь файл новый». Пропускать как в `run_worklist.py`.
-- **git-сироты**: blame/show/diff в потоках → `start_new_session=True` + `killpg` на таймаут, ≤8 воркеров (юзер за машиной).
-- **Не перезаписывать** `results_full.jsonl` и артефакты #089/#134 — только новые файлы.
+- **Size confound** — the main risk. "A big commit → lots of everything" creates a false correlation. Without partial corr / binning the conclusion is invalid (a repeat of the Simpson rake from #115).
+- **Rename / typo-fix / replace** (an FP class, caught in validation) → the line `+bool foo;` exists, but the number of booleans doesn't grow. **Removed by the net count** (count_after − count_before), NOT by a filter of added lines. This is exactly the reason for the revision of the metric definition (see above).
+- **Reformatting** (constructor parameters, methods) → the depth-0 `struct_fields` parser doesn't catch them (there's a `(`/`)`), plus the net count is insensitive to line shifts. Verified on FlashCpp (parameters+methods next to fields).
+- **Nested struct/union** (depth>0) — bool fields in them are NOT counted (the #089 boundary). A conservative undercount, not an FP. Confirmed on chiaki `chiaki_session_t` (a field in a nested `struct{}` skipped on purpose).
+- **shallow clones**: parentless commits give "the whole file is new". Skip as in `run_worklist.py`.
+- **git orphans**: blame/show/diff in threads → `start_new_session=True` + `killpg` on timeout, ≤8 workers (the user is at the machine).
+- **Do not overwrite** `results_full.jsonl` and the #089/#134 artifacts — only new files.
 
-## Заметки для исполнителя (Haiku-friendly)
+## Notes for the implementer (Haiku-friendly)
 
-Парсер полей НЕ переписывать — импортировать из `perstruct_drift.py` (валидирован #089).
-Логика метрики уже отлажена и провалидирована поштучно в `experiments/boolean_state/_proto_bool_field_added.py`
-(функция `bool_fields_added` = нетто-счёт) — оформить сайдкар ИЗ НЕЁ, не изобретать заново.
-Раннер по образцу `experiments/per_commit/run_worklist.py` (resume, killpg, parentless-skip — скопировать паттерны).
-Метрика — **нетто-прирост числа bool-полей** структуры (count_after − count_before, ≥0), НЕ added-строки и НЕ уровень.
-Корреляции без контроля на размер коммита показывать НЕЛЬЗЯ. `src/` не трогать.
+Do NOT rewrite the field parser — import it from `perstruct_drift.py` (validated in #089).
+The metric logic is already debugged and validated piece by piece in `experiments/boolean_state/_proto_bool_field_added.py`
+(the `bool_fields_added` function = net count) — build the sidecar FROM IT, don't reinvent it.
+The runner modeled on `experiments/per_commit/run_worklist.py` (resume, killpg, parentless-skip — copy the patterns).
+The metric is the **net increase in the number of bool fields** of a structure (count_after − count_before, ≥0), NOT added lines and NOT a level.
+Correlations without a control for commit size MUST NOT be shown. Do not touch `src/`.

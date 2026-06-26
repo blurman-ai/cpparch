@@ -1,60 +1,60 @@
-# [AI][CONFIG][V1] Правила для агента, который заполняет `.archcheck.yml.draft`
+# [AI][CONFIG][V1] Rules for the agent that fills in `.archcheck.yml.draft`
 
-**Дата создания:** 2026-05-28
-**Дата старта:** —
-**Статус:** new
-**Модуль:** DOCS, CONFIG
-**Приоритет:** major
-**Сложность:** M (контракт + примеры + anti-slop guardrails)
-**Целевой релиз:** v1 phase 1 (post-MVP)
-**Блокирует:** практическое использование AI synthesis без ручного написания конфига
-**Заблокирован:** future/v1_maj_config_format_minimal_contract.md
-**Related:** future/v1_maj_ai_config_synthesis_eval_protocol.md, future/010_maj_ai_rule_synthesis_contract.md, future/v1_maj_ai_config_iterative_loop.md (итеративный прогон поверх этих authoring-правил), #053 / #056 (dup-спайки — эмпирический источник правил по шум-файлам и exclude, см. раздел ниже), #054 (прогон по 50 AI-репам — источник правил по шум-СТРОКАМ, `experiments/ai_repo_run/`)
+**Created:** 2026-05-28
+**Started:** —
+**Status:** new
+**Module:** DOCS, CONFIG
+**Priority:** major
+**Difficulty:** M (contract + examples + anti-slop guardrails)
+**Target release:** v1 phase 1 (post-MVP)
+**Blocks:** practical use of AI synthesis without hand-writing the config
+**Blocked by:** future/v1_maj_config_format_minimal_contract.md
+**Related:** future/v1_maj_ai_config_synthesis_eval_protocol.md, future/010_maj_ai_rule_synthesis_contract.md, future/v1_maj_ai_config_iterative_loop.md (iterative run on top of these authoring rules), #053 / #056 (dup spikes — empirical source of rules for noise files and exclude, see section below), #054 (run over 50 AI repos — source of rules for noise LINES, `experiments/ai_repo_run/`)
 
-## Цель
+## Goal
 
-Зафиксировать правила, по которым агент заполняет `.archcheck.yml.draft` — не выдумывая
-архитектуру и не маскируя догадки под факты. Агент пишет только `.draft`, не финальный config.
+Pin down the rules by which the agent fills in `.archcheck.yml.draft` — without inventing
+architecture and without disguising guesses as facts. The agent writes only `.draft`, not the final config.
 
-## Целевой формат вывода агента
+## Target agent output format
 
-Агент заполняет `.archcheck.yml.draft` в схеме из `v1_maj_config_format_minimal_contract.md`.
-Приоритет типов правил:
-1. **`layers`** — если есть directional hierarchy — использовать его, не раскрывать в N×(N-1) пар `forbidden`.
-2. **`independence`** — если модули одного уровня не должны знать друг о друге.
-3. **`forbidden`** — точечные запреты которые не вписываются в layers.
+The agent fills in `.archcheck.yml.draft` using the schema from `v1_maj_config_format_minimal_contract.md`.
+Priority of rule types:
+1. **`layers`** — if there is a directional hierarchy, use it; do not expand it into N×(N-1) `forbidden` pairs.
+2. **`independence`** — if modules at the same level should not know about each other.
+3. **`forbidden`** — pointwise prohibitions that do not fit into layers.
 
-Каждое правило и каждый модуль — YAML-комментарий с источником (`observed` / `inferred` / `speculative`).
+Every rule and every module gets a YAML comment with its source (`observed` / `inferred` / `speculative`).
 
-## Разрешённые источники истины
+## Allowed sources of truth
 
-- Реальная файловая структура (пути, имена директорий)
-- Include-граф (кто реально включает кого)
-- README / ARCHITECTURE.md если есть
-- Явные naming conventions (префиксы, суффиксы)
+- The real file structure (paths, directory names)
+- The include graph (who actually includes whom)
+- README / ARCHITECTURE.md if present
+- Explicit naming conventions (prefixes, suffixes)
 
-## Запрещённое поведение агента
+## Forbidden agent behavior
 
-- Выдумывать слои которых нет в репо (нет `domain/` → не писать `domain` module)
-- Переносить архитектурные паттерны из других проектов без evidence
-- Делать `forbidden` на слабом основании (`speculative` → только `# TODO`, не правило)
-- Скрывать неуверенность: все `speculative` поля должны быть явно помечены
+- Inventing layers that are not in the repo (no `domain/` → do not write a `domain` module)
+- Carrying architectural patterns over from other projects without evidence
+- Making a `forbidden` rule on weak grounds (`speculative` → only `# TODO`, not a rule)
+- Hiding uncertainty: all `speculative` fields must be explicitly marked
 
-## Уровни уверенности
+## Confidence levels
 
-| Уровень | Когда | В .draft |
+| Level | When | In .draft |
 |---------|-------|----------|
-| `observed` | Прямо видно в файловой структуре или include-графе | Пишем как правило |
-| `inferred` | Следует из naming/README, не подтверждено графом | Правило + `# inferred` |
-| `speculative` | Common pattern, нет evidence в репо | `# TODO` комментарий, не правило |
+| `observed` | Directly visible in the file structure or include graph | Written as a rule |
+| `inferred` | Follows from naming/README, not confirmed by the graph | Rule + `# inferred` |
+| `speculative` | Common pattern, no evidence in the repo | `# TODO` comment, not a rule |
 
-## Что человек обязан проверить перед accept
+## What a human must verify before accept
 
-- Каждый `modules.*.paths` — реально ли файлы существуют
-- Каждое `layers` / `independence` правило — не нарушает ли существующий код
-- Все `# inferred` и `# speculative` комментарии — подтвердить или удалить
+- Every `modules.*.paths` — do the files actually exist
+- Every `layers` / `independence` rule — does it not break existing code
+- All `# inferred` and `# speculative` comments — confirm or delete
 
-## Пример хорошего draft
+## Example of a good draft
 
 ```yaml
 version: 1
@@ -78,181 +78,181 @@ rules:
     modules: [sinks]                        # speculative: typical pattern, not verified
 ```
 
-## Пример плохого draft (запрещён)
+## Example of a bad draft (forbidden)
 
 ```yaml
-# НЕ ДЕЛАТЬ ТАК — нет директорий в репо:
+# DO NOT DO THIS — no such directories in the repo:
 modules:
   presentation:
-    paths: ["src/presentation/**"]    # BAD: не существует
+    paths: ["src/presentation/**"]    # BAD: does not exist
   business_logic:
-    paths: ["src/business/**"]        # BAD: выдумано
+    paths: ["src/business/**"]        # BAD: invented
 
 rules:
   - type: forbidden
-    name: no-circular                 # BAD: слишком широко, без evidence
+    name: no-circular                 # BAD: too broad, no evidence
     from: [business_logic]
     to: [presentation]
 ```
 
-## Дополнение из опыта dup-спайков #053/#056 (шум-файлы и exclude)
+## Addendum from the dup-spike experience #053/#056 (noise files and exclude)
 
-> Источник: прогоны fast-backend duplication-спайков на реальных деревьях
-> (cpparch `src/`, и особенно `ttcg` — 15388 файлов, из них 315 МБ vendored
-> `Src/packages/boost…`), 2026-05-30. Эмпирический фон по exclude см. также
+> Source: runs of the fast-backend duplication spikes on real trees
+> (cpparch `src/`, and especially `ttcg` — 15388 files, of which 315 MB are vendored
+> `Src/packages/boost…`), 2026-05-30. For empirical background on exclude see also
 > `experiments/line_duplication/FILTER_CLASSIFICATION_REPORT.md`.
 
-### Почему это касается config-агента
+### Why this concerns the config agent
 
-Без отсечения шумовых файлов первый прогон **тонет в них**: на `ttcg` без
-`--exclude /packages/` весь топ дублей — это boost `mem_fn_template.hpp`
-template-твины, ноль сигнала о коде проекта. Тот же риск у агента: он увидит
-`Src/packages/`, `build/`, `*_autogen/` как существующие директории и по
-текущему правилу `observed: directory exists` запишет их как модули. **Это
-ложная архитектура.** Существование директории — необходимое, но НЕ достаточное
-условие: нужно ещё подтвердить, что она **first-party**, а не вендор/генерат.
+Without cutting off noise files, the first run **drowns in them**: on `ttcg` without
+`--exclude /packages/` the entire top of the duplicates list is boost `mem_fn_template.hpp`
+template twins, zero signal about the project's code. The agent faces the same risk: it will see
+`Src/packages/`, `build/`, `*_autogen/` as existing directories and, by the
+current rule `observed: directory exists`, will record them as modules. **This is
+false architecture.** The existence of a directory is a necessary but NOT sufficient
+condition: you also need to confirm that it is **first-party**, not vendored/generated.
 
-### Что агент ОБЯЗАН учитывать (добавить в промпт)
+### What the agent MUST account for (add to the prompt)
 
-- **Не делать модулей из вендора/генерата/билда.** Жёсткие классы шума
-  (всегда вне архитектуры, кандидаты в `exclude`, не в `modules`):
+- **Do not make modules out of vendored/generated/build dirs.** Hard noise classes
+  (always outside the architecture, candidates for `exclude`, not for `modules`):
   `packages/`, `third_party/`, `3rdparty/`, `vendor/`, `bundled/`, `extern/`,
   `deps/`, `_deps/`, `single_include/`, `amalgamate*`, `dist/`,
   `*_autogen/`, `Generated/`, `moc_*`, `qrc_*`, `ui_*`, `*.g.cpp`,
   `build*/`, `cmake-build-*/`, `CMakeFiles/`.
-- **Мягкие классы — по контексту, не вслепую:** `test/`, `tests/`, `examples/`,
-  `sandbox/`, `legacy/`, `upgrade/`. На `ttcg` `Src/NTPROSurfaceSplitSandbox/`
-  содержал реальный код (туда дословно скопирован `mesh_splitter.h`), так что
-  «sandbox» нельзя зачищать автоматически. Помечать `# inferred` / `# TODO`, а
-  не выкидывать молча.
-- **Параллельные near-duplicate деревья — это сигнал дублирования, НЕ модули.**
-  На `ttcg`: `Triangulation` vs `Triangulation_int`, `PolyPolygon` vs
-  `PolyPolygon_int` — float/int-копии (токен-в-токен идентичны, `plain=1.0`).
-  Агент **не должен** заводить `*_int` как отдельный слой/модуль: это missing
-  reuse edge. Правильная реакция — `# TODO: likely duplicated tree (see
-  duplication pass), not a separate layer`, а не два симметричных модуля.
-- **Уточнить уровень `observed`:** «directory exists» — слишком слабо для
-  vendored-ловушки. `observed` = директория существует **И** first-party **И**
-  участвует в include-графе (есть входящие/исходящие рёбра внутри проекта).
-  Иначе — максимум `inferred`.
-- **`observed` по include-графу надёжен только на ОЧИЩЕННЫХ строках.** Граф,
-  построенный по сырому тексту, ловит ложные рёбра из лицензионных шапок,
-  закомментированных инклюдов, `R"(...)"`-данных и `#if 0`-блоков (см. раздел
-  про шум-строки ниже). Прежде чем поднимать находку до `observed`, граф обязан
-  идти по тем же очищенным строкам, что и дедуп.
+- **Soft classes — by context, not blindly:** `test/`, `tests/`, `examples/`,
+  `sandbox/`, `legacy/`, `upgrade/`. On `ttcg`, `Src/NTPROSurfaceSplitSandbox/`
+  contained real code (`mesh_splitter.h` was copied there verbatim), so
+  "sandbox" cannot be cleaned out automatically. Mark with `# inferred` / `# TODO`,
+  do not drop silently.
+- **Parallel near-duplicate trees are a duplication signal, NOT modules.**
+  On `ttcg`: `Triangulation` vs `Triangulation_int`, `PolyPolygon` vs
+  `PolyPolygon_int` — float/int copies (token-for-token identical, `plain=1.0`).
+  The agent **must not** set up `*_int` as a separate layer/module: this is a missing
+  reuse edge. The correct reaction is `# TODO: likely duplicated tree (see
+  duplication pass), not a separate layer`, not two symmetric modules.
+- **Refine the `observed` level:** "directory exists" is too weak for the
+  vendored trap. `observed` = the directory exists **AND** is first-party **AND**
+  participates in the include graph (has incoming/outgoing edges within the project).
+  Otherwise — `inferred` at most.
+- **`observed` from the include graph is reliable only on CLEANED lines.** A graph
+  built from raw text catches false edges from license headers,
+  commented-out includes, `R"(...)"` data, and `#if 0` blocks (see the section
+  on noise lines below). Before promoting a finding to `observed`, the graph must
+  walk the same cleaned lines as the dedup pass.
 
-### Классы шум-СТРОК (не только файлов) — из прогона #054
+### Noise-LINE classes (not just files) — from run #054
 
-> Источник: прогон fast-backend duplication-спайка по 50 реальным C++ AI-репам
+> Source: a run of the fast-backend duplication spike over 50 real C++ AI repos
 > (AIDev, `experiments/ai_repo_run/`, baseline `runs/v5_if0/`), 2026-05-30.
-> Все 6 классов подтверждены на исходниках корпуса. Это расширение раздела про
-> шум-ФАЙЛЫ выше на уровень отдельных строк: даже в first-party файле часть
-> строк — не код и даёт ложные cross-file «дубли».
+> All 6 classes confirmed on the corpus sources. This extends the section on
+> noise FILES above down to the level of individual lines: even in a first-party file, some
+> lines are not code and produce false cross-file "duplicates".
 
-- **Лицензионные шапки `/* ... */`** (текст MIT/Apache в начале файла) — дают
-  ложный cross-file блок «дубля». Пример: `mqtt_client` — 19-строчный «дубль»
-  оказался текстом MIT-лицензии, не кодом. → дедуп обязан **stateful**-стрипать
-  блок-комменты (как боевой SF.7, `src/rules/sf7_using_namespace.cpp`), а не
-  только построчные `//`.
-- **Регистр вендор-папок.** В корпусе встречаются ВСЕ варианты:
-  `thirdParty / ThirdParty / 3rdParty / External / Submodules`. Матчинг
-  exclude/skip обязан быть **регистронезависимым** (alpaka: 62%→20% после фикса).
-- **Embedded raw-string данные `R"( ... )"`** — шейдеры/SQL/скрипты, зашитые в
-  C++ строкой. Пример: Effekseer, GL ShaderHeader. Содержимое = данные, не код,
-  стрипать тело raw-string.
-- **`#if 0` / `#if false` мёртвые блоки** — напр. fxc disassembly-листинги под
-  `#if 0` (Effekseer DX): 33%→28% после пропуска. Пропускать с учётом вложенности.
-- **Числовые data-массивы** `const BYTE g_main[] = {69,70,88,...}` — байт-код
-  шейдеров числами, НЕ под `#if 0`. line-based стрип это **не лечит** → передано
-  в **#056** (partial-duplication pass).
-- **`#include`-блоки и header↔impl шапки** — одинаковые списки `#include` между
-  файлами и между `X.h`/`X.cpp` = общие зависимости, не reuse-edge. `#include`
-  пропускать. Остаток header↔impl (тела/параметры конструктора) — это
-  cross-**component** сигнал, его адресует **#053 P0-B** (cross-component map),
-  не line-level.
+- **License headers `/* ... */`** (MIT/Apache text at the start of the file) produce
+  a false cross-file "duplicate" block. Example: `mqtt_client` — a 19-line "duplicate"
+  turned out to be MIT license text, not code. → dedup must **stateful**-strip
+  block comments (like the production SF.7, `src/rules/sf7_using_namespace.cpp`), not
+  only line `//`.
+- **Case of vendor folders.** ALL variants occur in the corpus:
+  `thirdParty / ThirdParty / 3rdParty / External / Submodules`. The
+  exclude/skip matching must be **case-insensitive** (alpaka: 62%→20% after the fix).
+- **Embedded raw-string data `R"( ... )"`** — shaders/SQL/scripts baked into a
+  C++ string. Example: Effekseer, GL ShaderHeader. The contents are data, not code;
+  strip the raw-string body.
+- **`#if 0` / `#if false` dead blocks** — e.g. fxc disassembly listings under
+  `#if 0` (Effekseer DX): 33%→28% after skipping. Skip with nesting taken into account.
+- **Numeric data arrays** `const BYTE g_main[] = {69,70,88,...}` — shader byte-code
+  as numbers, NOT under `#if 0`. A line-based strip does NOT fix this → handed off
+  to **#056** (partial-duplication pass).
+- **`#include` blocks and header↔impl headers** — identical `#include` lists between
+  files and between `X.h`/`X.cpp` = shared dependencies, not a reuse edge. Skip
+  `#include`. The header↔impl remainder (bodies/constructor parameters) is a
+  cross-**component** signal, addressed by **#053 P0-B** (cross-component map),
+  not line-level.
 
-### Пример плохого draft — vendored dir как модуль (добавить в док)
+### Example of a bad draft — a vendored dir as a module (add to the doc)
 
 ```yaml
-# НЕ ДЕЛАТЬ ТАК — директории существуют, но это не архитектура проекта:
+# DO NOT DO THIS — the directories exist, but this is not the project's architecture:
 modules:
   boost:
-    paths: ["Src/packages/boost.1.76.0.0/**"]   # BAD: vendored, в exclude, не module
+    paths: ["Src/packages/boost.1.76.0.0/**"]   # BAD: vendored, belongs in exclude, not module
   autogen:
-    paths: ["**/*_autogen/**"]                   # BAD: генерат
+    paths: ["**/*_autogen/**"]                   # BAD: generated
   triangulation_int:
-    paths: ["**/Triangulation_int/**"]           # BAD: дубль-копия float-ветки, не слой
+    paths: ["**/Triangulation_int/**"]           # BAD: duplicate copy of the float branch, not a layer
 ```
 
-### Возможные доп. поля (для дедупликатора и шире)
+### Possible additional fields (for the deduplicator and beyond)
 
-Эти поля выходят за минимальный контракт (`version/modules/rules`) и относятся
-к config-формату + проходам #053/#056 — здесь фиксирую как вход для их дизайна:
+These fields go beyond the minimal contract (`version/modules/rules`) and belong
+to the config format + passes #053/#056 — I record them here as input for their design:
 
-- **Топ-левел `exclude:`** (список glob) — общий для scanner, duplication-pass и
-  rules. Самое высокоэффективное поле: без него первый прогон = сплошной шум.
-  Агент заполняет его обнаруженными жёсткими классами выше (с комментарием-
-  источником), это его прямой выхлоп наравне с `modules`.
-- **Блок дедупликатора** (черновой, на #053/#056): `duplication.exclude`
-  (поверх общего), `similarity_threshold`, `min_tokens`; пометка намеренных
-  твинов уезжает в baseline-модель #053, не в agent-draft.
-- Агент НЕ выставляет пороги дедупа сам (`speculative`) — только предлагает
-  `# TODO` с обоснованием, решение за человеком.
-- **Стрип-правила шум-строк — поведение дедупликатора ПО УМОЛЧАНИЮ, не конфиг
-  агента.** Стрип block-comment / raw-string / `#if 0` / `#include` и
-  numeric-array (последнее — #056) встроены в проход, агент их **не** выставляет
-  и не предлагает: это не архитектурное решение, а гигиена детектора. В draft
-  они не попадают вовсе.
-- **`exclude`-матчинг обязан быть регистронезависимым** — зафиксировано как
-  требование к формату (корпус #054 содержит `thirdParty/ThirdParty/3rdParty`
-  вперемешку). Агент пишет класс шума одним вариантом, движок матчит регистр-
-  независимо.
-- Кросс-реф конкретных классов: numeric data-массивы → **#056**;
-  header↔impl / cross-component остаток → **#053 P0-B**.
+- **Top-level `exclude:`** (glob list) — shared by the scanner, the duplication pass, and
+  the rules. The single highest-impact field: without it the first run = solid noise.
+  The agent fills it with the hard classes it discovers above (with a source
+  comment); this is its direct output, on par with `modules`.
+- **Deduplicator block** (draft, on #053/#056): `duplication.exclude`
+  (on top of the shared one), `similarity_threshold`, `min_tokens`; marking intentional
+  twins goes into the #053 baseline model, not the agent draft.
+- The agent does NOT set dedup thresholds itself (`speculative`) — it only proposes
+  a `# TODO` with justification; the decision is the human's.
+- **Noise-line strip rules are deduplicator behavior BY DEFAULT, not agent config.**
+  Stripping block-comment / raw-string / `#if 0` / `#include` and
+  numeric-array (the last one — #056) is built into the pass; the agent does **not** set them
+  and does not propose them: this is not an architectural decision but detector hygiene. They
+  do not appear in the draft at all.
+- **`exclude` matching must be case-insensitive** — fixed as a
+  requirement of the format (corpus #054 contains `thirdParty/ThirdParty/3rdParty`
+  intermixed). The agent writes the noise class as one variant, the engine matches
+  case-insensitively.
+- Cross-ref for specific classes: numeric data arrays → **#056**;
+  header↔impl / cross-component remainder → **#053 P0-B**.
 
-### Эмпирика OSS-sweep: third-party детектится НЕ по имени
+### OSS-sweep empirics: third-party is detected NOT by name
 
-> Доказательная база: `experiments/partial_duplication/OSS_SWEEP_REPORT.md` —
-> dup-проход по 19 OSS-репо. Главный урок — именно про third-party / генерат.
+> Evidence base: `experiments/partial_duplication/OSS_SWEEP_REPORT.md` —
+> a dup pass over 19 OSS repos. The main lesson is precisely about third-party / generated.
 
-- **Вендор часто без маркера `third_party/`/`vendor/`** — лежит обычными
-  подпапками внутри `src/`. BambuStudio: `src/mcut/`, `src/minilzo/`, embedded
-  `src/nlohmann/`. Substring-exclude по `third_party`/`vendor`/`packages` их НЕ
-  ловит → они всплыли как «находки» (Bambu: 180 пар, почти все внутри этих
-  библиотек) и всплыли бы у агента как ложные `modules`.
-- **Генерат проектно-специфичен.** grpc: `src/core/ext/upb-gen/**/*.upb.h` дал
-  **7712** «дублей» (генерат идентичен by construction). Маска `.pb.` его
-  пропускает — у upb своё расширение `.upb.h`. token-LCS confirm тут НЕ спасает:
-  код реально идентичен, лечится только exclude.
-- **Вывод для агента:** фиксированному exclude-листу доверять нельзя. Вендор и
-  генерат определять по **сигналам**, не по имени каталога: license-заголовок
-  чужого проекта, баннеры `// DO NOT EDIT` / `@generated` / `generated by …`,
-  отсутствие входящих include-рёбер из app-кода (изолированный кластер / сток),
-  чужой стиль/нейминг. Найденное → в `exclude` с комментарием-источником,
-  неуверенное → `# TODO`. Прямое расширение `observed`: директория существует
-  ≠ она твоя ≠ она рукописная.
+- **Vendored code is often without a `third_party/`/`vendor/` marker** — it sits in ordinary
+  subfolders inside `src/`. BambuStudio: `src/mcut/`, `src/minilzo/`, embedded
+  `src/nlohmann/`. A substring-exclude on `third_party`/`vendor`/`packages` does NOT
+  catch them → they surfaced as "findings" (Bambu: 180 pairs, almost all inside these
+  libraries) and would have surfaced for the agent as false `modules`.
+- **Generated code is project-specific.** grpc: `src/core/ext/upb-gen/**/*.upb.h` produced
+  **7712** "duplicates" (generated code is identical by construction). A `.pb.` mask
+  misses it — upb has its own extension `.upb.h`. A token-LCS confirm does NOT help here:
+  the code really is identical, the only cure is exclude.
+- **Takeaway for the agent:** a fixed exclude list cannot be trusted. Detect vendored and
+  generated code by **signals**, not by directory name: a foreign project's
+  license header, banners `// DO NOT EDIT` / `@generated` / `generated by …`,
+  the absence of incoming include edges from app code (isolated cluster / sink),
+  a foreign style/naming. What is found → into `exclude` with a source comment;
+  the uncertain → `# TODO`. A direct extension of `observed`: a directory exists
+  ≠ it is yours ≠ it is hand-written.
 
-## План выполнения
+## Execution plan
 
-- [ ] Написать `docs/ai_config_authoring_rules.md`: allowed sources, forbidden behavior, уровни уверенности
-- [ ] Внести в док раздел про шум-файлы: жёсткие/мягкие exclude-классы, vendored-ловушку, параллельные дубль-деревья (из #053/#056)
-- [ ] Внести в док раздел про шум-СТРОКИ (из #054): лиц-шапки `/* */`, регистр вендор-папок, raw-string данные, `#if 0`, numeric-массивы (→#056), `#include`/header↔impl (→#053 P0-B)
-- [ ] Зафиксировать требования: регистронезависимый `exclude`-матчинг; стрип-правила = дефолт движка, не agent-draft; граф для `observed` — на очищенных строках
-- [ ] Уточнить определение `observed` (first-party + include-граф, не просто «директория существует»)
-- [ ] Согласовать с config-форматом топ-левел `exclude:` и черновой `duplication`-блок (cross-ref #053/#056)
-- [ ] Добавить 2 полных примера: good draft и bad draft с аннотациями
-- [ ] Зафиксировать минимальный output contract: что должно быть в каждом поле `.draft`
-- [ ] Описать checklist для человека перед accept
-- [ ] Связать с `synthesize`-command design когда он появится
+- [ ] Write `docs/ai_config_authoring_rules.md`: allowed sources, forbidden behavior, confidence levels
+- [ ] Add to the doc a section on noise files: hard/soft exclude classes, the vendored trap, parallel duplicate trees (from #053/#056)
+- [ ] Add to the doc a section on noise LINES (from #054): license headers `/* */`, case of vendor folders, raw-string data, `#if 0`, numeric arrays (→#056), `#include`/header↔impl (→#053 P0-B)
+- [ ] Pin down the requirements: case-insensitive `exclude` matching; strip rules = engine default, not agent-draft; the graph for `observed` — on cleaned lines
+- [ ] Refine the definition of `observed` (first-party + include graph, not just "directory exists")
+- [ ] Reconcile with the config format the top-level `exclude:` and the draft `duplication` block (cross-ref #053/#056)
+- [ ] Add 2 full examples: good draft and bad draft with annotations
+- [ ] Pin down the minimal output contract: what must be in each `.draft` field
+- [ ] Describe the checklist for the human before accept
+- [ ] Tie in with the `synthesize` command design once it appears
 
-## Сделано
+## Done
 
-- (пусто)
+- (empty)
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| docs/ai_config_authoring_rules.md | контракт для агента (вкл. раздел про шум-файлы / exclude из #053/#056) |
-| README.md | краткое объяснение `.draft` workflow после стабилизации |
-| (config-формат) | топ-левел `exclude:` + черновой `duplication`-блок — согласовать с #053/#056 |
+| docs/ai_config_authoring_rules.md | contract for the agent (incl. the section on noise files / exclude from #053/#056) |
+| README.md | brief explanation of the `.draft` workflow after stabilization |
+| (config format) | top-level `exclude:` + draft `duplication` block — reconcile with #053/#056 |

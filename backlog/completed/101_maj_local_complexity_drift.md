@@ -1,89 +1,89 @@
 # [DRIFT][DIFF] Local Complexity Drift Advisory Signal
 
-**Дата создания:** 2026-06-10
-**Дата старта:** 2026-06-11
-**Статус:** wip
-**Модуль:** GIT / SCAN / DIFF / REPORT
-**Приоритет:** major
-**Сложность:** medium
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-06-10
+**Started:** 2026-06-11
+**Status:** wip
+**Module:** GIT / SCAN / DIFF / REPORT
+**Priority:** major
+**Complexity:** medium
+**Blocks:** —
+**Blocked by:** —
 **Related:** #018 (git_diff_analysis), #024 (in_memory_fs_for_diff), #075 (trusted_diff_workflow), #093 (flag_argument), #096 (satd_delta), #097 (test_co_evolution), #099 (indentation_complexity_drift)
 
-## Цель
+## Goal
 
-Добавить advisory-only drift signal, который ловит локальный рост control-flow сложности в изменённом C/C++ коде:
+Add an advisory-only drift signal that catches local growth of control-flow complexity in changed C/C++ code:
 
-- рост ветвления;
-- рост вложенности;
-- рост глубоко вложенных строк;
-- рост локальной "patch accumulation" сложности внутри функций.
+- branching growth;
+- nesting growth;
+- growth of deeply nested lines;
+- growth of local "patch accumulation" complexity inside functions.
 
-Это supporting signal для review, а не архитектурный gate и не попытка превратить `archcheck` в general-purpose linter.
+This is a supporting signal for review, not an architectural gate, and not an attempt to turn `archcheck` into a general-purpose linter.
 
-## Контекст
+## Context
 
-- Источник постановки уже лежит в репо: [docs/codex_task_local_complexity_drift.md](~/projects/cpparch/docs/codex_task_local_complexity_drift.md).
-- В текущем коде `--diff` умеет только graph-vs-graph structural report через `RegressionReport` из [src/diff/regression_report.cpp](~/projects/cpparch/src/diff/regression_report.cpp). Локальные drift-сигналы туда пока не встроены.
-- Текущий snapshot report contract (`rules::Violation` + [json_reporter.cpp](~/projects/cpparch/src/report/json_reporter.cpp)) слишком узкий для `old_score/new_score/delta_percent/symbol/start_line/end_line`, а `--diff` вообще не поддерживает `--format json`.
-- Текущий config schema (`version/modules/rules/thresholds`) не умеет ни `rules.local_complexity_drift`, ни advisory mode knobs. Значит, YAML shape из исходной постановки нельзя обещать в первой версии без отдельной schema-задачи.
-- В репо нет стандартного `--strict` механизма. Значит, первая реализация должна быть advisory-only и без изобретения нового strict mode.
-- Задача **пересекается** с #099: `indentation_complexity_drift` — это узкий file-level proxy, а эта задача — более полезный function-aware combined signal. Не реализовывать их как два независимых продукта; `#099` должен стать fallback/subsignal или быть закрыт как absorbed-by-#101.
-- **Ревью прототипа (#102) нашло дефекты исходной формулы** — разбор с живыми репро:
+- The source statement is already in the repo: [docs/codex_task_local_complexity_drift.md](~/projects/cpparch/docs/codex_task_local_complexity_drift.md).
+- In the current code `--diff` can only do a graph-vs-graph structural report via `RegressionReport` from [src/diff/regression_report.cpp](~/projects/cpparch/src/diff/regression_report.cpp). Local drift signals are not wired in there yet.
+- The current snapshot report contract (`rules::Violation` + [json_reporter.cpp](~/projects/cpparch/src/report/json_reporter.cpp)) is too narrow for `old_score/new_score/delta_percent/symbol/start_line/end_line`, and `--diff` doesn't support `--format json` at all.
+- The current config schema (`version/modules/rules/thresholds`) supports neither `rules.local_complexity_drift` nor advisory mode knobs. That means the YAML shape from the original statement cannot be promised in the first version without a separate schema task.
+- There is no standard `--strict` mechanism in the repo. That means the first implementation must be advisory-only and must not invent a new strict mode.
+- The task **overlaps** with #099: `indentation_complexity_drift` is a narrow file-level proxy, while this task is a more useful function-aware combined signal. Do not implement them as two independent products; `#099` should become a fallback/subsignal or be closed as absorbed-by-#101.
+- **The prototype review (#102) found defects in the original formula** — analysis with live repros:
   [docs/research/local_complexity_drift_scorer_review.md](~/projects/cpparch/docs/research/local_complexity_drift_scorer_review.md).
-  Ключевой принцип, который формула обязана соблюдать (постановка владельца):
-  **объём ≠ сложность** — добавление 50 плоских строк (даже с глубоким отступом
-  от выравнивания) должно давать score-дельту 0; рост даёт только добавленная
-  управляющая структура (новый if, вложение, ветвление). Секция «Scoring model»
-  ниже переписана под этот принцип. Ресёрч формального измерения завершён —
-  спека, валидация, токенная реализуемость и дизайн дельта-сигналов:
+  The key principle the formula must respect (owner's statement):
+  **volume ≠ complexity** — adding 50 flat lines (even with deep indentation
+  from alignment) must produce a score delta of 0; growth comes only from added
+  control structure (a new if, nesting, branching). The "Scoring model" section
+  below is rewritten to follow this principle. The research on formal measurement is
+  complete — spec, validation, token-feasibility and the design of delta signals:
   [docs/research/cognitive_complexity_delta_design.md](~/projects/cpparch/docs/research/cognitive_complexity_delta_design.md).
 
-### Валидация и хэндофф из #102 (2026-06-11, прототип завершён)
+### Validation and handoff from #102 (2026-06-11, prototype complete)
 
-Прототип (#102, completed) реализовал **ровно этот scoring model** в Python
-(`experiments/local_complexity_drift/scan_commit.py`) и прогнал его по корпусу.
-То есть для v1 алгоритм — не теоретический, а проверенный; ниже — что он показал и
-какие продуктовые решения остались открытыми для C++-реализации.
+The prototype (#102, completed) implemented **exactly this scoring model** in Python
+(`experiments/local_complexity_drift/scan_commit.py`) and ran it over the corpus.
+So for v1 the algorithm is not theoretical but proven; below is what it showed and
+which product decisions remained open for the C++ implementation.
 
-**Что подтверждено (можно опереться, не переоткрывать):**
-- Токенный cognitive-скорер + LCX-иерархия работают: корпус 100 реп, 1612 коммитов,
-  **403 находки** (старая дефектная формула давала 524, раздутые switch-парсерами).
-- «Definition of done» по корпусу из этой задачи **уже выполнен прототипом**:
-  switch-парсеры и `TEST_F`-тела ушли из топа, **6/6 ручных TP сохранились**.
-- Все 6 репро-дефектов (`review_repros/`) и synthetic 13/13 зелёные на v2-скорере.
-- Ручной разбор 16 кейсов: 10 actionable TP, 3 non-actionable TP, 2 FP, 1 low-conf.
-  Отчёты: [corpus_report](~/projects/cpparch/docs/research/local_complexity_drift_corpus_report.md),
-  [examples](~/projects/cpparch/docs/research/local_complexity_drift_examples.md) (round 2 — где шумит).
+**What is confirmed (can be relied on, don't re-open):**
+- The token cognitive scorer + LCX hierarchy work: corpus of 100 repos, 1612 commits,
+  **403 findings** (the old defective formula produced 524, inflated by switch parsers).
+- The "definition of done" against the corpus from this task is **already met by the prototype**:
+  switch parsers and `TEST_F` bodies left the top, **6/6 manual TPs preserved**.
+- All 6 repro defects (`review_repros/`) and synthetic 13/13 green on the v2 scorer.
+- Manual analysis of 16 cases: 10 actionable TP, 3 non-actionable TP, 2 FP, 1 low-conf.
+  Reports: [corpus_report](~/projects/cpparch/docs/research/local_complexity_drift_corpus_report.md),
+  [examples](~/projects/cpparch/docs/research/local_complexity_drift_examples.md) (round 2 — where it's noisy).
 
-**Открытые решения для v1 (их закрывает эта задача, не прототип):**
-1. **`LCX.2 grew_when_already_above` шумит на Δ1-2.** В корпусе это 210/403 находок,
-   из них **72 — Δ1-2** (функция была score 200, выросла до 201 — формально рост,
-   для ревью бесполезно; кейсы #7/#8 examples-дока). Решение: дать `LCX.2` **порог-пол
-   Δ≥K**, либо репортить его **advisory-only отдельно** от `LCX.1`/`LCX.3`.
-   По умолчанию рекомендую: в gating-вывод — только `LCX.1 crossed_25` и
-   `LCX.3 delta_ge_k`; `LCX.2` — advisory строкой. (Рекомендация, финальное — за владельцем.)
-2. **Псевдо-сигнатуры.** Текстовый фрагментатор принимает `__attribute__((unused))`
-   / `__declspec(...)` перед функцией за имя функции (корпусный FP: символ
-   `__attribute__`, score 1→30). Блэклист — в `function_body_scan` (Шаг 2).
-3. `low`-confidence уже не даёт `LCX.1/2` (Шаг 4) — этого достаточно; дополнительно
-   стоит держать их вне headline-вывода (down-rank в репорте).
-4. K=5 и порог 25 — оставить дефолтами из дизайн-дока; «второй срез» для калибровки
-   без ground truth информативен слабо, лучше калибровать на реальных прогонах.
+**Open decisions for v1 (this task closes them, not the prototype):**
+1. **`LCX.2 grew_when_already_above` is noisy on Δ1-2.** In the corpus this is 210/403 findings,
+   of which **72 are Δ1-2** (a function was score 200, grew to 201 — formally growth,
+   useless for review; cases #7/#8 of the examples doc). Decision: give `LCX.2` a **floor
+   threshold Δ≥K**, or report it **advisory-only separately** from `LCX.1`/`LCX.3`.
+   By default I recommend: in the gating output — only `LCX.1 crossed_25` and
+   `LCX.3 delta_ge_k`; `LCX.2` as an advisory line. (Recommendation, final call is the owner's.)
+2. **Pseudo-signatures.** The text fragmenter takes `__attribute__((unused))`
+   / `__declspec(...)` before a function as the function name (corpus FP: symbol
+   `__attribute__`, score 1→30). Blacklist — in `function_body_scan` (Step 2).
+3. `low`-confidence already does not yield `LCX.1/2` (Step 4) — that's sufficient; additionally
+   they should be kept out of the headline output (down-rank in the report).
+4. K=5 and threshold 25 — keep them as defaults from the design doc; a "second slice" for calibration
+   without ground truth is weakly informative, better to calibrate on real runs.
 
-## План выполнения
+## Execution plan
 
 ### Detection contract
 
-- Основная единица анализа: функция или function-like body.
-- Если функция не распознана надёжно, допускается file-level fallback, но только как диагностика в отчёте (территория #099), не как finding в v1.
-- Основной rule id:
+- The primary unit of analysis: a function or function-like body.
+- If a function is not recognized reliably, a file-level fallback is allowed, but only as diagnostics in the report (#099 territory), not as a finding in v1.
+- The primary rule id:
   - `DRIFT.LOCAL_COMPLEXITY`
-- Finding возникает, когда на changed code выполнено одно из условий (точная иерархия — Шаг 4 детальной инструкции ниже, других видов findings в v1 нет):
-  - `LCX.1 crossed_25` — функция (новая или выросшая) пересекла абсолютный порог 25;
-  - `LCX.2 grew_when_already_above` — Δ > 0 в функции, уже бывшей ≥ 25;
-  - `LCX.3 delta_ge_k` — Δ ≥ K (K=5), мягкий warning.
-- `delta_percent`-условия и file-level aggregate findings в v1 НЕ реализуются: процентная и file-level семантика — территория #099-fallback; file-level агрегаты остаются диагностическими полями отчёта без собственного finding-а.
+- A finding arises when one of the following conditions holds on changed code (the exact hierarchy is in Step 4 of the detailed instruction below; there are no other kinds of findings in v1):
+  - `LCX.1 crossed_25` — a function (new or grown) crossed the absolute threshold 25;
+  - `LCX.2 grew_when_already_above` — Δ > 0 in a function that was already ≥ 25;
+  - `LCX.3 delta_ge_k` — Δ ≥ K (K=5), a soft warning.
+- `delta_percent` conditions and file-level aggregate findings are NOT implemented in v1: percentage and file-level semantics are #099-fallback territory; file-level aggregates remain diagnostic report fields without their own finding.
 
 ### Metric shape
 
@@ -94,9 +94,9 @@ Per-function:
 - `startLine`
 - `endLine`
 - `meaningfulLoc`
-- `localComplexityScore` — cognitive score, единственное поле, участвующее в findings
-- `maxNestingDepth`, `structuralCount`, `logicalSeries` — диагностика из ядра (Шаг 3)
-- `deepLinesCount`, `indentComplexitySum` — диагностика, в score НЕ входят (см. Scoring model)
+- `localComplexityScore` — cognitive score, the only field participating in findings
+- `maxNestingDepth`, `structuralCount`, `logicalSeries` — diagnostics from the core (Step 3)
+- `deepLinesCount`, `indentComplexitySum` — diagnostics, NOT part of the score (see Scoring model)
 
 Per-file aggregate:
 
@@ -109,214 +109,214 @@ Per-file aggregate:
 
 ### Scoring model
 
-Инвариант формулы: **объём кода не повышает score**. 50 добавленных плоских строк
-(вызовы, инициализация, данные, выровненные продолжения) = дельта 0; score растёт
-только от управляющей структуры. Ориентир — спека Sonar Cognitive Complexity
-(Campbell 2018; та же метрика у CMU MSR 2026 — корпусные числа будут сравнимы
-с литературой), с задокументированными токен-упрощениями.
+The formula's invariant: **code volume does not raise the score**. 50 added flat lines
+(calls, initialization, data, aligned continuations) = delta 0; the score grows
+only from control structure. The reference is the Sonar Cognitive Complexity spec
+(Campbell 2018; the same metric is used by CMU MSR 2026 — corpus numbers will be comparable
+to the literature), with documented token simplifications.
 
-- Сначала удалить шум:
+- First remove noise:
   - blank lines;
   - comments;
   - string/char literals;
-  - preprocessor-only lines для branch scoring.
-- Инкременты структуры (`+1 + текущая control-вложенность`):
-  - `if`, `for`, `while`, `do-while` (один раз за цикл — `while` от `do` не считается отдельно),
-    `switch` (одна структура; **`case`/`default` НЕ считаются** — спека и так их не
-    включала, прототип #102 считал ошибочно), `catch`, `?:`.
-- Инкременты без вложенности (`+1`):
-  - `else` / `else if` (как одна ветка, не две);
-  - серия одинаковых `&&` / `||` (**+1 за серию, не за каждый оператор**;
-    `&&` сразу после идентификатора/`>` в декларационном контексте — rvalue-ссылка,
-    не считать);
-  - `goto`; `break`/`continue` **с меткой или из вложенного цикла** (обычные — 0,
-    как у Sonar); `co_await` — наш осознанный +1 (вне спеки Sonar).
-- Вложенность (`currentControlNestingDepth`) растёт **только** внутри
-  control-структур и лямбд — не от произвольных скобок, не от отступов.
-- Indent-метрики (`indentComplexitySum`, `maxIndentLevel`, `deepLinesCount`)
-  считать **только как диагностические поля** в отчёте и как file-level fallback
-  (территория #099). **В score они не входят** — выравнивание аргументов и
-  табы делают их форматозависимыми (репро в scorer review).
-- Итог: `localComplexityScore = branchScore` (cognitive-style).
-- Пороги findings — иерархия из дизайн-дока (cognitive_complexity_delta_design.md §5):
-  (1) функция пересекла абсолютный порог **25** (default Sonar C-family и clang-tidy);
-  (2) `delta >= 3` в функции, уже бывшей выше порога (CodeScene-паттерн; пол Δ≥3 —
-  из вердикта корпуса #102: хвост Δ1–2 на уже-огромных функциях, 72/210 находок,
-  неактионабелен);
-  (3) `delta >= K` (K=5, нестрогое; подтверждение K на втором срезе — открытый пункт #102) — мягкий warning.
-  PR-агрегат = сумма положительных дельт; отрицательные репортить как улучшение.
-  **Не делить на размер диффа** (возвращает корреляцию с объёмом — Gil & Lalouche).
-  Абсолютный `delta >= 5` из прототипа на функции со score 2000+ срабатывает
-  от любого патча — не использовать.
+  - preprocessor-only lines for branch scoring.
+- Structure increments (`+1 + current control nesting`):
+  - `if`, `for`, `while`, `do-while` (once per loop — the `while` of a `do` is not counted separately),
+    `switch` (one structure; **`case`/`default` are NOT counted** — the spec didn't
+    include them anyway, prototype #102 counted them erroneously), `catch`, `?:`.
+- Increments without nesting (`+1`):
+  - `else` / `else if` (as one branch, not two);
+  - a series of identical `&&` / `||` (**+1 per series, not per operator**;
+    `&&` right after an identifier/`>` in a declaration context is an rvalue reference,
+    don't count it);
+  - `goto`; `break`/`continue` **with a label or from a nested loop** (plain ones — 0,
+    as in Sonar); `co_await` — our deliberate +1 (outside the Sonar spec).
+- Nesting (`currentControlNestingDepth`) grows **only** inside
+  control structures and lambdas — not from arbitrary braces, not from indentation.
+- Indent metrics (`indentComplexitySum`, `maxIndentLevel`, `deepLinesCount`)
+  are counted **only as diagnostic fields** in the report and as a file-level fallback
+  (#099 territory). **They are not part of the score** — argument alignment and
+  tabs make them format-dependent (repro in scorer review).
+- Result: `localComplexityScore = branchScore` (cognitive-style).
+- Finding thresholds — the hierarchy from the design doc (cognitive_complexity_delta_design.md §5):
+  (1) a function crossed the absolute threshold **25** (default Sonar C-family and clang-tidy);
+  (2) `delta >= 3` in a function already above the threshold (CodeScene pattern; the Δ≥3 floor
+  comes from the #102 corpus verdict: a tail of Δ1–2 on already-huge functions, 72/210 findings,
+  non-actionable);
+  (3) `delta >= K` (K=5, non-strict; confirming K on a second slice is an open item from #102) — a soft warning.
+  PR aggregate = sum of positive deltas; report negative ones as improvement.
+  **Do not divide by diff size** (this brings back correlation with volume — Gil & Lalouche).
+  The absolute `delta >= 5` from the prototype on a function with score 2000+ fires
+  on any patch — don't use it.
 
 ### Runtime shape
 
-- Работать только на baseline/current text contents по changed C/C++ files.
-- Никакого libclang, compile database, include graph или compiler invocation.
-- Порядок запуска по смыслу:
-  - после diff extraction;
-  - до graph build;
-  - до clone detection;
-  - как early advisory signal.
+- Work only on baseline/current text contents over changed C/C++ files.
+- No libclang, compile database, include graph or compiler invocation.
+- Run order by meaning:
+  - after diff extraction;
+  - before graph build;
+  - before clone detection;
+  - as an early advisory signal.
 
 ### Output semantics
 
-- По умолчанию только advisory.
-- Сообщение должно говорить именно про proxy drift:
+- Advisory only by default.
+- The message must speak specifically about proxy drift:
   - "grew local complexity from X to Y"
-  - а не "has cognitive complexity N".
-- V1 не должен ломать CI default exit code.
+  - not "has cognitive complexity N".
+- V1 must not break the CI default exit code.
 
-### Конкретный план в текущем коде
+### Concrete plan in the current code
 
-1. Shared text preprocessing слой НЕ создавать (`text_scan.h` отменён): весь анализ идёт по токен-потоку существующего `lex()` из [include/archcheck/scan/duplication/token_normalizer.h](~/projects/cpparch/include/archcheck/scan/duplication/token_normalizer.h) — см. Шаг 0/1 детальной инструкции. Никакого повторного text-парсинга.
-2. Второго независимого function parser-а в дереве нет (проверено 2026-06-11: `function_signature_scan` из #093/#094 не существует, те задачи не стартовали). Завести здесь `include/archcheck/scan/function_body_scan.h` + `src/scan/function_body_scan.cpp` с консервативным распознаванием definitions (`signature ... {`), исключая `if/for/while/switch/catch`; #093/#094 потом реюзают его.
-3. Добавить `include/archcheck/scan/local_complexity_metrics.h` + `src/scan/local_complexity_metrics.cpp`:
-   структуры `FunctionComplexityMetrics`, `FileComplexityMetrics`;
-   scorer по токен-потоку (cognitive-ядро из Шага 3 детальной инструкции);
-   nesting — control-nesting через классифицированный brace-стек, НЕ raw brace-depth и НЕ отступы.
-4. Добавить `include/archcheck/scan/local_complexity_drift.h` + `src/scan/local_complexity_drift.cpp`:
-   сравнение old/new metrics;
-   сопоставление функций по ключу `file + qualifiedName + paramArity` (коллизия → nearest `startLine` + `confidence=low`, детали — Шаг 4 детальной инструкции);
-   неоднозначный матч НЕ эскалировать в file-level finding — только пометка low confidence (file-level агрегаты остаются диагностикой).
-5. Для changed-file prefilter использовать уже существующий `git::changedCppFiles()` из [src/git/git_state.cpp](~/projects/cpparch/src/git/git_state.cpp). Это уже даёт правильные semantics для `a..b` и `a..WORKTREE`.
-6. Old/new contents читать через уже shipped `GitObjectFileSource` и `DiskFileSource`:
+1. Do NOT create a shared text preprocessing layer (`text_scan.h` cancelled): all analysis runs over the token stream of the existing `lex()` from [include/archcheck/scan/duplication/token_normalizer.h](~/projects/cpparch/include/archcheck/scan/duplication/token_normalizer.h) — see Step 0/1 of the detailed instruction. No repeated text parsing.
+2. There is no second independent function parser in the tree (verified 2026-06-11: `function_signature_scan` from #093/#094 does not exist, those tasks did not start). Introduce `include/archcheck/scan/function_body_scan.h` + `src/scan/function_body_scan.cpp` here with conservative recognition of definitions (`signature ... {`), excluding `if/for/while/switch/catch`; #093/#094 will reuse it later.
+3. Add `include/archcheck/scan/local_complexity_metrics.h` + `src/scan/local_complexity_metrics.cpp`:
+   structures `FunctionComplexityMetrics`, `FileComplexityMetrics`;
+   scorer over the token stream (cognitive core from Step 3 of the detailed instruction);
+   nesting — control nesting via a classified brace stack, NOT raw brace depth and NOT indentation.
+4. Add `include/archcheck/scan/local_complexity_drift.h` + `src/scan/local_complexity_drift.cpp`:
+   compare old/new metrics;
+   match functions by key `file + qualifiedName + paramArity` (collision → nearest `startLine` + `confidence=low`, details — Step 4 of the detailed instruction);
+   do NOT escalate an ambiguous match into a file-level finding — only a low confidence mark (file-level aggregates remain diagnostics).
+5. For the changed-file prefilter use the already existing `git::changedCppFiles()` from [src/git/git_state.cpp](~/projects/cpparch/src/git/git_state.cpp). It already provides the correct semantics for `a..b` and `a..WORKTREE`.
+6. Read old/new contents through the already shipped `GitObjectFileSource` and `DiskFileSource`:
    [src/git/git_object_file_source.cpp](~/projects/cpparch/src/git/git_object_file_source.cpp),
    [src/scan/disk_file_source.cpp](~/projects/cpparch/src/scan/disk_file_source.cpp).
-7. Поскольку текущий `run_diff()` в [src/main.cpp](~/projects/cpparch/src/main.cpp) сразу идёт в `runDiffFullPath()`, его надо разрезать на явные стадии:
+7. Since the current `run_diff()` in [src/main.cpp](~/projects/cpparch/src/main.cpp) goes straight into `runDiffFullPath()`, it needs to be split into explicit stages:
    - parse revspec / repo root;
    - fast-path no C/C++ changes;
    - early local-complexity advisory pass;
    - graph diff pass;
    - unified output.
-8. Не протаскивать это через `IRule`:
-   [include/archcheck/rules/i_rule.h](~/projects/cpparch/include/archcheck/rules/i_rule.h) сейчас жёстко привязан к `DependencyGraph` и `readFile()`, что плохо подходит для old/new comparison per changed file.
-9. Отдельно закрыть текущий report-model gap:
-   сейчас `rules::Violation` и `json_reporter.cpp` не умеют `symbol`, `endLine`, `oldScore`, `newScore`, `deltaPercent`.
-   Для v1 есть два допустимых пути:
-   - минимально расширить `Violation` обратно-совместимо и обновить [src/report/json_reporter.cpp](~/projects/cpparch/src/report/json_reporter.cpp) / [src/report/text_reporter.cpp](~/projects/cpparch/src/report/text_reporter.cpp);
-   - либо завести отдельный diff-report writer, который обслужит сразу #096/#097/#101 и наконец даст `--diff` JSON.
-   Предпочтителен второй путь, потому что текущий `--diff` и так живёт мимо snapshot reporter-а.
-10. Git-helpers уже существуют (вынесены волной #096–#100, проверено 2026-06-11):
+8. Do not route this through `IRule`:
+   [include/archcheck/rules/i_rule.h](~/projects/cpparch/include/archcheck/rules/i_rule.h) is currently tightly bound to `DependencyGraph` and `readFile()`, which is a poor fit for old/new comparison per changed file.
+9. Separately close the current report-model gap:
+   right now `rules::Violation` and `json_reporter.cpp` cannot handle `symbol`, `endLine`, `oldScore`, `newScore`, `deltaPercent`.
+   For v1 there are two acceptable paths:
+   - minimally extend `Violation` backward-compatibly and update [src/report/json_reporter.cpp](~/projects/cpparch/src/report/json_reporter.cpp) / [src/report/text_reporter.cpp](~/projects/cpparch/src/report/text_reporter.cpp);
+   - or introduce a separate diff-report writer that serves #096/#097/#101 at once and finally gives `--diff` JSON.
+   The second path is preferred, because the current `--diff` already lives bypassing the snapshot reporter.
+10. Git helpers already exist (extracted by the #096–#100 wave, verified 2026-06-11):
     [include/archcheck/git/git_exec.h](~/projects/cpparch/include/archcheck/git/git_exec.h) — `runGit(args, cwd)`;
     [include/archcheck/git/diff_query.h](~/projects/cpparch/include/archcheck/git/diff_query.h) — `collectAddedLines()`, `collectNumstat()`.
-    Реюзать их, ничего не дублировать.
-11. Тесты лучше класть в уже существующие точки:
+    Reuse them, don't duplicate anything.
+11. Tests are better placed at existing points:
     - `tests/unit/scan/local_complexity_metrics_test.cpp`
     - `tests/unit/scan/function_body_scan_test.cpp`
     - `tests/unit/scan/local_complexity_drift_test.cpp`
-    - `tests/integration/diff/git_diff_test.cpp` для repo-level baseline/current scenarios
-    - при появлении diff JSON writer-а — отдельный `tests/unit/diff/...` на output contract.
+    - `tests/integration/diff/git_diff_test.cpp` for repo-level baseline/current scenarios
+    - once a diff JSON writer appears — a separate `tests/unit/diff/...` for the output contract.
 
-### Детальная инструкция реализации (v1) — алгоритм, функции, реюз
+### Detailed implementation instruction (v1) — algorithm, functions, reuse
 
-Целевая семантика и обоснования — [cognitive_complexity_delta_design.md](~/projects/cpparch/docs/research/cognitive_complexity_delta_design.md) (§4 таблица токенной реализуемости, §5 сигналы, §6 ядро). Ниже — пошаговый план.
+The target semantics and rationale are in [cognitive_complexity_delta_design.md](~/projects/cpparch/docs/research/cognitive_complexity_delta_design.md) (§4 token-feasibility table, §5 signals, §6 core). Below is the step-by-step plan.
 
-**Шаг 0 — что взять готовое (ничего из этого не переписывать):**
-- лексер `lex()` из `include/archcheck/scan/duplication/token_normalizer.h` — уже
-  пропускает комментарии и сохраняет исходные написания в `Token::raw`;
-  использовать **как есть**, без модификаций (детали и ловушка препроцессора — шаг 1);
-- `extractFragments` (`fragmenter.h`) — референс паттерна «`)` + `{` = тело»;
-- `git::changedCppFiles()` (`src/git/git_state.cpp`) — список изменённых файлов
-  с семантикой `a..b` и `a..WORKTREE`;
-- `GitObjectFileSource` / `DiskFileSource` — old/new содержимое;
-- vendor/test-фильтры `collectNonVendoredSources()` + `file_classification.h`.
+**Step 0 — what to take ready-made (don't rewrite any of this):**
+- the lexer `lex()` from `include/archcheck/scan/duplication/token_normalizer.h` — already
+  skips comments and preserves original spellings in `Token::raw`;
+  use it **as is**, without modifications (details and the preprocessor trap are in step 1);
+- `extractFragments` (`fragmenter.h`) — a reference for the "`)` + `{` = body" pattern;
+- `git::changedCppFiles()` (`src/git/git_state.cpp`) — the list of changed files
+  with `a..b` and `a..WORKTREE` semantics;
+- `GitObjectFileSource` / `DiskFileSource` — old/new content;
+- vendor/test filters `collectNonVendoredSources()` + `file_classification.h`.
 
-**Шаг 1 — никакого `rawLex` писать НЕ надо** (проверено по коду 2026-06-11):
-существующий `lex(source, /*keepCalls=*/false)` уже сохраняет всё нужное в
-`Token { sym, line, raw }`: keywords проходят как `sym` (`if`, `else`, `do`, …),
-identifiers дают `sym=="id"`, `raw==написание`, literals — `sym=="lit"`;
-`&&`/`||`/`::`/`->` — multi-char токены; `{ } ( ) ; ? : \` — одиночные токены.
-Исходное написание: `rawText(t) = t.raw.empty() ? t.sym : t.raw` — завести такой
-inline-helper. Весь дальнейший анализ — по токен-потоку, никакого повторного
-text-парсинга и никаких отступов.
-**Ловушка — препроцессор:** `lex()` вырезает только `#if 0`-блоки; остальные
-директивы токенизируются, т.е. `#if defined(X)` даст фальшивый keyword-токен `if`
-(аналогично `#else` → `else`). Обязательный фильтр в скорере: встретив токен `#`,
-пропускать токены до конца строки (`token.line` меняется); если последний токен
-строки — `\`, продолжать пропуск и на следующей строке (line-continuation).
-Unit-кейс на это — в тест-матрице.
+**Step 1 — no need to write `rawLex`** (verified against the code 2026-06-11):
+the existing `lex(source, /*keepCalls=*/false)` already preserves everything needed in
+`Token { sym, line, raw }`: keywords come through as `sym` (`if`, `else`, `do`, …),
+identifiers give `sym=="id"`, `raw==spelling`, literals — `sym=="lit"`;
+`&&`/`||`/`::`/`->` are multi-char tokens; `{ } ( ) ; ? : \` are single tokens.
+Original spelling: `rawText(t) = t.raw.empty() ? t.sym : t.raw` — introduce such an
+inline helper. All further analysis is over the token stream, no repeated
+text parsing and no indentation.
+**Trap — the preprocessor:** `lex()` strips only `#if 0` blocks; other
+directives are tokenized, i.e. `#if defined(X)` yields a fake keyword token `if`
+(similarly `#else` → `else`). A mandatory filter in the scorer: on encountering a `#` token,
+skip tokens to the end of the line (`token.line` changes); if the last token of the
+line is `\`, continue skipping on the next line too (line-continuation).
+The unit case for this is in the test matrix.
 
-**Шаг 2 — `function_body_scan`**: `std::vector<FunctionSpan> discoverFunctions(tokens)`,
+**Step 2 — `function_body_scan`**: `std::vector<FunctionSpan> discoverFunctions(tokens)`,
 `FunctionSpan { qualifiedName, paramArity, startLine, endLine, bodyTokenRange }`.
-Имена брать из `raw` (identifiers приходят как `sym=="id"`, `raw==написание`).
-Алгоритм: кандидат = идентификатор (с опц. `::`-цепочкой / `operator@` / `~Name`),
-за которым `( … )` (баланс скобок), затем опц. `const/noexcept/override/&/&&/-> T`,
-затем `{`; исключить control-слова перед `(`; `paramArity` = top-level запятые + 1
-(0 для `()` и `(void)`); конец тела — matching brace. Конструкторы: после `)` может
-идти `: init-list` до `{` — пропускать до `{` на той же глубине.
-**Блэклист имён** (иначе corpus-FP, #102): `__attribute__`, `__declspec` — это
-атрибут-спецификаторы перед сигнатурой (`__attribute__((unused)) static int f(){…}`),
-а не имена функций; их `(…){` не должен распознаваться как тело.
+Take names from `raw` (identifiers arrive as `sym=="id"`, `raw==spelling`).
+Algorithm: candidate = identifier (with optional `::` chain / `operator@` / `~Name`),
+followed by `( … )` (balanced parens), then optional `const/noexcept/override/&/&&/-> T`,
+then `{`; exclude control words before `(`; `paramArity` = top-level commas + 1
+(0 for `()` and `(void)`); body end — matching brace. Constructors: after `)` there may
+be a `: init-list` before `{` — skip to `{` at the same depth.
+**Name blacklist** (otherwise corpus FP, #102): `__attribute__`, `__declspec` — these are
+attribute specifiers before the signature (`__attribute__((unused)) static int f(){…}`),
+not function names; their `(…){` must not be recognized as a body.
 
-**Шаг 3 — ядро `computeCognitiveComplexity(bodyRange, funcName)`** —
-однопроходный, два стека (полная семантика в дизайн-доке §1/§4):
-1. `braceStack`: каждый `{` классифицировать — CONTROL (предыдущие значимые токены:
-   `)` control-заголовка / `else` / `do` / `try` / лямбда-интро) или NEUTRAL
+**Step 3 — the core `computeCognitiveComplexity(bodyRange, funcName)`** —
+single-pass, two stacks (full semantics in the design doc §1/§4):
+1. `braceStack`: classify each `{` — CONTROL (previous significant tokens:
+   `)` of a control header / `else` / `do` / `try` / lambda intro) or NEUTRAL
    (`class/struct/namespace/enum/union`, `=`, `return`, `,`, `(`, init-list);
-   `nesting` = число CONTROL-фреймов (+ лямбда-фреймы).
-2. `pendingBraceless`: control-заголовок без `{` → nesting+1 до ближайшего `;`
-   на той же глубине скобок (иначе `for(...) if(...)` недосчитывает).
-3. Инкременты:
-   - `if`: предыдущий значимый `else` → **+1** (hybrid); иначе **+1+nesting**;
-   - `else` (не перед `if`): **+1**;
-   - `for` / `while` (кроме хвоста do-while — флаг в braceStack) / `switch` /
+   `nesting` = number of CONTROL frames (+ lambda frames).
+2. `pendingBraceless`: a control header without `{` → nesting+1 until the nearest `;`
+   at the same paren depth (otherwise `for(...) if(...)` undercounts).
+3. Increments:
+   - `if`: previous significant token `else` → **+1** (hybrid); otherwise **+1+nesting**;
+   - `else` (not before `if`): **+1**;
+   - `for` / `while` (except the do-while tail — flagged in braceStack) / `switch` /
      `catch`: **+1+nesting**; `do`: **+1+nesting**;
-   - `?` (есть парный `:` до `;`/`,` той же глубины; не `::`): **+1+nesting**;
-   - `goto`: **+1**; `case`/`default`/`try`/ранний `return`/`break`/`continue`: **0**.
-4. Логические серии: `lastOp`-стек по глубине `(`; на `&&`/`||`/`and`/`or`
-   в **логическом контексте** (предыдущий значимый — идентификатор/литерал/`)`/`]`,
-   что отсекает rvalue-`T&&`): если оператор ≠ `lastOp` текущей глубины → **+1**;
-   `!` перед `(`, открытие `(`, `;`, `,` сбрасывают `lastOp`.
-5. Опции (default **off**, для сопоставимости с clang-tidy): `#if/#ifdef/#elif`
-   **+1+nesting** (для braceStack брать только первую ветку, как lizard);
-   direct-рекурсия (`funcName(` в теле) **+1**.
-Возврат: `{ score, structuralCount, maxNesting, logicalSeries }` — последние три
-только диагностика в отчёт.
+   - `?` (has a matching `:` before `;`/`,` at the same depth; not `::`): **+1+nesting**;
+   - `goto`: **+1**; `case`/`default`/`try`/early `return`/`break`/`continue`: **0**.
+4. Logical series: a `lastOp` stack by `(` depth; on `&&`/`||`/`and`/`or`
+   in a **logical context** (previous significant token — identifier/literal/`)`/`]`,
+   which cuts off rvalue `T&&`): if the operator ≠ `lastOp` of the current depth → **+1**;
+   `!` before `(`, opening a `(`, `;`, `,` reset `lastOp`.
+5. Options (default **off**, for comparability with clang-tidy): `#if/#ifdef/#elif`
+   **+1+nesting** (for braceStack take only the first branch, like lizard);
+   direct recursion (`funcName(` in the body) **+1**.
+Return: `{ score, structuralCount, maxNesting, logicalSeries }` — the last three
+are diagnostics only, for the report.
 
-**Шаг 4 — дельта `compareComplexity(oldFns, newFns)`**:
-ключ = `file + qualifiedName + paramArity`; коллизия → nearest `startLine`,
-`confidence=low`; блэклист символов `TEST|TEST_F|TEST_P|TYPED_TEST|BENCHMARK|MOCK_METHOD`;
-Δ = new − old (новая функция: Δ = score). Findings по иерархии §5 дизайн-дока:
-`LCX.1 crossed_25` (порог Sonar C-family/clang-tidy), `LCX.2 grew_when_already_above`
-(Δ>0 при old≥25), `LCX.3 delta_ge_k` (K=5, мягкий). Low-confidence матчи не дают
-LCX.1/LCX.2. PR-агрегат = Σ положительных Δ; отрицательные — отдельной строкой
+**Step 4 — delta `compareComplexity(oldFns, newFns)`**:
+key = `file + qualifiedName + paramArity`; collision → nearest `startLine`,
+`confidence=low`; symbol blacklist `TEST|TEST_F|TEST_P|TYPED_TEST|BENCHMARK|MOCK_METHOD`;
+Δ = new − old (new function: Δ = score). Findings per the §5 design-doc hierarchy:
+`LCX.1 crossed_25` (Sonar C-family/clang-tidy threshold), `LCX.2 grew_when_already_above`
+(Δ>0 when old≥25), `LCX.3 delta_ge_k` (K=5, soft). Low-confidence matches do not yield
+LCX.1/LCX.2. PR aggregate = Σ of positive Δ; negatives — on a separate line
 (improvement).
 
-**Шаг 5 — wiring**: стадии `run_diff()` из плана выше (п.7); text-блок после
-structural diff; JSON — через отдельный diff-writer (п.9, путь 2).
+**Step 5 — wiring**: the `run_diff()` stages from the plan above (item 7); a text block after
+the structural diff; JSON — through a separate diff writer (item 9, path 2).
 
-**Шаг 6 — тест-матрица** (каждая строка = unit-кейс; контрпримеры из
-scorer_review обязательны как регрессии — их baseline/current пары сохранены в
+**Step 6 — test matrix** (each row = a unit case; the counterexamples from
+scorer_review are mandatory as regressions — their baseline/current pairs are saved in
 [experiments/local_complexity_drift/review_repros/](~/projects/cpparch/experiments/local_complexity_drift/review_repros/),
-расшифровка пар — в #102, шаг 5 «Следующих шагов»):
+the pairs' decoding is in #102, step 5 of "Next steps"):
 
-| Кейс | Ожидание |
+| Case | Expectation |
 |---|---|
-| плоский switch на 8 case | **1** (в прототипе было 19) |
+| flat switch over 8 cases | **1** (in the prototype it was 19) |
 | `if{if{if{}}}` | 1+2+3 = **6** |
-| `else if`-цепочка ×5 | if=1 + 4×1 = **5**; та же как `else { if` → 1+2+3+4+5 |
+| `else if` chain ×5 | if=1 + 4×1 = **5**; the same as `else { if` → 1+2+3+4+5 |
 | `a && b && c` | **1**; `a && b || c` → **2** |
 | `Item&& x`, `auto&& y`, `std::forward` | **0** |
-| выровненные продолжения аргументов | **0** |
+| aligned argument continuations | **0** |
 | `do {…} while(x);` | **1** |
-| рефорсат условия на 5 строк | дельта **0** |
-| лямбда с `if` внутри | if = **+2** (1+nesting от лямбды) |
-| keywords в строках/комментах/raw strings | **0** |
-| `#if defined(X)` / `#else` / `#elif` при default-off опции | **0** (фальшивые keyword-токены отфильтрованы) |
-| `goto` | +1; ранние `return/break/continue` | 0 |
-| init-list таблица данных | **0** |
+| reformatting a condition over 5 lines | delta **0** |
+| lambda with an `if` inside | if = **+2** (1+nesting from the lambda) |
+| keywords in strings/comments/raw strings | **0** |
+| `#if defined(X)` / `#else` / `#elif` with the option default-off | **0** (fake keyword tokens filtered) |
+| `goto` | +1; early `return/break/continue` | 0 |
+| init-list data table | **0** |
 | braceless `for(...) if(...) x;` | if = **+2** |
 
-`function_body_scan_test`: free function, inline-метод, `Cls::method` out-of-class,
-`operator()`, перегрузки (различены arity), конструктор с init-list, шаблонная функция,
-`__attribute__((unused)) static int f(){}` → распознан как `f`, НЕ `__attribute__`.
-`local_complexity_drift_test`: матчинг по arity, rename → new (без finding),
-TEST_F-блэклист, low-confidence без LCX.1/2.
+`function_body_scan_test`: free function, inline method, `Cls::method` out-of-class,
+`operator()`, overloads (distinguished by arity), constructor with init-list, template function,
+`__attribute__((unused)) static int f(){}` → recognized as `f`, NOT `__attribute__`.
+`local_complexity_drift_test`: matching by arity, rename → new (no finding),
+TEST_F blacklist, low-confidence without LCX.1/2.
 
-**Definition of done:** все synthetic-кейсы #102 + таблица выше зелёные; ручная
-сверка с clang-tidy (порог 0) на ~20 функциях реального кода — расхождение ≤2;
-corpus re-run #102: switch-парсеры и TEST_F ушли из топа, 6/6 TP сохранились.
+**Definition of done:** all synthetic cases of #102 + the table above green; a manual
+cross-check against clang-tidy (threshold 0) on ~20 real-code functions — divergence ≤2;
+corpus re-run #102: switch parsers and TEST_F left the top, 6/6 TP preserved.
 
 ## Fixtures & Tests
 
@@ -329,137 +329,137 @@ corpus re-run #102: switch-парсеры и TEST_F ушли из топа, 6/6 
 - `fixtures/local_complexity_drift/pass/harmless_change_baseline.cpp`
 - `fixtures/local_complexity_drift/pass/harmless_change_current.cpp`
 
-Обязательные проверки:
+Mandatory checks:
 
-- nested branches score выше, чем flat branches;
-- comments/strings не создают fake branch tokens;
-- preprocessor lines не увеличивают branch score;
-- growth baseline → current даёт finding;
-- harmless change (`run();` → `run(); log();`) finding не даёт;
-- output содержит `rule id`, `file`, `symbol` если найден, `old/new score`, `delta`, advisory semantics;
-- default exit code не меняется на failure только из-за этого сигнала.
+- nested branches score higher than flat branches;
+- comments/strings do not create fake branch tokens;
+- preprocessor lines do not increase the branch score;
+- growth baseline → current yields a finding;
+- a harmless change (`run();` → `run(); log();`) yields no finding;
+- output contains `rule id`, `file`, `symbol` if found, `old/new score`, `delta`, advisory semantics;
+- the default exit code does not change to failure solely because of this signal.
 
-## Критерии готовности
+## Acceptance criteria
 
-- Сигнал считает proxy metrics только по changed C/C++ files.
-- Есть baseline/current comparison.
-- Есть advisory findings про существенный growth.
-- Нет зависимости от compile DB, libclang, include graph или Sonar.
-- Есть тесты на nesting vs flat, comments/strings, growth и harmless-change no-op.
-- Документация прямо говорит, что это supporting signal, а не default architecture gate.
-- Принято одно ясное решение по overlap с #099: folded/subsignal, а не параллельная дублирующая реализация.
+- The signal computes proxy metrics only over changed C/C++ files.
+- There is a baseline/current comparison.
+- There are advisory findings about substantial growth.
+- No dependency on compile DB, libclang, include graph or Sonar.
+- There are tests for nesting vs flat, comments/strings, growth and the harmless-change no-op.
+- The documentation states plainly that this is a supporting signal, not a default architecture gate.
+- One clear decision is made on the overlap with #099: folded/subsignal, not a parallel duplicating implementation.
 
-## Не делать
+## Do not do
 
-- Байт-в-байт сходимость с Sonar/clang-tidy как цель (семантика спеки — ориентир,
-  расхождение ≤2 пункта на функцию — норма; см. дизайн-док §4).
-- Полный C++ parser.
-- Общий project-wide complexity gate.
+- Byte-for-byte convergence with Sonar/clang-tidy as a goal (the spec semantics are a reference,
+  a divergence ≤2 points per function is normal; see design doc §4).
+- A full C++ parser.
+- A general project-wide complexity gate.
 - Ownership/knowledge-risk analysis.
 - Defect prediction.
-- Generic quality-lint subsystem.
+- A generic quality-lint subsystem.
 - Auto-refactoring suggestions.
-- New strict mode.
+- A new strict mode.
 
-## Решения старта реализации (2026-06-11)
+## Implementation-start decisions (2026-06-11)
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Вывод v1 — через уже shipped `printDiffAdvisories()` в main.cpp (паттерн #096/#097: text-блок после структурного диффа) | Волна #096–#100 заземлила advisory-паттерн ПОСЛЕ написания этой задачи; отдельный diff-JSON-writer отложен — у `--diff` сегодня нет JSON ни для одного сигнала, вводить его в одиночку из #101 — scope creep |
-| Новые функции дают только LCX.1 (`crossed_25`), не LCX.3 | Корпусная валидация #102 шла с отсечением новых функций; LCX.3 на новых функциях (любая новая функция со score ≥ 5) не валидирован и почти наверняка шумен; LCX.1 на новых — прямое требование Detection contract |
-| Порт скорера — точный порт v2 `scan_commit.py` (включая column-эвристику glued-`&&` для rvalue-ссылок) | Семантика валидирована корпусом (1612 коммитов) и synthetic suite 13/13; «улучшения» при порте = расхождение с валидацией |
-| В `duplication::Token` добавляется поле `col` (выставляется в `lex()`) | Нужно для glued-эвристики rvalue-`&&`; аддитивно, существующие инициализаторы не ломает |
+| v1 output — through the already shipped `printDiffAdvisories()` in main.cpp (the #096/#097 pattern: a text block after the structural diff) | The #096–#100 wave grounded the advisory pattern AFTER this task was written; a separate diff-JSON-writer is deferred — `--diff` today has no JSON for any signal, introducing it single-handedly from #101 is scope creep |
+| New functions yield only LCX.1 (`crossed_25`), not LCX.3 | The #102 corpus validation ran with new functions filtered out; LCX.3 on new functions (any new function with score ≥ 5) is unvalidated and almost certainly noisy; LCX.1 on new functions is a direct Detection contract requirement |
+| Scorer port — an exact port of v2 `scan_commit.py` (including the column heuristic for glued `&&` for rvalue references) | The semantics are validated by the corpus (1612 commits) and the synthetic suite 13/13; "improvements" during the port = divergence from validation |
+| A `col` field is added to `duplication::Token` (set in `lex()`) | Needed for the glued-`&&` rvalue heuristic; additive, doesn't break existing initializers |
 
-## Сделано
+## Done
 
-- Задача переведена в wip; в Scoring model вшит пол LCX.2 `delta >= 3` из вердикта корпуса #102.
-- **Реализация v1 завершена (2026-06-11):**
-  - `Token::off` (байтовое смещение) добавлен в `token_normalizer` — нужен для
-    glued-эвристики rvalue-`&&`; выставляется одной строкой в `lex()`.
+- Task moved to wip; the LCX.2 floor `delta >= 3` from the #102 corpus verdict is baked into the Scoring model.
+- **v1 implementation complete (2026-06-11):**
+  - `Token::off` (byte offset) added to `token_normalizer` — needed for
+    the glued-`&&` rvalue heuristic; set in one line in `lex()`.
   - `include/archcheck/scan/function_body_scan.h` + `src/scan/function_body_scan.cpp` —
-    токенное обнаружение определений функций: id-цепочки с `::`, `~Name`, `operator@`
-    (включая `operator()`), арность top-level (с угловыми скобками), квалификаторы,
-    trailing return, ctor init-list. В отличие от прототипа находит и inline-методы
-    в телах классов.
+    token discovery of function definitions: id chains with `::`, `~Name`, `operator@`
+    (including `operator()`), top-level arity (with angle brackets), qualifiers,
+    trailing return, ctor init-list. Unlike the prototype it also finds inline methods
+    in class bodies.
   - `include/archcheck/scan/local_complexity_metrics.h` + `src/scan/local_complexity_metrics.cpp` —
-    точный порт v2-скорера #102 (state machine `metric_for_span`): structural/hybrid/flat
-    инкременты, control-nesting через классифицированный brace-стек, lastOp-серии
-    `&&`/`||` по глубине скобок, do-while-спарка, braceless-тела, лямбда-вложенность.
-    Плюс `stripDirectiveTokens()` — фильтр препроцессорных строк (ловушка `#if defined` → фальшивый `if`).
+    an exact port of the #102 v2 scorer (state machine `metric_for_span`): structural/hybrid/flat
+    increments, control nesting via a classified brace stack, lastOp series of
+    `&&`/`||` by paren depth, do-while pairing, braceless bodies, lambda nesting.
+    Plus `stripDirectiveTokens()` — a filter for preprocessor lines (the `#if defined` → fake `if` trap).
   - `include/archcheck/scan/local_complexity_drift.h` + `src/scan/local_complexity_drift.cpp` —
-    матчинг `(qualifiedName, paramArity)` → nearest-line/low-confidence; иерархия LCX.1/2/3
-    (пороги 25 / Δ≥3 / Δ≥5); блэклист TEST*-макросов; vendor/test-фильтры из
-    `file_classification.h`; агрегаты positiveDelta/negativeDelta.
-  - Wiring: `printComplexityAdvisory()` в `main.cpp` из `printDiffAdvisories()` —
-    паттерн #096/#097, advisory-блок после структурного диффа, exit code не трогает.
-  - Тесты: вся тест-матрица из спеки (14 кейсов ядра, все числа сошлись с первого прогона),
-    function_body_scan (10 кейсов), drift (9 кейсов), fixtures-тест (6), два repo-level
-    integration-кейса в `git_diff_test.cpp`. Итого 458/458 зелёные.
-  - `fixtures/local_complexity_drift/{pass,fail_growth,fail_new_complex}` — 8 файлов по списку спеки.
-  - Верификация: build Debug ✓, ctest 458/458 ✓, lizard 0 warnings на новом коде ✓,
-    clang-format 18.1.3 ✓, dogfood `src/include/tests` = 0 нарушений ✓; смоук
-    `--diff HEAD` на самом репо: единственный finding — собственная фикстура
-    `saturate` (26 ≥ 25), корректный TP, exit code не изменён.
+    matching `(qualifiedName, paramArity)` → nearest-line/low-confidence; the LCX.1/2/3 hierarchy
+    (thresholds 25 / Δ≥3 / Δ≥5); blacklist of TEST* macros; vendor/test filters from
+    `file_classification.h`; positiveDelta/negativeDelta aggregates.
+  - Wiring: `printComplexityAdvisory()` in `main.cpp` from `printDiffAdvisories()` —
+    the #096/#097 pattern, an advisory block after the structural diff, doesn't touch the exit code.
+  - Tests: the entire test matrix from the spec (14 core cases, all numbers matched on the first run),
+    function_body_scan (10 cases), drift (9 cases), fixtures test (6), two repo-level
+    integration cases in `git_diff_test.cpp`. Total 458/458 green.
+  - `fixtures/local_complexity_drift/{pass,fail_growth,fail_new_complex}` — 8 files per the spec list.
+  - Verification: build Debug ✓, ctest 458/458 ✓, lizard 0 warnings on the new code ✓,
+    clang-format 18.1.3 ✓, dogfood `src/include/tests` = 0 violations ✓; smoke
+    `--diff HEAD` on the repo itself: the only finding — the own fixture
+    `saturate` (26 ≥ 25), a correct TP, the exit code unchanged.
 
-## В работе
+## In progress
 
-- (пусто — ожидает коммита и закрытия)
+- (empty — awaiting commit and closure)
 
-## Осталось до закрытия
+## Remaining before closure
 
-- Коммит(ы) по команде владельца.
-- DoD-пункт «ручная сверка с clang-tidy на ~20 функциях реального кода» — не выполнялся
-  в этой сессии (требует clang-tidy прогона; ядро покрыто тест-матрицей и корпусной
-  валидацией #102).
-- Решение по #099 (fold/absorb) — после лендинга.
-- Подтверждение K=5 на втором срезе корпуса — открытый пункт #102, не блокирует.
+- Commit(s) on the owner's command.
+- The DoD item "manual cross-check against clang-tidy on ~20 real-code functions" — not done
+  in this session (requires a clang-tidy run; the core is covered by the test matrix and the #102 corpus
+  validation).
+- The #099 decision (fold/absorb) — after landing.
+- Confirming K=5 on a second corpus slice — an open item from #102, not blocking.
 
-## Следующие шаги
+## Next steps
 
-1. Решено (2026-06-11): `function_signature_scan` не существует — создаём `function_body_scan` здесь (см. п.2 плана).
-2. Снято (2026-06-11): shared text preprocessing не нужен — реюз `lex()` из token_normalizer (Шаг 1).
-3. Реализовать function metrics scorer.
-4. Реализовать baseline/current compare по changed files.
-5. Закрыть diff output contract: text + JSON.
-6. Добавить fixtures и repo-level integration tests.
-7. После этого вернуться к #099 — решение там уже зафиксировано (2026-06-11): #099 живёт только как file-level fallback для файлов, где function-discovery не сработал (макро-тяжёлые), и как диагностические поля; если fallback окажется не нужен — закрыть #099 как absorbed. Отдельной параллельной реализации не делать.
+1. Decided (2026-06-11): `function_signature_scan` does not exist — we create `function_body_scan` here (see plan item 2).
+2. Dropped (2026-06-11): shared text preprocessing is not needed — reuse `lex()` from token_normalizer (Step 1).
+3. Implement the function metrics scorer.
+4. Implement baseline/current compare over changed files.
+5. Close the diff output contract: text + JSON.
+6. Add fixtures and repo-level integration tests.
+7. After that return to #099 — the decision there is already fixed (2026-06-11): #099 lives only as a file-level fallback for files where function discovery didn't work (macro-heavy) and as diagnostic fields; if the fallback turns out not to be needed — close #099 as absorbed. Do not make a separate parallel implementation.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Advisory-only | В репо нет `--strict`, а продукт не должен становиться linter-ом |
-| Function-aware combined score, а не только indent proxy | Это ближе к исходной постановке и полезнее для reviewer-а |
-| Запускать до graph build | Сигнал дешёвый и не зависит от include graph |
-| Не тянуть через `IRule` | Нужен old/new diff compare, а текущий `IRule` snapshot-only |
-| Overlap с #099 закрывать консолидацией, не параллельной реализацией | Иначе будет два почти одинаковых complexity-сигнала с разной семантикой |
-| Предпочесть отдельный diff-report writer, а не ломать snapshot `Violation` вслепую | Текущий `--diff` уже живёт вне normal reporter path |
-| `LCX.2` — advisory-only (или порог-пол Δ≥K), вне gating-вывода | Корпус #102: 72/210 находок `LCX.2` — Δ1-2 на уже-огромных функциях, бесполезны для ревью |
+| Advisory-only | There is no `--strict` in the repo, and the product must not become a linter |
+| Function-aware combined score, not just an indent proxy | This is closer to the original statement and more useful for the reviewer |
+| Run before graph build | The signal is cheap and does not depend on the include graph |
+| Don't route through `IRule` | An old/new diff compare is needed, and the current `IRule` is snapshot-only |
+| Close the overlap with #099 by consolidation, not a parallel implementation | Otherwise there will be two almost identical complexity signals with different semantics |
+| Prefer a separate diff-report writer rather than breaking the snapshot `Violation` blindly | The current `--diff` already lives outside the normal reporter path |
+| `LCX.2` — advisory-only (or a floor threshold Δ≥K), outside the gating output | Corpus #102: 72/210 of the `LCX.2` findings are Δ1-2 on already-huge functions, useless for review |
 
-## Планируемые файлы
+## Planned files
 
-| Область | Изменение |
+| Area | Change |
 |---------|-----------|
-| `include/archcheck/scan/duplication/token_normalizer.h` | Реюз `lex()` как есть; новый файл text_scan НЕ создаётся |
+| `include/archcheck/scan/duplication/token_normalizer.h` | Reuse `lex()` as is; the new text_scan file is NOT created |
 | `include/archcheck/scan/function_body_scan.h`, `src/scan/function_body_scan.cpp` | Lightweight function-boundary detection |
 | `include/archcheck/scan/local_complexity_metrics.h`, `src/scan/local_complexity_metrics.cpp` | Per-function/per-file complexity metrics |
 | `include/archcheck/scan/local_complexity_drift.h`, `src/scan/local_complexity_drift.cpp` | baseline/current comparison and findings |
 | `src/main.cpp` | Early diff-stage orchestration before graph build |
-| `src/diff/` или `src/report/` | Unified diff advisory text/json output for #096/#097/#101 |
+| `src/diff/` or `src/report/` | Unified diff advisory text/json output for #096/#097/#101 |
 | `tests/unit/scan/` | metrics/body-scan/drift unit tests |
 | `tests/integration/diff/git_diff_test.cpp` | real git baseline/current scenarios |
 | `fixtures/local_complexity_drift/` | `pass/` and `fail_*` fixtures |
 
-## Итог
-**Статус:** completed — v1 реализации задышала целиком:
-- **Как работает:** токенный сканер Sonar Cognitive Complexity (v2-скорер из #102,
-  D1–D7 закрыты) → `function_body_scan` (границы функций) → per-function метрики →
-  baseline/current сравнение по changed files → advisory-вывод в `--diff`
-  (иерархия LCX.1 crossed_25 / LCX.2 grew_when_already_above / LCX.3 Δ≥K).
-- **Коммиты:** e80b628 (engine), 7938d9c (CLI advisory в --diff), 95aaa62
-  (фикстуры `fixtures/local_complexity_drift/{pass,fail_growth,fail_new_complex}`),
-  643c69c (checkpoint). 72 LCX-теста в сюите, вся сюита 461/461 зелёная.
-- **Не блокирующие хвосты** (зафиксированы выше): clang-tidy прогон; подтверждение
-  K=5 на втором срезе корпуса (— #102); решение по #099 (file-level fallback или
-  закрыть как absorbed) — после обкатки на реальных диффах.
-**Дата завершения:** 2026-06-11
+## Summary
+**Status:** completed — the v1 implementation came fully alive:
+- **How it works:** a token Sonar Cognitive Complexity scanner (the v2 scorer from #102,
+  D1–D7 closed) → `function_body_scan` (function boundaries) → per-function metrics →
+  baseline/current comparison over changed files → advisory output in `--diff`
+  (the LCX.1 crossed_25 / LCX.2 grew_when_already_above / LCX.3 Δ≥K hierarchy).
+- **Commits:** e80b628 (engine), 7938d9c (CLI advisory in --diff), 95aaa62
+  (fixtures `fixtures/local_complexity_drift/{pass,fail_growth,fail_new_complex}`),
+  643c69c (checkpoint). 72 LCX tests in the suite, the whole suite 461/461 green.
+- **Non-blocking tails** (fixed above): the clang-tidy run; confirming
+  K=5 on a second corpus slice (— #102); the #099 decision (file-level fallback or
+  close as absorbed) — after running on real diffs.
+**Completion date:** 2026-06-11

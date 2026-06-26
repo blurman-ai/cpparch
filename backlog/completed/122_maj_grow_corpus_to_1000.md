@@ -1,130 +1,130 @@
-# [RESEARCH][CORPUS] Дорастить корпус 481 → ~1000 для unified-прогона
+# [RESEARCH][CORPUS] Grow the corpus 481 → ~1000 for a unified run
 
-**Дата создания:** 2026-06-12
-**Дата старта:** —
-**Дата закрытия:** 2026-06-26
-**Статус:** done (1188 реп, окно 2024-06; разблокировал #119/#134); остаток re-mer vendored-реп после #127 ведётся в #131
-**Модуль:** RESEARCH][CORPUS
-**Приоритет:** major
-**Сложность:** medium
-**Блокирует:** ~~#119~~ — датасет готов (`results_full.jsonl`), #119 разблокирован
-**Заблокирован:** —
-**Related:** #066 (докачка part 2), #074 (discovery ROI), [[project_grow_corpus_audit]], [[project_corpus_criteria_gate]]
+**Created:** 2026-06-12
+**Started:** —
+**Closed:** 2026-06-26
+**Status:** done (1188 repos, window 2024-06; unblocked #119/#134); the remainder re-measure of vendored repos after #127 is tracked in #131
+**Module:** RESEARCH][CORPUS
+**Priority:** major
+**Complexity:** medium
+**Blocks:** ~~#119~~ — dataset ready (`results_full.jsonl`), #119 unblocked
+**Blocked by:** —
+**Related:** #066 (part 2 of the download), #074 (discovery ROI), [[project_grow_corpus_audit]], [[project_corpus_criteria_gate]]
 
-## Цель
+## Goal
 
-Получить **чистый ~1000-репный C++-корпус, измеренный единообразно** (новый бинарь
-#113/#114 + окно 2024-06), для #119. Это НЕ «вырастить с нуля клонами» — почти всё
-уже на диске; работа = доклон остатка + чистые ворота + полный реген.
+Obtain a **clean ~1000-repo C++ corpus, measured uniformly** (new binary
+#113/#114 + window 2024-06), for #119. This is NOT "grow from scratch by cloning" — almost everything
+is already on disk; the work = clone the remainder + clean gate + full regeneration.
 
-## Контекст (уточнено 2026-06-12 по факту инвентаризации)
+## Context (clarified 2026-06-12 after the inventory)
 
-Реальная картина оказалась иной, чем «481 надо растить клонами»:
-- В `oss/` уже **1271 дирка**, из них **~1209 C++ с .git**; **432** имеют `*_graph_drift.jsonl`.
-- **Эти 432 измерения ПРОТУХЛИ**: сделаны старым бинарём (до #113/#114) и окном 2025-05.
-  Для консистентного датасета #119 их надо **перемерить**, не только домерить новые.
-- **~490** C++-реп на диске прошли грубые ворота, но не измерены (прерванный догон).
-- Worklist-остаток (не на диске) = **317** пред-гейченных кандидатов → доклон даёт запас до 1000+.
+The real picture turned out different from "481 must be grown by cloning":
+- In `oss/` there are already **1271 dirs**, of which **~1209 are C++ with .git**; **432** have a `*_graph_drift.jsonl`.
+- **Those 432 measurements ARE STALE**: made with the old binary (before #113/#114) and window 2025-05.
+  For a consistent #119 dataset they need to be **re-measured**, not just new ones added.
+- **~490** C++ repos on disk passed the rough gates but weren't measured (interrupted catch-up).
+- Worklist remainder (not on disk) = **317** pre-gated candidates → cloning gives headroom to 1000+.
 
-Итого работа — три части: (0) доклон остатка, (1) **настоящие ворота** по всему пулу
-(чистый знаменатель), (2) **полный реген всех eligible** одним бинарём+окном (перезатирает
-протухшие jsonl). «C++ клин» = применение ворот, НЕ удаление не-C++ файлов (замерено:
-освобождает ~1 ГБ, .git держит вес — не стоит деструктивного прохода по 1209 репам).
+So the work is three parts: (0) clone the remainder, (1) **a real gate** over the whole pool
+(clean denominator), (2) **a full regeneration of all eligible** with one binary+window (overwriting
+the stale jsonl). "C++ wedge" = applying the gate, NOT deleting non-C++ files (measured:
+it frees ~1 GB, .git holds the weight — not worth a destructive pass over 1209 repos).
 
-Инструмент: `grow_corpus.py` (идемпотентен; пропатчен `--shallow-since=2024-06-01`,
-стоп по count отключён), `grow_corpus_worklist.tsv`, `grow_corpus_ledger.tsv`.
+Tool: `grow_corpus.py` (idempotent; patched with `--shallow-since=2024-06-01`,
+stop-by-count disabled), `grow_corpus_worklist.tsv`, `grow_corpus_ledger.tsv`.
 
-## Критерий добора (решено 2026-06-12)
+## Acceptance criterion for additions (decided 2026-06-12)
 
-**Жёсткие ворота — НЕ меняем** (как в `CORPUS_CRITERIA.md`):
+**Hard gates — UNCHANGED** (as in `CORPUS_CRITERIA.md`):
 - C++/C primary
-- **>300 коммитов с 2025-05-01** (главный критерий, остаётся как есть)
-- Agentic: AI-трейлер ИЛИ bot ≥10% ИЛИ медиана msglen ≥100
-- Не форк, не гигант с сильным ревью
-- Пред-отсев: форк/зеркало/коммиты>8000; C++-контент ≤50MB
+- **>300 commits since 2025-05-01** (the main criterion, stays as is)
+- Agentic: AI trailer OR bot ≥10% OR median msglen ≥100
+- Not a fork, not a giant with strong review
+- Pre-filter: fork/mirror/commits>8000; C++ content ≤50MB
 
-**Мягкое ранжирование worklist'а (вес, НЕ исключение):**
-- **Mixed authorship** (есть И agent-, И human-коммиты в окне) — поднимать выше.
-  Причина: ключевой agentic-вывод держится на within-repo сравнении (#115 §8.4);
-  born-agentic репы (ThemisDB) baseline не дают. Только вес — не критично.
-- **Глубина истории ≥2 года** — желательна, не обязательна.
-- **Зрелость (история до 2025)** — желательна, но таких почти нет → не обязательна.
+**Soft ranking of the worklist (weight, NOT exclusion):**
+- **Mixed authorship** (both agent- AND human commits in the window) — raise higher.
+  Reason: the key agentic conclusion rests on within-repo comparison (#115 §8.4);
+  born-agentic repos (ThemisDB) give no baseline. Weight only — not critical.
+- **History depth ≥2 years** — desirable, not mandatory.
+- **Maturity (history before 2025)** — desirable, but there are almost none → not mandatory.
 
-**Клон:** `--shallow-since=2024-06-01` (под 24-мес окно анализа #119, а не 2025-05).
-Где 2-летняя история есть — подтянется; где нет — меньше, и это ок («желательна,
-не обязательна»). Снимает off-by-one конфликт shallow-границы с окном анализа
-(тот класс, что кусал lateral в #115).
+**Clone:** `--shallow-since=2024-06-01` (for the 24-month analysis window of #119, not 2025-05).
+Where 2-year history exists — it'll be pulled in; where not — less, and that's ok ("desirable,
+not mandatory"). Removes the off-by-one conflict of the shallow boundary with the analysis window
+(the class that bit lateral in #115).
 
-## План выполнения
+## Execution plan
 
-### Фаза 0 — доклон остатка (В РАБОТЕ)
-- [x] Пропатчить `grow_corpus.py`: `--shallow-since=2024-06-01`, стоп по count отключён.
-- [~] Прогон догона по worklist-остатку (317 кандидатов), детачнуто
-      `setsid nohup … </dev/null &` (reload окна / харнес убивают — [[project_grow_corpus_audit]]).
-      Фильтры grow_corpus отсекают GIANT/TOOBIG/NOCPP/CLONEFAIL — junk не пройдёт.
+### Phase 0 — clone the remainder (IN PROGRESS)
+- [x] Patch `grow_corpus.py`: `--shallow-since=2024-06-01`, stop-by-count disabled.
+- [~] Catch-up run over the worklist remainder (317 candidates), detached
+      `setsid nohup … </dev/null &` (window reload / harness kill it — [[project_grow_corpus_audit]]).
+      grow_corpus filters cut off GIANT/TOOBIG/NOCPP/CLONEFAIL — junk won't get through.
 
-### Фаза 1 — настоящие ворота (чистый знаменатель)
-- [ ] Применить полные ворота ко ВСЕМУ on-disk C++-пулу (не только новым клонам):
-      agentic + >300 коммитов с 2025-05 + не форк/зеркало/гигант + реальный C++.
-      Форк/гигант — через `gh api` (fork-флаг, contributors, size). → список eligible.
-- [ ] Если eligible < 1000 — добрать ещё из worklist; цель ровная **≥1000**.
+### Phase 1 — a real gate (clean denominator)
+- [ ] Apply the full gate to the WHOLE on-disk C++ pool (not just new clones):
+      agentic + >300 commits since 2025-05 + not fork/mirror/giant + real C++.
+      Fork/giant — via `gh api` (fork flag, contributors, size). → list of eligible.
+- [ ] If eligible < 1000 — pull more from the worklist; the target is a flat **≥1000**.
 
-### Фаза 2 — полный реген (передаётся в #119 Фаза 0b)
-- [ ] Перемерить **все** eligible (вкл. 432 протухших) новым бинарём + `--since=2024-06-01`.
-      Затирает старые jsonl. Длинная джоба — детачнуть + монитор.
-- [ ] Дописать ledger, зафиксировать финальный знаменатель для отчёта.
+### Phase 2 — full regeneration (handed to #119 Phase 0b)
+- [ ] Re-measure **all** eligible (incl. the 432 stale) with the new binary + `--since=2024-06-01`.
+      Overwrites the old jsonl. A long job — detach + monitor.
+- [ ] Append to the ledger, record the final denominator for the report.
 
-## Не делать
+## Do not do
 
-- НЕ ужесточать ворота mixed-authorship'ом — это только вес (решение пользователя).
-- НЕ перезаписывать ledger — дописывать (аудит-трейл).
-- НЕ клонировать форки/зеркала/мега — пред-отсев остаётся.
+- Do NOT tighten the gate with mixed-authorship — it's weight only (user's decision).
+- Do NOT overwrite the ledger — append (audit trail).
+- Do NOT clone forks/mirrors/mega — the pre-filter stays.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Жёсткие ворота не трогаем | Работают; добор — продолжение, не пересмотр критериев |
-| Mixed authorship — вес, не ворота | Зрелых смешанных реп мало; жёсткий критерий обнулил бы добор |
-| Клон shallow-since=2024-06-01 | Синхрон с окном анализа #119; ловит 2 года там, где есть |
-| 2-летняя история желательна, не обязательна | Таких реп мало; жёсткое требование не наберёт 1000 |
-| Перемерить и старые 432 (не только новые) | Сделаны старым бинарём/окном — протухли; смешивать old+new = apples-to-oranges |
-| «C++ клин» = ворота, НЕ удаление файлов | Удаление не-C++ освобождает ~1 ГБ (.git держит вес) — не стоит деструктива по 1209 репам |
-| Доклон — top-up, не рост с нуля | ~920 eligible уже на диске; клонируем лишь остаток до ровной 1000 |
+| Don't touch the hard gates | They work; the additions are a continuation, not a revision of criteria |
+| Mixed authorship — weight, not a gate | Mature mixed repos are few; a hard criterion would zero out the additions |
+| Clone shallow-since=2024-06-01 | Sync with the #119 analysis window; catches 2 years where it exists |
+| 2-year history desirable, not mandatory | Such repos are few; a hard requirement won't reach 1000 |
+| Re-measure the old 432 too (not just new) | Made with the old binary/window — stale; mixing old+new = apples-to-oranges |
+| "C++ wedge" = the gate, NOT deleting files | Deleting non-C++ frees ~1 GB (.git holds the weight) — not worth being destructive over 1209 repos |
+| Clone = top-up, not growth from scratch | ~920 eligible already on disk; we clone only the remainder up to a flat 1000 |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `analysis/agentic/grow_corpus.py` | `--shallow-since=2024-06-01`; мягкое ранжирование |
-| `experiments/ai_repo_run/grow_corpus_ledger.tsv` | +новые перебранные репы |
+| `analysis/agentic/grow_corpus.py` | `--shallow-since=2024-06-01`; soft ranking |
+| `experiments/ai_repo_run/grow_corpus_ledger.tsv` | +newly reviewed repos |
 
-## Сделано
+## Done
 
-- **Корпус дорощен и измерен** (2026-06-18): **1188 C++-реп, 484 500 коммитов, окно
-  2024-06**, прогон `archcheck --diff` per-commit. Итог и анализ —
-  `docs/research/agent_drift_within_repo.md`; данные — `experiments/per_commit/results_full.jsonl`.
-  Фазы 0–2 (доклон + ворота + реген) по факту выполнены — план/«В работе» ниже устарели.
-- **Оговорка по бинарю:** census был на **до-#129/#127** бинаре. Числа на
-  vendored/generated-несущих репах смещены → их точечный re-mer на пост-#127 бинаре
-  вынесен в #131 (partial re-mer), это НЕ повторный полный реген.
+- **Corpus grown and measured** (2026-06-18): **1188 C++ repos, 484,500 commits, window
+  2024-06**, run of `archcheck --diff` per-commit. Result and analysis —
+  `docs/research/agent_drift_within_repo.md`; data — `experiments/per_commit/results_full.jsonl`.
+  Phases 0–2 (clone + gate + regen) are effectively done — the plan/"In progress" below are outdated.
+- **Caveat on the binary:** the census was on the **pre-#129/#127** binary. Numbers on
+  vendored/generated-bearing repos are skewed → their targeted re-measure on the post-#127 binary
+  is moved to #131 (partial re-measure), this is NOT a repeated full regeneration.
 
-## В работе
+## In progress
 
-- (grow_corpus догон завершён — итог 1188 реп зафиксирован в отчёте)
+- (grow_corpus catch-up finished — the result of 1188 repos is recorded in the report)
 
-## Следующие шаги
+## Next steps
 
-1. Свериться с ledger, поправить shallow-since, запустить догон детачнуто.
+1. Check against the ledger, fix shallow-since, launch the catch-up detached.
 
-## ИТОГ (2026-06-26) — закрыта
+## RESULT (2026-06-26) — closed
 
-Цель достигнута: корпус доращён до **1188 реп** (окно 2024-06), датасет
-`experiments/per_commit/results_full.jsonl` готов и **разблокировал unified-прогон #119**
-и per-struct bool-accretion #134. Остаток — partial re-measure vendored-реп после
-исключения #127 — не относится к росту корпуса и ведётся как часть мастер-верификатора #131.
+Goal achieved: the corpus grown to **1188 repos** (window 2024-06), the dataset
+`experiments/per_commit/results_full.jsonl` is ready and **unblocked the unified run #119**
+and per-struct bool-accretion #134. The remainder — a partial re-measure of vendored repos after
+excluding #127 — is not part of corpus growth and is tracked as part of the master verifier #131.
 
-- **Как работает:** `grow_corpus.py` + аудит-трейл (`grow_corpus_ledger.tsv` = перебрано/отброшено).
-- **Чем управляется:** criteria-gate `experiments/CORPUS_CRITERIA.md` (>300 коммитов с мая 2025).
-- **С чем связана:** разблокировал #119/#134; остаток re-mer — #131; правило исключения — #127.
-- **Диагностика:** размер корпуса = число строк в worklist; ledger показывает причину отброса репы.
+- **How it works:** `grow_corpus.py` + an audit trail (`grow_corpus_ledger.tsv` = reviewed/rejected).
+- **What controls it:** the criteria gate `experiments/CORPUS_CRITERIA.md` (>300 commits since May 2025).
+- **Related to:** unblocked #119/#134; the remainder re-measure — #131; the exclusion rule — #127.
+- **Diagnostics:** corpus size = number of lines in the worklist; the ledger shows the reason a repo was rejected.

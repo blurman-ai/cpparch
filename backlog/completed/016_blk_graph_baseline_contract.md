@@ -1,42 +1,42 @@
-# [GRAPH] Graph-baseline contract — формат и I/O
+# [GRAPH] Graph-baseline contract — format and I/O
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** GRAPH
-**Приоритет:** blocker
-**Сложность:** M (1-2 дня)
-**Блокирует:** #008 (dependency_graph_foundation) — закрывает graph-ветку
-**Заблокирован:** #015 (graph_diff_primitives)
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** GRAPH
+**Priority:** blocker
+**Complexity:** M (1-2 days)
+**Blocks:** #008 (dependency_graph_foundation) — closes the graph branch
+**Blocked by:** #015 (graph_diff_primitives)
 **Related:** #008 (dependency_graph_foundation), #009 (ai_drift_regression_rules)
 
-## Цель
+## Goal
 
-Зафиксировать минимальный устойчивый формат `graph-baseline`:
-`format_version + normalized nodes + normalized edges`, плюс save/load.
+Pin down a minimal, stable `graph-baseline` format:
+`format_version + normalized nodes + normalized edges`, plus save/load.
 
-## Контекст
+## Context
 
-См. §5 mini-design в #008: «`graph-baseline` хранит только nodes + resolved
-project edges». Это контракт для CI: baseline лежит в репо, сравнивается с
-текущим графом, любые drift-нарушения видны в diff.
+See §5 mini-design in #008: "`graph-baseline` stores only nodes + resolved
+project edges". This is the contract for CI: the baseline lives in the repo, is compared with
+the current graph, and any drift violations show up in the diff.
 
-Формат — детерминированный (отсортированные nodes/edges), читаемый человеком
-(YAML через `ryml`, уже зависит весь core), с явной версией.
+The format is deterministic (sorted nodes/edges), human-readable
+(YAML via `ryml`, already a dependency of the whole core), with an explicit version.
 
-## Сделано
+## Done
 
-- **2026-05-26** — спецификация формата `docs/baseline_format.md` (~1 страница): YAML-схема, правила детерминизма, политика версий, перечень `BaselineLoadError::Kind`.
-- **2026-05-26** — публичный API `include/archcheck/graph/baseline.h`: `save_baseline`, `load_baseline`, структурированный `BaselineLoadError`.
-- **2026-05-26** — реализация `src/graph/baseline.cpp`: ручной emit YAML (детерминизм без emitter ryml) + парсинг через `ryml::parse_in_arena` с error-callback → exception → `BaselineLoadError`.
-- **2026-05-26** — Catch2-тесты `tests/unit/graph/baseline_test.cpp` (10 кейсов): round-trip идемпотентность, детерминированность на разном порядке вставки, отказы по каждому `Kind` ошибки, восстановление топологии.
-- **2026-05-26** — `src/CMakeLists.txt` дополнен `graph/baseline.cpp`, `tests/CMakeLists.txt` — новым тестом.
-- **2026-05-26** — Debug-сборка зелёная, ctest 98/98, lizard `--CCN 15 --length 30 --arguments 5` чист.
+- **2026-05-26** — format specification `docs/baseline_format.md` (~1 page): YAML schema, determinism rules, version policy, the list of `BaselineLoadError::Kind`.
+- **2026-05-26** — public API `include/archcheck/graph/baseline.h`: `save_baseline`, `load_baseline`, structured `BaselineLoadError`.
+- **2026-05-26** — implementation `src/graph/baseline.cpp`: manual YAML emit (determinism without the ryml emitter) + parsing via `ryml::parse_in_arena` with an error-callback → exception → `BaselineLoadError`.
+- **2026-05-26** — Catch2 tests `tests/unit/graph/baseline_test.cpp` (10 cases): round-trip idempotency, determinism across different insertion orders, failures for each error `Kind`, topology recovery.
+- **2026-05-26** — `src/CMakeLists.txt` extended with `graph/baseline.cpp`, `tests/CMakeLists.txt` — with the new test.
+- **2026-05-26** — Debug build green, ctest 98/98, lizard `--CCN 15 --length 30 --arguments 5` clean.
 
-## Как работает
+## How it works
 
-**Формат.** Один YAML-документ:
+**Format.** A single YAML document:
 
 ```yaml
 format_version: "1"
@@ -47,63 +47,63 @@ edges:
    - [1, 0]
 ```
 
-`nodes` — отсортированные лексикографически нормализованные пути узлов графа.
-`edges` — пары `[from_idx, to_idx]`, индексы — в пост-сортировочной нумерации
-`nodes`, сами рёбра отсортированы по `(from, to)`. Это даёт побайтовое
-равенство сериализаций двух логически одинаковых графов независимо от
-порядка вставки.
+`nodes` — lexicographically sorted normalized paths of the graph nodes.
+`edges` — pairs `[from_idx, to_idx]`, indices in the post-sort numbering of
+`nodes`, and the edges themselves are sorted by `(from, to)`. This gives byte-for-byte
+equality of serializations of two logically identical graphs regardless of
+insertion order.
 
 **Save** (`save_baseline`):
-1. Собрать пути узлов из графа, отсортировать → `sorted_paths`.
-2. Построить ремап `old_idx → new_idx`.
-3. Пройти все `successors(NodeId{i})` для всех `i`, переписать индексы, отсортировать пары.
-4. Эмитить YAML руками: контроль над форматированием стабильнее, чем гонять ryml-emitter ради трёх строк.
+1. Collect the node paths from the graph, sort → `sorted_paths`.
+2. Build the remap `old_idx → new_idx`.
+3. Walk all `successors(NodeId{i})` for all `i`, rewrite the indices, sort the pairs.
+4. Emit YAML by hand: control over formatting is more stable than running the ryml emitter for three lines.
 
 **Load** (`load_baseline`):
-1. Прочитать поток целиком.
-2. `parse_tree`: установить ryml error-callback, кидающий `RymlParseException`, распарсить в arena, восстановить дефолтные коллбэки.
-3. Проверить `format_version` (только `"1"`).
-4. Распарсить `nodes` и `edges` через отдельные helpers; каждая ошибка → `BaselineLoadError`.
-5. Собрать `DependencyGraph` через публичные `add_node` / `add_edge`.
+1. Read the entire stream.
+2. `parse_tree`: install a ryml error-callback that throws `RymlParseException`, parse into the arena, restore the default callbacks.
+3. Check `format_version` (only `"1"`).
+4. Parse `nodes` and `edges` via separate helpers; each error → `BaselineLoadError`.
+5. Assemble a `DependencyGraph` via the public `add_node` / `add_edge`.
 
-Ошибки представлены `BaselineLoadError{kind, message, line}` и возвращаются в `std::optional` — исключения наружу не пробрасываются.
+Errors are represented as `BaselineLoadError{kind, message, line}` and returned in `std::optional` — no exceptions are propagated outward.
 
-## Чем управляется
+## Controlled by
 
-- API-только, флагов / переменных среды нет.
-- Подключение через `archcheck::core` (CMake target), `ryml::ryml` тянется
-  через PUBLIC-зависимость core'а.
+- API only, no flags / environment variables.
+- Linked via `archcheck::core` (CMake target); `ryml::ryml` is pulled in
+  through the core's PUBLIC dependency.
 
-## С чем связана
+## Related to
 
-- Подсистема `graph/` — третий файл после `dependency_graph.cpp` и `algorithms.cpp`.
-- Использует только публичный API `DependencyGraph` (`node_count`, `path_of`, `successors`, `add_node`, `add_edge`) — расширять контейнер для этой задачи не понадобилось.
-- Готовит почву для #015 (graph-diff primitives) и DRIFT.1 / DRIFT.2 (#009).
+- The `graph/` subsystem — the third file after `dependency_graph.cpp` and `algorithms.cpp`.
+- Uses only the public `DependencyGraph` API (`node_count`, `path_of`, `successors`, `add_node`, `add_edge`) — extending the container for this task was not needed.
+- Prepares the ground for #015 (graph-diff primitives) and DRIFT.1 / DRIFT.2 (#009).
 
-## Диагностика
+## Diagnostics
 
-- **Тест с malformed YAML висит без выхода.** Значит дефолтный ryml error-callback победил наш — он вызывает `abort()` / зацикливается, потому что error-handler «не имеет права возвращаться» (см. quickstart §sample_error_handler). Проверить, что `set_callbacks(rcb)` вызывается ДО `parse_in_arena`, а сам callback `[[noreturn]]` и кидает исключение, ловимое внутри `load_baseline`.
-- **Round-trip не идемпотентен.** Скорее всего, не отсортированы `edges` после ремапа, либо `sorted_node_paths` потеряли стабильность из-за того, что `path_of` теперь возвращает `string_view` на storage, который мог реаллоцироваться — в текущем коде `paths_` стабилен в пределах жизни графа, но при модификации помнить о string_view'ах.
-- **`UnknownVersion` срабатывает в неожиданных местах.** Версия — **строка** `"1"`, не число. `format_version: 1` (без кавычек) тоже работает на чтение (ryml даёт `val()` "1"), но писать всегда в кавычках.
+- **A test with malformed YAML hangs without exiting.** This means the default ryml error-callback beat ours — it calls `abort()` / loops forever, because the error handler "is not allowed to return" (see quickstart §sample_error_handler). Check that `set_callbacks(rcb)` is called BEFORE `parse_in_arena`, and that the callback itself is `[[noreturn]]` and throws an exception caught inside `load_baseline`.
+- **Round-trip is not idempotent.** Most likely the `edges` are not sorted after the remap, or `sorted_node_paths` lost stability because `path_of` now returns a `string_view` into storage that may have reallocated — in the current code `paths_` is stable for the lifetime of the graph, but on modification keep the string_views in mind.
+- **`UnknownVersion` fires in unexpected places.** The version is a **string** `"1"`, not a number. `format_version: 1` (without quotes) also works on read (ryml gives `val()` "1"), but always write it quoted.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Edges как `[from_idx, to_idx]`, а не пары полных путей | Компактнее, и диффы по baseline стабильнее при перестановках строк |
-| `format_version` строкой (`"1"`), не числом | YAML-числа имеют свои сюрпризы, строка проще |
-| Один YAML-документ, не два файла | Простота для пользователя; v0.1 не нуждается в шардинге |
-| Save вручную форматирует YAML, не гоняет ryml-emitter | Эмиттер ryml даёт мало гарантий по порядку/отступам; вручную дешевле и точнее |
-| Error callback ryml кидает исключение, ловимое в `load_baseline` | Контракт ryml: callback не имеет права возвращаться; альтернативы — `setjmp/longjmp` или `abort` — несовместимы с C++ ресурс-менеджментом |
-| `DependencyGraph` API не расширяли | `node_count + path_of + successors` уже хватает на полную итерацию; не плодим accessor'ы под одну задачу (YAGNI) |
+| Decision | Reason |
+|----------|--------|
+| Edges as `[from_idx, to_idx]`, not pairs of full paths | More compact, and baseline diffs are more stable under line permutations |
+| `format_version` as a string (`"1"`), not a number | YAML numbers have their own surprises; a string is simpler |
+| One YAML document, not two files | Simplicity for the user; v0.1 doesn't need sharding |
+| Save formats YAML by hand, doesn't run the ryml emitter | The ryml emitter gives few guarantees about order/indentation; by hand is cheaper and more precise |
+| ryml error callback throws an exception caught in `load_baseline` | ryml contract: the callback is not allowed to return; the alternatives — `setjmp/longjmp` or `abort` — are incompatible with C++ resource management |
+| `DependencyGraph` API was not extended | `node_count + path_of + successors` is already enough for a full iteration; we don't breed accessors for a single task (YAGNI) |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `docs/baseline_format.md` | new (мини-спека формата) |
-| `include/archcheck/graph/baseline.h` | new (публичный API) |
-| `src/graph/baseline.cpp` | new (реализация на ryml) |
-| `tests/unit/graph/baseline_test.cpp` | new (10 Catch2-кейсов) |
-| `src/CMakeLists.txt` | подключён `graph/baseline.cpp` |
-| `tests/CMakeLists.txt` | подключён `unit/graph/baseline_test.cpp` |
+| File | Change |
+|------|--------|
+| `docs/baseline_format.md` | new (mini-spec of the format) |
+| `include/archcheck/graph/baseline.h` | new (public API) |
+| `src/graph/baseline.cpp` | new (ryml-based implementation) |
+| `tests/unit/graph/baseline_test.cpp` | new (10 Catch2 cases) |
+| `src/CMakeLists.txt` | linked `graph/baseline.cpp` |
+| `tests/CMakeLists.txt` | linked `unit/graph/baseline_test.cpp` |

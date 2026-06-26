@@ -1,93 +1,93 @@
 # [TEST][DRIFT] DRIFT.1 fixture: LibreSprite PR #581 shortcut edge
 
-**Дата создания:** 2026-05-29
-**Дата старта:** 2026-05-29
-**Дата завершения:** 2026-05-29
-**Статус:** completed
-**Модуль:** TEST / DRIFT
-**Приоритет:** major
-**Сложность:** S (полдня)
-**Блокирует:** публичное демо DRIFT.1 (README / HN-пост / `docs/research/ai_drift_cases.md`)
-**Заблокирован:** —
-**Related:** #009 (DRIFT.1/2 impl), #033 (AI-drift dataset), docs/milestones.md прогон 10 (2026-05-29)
+**Created:** 2026-05-29
+**Started:** 2026-05-29
+**Completed:** 2026-05-29
+**Status:** completed
+**Module:** TEST / DRIFT
+**Priority:** major
+**Complexity:** S (half a day)
+**Blocks:** public DRIFT.1 demo (README / HN post / `docs/research/ai_drift_cases.md`)
+**Blocked by:** —
+**Related:** #009 (DRIFT.1/2 impl), #033 (AI-drift dataset), docs/milestones.md run 10 (2026-05-29)
 
-## Цель
+## Goal
 
-Завести минимальный воспроизводимый fixture
-`fixtures/drift_real_world/libresprite_pr581/` под единственный реальный DRIFT.1
-hit, верифицированный 2026-05-29: новое ребро
-`app/ui/toolbar.cpp -> app/pref/preferences.h` в LibreSprite PR #581
+Set up a minimal reproducible fixture
+`fixtures/drift_real_world/libresprite_pr581/` for the single real DRIFT.1
+hit verified 2026-05-29: a new edge
+`app/ui/toolbar.cpp -> app/pref/preferences.h` in LibreSprite PR #581
 (before `60eed0f` → after `276fdbd`, commit `0aa57ad`, Co-Authored-By: Claude
 Opus 4.5).
 
-## Контекст
+## Context
 
-Верификация (см. milestones.md, прогон 10, секция «Верификация») закрыла
-основное возражение: include **отсутствовал** в `toolbar.cpp` на before-SHA
-форка LibreSprite и был **добавлен** AI-коммитом 0aa57ad, не откатывался.
-Upstream `aseprite/aseprite` это ребро держит — фрейминг для демо: «форк
-дрейфом потерял зависимость, AI-коммит её вернул, archcheck зафиксировал
-изменение графа этого репо».
+Verification (see milestones.md, run 10, section "Verification") closed
+the main objection: the include was **absent** in `toolbar.cpp` at the before-SHA
+of the LibreSprite fork and was **added** by AI commit 0aa57ad, not reverted.
+Upstream `aseprite/aseprite` keeps this edge — framing for the demo: "the fork
+lost a dependency through drift, the AI commit brought it back, archcheck recorded
+the change in this repo's graph".
 
-Это первый и пока единственный CONFIRMED hit в DRIFT-корпусе (3 прогона:
-1 hit / 2 clean), поэтому он же — headline-кейс для публичного материала.
+This is the first and so far only CONFIRMED hit in the DRIFT corpus (3 runs:
+1 hit / 2 clean), so it is also the headline case for public material.
 
-## План выполнения
+## Execution plan
 
-Per #033: fixture = **минимальный воспроизводимый slice графа**, не клон репо.
+Per #033: fixture = **minimal reproducible graph slice**, not a repo clone.
 
-- [x] Создать `fixtures/drift_real_world/libresprite_pr581/`
-- [x] After-состояние как набор source-файлов в директории fixture'а
-      (`app/ui/toolbar.cpp` с include'ами `toolbar.h` + `preferences.h`,
-      `app/ui/toolbar.h`, `app/pref/preferences.h` — все stub'ы `#pragma once`)
-- [x] Before-состояние через `baseline.graph.yml` (конвенция из соседних
-      DRIFT-fixtures: nodes/edges YAML, не отдельный `before/` дир) — узлы
-      все три, ребро только `toolbar.cpp -> toolbar.h`, без preferences
-- [x] `README.md` в fixture-папке: SHA-пара, ссылка на PR, ссылка на
-      milestones.md, скептик-фрейминг (upstream Aseprite vs LibreSprite fork)
-- [x] Integration-тест в `tests/integration/rules/drift_fixtures_test.cpp` —
-      assert `v.size()==1`, `ruleId=="DRIFT.1"`, message содержит
+- [x] Create `fixtures/drift_real_world/libresprite_pr581/`
+- [x] After-state as a set of source files in the fixture directory
+      (`app/ui/toolbar.cpp` with includes `toolbar.h` + `preferences.h`,
+      `app/ui/toolbar.h`, `app/pref/preferences.h` — all stubs `#pragma once`)
+- [x] Before-state via `baseline.graph.yml` (convention from neighboring
+      DRIFT fixtures: nodes/edges YAML, not a separate `before/` dir) — all three
+      nodes, only the edge `toolbar.cpp -> toolbar.h`, without preferences
+- [x] `README.md` in the fixture folder: SHA pair, link to the PR, link to
+      milestones.md, skeptic framing (upstream Aseprite vs LibreSprite fork)
+- [x] Integration test in `tests/integration/rules/drift_fixtures_test.cpp` —
+      assert `v.size()==1`, `ruleId=="DRIFT.1"`, message contains
       `app/ui/toolbar.cpp -> app/pref/preferences.h`
-- [x] Fixture compile-free — только include-директивы + `#pragma once`
+- [x] Fixture compile-free — only include directives + `#pragma once`
 
-## Критерий приёмки
+## Acceptance criteria
 
-`ctest` зелёный, fixture-тест воспроизводит ровно тот hit, что записан в
-milestones.md прогон 10. Папка fixture'а самодостаточна — не зависит от
-sandbox-клонов.
+`ctest` green, the fixture test reproduces exactly the hit recorded in
+milestones.md run 10. The fixture folder is self-contained — it does not depend on
+sandbox clones.
 
-## Сделано
+## Done
 
-Fixture `fixtures/drift_real_world/libresprite_pr581/` собран по схеме
-существующих DRIFT-fixtures (`drift_shortcut_edge/fail_new_coupling/`):
+Fixture `fixtures/drift_real_world/libresprite_pr581/` built following the scheme of
+existing DRIFT fixtures (`drift_shortcut_edge/fail_new_coupling/`):
 
-- **After-state** — файлы в директории: `app/ui/toolbar.cpp` (включает
+- **After-state** — files in the directory: `app/ui/toolbar.cpp` (includes
   `app/ui/toolbar.h` + `app/pref/preferences.h`), `app/ui/toolbar.h`,
-  `app/pref/preferences.h`. Все header'ы — `#pragma once` stub'ы.
-- **Before-state** — `baseline.graph.yml`: те же 3 узла, единственное ребро
-  `toolbar.cpp -> toolbar.h`. Преднамеренно НЕ кладём ребро в `preferences.h`.
-- **Test** — `tests/integration/rules/drift_fixtures_test.cpp` добавлен
+  `app/pref/preferences.h`. All headers are `#pragma once` stubs.
+- **Before-state** — `baseline.graph.yml`: the same 3 nodes, the single edge
+  `toolbar.cpp -> toolbar.h`. We deliberately do NOT add the edge to `preferences.h`.
+- **Test** — `tests/integration/rules/drift_fixtures_test.cpp` adds
   `TEST_CASE "drift fixture: real_world/libresprite_pr581 — DRIFT.1 fires on
-  toolbar -> preferences"`. Проверяет `v.size()==1`, ruleId DRIFT.1, и текст
-  сообщения содержит ожидаемое ребро.
-- **README.md** — контекст + skeptic-фрейминг (upstream Aseprite держит edge,
-  LibreSprite-форк его терял, AI-коммит вернул).
+  toolbar -> preferences"`. Checks `v.size()==1`, ruleId DRIFT.1, and that the
+  message text contains the expected edge.
+- **README.md** — context + skeptic framing (upstream Aseprite keeps the edge,
+  the LibreSprite fork lost it, the AI commit brought it back).
 
-Прогон: `archcheck_tests "[drift][fixtures]"` → 5 test cases, 18 assertions,
-все зелёные (вместо 4/15 до добавления). Lizard на `src/ include/ tests/` —
-зелёный.
+Run: `archcheck_tests "[drift][fixtures]"` → 5 test cases, 18 assertions,
+all green (vs 4/15 before the addition). Lizard on `src/ include/ tests/` —
+green.
 
-Принцип: для DRIFT.1 fixture достаточно `baseline.graph.yml` + источников
-after-state'а. Не нужно компилировать, не нужен `compile_commands.json`,
-не нужен полный клон репозитория. Из реального hit'а на 1253-узловом графе
-LibreSprite получается воспроизводимый 3-узловой срез, который держит
-ровно одно скептик-стойкое утверждение: «AI-коммит добавил ребро между
-двумя pre-existing модулями, archcheck это поймал».
+Principle: for the DRIFT.1 fixture, `baseline.graph.yml` + after-state sources
+are sufficient. No need to compile, no `compile_commands.json` needed,
+no full repo clone needed. From a real hit on the 1253-node graph of
+LibreSprite we get a reproducible 3-node slice that holds
+exactly one skeptic-proof claim: "the AI commit added an edge between
+two pre-existing modules, archcheck caught it".
 
-Демо-фрейминг (для README/HN): edge `app/ui/toolbar.cpp ->
-app/pref/preferences.h` присутствует в upstream `aseprite/aseprite`, но
-LibreSprite на before-SHA `60eed0f` его не нёс. Это снимает возражение
-«просто re-convergence к upstream» — граф **этого** репо действительно
-изменился, и AI-коммит его изменил. Полная git-верификация (before-grep /
-after-grep / introducing commit) — в `docs/research/ai_drift_cases.md`
-секция «Верификация» и `docs/milestones.md` Прогон 10.
+Demo framing (for README/HN): edge `app/ui/toolbar.cpp ->
+app/pref/preferences.h` is present in upstream `aseprite/aseprite`, but
+LibreSprite at before-SHA `60eed0f` did not carry it. This removes the objection
+"just re-convergence to upstream" — the graph of **this** repo really
+changed, and the AI commit changed it. Full git verification (before-grep /
+after-grep / introducing commit) — in `docs/research/ai_drift_cases.md`
+section "Verification" and `docs/milestones.md` Run 10.

@@ -1,148 +1,148 @@
-# [CONFIG][V1] Минимальный контракт конфига для post-MVP фазы
+# [CONFIG][V1] Minimal config contract for the post-MVP phase
 
-**Дата создания:** 2026-05-28
-**Дата старта:** 2026-05-29
-**Дата завершения:** 2026-05-29
-**Статус:** done
-**Модуль:** CONFIG
-**Приоритет:** major
-**Сложность:** S (спека и примеры, без реализации)
-**Целевой релиз:** v1 phase 1 (post-MVP)
-**Блокирует:** реализацию config-loader после MVP
-**Заблокирован:** —
+**Date created:** 2026-05-28
+**Date started:** 2026-05-29
+**Date completed:** 2026-05-29
+**Status:** done
+**Module:** CONFIG
+**Priority:** major
+**Difficulty:** S (spec and examples, no implementation)
+**Target release:** v1 phase 1 (post-MVP)
+**Blocks:** implementation of the config loader after MVP
+**Blocked by:** —
 **Related:** docs/architecture-spec.md, docs/MVP.md, future/v1_maj_agent_config_authoring_rules.md
 
-## Цель
+## Goal
 
-Зафиксировать минимальный формат `.archcheck.yml` — только `version`, `modules`, `rules`.
-Никаких pattern-rules, severity per rule, inheritance, collectors, tags, policy engine.
-Нужен документ до кода, иначе формат расползётся по README, спекам и loader-у.
+Lock the minimal `.archcheck.yml` format — only `version`, `modules`, `rules`.
+No pattern rules, no per-rule severity, no inheritance, collectors, tags, policy engine.
+A document is needed before the code, otherwise the format will sprawl across the README, the specs and the loader.
 
-## Целевой shape
+## Target shape
 
 ```yaml
 version: 1
 
 modules:
   domain:
-    paths: ["src/domain/**"]   # glob only, без regex
+    paths: ["src/domain/**"]   # glob only, no regex
   app:
     paths: ["src/app/**"]
   infra:
     paths: ["src/infra/**"]
 
 rules:
-  # Слоистая архитектура: layers[0] может видеть всё ниже, layers[-1] не видит никого выше
+  # Layered architecture: layers[0] may see everything below, layers[-1] sees no one above
   - type: layers
     name: main-layering
-    layers: [app, domain, infra]   # высший → низший (Lakos levelization)
+    layers: [app, domain, infra]   # highest → lowest (Lakos levelization)
 
-  # Точечный запрет (escape hatch или уточнение поверх layers)
+  # Targeted prohibition (escape hatch or refinement on top of layers)
   - type: forbidden
     name: domain-no-infra
     from: [domain]
     to: [infra]
 
-  # Взаимная независимость: модули одного уровня не должны знать друг о друге
+  # Mutual independence: modules of the same level must not know about each other
   - type: independence
     name: parallel-modules-isolated
     modules: [domain, infra]
 ```
 
-**Что в v1 phase 2, не phase 1:** `ignore`, `baseline`, `required`, fan-in threshold,
-`auto_modules` (pattern-based slice discovery), `protected` type, `severity` per rule.
+**What is v1 phase 2, not phase 1:** `ignore`, `baseline`, `required`, fan-in threshold,
+`auto_modules` (pattern-based slice discovery), `protected` type, per-rule `severity`.
 
-## Дизайн-решения
+## Design decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| `layers` как основной тип | Один контракт заменяет N×(N-1)/2 пар `forbidden`; прямо воплощает Lakos levelization |
-| `independence` отдельным типом | Горизонтальная независимость (один уровень) нужна отдельно от вертикальной иерархии |
-| glob paths, без regex | Regex в module membership слишком мощен и непредсказуем для v1 |
-| allowlist vs forbidden → **mixed by rule type** (2026-05-29) | `layers` / `independence` = implicit allowlist (строгость там, где есть контракт); `forbidden` = explicit blocklist (escape hatch для legacy и surgical override). Глобально выбирать не надо — пользователь миксует per-rule. Модель Import Linter. |
-| Stale suppressions alerting (v1 phase 2) | Import Linter: `unmatched_ignore_imports_alerting` — если suppress устарел, это тоже violation |
-| `name` обязателен | Используется в violation output как machine-readable id (`[rule:<name>]`) |
+| `layers` as the main type | One contract replaces N×(N-1)/2 `forbidden` pairs; directly embodies Lakos levelization |
+| `independence` as a separate type | Horizontal independence (one level) is needed separately from the vertical hierarchy |
+| glob paths, no regex | Regex in module membership is too powerful and unpredictable for v1 |
+| allowlist vs forbidden → **mixed by rule type** (2026-05-29) | `layers` / `independence` = implicit allowlist (strictness where there's a contract); `forbidden` = explicit blocklist (escape hatch for legacy and surgical override). No need to choose globally — the user mixes per-rule. Import Linter model. |
+| Stale suppressions alerting (v1 phase 2) | Import Linter: `unmatched_ignore_imports_alerting` — if a suppress is stale, that too is a violation |
+| `name` mandatory | Used in the violation output as a machine-readable id (`[rule:<name>]`) |
 
-## Референсы (прочитаны, ссылки живые на 2026-05-28)
+## References (read, links live as of 2026-05-28)
 
-| Инструмент | Что взять | Ссылка |
+| Tool | What to take | Link |
 |------------|-----------|--------|
-| Deptrac | Shape: modules → ruleset; skip_violations как baseline | https://deptrac.github.io/deptrac/configuration/ |
-| Import Linter | Typed contracts; `layers`, `independence`, `forbidden`, `protected` types; `ignore_imports` с wildcards | https://import-linter.readthedocs.io/en/stable/contract_types/ |
+| Deptrac | Shape: modules → ruleset; skip_violations as baseline | https://deptrac.github.io/deptrac/configuration/ |
+| Import Linter | Typed contracts; `layers`, `independence`, `forbidden`, `protected` types; `ignore_imports` with wildcards | https://import-linter.readthedocs.io/en/stable/contract_types/ |
 | dependency-cruiser | Rule buckets `forbidden`/`allowed`/`required`; `numberOfDependentsMoreThan` (god-headers); `moreUnstable` (Martin SDP); group matching $1 | https://github.com/sverweij/dependency-cruiser/blob/main/doc/rules-reference.md |
-| ArchUnit | `slices().matching("pkg.(*)..")` → идея auto_modules (v1 phase 2) | https://www.archunit.org/userguide/html/000_Index.html |
-| Nx | tags как вторичный слой поверх path-based modules (future) | https://nx.dev/docs/features/enforce-module-boundaries |
-| Bazel | `package_group` — именованные группы модулей для переиспользования в rules | https://bazel.build/concepts/visibility |
+| ArchUnit | `slices().matching("pkg.(*)..")` → idea for auto_modules (v1 phase 2) | https://www.archunit.org/userguide/html/000_Index.html |
+| Nx | tags as a secondary layer on top of path-based modules (future) | https://nx.dev/docs/features/enforce-module-boundaries |
+| Bazel | `package_group` — named module groups for reuse in rules | https://bazel.build/concepts/visibility |
 
-## План выполнения
+## Execution plan
 
-- [x] Написать `docs/config_format.md`: YAML-схема, поля, типы правил, примеры
-- [x] Зафиксировать answer на вопрос allowlist vs forbidden model
-- [x] 3-4 reference examples: tiny (2 modules), layered (3+ layers), legacy (только forbidden), mixed `include/`+`src/`
-- [x] Явно выписать что в scope v1 phase 1 и что нет (таблица)
-- [x] Описать backwards compatibility: `version: 1` — намеренный SemVer для schema
-- [x] Синхронизировать `docs/architecture-spec.md` §«Анализ по конфигу» (старый формат → pointer на новый док)
-- [x] Завести implementation-task на `src/config/` loader — `backlog/new/051_maj_config_loader_v1.md`
+- [x] Write `docs/config_format.md`: YAML schema, fields, rule types, examples
+- [x] Lock the answer to the allowlist vs forbidden model question
+- [x] 3-4 reference examples: tiny (2 modules), layered (3+ layers), legacy (forbidden only), mixed `include/`+`src/`
+- [x] Explicitly spell out what is in scope of v1 phase 1 and what is not (table)
+- [x] Describe backwards compatibility: `version: 1` — deliberate SemVer for the schema
+- [x] Sync `docs/architecture-spec.md` §"Config-based analysis" (old format → pointer to the new doc)
+- [x] Create an implementation task for the `src/config/` loader — `backlog/new/051_maj_config_loader_v1.md`
 
-## Сделано
+## Done
 
-- 2026-05-29: написан `docs/config_format.md` — single source of truth для `.archcheck.yml` v1.
+- 2026-05-29: wrote `docs/config_format.md` — single source of truth for `.archcheck.yml` v1.
   - Three top-level keys: `version` / `modules` / `rules`.
-  - Three rule types: `layers`, `independence`, `forbidden` — semantics + полные поля каждого.
-  - Четыре reference-примера: tiny (2 модуля) / layered (3 слоя) / legacy (только forbidden) / mixed (`include/` + `src/` + `layers` + `independence` + `forbidden` в одном конфиге).
-  - Таблица "что в scope phase 1 и что нет" (`defaults`, `thresholds`, `baseline`, `ignore`, `required`, `protected`, `severity`, `auto_modules`, тэги Nx, `package_group` Bazel, pattern-правила — всё отложено или dropped).
-  - SemVer-контракт схемы: MINOR/MAJOR таблица, schema version независим от версии бинаря.
-  - Diagnostics contract: `[rule:<name>]` в text/JSON output — стабильный machine-readable id, переименование = breaking change для baseline.
-- 2026-05-29: зафиксирован ответ на allowlist vs forbidden — **mixed by rule type** (модель Import Linter):
-  - `layers` / `independence` — implicit allowlist (строгость там, где нужен контракт).
-  - `forbidden` — explicit blocklist (escape hatch для legacy и surgical override).
-  - Глобальный выбор не нужен: пользователь миксует per-rule в одном конфиге.
-- 2026-05-29: `docs/architecture-spec.md` §«Анализ по конфигу» сокращён: старая портянка (`module: X, forbidden_deps`, pattern-правила, `defaults`, `thresholds` в одном куске) удалена; оставлен короткий минимальный пример + ссылка на `docs/config_format.md` как single source of truth.
+  - Three rule types: `layers`, `independence`, `forbidden` — semantics + the full fields of each.
+  - Four reference examples: tiny (2 modules) / layered (3 layers) / legacy (forbidden only) / mixed (`include/` + `src/` + `layers` + `independence` + `forbidden` in one config).
+  - Table "what is in scope of phase 1 and what is not" (`defaults`, `thresholds`, `baseline`, `ignore`, `required`, `protected`, `severity`, `auto_modules`, Nx tags, Bazel `package_group`, pattern rules — all deferred or dropped).
+  - SemVer schema contract: MINOR/MAJOR table, schema version independent of the binary version.
+  - Diagnostics contract: `[rule:<name>]` in text/JSON output — a stable machine-readable id, renaming = breaking change for baseline.
+- 2026-05-29: locked the answer to allowlist vs forbidden — **mixed by rule type** (Import Linter model):
+  - `layers` / `independence` — implicit allowlist (strictness where a contract is needed).
+  - `forbidden` — explicit blocklist (escape hatch for legacy and surgical override).
+  - No global choice needed: the user mixes per-rule in one config.
+- 2026-05-29: `docs/architecture-spec.md` §"Config-based analysis" shortened: the old wall of text (`module: X, forbidden_deps`, pattern rules, `defaults`, `thresholds` in one chunk) removed; a short minimal example + a link to `docs/config_format.md` as the single source of truth left in place.
 
-## Открытые вопросы / follow-up
+## Open questions / follow-up
 
-- **Следующая задача:** [`backlog/new/051_maj_config_loader_v1.md`](../new/051_maj_config_loader_v1.md) — implementation на `src/config/` loader (YAML → `Config` struct, валидация по `docs/config_format.md`, line-numbered errors, fixtures: 4 pass + 9 fail).
-- **README.md config example** синхронизировать **после** того, как loader подтвердит схему на реальном репо — не сейчас, иначе риск разъехаться с реальным поведением до первого end-to-end прогона.
-- **v1 phase 2** (`defaults`, `thresholds`, `baseline`, `ignore`) — отдельная спека, после того как phase 1 загружается loader-ом и проходит fixtures.
-- **Открытые вопросы внутри phase 1**: на момент закрытия не осталось — все дизайнерские развилки разрешены в `docs/config_format.md`.
+- **Next task:** [`backlog/new/051_maj_config_loader_v1.md`](../new/051_maj_config_loader_v1.md) — implementation of the `src/config/` loader (YAML → `Config` struct, validation per `docs/config_format.md`, line-numbered errors, fixtures: 4 pass + 9 fail).
+- **README.md config example** to be synced **after** the loader confirms the schema on a real repo — not now, otherwise there's a risk of drifting from the actual behavior before the first end-to-end run.
+- **v1 phase 2** (`defaults`, `thresholds`, `baseline`, `ignore`) — a separate spec, after phase 1 loads via the loader and passes fixtures.
+- **Open questions inside phase 1**: none left at closure — all design forks resolved in `docs/config_format.md`.
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение | Коммит |
+| File | Change | Commit |
 |------|-----------|--------|
-| docs/config_format.md | новая спецификация минимального формата (создан) | `4a14717` |
-| docs/architecture-spec.md | §«Анализ по конфигу»: старый формат заменён на короткий пример + pointer | `4a14717` |
+| docs/config_format.md | new specification of the minimal format (created) | `4a14717` |
+| docs/architecture-spec.md | §"Config-based analysis": old format replaced by a short example + pointer | `4a14717` |
 
-## Как работает
+## How it works
 
-Контракт разделён на два слоя:
+The contract is split into two layers:
 
-1. **`docs/config_format.md`** — авторитативный источник формата. Описывает три top-level ключа (`version` / `modules` / `rules`), три типа правил (`layers` / `independence` / `forbidden`), их семантику, диагностический формат (`[rule:<name>]`) и SemVer-контракт схемы. Имеет четыре reference-примера, по которым loader (#051) валидируется fixtures-ами.
-2. **`docs/architecture-spec.md` §«Анализ по конфигу»** — короткий обзор с указателем на (1). Не дублирует формат, не разъезжается во времени.
+1. **`docs/config_format.md`** — the authoritative source of the format. Describes three top-level keys (`version` / `modules` / `rules`), three rule types (`layers` / `independence` / `forbidden`), their semantics, the diagnostic format (`[rule:<name>]`) and the SemVer schema contract. It has four reference examples against which the loader (#051) is validated by fixtures.
+2. **`docs/architecture-spec.md` §"Config-based analysis"** — a short overview with a pointer to (1). Doesn't duplicate the format, doesn't drift over time.
 
-Ключевая идея — **typed contracts**: тип правила определяет семантику (`layers`/`independence` — implicit allowlist, `forbidden` — explicit blocklist), пользователь миксует per-rule в одном конфиге. Глобальный выбор "allowlist project vs blocklist project" не нужен. Модель скопирована с Import Linter.
+The key idea is **typed contracts**: the rule type determines the semantics (`layers`/`independence` — implicit allowlist, `forbidden` — explicit blocklist), the user mixes per-rule in one config. No global "allowlist project vs blocklist project" choice is needed. The model is copied from Import Linter.
 
-`name` обязателен у каждого правила — он машинно-читаемый id в диагностике (`[rule:<name>]`), и переименование = breaking change для baseline (это сознательно).
+`name` is mandatory on every rule — it's the machine-readable id in diagnostics (`[rule:<name>]`), and renaming = breaking change for baseline (this is deliberate).
 
-## Чем управляется
+## What governs it
 
-- **Авторитет:** `docs/config_format.md` — single source of truth. Любой другой документ (spec, README, AI agent prompt) ссылается сюда, не дублирует формат.
-- **Эволюция:** SemVer внутри схемы. Добавление top-level ключа с default-значением — MINOR (всё ещё `version: 1`). Удаление ключа / смена семантики — MAJOR (`version: 2`). Архcheck-binary читает любой `version: 1` весь свой lifetime.
-- **Расширение в phase 2:** `defaults`, `thresholds`, `baseline`, `ignore` — добавляются как новые ключи, без поломки phase 1 конфигов.
+- **Authority:** `docs/config_format.md` — single source of truth. Any other document (spec, README, AI agent prompt) points here, doesn't duplicate the format.
+- **Evolution:** SemVer within the schema. Adding a top-level key with a default value — MINOR (still `version: 1`). Removing a key / changing semantics — MAJOR (`version: 2`). The archcheck binary reads any `version: 1` for its whole lifetime.
+- **Phase 2 extension:** `defaults`, `thresholds`, `baseline`, `ignore` — added as new keys, without breaking phase 1 configs.
 
-## С чем связана
+## What it's connected to
 
-- **Производит:** контракт, по которому пишется loader → [`#051`](../new/051_maj_config_loader_v1.md).
-- **Разблокирует:** [`v1_maj_agent_config_authoring_rules.md`](../future/v1_maj_agent_config_authoring_rules.md) — без формата AI-агенту не было целевой формы для `.draft`. Эта зависимость снимается **после** #051 (агенту нужен работающий loader, чтобы валидировать вывод).
-- **Замещает:** §«Анализ по конфигу» в `architecture-spec.md` v2.1 (старый формат `module: X, forbidden_deps: [Y]` + pattern-правила + `defaults` + `thresholds` в одной портянке). Старая секция теперь pointer.
-- **Соседствует с:** [`#010`](../future/010_maj_ai_rule_synthesis_contract.md) — старый общий synthesize-контракт (CLI shape, heuristic vs wrapper-prompt). #010 шире (про CLI и режимы), эта задача — про сам формат YAML, который synthesize должен производить.
+- **Produces:** the contract against which the loader is written → [`#051`](../new/051_maj_config_loader_v1.md).
+- **Unblocks:** [`v1_maj_agent_config_authoring_rules.md`](../future/v1_maj_agent_config_authoring_rules.md) — without the format the AI agent had no target shape for the `.draft`. This dependency is lifted **after** #051 (the agent needs a working loader to validate its output).
+- **Supersedes:** §"Config-based analysis" in `architecture-spec.md` v2.1 (the old format `module: X, forbidden_deps: [Y]` + pattern rules + `defaults` + `thresholds` in one wall of text). The old section is now a pointer.
+- **Adjacent to:** [`#010`](../future/010_maj_ai_rule_synthesis_contract.md) — the old general synthesize contract (CLI shape, heuristic vs wrapper-prompt). #010 is broader (about CLI and modes), this task is about the YAML format itself that synthesize must produce.
 
-## Диагностика
+## Diagnostics
 
-Если эта задача "разъехалась" с реальностью, симптомы и где смотреть:
+If this task has "drifted" from reality, the symptoms and where to look:
 
-- **Конфиг loader (#051) валидирует не то, что в спеке** — править `docs/config_format.md` (это контракт), потом синхронизировать loader. Не наоборот.
-- **README показывает старый формат** — он намеренно не синхронизирован, README sync ждёт end-to-end прогона через loader (см. follow-up выше).
-- **AI-агент пишет config в произвольной форме** — значит [`v1_maj_agent_config_authoring_rules.md`](../future/v1_maj_agent_config_authoring_rules.md) ещё не реализована, агент не знает про targeted формат. Это нормально до того, как #051 закроется.
-- **Кто-то предлагает добавить `defaults`/`severity`/pattern-правила в phase 1** — отказывать, это phase 2 или dropped, причины зафиксированы в таблице "What is **not** in v1 phase 1" в `docs/config_format.md`.
-- **Конфликт между `architecture-spec` §«Анализ по конфигу» и `docs/config_format.md`** — `config_format.md` побеждает. Spec — обзорный документ.
+- **The config loader (#051) validates something other than the spec** — fix `docs/config_format.md` (that's the contract), then sync the loader. Not the other way around.
+- **The README shows the old format** — it's deliberately not synced, README sync awaits an end-to-end run through the loader (see follow-up above).
+- **The AI agent writes config in an arbitrary shape** — that means [`v1_maj_agent_config_authoring_rules.md`](../future/v1_maj_agent_config_authoring_rules.md) is not yet implemented, the agent doesn't know about the targeted format. This is normal until #051 is closed.
+- **Someone proposes adding `defaults`/`severity`/pattern rules to phase 1** — refuse, that's phase 2 or dropped, reasons locked in the "What is **not** in v1 phase 1" table in `docs/config_format.md`.
+- **Conflict between `architecture-spec` §"Config-based analysis" and `docs/config_format.md`** — `config_format.md` wins. The spec is an overview document.

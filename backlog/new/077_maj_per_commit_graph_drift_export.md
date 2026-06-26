@@ -1,82 +1,82 @@
-# [RESEARCH][DIFF] Per-commit export изменений include-графа для ручной верификации drift-кейсов
+# [RESEARCH][DIFF] Per-commit export of include-graph changes for manual verification of drift cases
 
-**Дата создания:** 2026-06-02
-**Дата старта:** —
-**Статус:** new
-**Модуль:** EXPERIMENTS / DIFF / RESEARCH
-**Приоритет:** major
-**Сложность:** M
-**Блокирует:** zero-config sibling-drift validation
-**Заблокирован:** —
+**Date created:** 2026-06-02
+**Date started:** —
+**Status:** new
+**Module:** EXPERIMENTS / DIFF / RESEARCH
+**Priority:** major
+**Complexity:** M
+**Blocks:** zero-config sibling-drift validation
+**Blocked by:** —
 **Related:** #018 (git_diff_analysis), #054 (ai_repo_duplication_run), #075 (mvp_v1_trusted_diff_workflow), #076 (new_cross_area_dependency_drift)
 
-## Цель
+## Goal
 
-Сделать воспроизводимый export **по всем коммитам истории репозитория**, который
-сохраняет изменения include-графа на уровне commit-to-parent diff. Нужен не новый
-product surface, а исследовательский материал для ответа на вопрос:
+Build a reproducible export **across all commits in a repository's history** that
+captures include-graph changes at the commit-to-parent diff level. We need not a new
+product surface, but research material to answer the question:
 
-> “Есть ли в реальных AI-heavy репах коммиты, которые протягивают новую прямую
-> связь между соседними модулями / зонами?”
+> "Are there commits in real AI-heavy repos that draw a new direct
+> link between neighboring modules / areas?"
 
-## Контекст
+## Context
 
-Сейчас `archcheck --diff` умеет сравнить **одну** ревизию с другой, но у нас нет
-готового режима, который:
+Right now `archcheck --diff` can compare **one** revision with another, but we have no
+ready-made mode that:
 
-- проходит по истории;
-- сохраняет summary по каждому коммиту;
-- отдельно выделяет коммиты, где появились новые зависимости;
-- даёт компактный файл для ручного eyeballing.
+- walks the history;
+- saves a summary for each commit;
+- separately highlights commits where new dependencies appeared;
+- produces a compact file for manual eyeballing.
 
-Аналогичный паттерн уже есть в duplication-research:
+A similar pattern already exists in duplication research:
 
 - `partial_history_drift.sh`
 - `generate_per_commit.py`
 - `per_commit_hits.{jsonl,md}`
 
-Для graph drift нужен такой же слой, но поверх `archcheck --diff`.
+For graph drift we need the same layer, but on top of `archcheck --diff`.
 
-## Что сделать
+## What to do
 
-### 1. Добавить per-commit graph exporter
+### 1. Add a per-commit graph exporter
 
-- [ ] Скрипт в `experiments/ai_repo_run/`, который идёт по `git rev-list --reverse --first-parent HEAD`.
-- [ ] Для каждого коммита с родителем запускает `archcheck --diff <sha>~1..<sha> .`.
-- [ ] Сохраняет summary-метрики:
+- [ ] A script in `experiments/ai_repo_run/` that walks `git rev-list --reverse --first-parent HEAD`.
+- [ ] For each commit with a parent, runs `archcheck --diff <sha>~1..<sha> .`.
+- [ ] Saves summary metrics:
       `added_edges`, `removed_edges`, `grown_cycles`, `new_area_deps`.
 
-### 2. Сохранять кандидатов для ручной проверки
+### 2. Save candidates for manual review
 
-- [ ] Для коммитов с любым drift-сигналом сохранять отдельную запись.
-- [ ] В запись включать:
-      `sha`, `date`, `subject`, summary-метрики, список `added`-рёбер,
-      секцию `new_cross_area_dependencies` если есть.
-- [ ] Сделать человекочитаемый `.md` рядом с `.jsonl`.
+- [ ] For commits with any drift signal, save a separate record.
+- [ ] Include in the record:
+      `sha`, `date`, `subject`, summary metrics, list of `added` edges,
+      the `new_cross_area_dependencies` section if present.
+- [ ] Produce a human-readable `.md` next to the `.jsonl`.
 
-### 3. Не смешивать с MVP CLI
+### 3. Do not mix with the MVP CLI
 
-- [ ] Не добавлять новый CLI-режим в `src/main.cpp`.
-- [ ] Не менять exit-контракты продукта.
-- [ ] Держать это в `experiments/` как инструмент исследования и валидации.
+- [ ] Do not add a new CLI mode to `src/main.cpp`.
+- [ ] Do not change the product's exit contracts.
+- [ ] Keep this in `experiments/` as a research and validation tool.
 
-## Критерий приёмки
+## Acceptance criterion
 
-- [ ] Есть reproducible-скрипт, который экспортирует per-commit graph drift series.
-- [ ] Есть machine-readable output (`jsonl`/`tsv`) и короткий human-readable digest (`md`).
-- [ ] Можно быстро выделить коммиты, где появились новые зависимости/циклы/area-pairs.
-- [ ] Скрипт проверен хотя бы на одной локальной репе.
+- [ ] There is a reproducible script that exports the per-commit graph drift series.
+- [ ] There is machine-readable output (`jsonl`/`tsv`) and a short human-readable digest (`md`).
+- [ ] One can quickly single out commits where new dependencies/cycles/area-pairs appeared.
+- [ ] The script is verified on at least one local repo.
 
-## Как использовать результат
+## How to use the result
 
-1. Прогнать exporter на AI-heavy локальной репе.
-2. Отфильтровать коммиты с `new_area_deps > 0` или большим `added_edges`.
-3. Руками открыть только эти кандидаты через `git show`.
-4. По живым кейсам решить, какой zero-config sibling/module drift сигнал имеет смысл.
+1. Run the exporter on an AI-heavy local repo.
+2. Filter commits with `new_area_deps > 0` or large `added_edges`.
+3. Open only those candidates by hand via `git show`.
+4. Based on live cases, decide which zero-config sibling/module drift signal makes sense.
 
-## Не делать в этой задаче
+## Do not do in this task
 
-- не пытаться сразу угадать SOLID/Lakos violation автоматически;
-- не тащить config rules;
-- не менять продуктовый `--diff` surface;
-- не смешивать с duplication export.
+- do not try to immediately guess SOLID/Lakos violations automatically;
+- do not pull in config rules;
+- do not change the product `--diff` surface;
+- do not mix with duplication export.

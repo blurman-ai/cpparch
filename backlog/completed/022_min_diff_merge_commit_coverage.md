@@ -1,75 +1,75 @@
-# [TESTS][GRAPH] Покрыть `--diff` сценарием PR с merge-commit-ом
+# [TESTS][GRAPH] Cover `--diff` with a PR-with-merge-commit scenario
 
-**Дата создания:** 2026-05-27
-**Дата старта:** 2026-05-28
-**Статус:** completed
-**Модуль:** TESTS, GRAPH
-**Приоритет:** minor
-**Сложность:** S (1-2 часа)
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-05-27
+**Started:** 2026-05-28
+**Status:** completed
+**Module:** TESTS, GRAPH
+**Priority:** minor
+**Difficulty:** S (1-2 hours)
+**Blocks:** —
+**Blocked by:** —
 **Related:** #018 (git_diff_analysis)
 
-## Цель
+## Goal
 
-Добавить integration-тест в `tests/integration/diff/git_diff_test.cpp`, который
-проверяет поведение `--diff` на PR-е, в котором HEAD — merge-commit (не
-fast-forward), и убедиться что `git worktree add --detach` корректно
-материализует оба родителя без сюрпризов.
+Add an integration test in `tests/integration/diff/git_diff_test.cpp` that
+checks the behavior of `--diff` on a PR whose HEAD is a merge commit (not a
+fast-forward), and confirm that `git worktree add --detach` correctly
+materializes both parents without surprises.
 
-## Контекст
+## Context
 
-В плане задачи #018 был пункт «PR с merge-commit-ом» — он не покрыт. На
-практике `git worktree add --detach <ref>` работает с merge-commit-ом так
-же, как с любым ref-ом (даёт snapshot, а не diff), но без теста легко
-получить регрессию когда кто-то начнёт парсить parent-ы вручную.
+In the plan for task #018 there was an item "PR with a merge commit" — it is not covered. In
+practice `git worktree add --detach <ref>` works with a merge commit the
+same way as with any ref (gives a snapshot, not a diff), but without a test it is easy
+to get a regression when someone starts parsing the parents by hand.
 
-Сценарий, который хочется проверить:
+The scenario we want to check:
 
 ```
         A (baseline)
        / \
-      B   C       (две feature-ветки добавляют разные рёбра)
+      B   C       (two feature branches add different edges)
        \ /
         M (merge)  ← HEAD
 ```
 
-`--diff A..M` должен видеть **объединение** изменений из B и C (рёбра из
-обеих веток), а не только diff M против одного из родителей.
+`--diff A..M` should see the **union** of changes from B and C (edges from
+both branches), not just the diff of M against one of the parents.
 
-## План выполнения
+## Execution plan
 
-- [x] Расширить `tests/integration/diff/git_diff_test.cpp` новым TEST_CASE-ом «merge-commit»
-- [x] Сборка `A → B (adds a->c) → checkout A → C (adds a->d) → merge B` (через `git tag A`/`git tag C`)
-- [x] Assert: `diffRefs("A", "HEAD")` показывает оба ребра `a->c` и `a->d` в addedEdges
-- [x] Assert: `diffRefs("C", "HEAD")` показывает только `a->c` (то, что merge принёс из feat-b)
-- [x] lizard и clang-format чистые
+- [x] Extend `tests/integration/diff/git_diff_test.cpp` with a new TEST_CASE "merge-commit"
+- [x] Build `A → B (adds a->c) → checkout A → C (adds a->d) → merge B` (via `git tag A`/`git tag C`)
+- [x] Assert: `diffRefs("A", "HEAD")` shows both edges `a->c` and `a->d` in addedEdges
+- [x] Assert: `diffRefs("C", "HEAD")` shows only `a->c` (what the merge brought from feat-b)
+- [x] lizard and clang-format clean
 
-## Сделано
+## Done
 
-- Хелпер `buildMergeRepo()` собирает A→B (a->c) и A→C (a->d), мёржит feat-b в feat-c
-  с ручным разрешением конфликта на a.h (union обоих includes). HEAD — настоящий
-  merge-commit, проверяется `git rev-parse HEAD^2`.
+- Helper `buildMergeRepo()` builds A→B (a->c) and A→C (a->d), merges feat-b into feat-c
+  with manual conflict resolution on a.h (union of both includes). HEAD is a real
+  merge commit, checked by `git rev-parse HEAD^2`.
 - TEST_CASE `merge-commit HEAD → A..M sees union of edges from both parents`
-  `[diff][git][integration][merge]`: 26 assertions, зелёный.
-- SHA через `git rev-parse` не понадобился — `git tag A` / `git tag C` на нужных
-  коммитах решают вопрос без расширения `runIn`.
-- Подтверждено: `git worktree add --detach` (внутри `materializeRef`) корректно
-  материализует merge-snapshot, а не один из родителей.
+  `[diff][git][integration][merge]`: 26 assertions, green.
+- A SHA via `git rev-parse` was not needed — `git tag A` / `git tag C` on the needed
+  commits solve it without extending `runIn`.
+- Confirmed: `git worktree add --detach` (inside `materializeRef`) correctly
+  materializes the merge snapshot, not one of the parents.
 
-## Следующие шаги
+## Next steps
 
 1. `/commit` — `test(diff): cover merge-commit PR scenario in --diff (#022)`
-2. Закрыть задачу (перевести в `backlog/completed/`).
+2. Close the task (move to `backlog/completed/`).
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Только тест, без правок продакшен-кода | Гипотеза: `git worktree add` уже корректно обрабатывает merge-commit. Если тест зелёный — поведение зафиксировано регрессией; если красный — становится понятно, что чинить |
+| Test only, no production-code edits | Hypothesis: `git worktree add` already handles a merge commit correctly. If the test is green — the behavior is pinned by a regression; if red — it becomes clear what to fix |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `tests/integration/diff/git_diff_test.cpp` | + 1-2 TEST_CASE-а; возможно helper `commitAllAndTag` или `captureSha` |
+| `tests/integration/diff/git_diff_test.cpp` | + 1-2 TEST_CASEs; possibly a helper `commitAllAndTag` or `captureSha` |

@@ -1,81 +1,81 @@
 # [CHEAP-DRIFT][DIFF] Test Co-Evolution Signal
 
-**Дата создания:** 2026-06-10
-**Дата старта:** 2026-06-11
-**Статус:** wip
-**Модуль:** GIT / DIFF / REPORT
-**Приоритет:** major
-**Сложность:** small
-**Блокирует:** —
-**Заблокирован:** —
+**Date created:** 2026-06-10
+**Date started:** 2026-06-11
+**Status:** wip
+**Module:** GIT / DIFF / REPORT
+**Priority:** major
+**Complexity:** small
+**Blocks:** —
+**Blocked by:** —
 **Related:** #018 (git_diff_analysis), #024 (in_memory_fs_for_diff), #075 (trusted_diff_workflow), #096 (satd_delta)
 
-## Цель
+## Goal
 
-Подсвечивать PR, где production-код заметно меняется, а тесты не двигаются вообще или почти не двигаются.
+Highlight PRs where production code changes noticeably while tests do not move at all or barely move.
 
-Это review-prioritization signal, не архитектурное правило и не суррогат test coverage.
+This is a review-prioritization signal, not an architectural rule and not a surrogate for test coverage.
 
-## Контекст
+## Context
 
-- Источник постановки: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 5.
-- Задача особенно полезна в CI review-потоке, где уже есть `git diff --numstat`-уровень сигнала и нужен дешёвый вопрос "а тесты вообще трогали?".
-- В репозитории уже есть `scan/file_classification.h` с логикой test/vendor/generated classification. Эту задачу нужно по возможности опереть на существующую таксономию, а не заводить второй несовместимый набор path rules.
-- Сигнал принципиально advisory-only по умолчанию. Он не доказывает отсутствие тестов и не должен ломать CI без явного opt-in.
+- Source of the assignment: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 5.
+- The task is especially useful in the CI review flow, where there is already a `git diff --numstat`-level signal and a cheap question is needed: "did the tests get touched at all?".
+- The repository already has `scan/file_classification.h` with test/vendor/generated classification logic. This task should, where possible, lean on the existing taxonomy rather than introducing a second incompatible set of path rules.
+- The signal is fundamentally advisory-only by default. It does not prove the absence of tests and must not break CI without an explicit opt-in.
 
-## План выполнения
+## Execution plan
 
 ### Detection contract
 
-- Собрать production churn и test churn по `git diff --numstat`.
-- Считать отдельными bucket-ами:
+- Collect production churn and test churn from `git diff --numstat`.
+- Count separate buckets:
   - production paths;
   - test paths;
   - everything else.
-- Finding возникает, когда:
-  - production churn выше минимального порога;
-  - test churn ниже порога или ниже ratio относительно production churn.
-- Конкретные дефолты v1 (калибровать на dogfood + 2-3 OSS PR):
-  - `prod_churn = added+deleted` по production-бакету; finding при
-    `prod_churn >= 80` строк И `test_churn == 0`;
-  - мягкий вариант: `prod_churn >= 200` И `test_churn / prod_churn < 0.05`;
-  - rename-only пары (numstat с `=>`) исключить из churn обоих бакетов;
-  - header-only изменения (только `.h` без `.cpp`) — не исключать (это тоже код),
-    но докудать в message состав бакетов, чтобы reviewer видел причину;
-  - один finding на diff: `TEST.1.prod_changed_tests_silent`,
-    message = `prod +A/-D across N files, tests +0/-0` (числа реальные).
+- A finding arises when:
+  - production churn is above a minimum threshold;
+  - test churn is below a threshold or below a ratio relative to production churn.
+- Concrete v1 defaults (calibrate on dogfood + 2-3 OSS PRs):
+  - `prod_churn = added+deleted` over the production bucket; finding when
+    `prod_churn >= 80` lines AND `test_churn == 0`;
+  - soft variant: `prod_churn >= 200` AND `test_churn / prod_churn < 0.05`;
+  - rename-only pairs (numstat with `=>`) excluded from churn of both buckets;
+  - header-only changes (only `.h` without `.cpp`) — do not exclude (this is code too),
+    but document the bucket composition in the message so the reviewer sees the reason;
+  - one finding per diff: `TEST.1.prod_changed_tests_silent`,
+    message = `prod +A/-D across N files, tests +0/-0` (real numbers).
 
 ### Runtime shape
 
-- Первый проход опирать на numstat и текущую file classification.
-- Docs-only PR не должны срабатывать.
-- Rename-only и generated/vendor cases должны либо игнорироваться, либо быть явно задокументированы как ограничения.
-- Для `Violation` достаточно `file = "<diff>"` и `line = 0`, если точной строковой привязки нет; invent fake line numbers не нужно.
+- Base the first pass on numstat and the current file classification.
+- Docs-only PRs must not fire.
+- Rename-only and generated/vendor cases must either be ignored or explicitly documented as limitations.
+- For a `Violation`, `file = "<diff>"` and `line = 0` are enough if there is no precise line anchor; inventing fake line numbers is not needed.
 
 ### Scope discipline
 
-- Не пытаться вычислять "семантическую значимость" изменения тестов.
-- Не строить coverage integration.
-- Не превращать правило в hard gate по умолчанию.
+- Do not try to compute the "semantic significance" of a test change.
+- Do not build coverage integration.
+- Do not turn the rule into a hard gate by default.
 
-### Конкретный план в текущем коде
+### Concrete plan in the current code
 
-1. Не парсить `git diff --numstat` второй раз отдельно от #096:
-   использовать тот же `git/diff_query.cpp` и его `collectNumstat(...)`.
-2. Path classification строить из уже существующих функций, а не из нового списка globs:
-   `hasProjectExtension()` из [src/scan/project_files.cpp](~/projects/cpparch/src/scan/project_files.cpp),
-   `pathHasTestDir()`, `isTestBasename()`, `pathHasVendoredDir()`, `isVendoredFile()` из [include/archcheck/scan/file_classification.h](~/projects/cpparch/include/archcheck/scan/file_classification.h).
-3. Production bucket определять как "project extension && not test && not vendor".
-   Этого достаточно для v1 и оно совпадает с уже shipped exclusions.
-4. Detector держать плоским и маленьким (`src/scan/test_co_evolution.cpp` либо соседний helper), вход:
-   `std::vector<NumstatEntry>`, выход: либо пусто, либо один `Violation` с `file = "<diff>"`, `line = 0`.
-5. Интегрировать рядом с `run_diff()` в [src/main.cpp](~/projects/cpparch/src/main.cpp), а не через `IRule` и не через `RegressionReport`.
-6. JSON для `--diff` подчиняется тому же реальному ограничению, что и #096:
-   пока `dispatch_format()` не станет ортогональным к режиму запуска, у diff path нет machine-readable output.
-7. Тесты:
-   parsing/aggr — новый `tests/unit/git/diff_query_test.cpp`;
-   rule logic — новый `tests/unit/scan/test_co_evolution_test.cpp`;
-   repo-level smoke — 1-2 сценария в [tests/integration/diff/git_diff_test.cpp](~/projects/cpparch/tests/integration/diff/git_diff_test.cpp).
+1. Do not parse `git diff --numstat` a second time separately from #096:
+   use the same `git/diff_query.cpp` and its `collectNumstat(...)`.
+2. Build path classification from already-existing functions, not from a new glob list:
+   `hasProjectExtension()` from [src/scan/project_files.cpp](~/projects/cpparch/src/scan/project_files.cpp),
+   `pathHasTestDir()`, `isTestBasename()`, `pathHasVendoredDir()`, `isVendoredFile()` from [include/archcheck/scan/file_classification.h](~/projects/cpparch/include/archcheck/scan/file_classification.h).
+3. Define the production bucket as "project extension && not test && not vendor".
+   This is enough for v1 and it matches already-shipped exclusions.
+4. Keep the detector flat and small (`src/scan/test_co_evolution.cpp` or a neighboring helper), input:
+   `std::vector<NumstatEntry>`, output: either empty, or a single `Violation` with `file = "<diff>"`, `line = 0`.
+5. Integrate it next to `run_diff()` in [src/main.cpp](~/projects/cpparch/src/main.cpp), not via `IRule` and not via `RegressionReport`.
+6. JSON for `--diff` obeys the same real limitation as #096:
+   until `dispatch_format()` becomes orthogonal to the run mode, the diff path has no machine-readable output.
+7. Tests:
+   parsing/aggr — new `tests/unit/git/diff_query_test.cpp`;
+   rule logic — new `tests/unit/scan/test_co_evolution_test.cpp`;
+   repo-level smoke — 1-2 scenarios in [tests/integration/diff/git_diff_test.cpp](~/projects/cpparch/tests/integration/diff/git_diff_test.cpp).
 
 ## Fixtures & Tests
 
@@ -84,110 +84,110 @@
 - `fixtures/test_co_evolution/pass/docs_only.numstat`
 - `fixtures/test_co_evolution/pass/generated_or_vendor_ignored.numstat`
 
-Обязательные проверки:
+Mandatory checks:
 
-- churn production vs tests считается корректно;
-- docs-only diff не даёт finding;
-- PR с достаточным test churn не даёт finding;
-- сообщение содержит production churn, test churn и ratio/threshold;
-- output совместим с текущим text/json contract.
+- production vs test churn is counted correctly;
+- a docs-only diff produces no finding;
+- a PR with sufficient test churn produces no finding;
+- the message contains production churn, test churn and ratio/threshold;
+- the output is compatible with the current text/json contract.
 
-## Критерии готовности
+## Readiness criteria
 
-- Advisory-only по умолчанию.
-- Реиспользуется текущая классификация test/vendor/generated, где это возможно.
-- Нет нового config schema block в рамках этой задачи.
-- Сигнал не маскирует structural diff findings и не ломает их exit semantics.
+- Advisory-only by default.
+- The current test/vendor/generated classification is reused where possible.
+- No new config schema block within this task.
+- The signal does not mask structural diff findings and does not break their exit semantics.
 
-## Не делать
+## Do not do
 
 - Coverage analysis.
 - Per-test impact analysis.
-- Попытку доказать, что "тестов точно нет".
+- An attempt to prove that "there are definitely no tests".
 - Gate by default.
 
-## Сделано
+## Done
 
-**Детектор test_co_evolution:**
-- `include/archcheck/scan/test_co_evolution.h` — заголовок детектора (публичный интерфейс)
-- `src/scan/test_co_evolution.cpp` — реализация:
-  - `aggregateChurn()` — разделение path по bucket-ам (production/test/other), подсчёт churn
-  - `shouldReportCoEvolution()` — проверка двух порогов (strict: 80 строк + 0 тестов, soft: 200 строк + <5% тестов)
-  - `detectTestCoEvolution()` — публичная функция с выходом ViolationList (0 или 1 элемент)
-  - Используются существующие функции: `hasProjectExtension()`, `pathHasTestDir()`, `isTestBasename()`, `pathHasVendoredDir()`, `isVendoredFile()`
+**Detector test_co_evolution:**
+- `include/archcheck/scan/test_co_evolution.h` — detector header (public interface)
+- `src/scan/test_co_evolution.cpp` — implementation:
+  - `aggregateChurn()` — split paths into buckets (production/test/other), count churn
+  - `shouldReportCoEvolution()` — check the two thresholds (strict: 80 lines + 0 tests, soft: 200 lines + <5% tests)
+  - `detectTestCoEvolution()` — public function with a ViolationList output (0 or 1 element)
+  - Existing functions are used: `hasProjectExtension()`, `pathHasTestDir()`, `isTestBasename()`, `pathHasVendoredDir()`, `isVendoredFile()`
 
-**Интеграция в main.cpp:**
-- Добавлен include `#include "archcheck/scan/test_co_evolution.h"`
-- Вызов после SATD-блока в `runDiffFullPath()`: `archcheck::git::collectNumstat()` → `detectTestCoEvolution()` → вывод (advisory)
-- Формат вывода аналогичен SATD: "test co-evolution (advisory):" + список нарушений
+**Integration in main.cpp:**
+- Added include `#include "archcheck/scan/test_co_evolution.h"`
+- Call after the SATD block in `runDiffFullPath()`: `archcheck::git::collectNumstat()` → `detectTestCoEvolution()` → output (advisory)
+- Output format analogous to SATD: "test co-evolution (advisory):" + list of violations
 
-**Фикстуры в `fixtures/test_co_evolution/`:**
-- `pass/with_tests.numstat` — production 80 строк + tests 25 строк (no finding)
-- `fail/prod_without_tests.numstat` — production 100 строк + tests 0 (finding по strict threshold)
-- `pass/docs_only.numstat` — только .md файлы (no finding, no project extension)
+**Fixtures in `fixtures/test_co_evolution/`:**
+- `pass/with_tests.numstat` — production 80 lines + tests 25 lines (no finding)
+- `fail/prod_without_tests.numstat` — production 100 lines + tests 0 (finding by strict threshold)
+- `pass/docs_only.numstat` — only .md files (no finding, no project extension)
 - `pass/generated_or_vendor_ignored.numstat` — vendor + rename-only (no finding)
 
-**Unit-тесты в `tests/unit/scan/test_co_evolution_test.cpp`:**
-- Парсер для .numstat формата (сырые tab-separated lines)
-- 9 тестов, покрывающих:
+**Unit tests in `tests/unit/scan/test_co_evolution_test.cpp`:**
+- Parser for the .numstat format (raw tab-separated lines)
+- 9 tests covering:
   - strict threshold: prod 100 + tests 0 → finding
   - insufficient tests: prod 100 + tests 20 → no finding
   - docs-only: no finding
-  - rename-only: no finding, не считаются в churn
+  - rename-only: no finding, not counted in churn
   - soft threshold: prod 250 + tests 5 (2%) → finding
-  - vendor exclusion: vendor files не считаются prod
-  - смешанный случай: vendor + prod + tests
-  - boundary case: ровно на 5% ratio → no finding (< not <=)
+  - vendor exclusion: vendor files not counted as prod
+  - mixed case: vendor + prod + tests
+  - boundary case: exactly at the 5% ratio → no finding (< not <=)
 
-**Интеграционный тест в `tests/integration/diff/git_diff_test.cpp`:**
+**Integration test in `tests/integration/diff/git_diff_test.cpp`:**
 - `test_co_evolution: production change without test update triggers detection`
-  - git repo с src/main.cpp + tests/test_main.cpp
-  - baseline commit, затем изменение 85 строк в prod без изменения тестов
-  - проверка наличия TEST.1.prod_changed_tests_silent в выводе
+  - git repo with src/main.cpp + tests/test_main.cpp
+  - baseline commit, then a change of 85 lines in prod without changing the tests
+  - check for the presence of TEST.1.prod_changed_tests_silent in the output
 
 **CMakeLists.txt:**
-- `src/CMakeLists.txt`: добавлен `scan/test_co_evolution.cpp` в target `archcheck_core`
-- `tests/CMakeLists.txt`: добавлен `unit/scan/test_co_evolution_test.cpp` в target `archcheck_tests`
+- `src/CMakeLists.txt`: added `scan/test_co_evolution.cpp` to the `archcheck_core` target
+- `tests/CMakeLists.txt`: added `unit/scan/test_co_evolution_test.cpp` to the `archcheck_tests` target
 
-**Качество кода:**
-- clang-format: отформатировано (120 columns, Allman braces, 2 spaces)
-- cppcheck: OK (без warning/error)
-- lizard: 12 CCN, 23 NLOC (в пределах лимитов 15/30)
-- Все 390 unit+integration тестов пройдены
-- Самопроверка archcheck: src/, include/, tests/ дают 0 нарушений (SF.7/8/9/21, cycles, god-headers, chain-length)
+**Code quality:**
+- clang-format: formatted (120 columns, Allman braces, 2 spaces)
+- cppcheck: OK (no warning/error)
+- lizard: 12 CCN, 23 NLOC (within the 15/30 limits)
+- All 390 unit+integration tests pass
+- archcheck self-check: src/, include/, tests/ give 0 violations (SF.7/8/9/21, cycles, god-headers, chain-length)
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. Выделить numstat parsing как переиспользуемый helper.
-2. Согласовать production/test path classification с уже существующей логикой в репо.
-3. Добавить fixtures на churn ratio.
-4. Проверить поведение на самом `archcheck`.
+1. Extract numstat parsing as a reusable helper.
+2. Align production/test path classification with the already-existing logic in the repo.
+3. Add fixtures on churn ratio.
+4. Check the behavior on `archcheck` itself.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Advisory-only | Это review signal, не доказательство бага |
-| Reuse текущей file classification | Нельзя плодить расходящиеся правила "что считать тестом" |
-| `file="<diff>"`, `line=0` допустимы | У numstat нет точной строковой привязки |
-| Ratio-heuristic, а не binary "тесты есть/нет" | Иначе шум на маленьких PR будет слишком высоким |
+| Advisory-only | This is a review signal, not proof of a bug |
+| Reuse the current file classification | One must not breed divergent rules for "what counts as a test" |
+| `file="<diff>"`, `line=0` allowed | numstat has no precise line anchor |
+| A ratio heuristic, not a binary "tests exist/do not exist" | Otherwise the noise on small PRs would be too high |
 
-## Планируемые файлы
+## Planned files
 
-| Область | Изменение |
+| Area | Change |
 |---------|-----------|
-| `src/git/` или diff orchestration | Numstat parsing |
-| `src/main.cpp` / cheap-drift pass | Подключение test-co-evolution signal |
-| `tests/unit/` | Churn aggregation и classification |
-| `tests/integration/` | Diff-based сценарии |
-| `fixtures/test_co_evolution/` | `pass/` и `fail/` numstat fixtures |
+| `src/git/` or diff orchestration | Numstat parsing |
+| `src/main.cpp` / cheap-drift pass | Wiring up the test-co-evolution signal |
+| `tests/unit/` | Churn aggregation and classification |
+| `tests/integration/` | Diff-based scenarios |
+| `fixtures/test_co_evolution/` | `pass/` and `fail/` numstat fixtures |
 
-## Итог
-**Статус:** completed — numstat-парсинг, ratio тестового/продуктового churn,
-advisory в `--diff` (commit cb6e09d: `src/scan/test_co_evolution.cpp` + unit-тесты +
+## Outcome
+**Status:** completed — numstat parsing, ratio of test/production churn,
+advisory in `--diff` (commit cb6e09d: `src/scan/test_co_evolution.cpp` + unit tests +
 `fixtures/test_co_evolution/`).
-**Дата завершения:** 2026-06-11
+**Date completed:** 2026-06-11

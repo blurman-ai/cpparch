@@ -1,132 +1,132 @@
-# [DIFF][GRAPH] Zero-config drift signal: новые межзональные зависимости в `--diff`
+# [DIFF][GRAPH] Zero-config drift signal: new cross-area dependencies in `--diff`
 
-**Дата создания:** 2026-06-02
-**Дата старта:** 2026-06-02
-**Дата завершения:** 2026-06-02
-**Статус:** done
-**Модуль:** DIFF / GRAPH / REPORT
-**Приоритет:** major
+**Date created:** 2026-06-02
+**Date started:** 2026-06-02
+**Date completed:** 2026-06-02
+**Status:** done
+**Module:** DIFF / GRAPH / REPORT
+**Priority:** major
 **Related:** #018 (git_diff_analysis), #009 (drift_regression_rules), #057 (lakos_fanout_coupling_checks), #075 (mvp_v1_trusted_diff_workflow)
 
-## Цель
+## Goal
 
-Добавить в основной diff path zero-config сигнал:
+Add a zero-config signal to the main diff path:
 
-> появился новый межзональный канал зависимости `A -> B`, которого в baseline не было.
+> a new cross-area dependency channel `A -> B` appeared that was not in the baseline.
 
-Это уровень выше обычного `addedEdges`: не “новый include между файлами”, а
-“появилась новая связь между крупными областями проекта”.
+This is a level above the ordinary `addedEdges`: not "a new include between files", but
+"a new link appeared between large areas of the project".
 
-## Контекст
+## Context
 
-До задачи `archcheck` уже умел:
+Before the task, `archcheck` already knew how to:
 
-- новые file-level рёбра;
-- новые/выросшие циклы;
-- рост chain length / NCCD / появление god-header.
+- new file-level edges;
+- new/grown cycles;
+- growth in chain length / NCCD / appearance of a god-header.
 
-Но в коде не было сигнала на вопрос:
+But the code had no signal for the question:
 
-> “возникла ли новая связь между двумя областями проекта, которые раньше не зависели друг от друга?”
+> "did a new link appear between two areas of the project that previously did not depend on each other?"
 
-При этом в исследовательском `graph_probe.py` уже существовала близкая идея
-`[MODULE]` (`directory = module`) как snapshot-эвристика. Значит сигнал полезен,
-но жил мимо продуктового diff/report core.
+Meanwhile, the research `graph_probe.py` already had a close idea,
+`[MODULE]` (`directory = module`) as a snapshot heuristic. So the signal is useful,
+but lived outside the product diff/report core.
 
-## Как работает
+## How it works
 
-В `RegressionReport` добавлено поле:
+In `RegressionReport`, a field was added:
 
 - `newCrossAreaDependencies`
 
-Каждый элемент хранит:
+Each element stores:
 
 - `fromArea`
 - `toArea`
-- `edgeCount` — сколько file-level рёбер образуют этот новый канал в current
-- `sampleFrom` / `sampleTo` — конкретный пример для ручной проверки
+- `edgeCount` — how many file-level edges form this new channel in current
+- `sampleFrom` / `sampleTo` — a concrete example for manual review
 
-### Эвристика области (`area`)
+### Area heuristic (`area`)
 
-Это **zero-config area**, а не config-defined module:
+This is a **zero-config area**, not a config-defined module:
 
-- если в объединении `baseline + current` несколько top-level директорий, область = первый сегмент пути (`src`, `tests`, `plugins`);
-- если весь проект живёт под одним общим top-level, область = первые два сегмента (`src/core`, `src/net`) — иначе всё схлопнулось бы в один `src`.
+- if the union of `baseline + current` has several top-level directories, the area = the first path segment (`src`, `tests`, `plugins`);
+- if the whole project lives under one common top-level, the area = the first two segments (`src/core`, `src/net`) — otherwise everything would collapse into a single `src`.
 
-Классификатор строится **по объединению путей baseline и current**, чтобы новая
-top-level директория не меняла гранулярность между снимками и не порождала ложные
-"новые" пары.
+The classifier is built **on the union of baseline and current paths**, so that a new
+top-level directory does not change the granularity between snapshots and does not produce false
+"new" pairs.
 
-### Семантика
+### Semantics
 
-- если в baseline уже существовал любой канал `A -> B`, новые file-level рёбра
-  внутри этой пары не считаются новым area-signal;
-- если в current впервые появился любой канал `A -> B`, репортится один drift-hit
-  на пару областей;
-- внутризональные рёбра (`A -> A`) игнорируются.
+- if any channel `A -> B` already existed in the baseline, new file-level edges
+  within that pair do not count as a new area signal;
+- if any channel `A -> B` appears in current for the first time, one drift hit is reported
+  per area pair;
+- intra-area edges (`A -> A`) are ignored.
 
-## Вывод в отчёт
+## Report output
 
-Сигнал включён в обычный `buildRegressionReport()` и текстовый diff-отчёт.
+The signal is included in the ordinary `buildRegressionReport()` and the text diff report.
 
-Новые поля отчёта:
+New report fields:
 
 - `new_area_deps: N`
-- секция `new_cross_area_dependencies:`
+- section `new_cross_area_dependencies:`
 
-Дополнительных CLI-флагов не требуется.
+No additional CLI flags are required.
 
-## Проверено
+## Verified
 
-Без запуска сборки/тестов в этой сессии добавлены:
+Without running build/tests in this session, the following were added:
 
-- unit-тесты в `tests/unit/diff/regression_report_test.cpp`
-- integration-тест в `tests/integration/diff/git_diff_test.cpp`
+- unit tests in `tests/unit/diff/regression_report_test.cpp`
+- integration test in `tests/integration/diff/git_diff_test.cpp`
 
-Покрыты случаи:
+Cases covered:
 
-- первая связь `tests -> src` репортится один раз на пару областей;
-- рост уже существующей пары не считается “новой” связью;
-- текстовый отчёт печатает новую секцию;
-- git-based diff ловит новый межзональный канал на temp-repo сценарии.
+- the first `tests -> src` link is reported once per area pair;
+- growth of an already-existing pair does not count as a "new" link;
+- the text report prints the new section;
+- git-based diff catches a new cross-area channel in a temp-repo scenario.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Делать zero-config **areas**, а не ждать runtime `modules` | нужен полезный сигнал уже в `v0.1` diff-core |
-| Классификатор строить на объединении `baseline + current` | новая top-level директория не должна ломать сравнение |
-| Один hit на пару областей, а не N hits на file-level рёбра | меньше шума, сигнал остаётся архитектурным |
-| Сохранять `sampleFrom/sampleTo` | finding должен открываться и проверяться руками |
-| Не смешивать это с `layers/forbidden/independence` | настоящий policy layer остаётся задачей `v0.2` |
+| Do zero-config **areas**, not wait for runtime `modules` | a useful signal is needed already in the `v0.1` diff-core |
+| Build the classifier on the union of `baseline + current` | a new top-level directory must not break the comparison |
+| One hit per area pair, not N hits per file-level edge | less noise, the signal stays architectural |
+| Keep `sampleFrom/sampleTo` | a finding must be openable and checkable by hand |
+| Do not mix this with `layers/forbidden/independence` | the real policy layer remains a `v0.2` task |
 
-## Как работает
+## How it works
 
 - [include/archcheck/diff/regression_report.h](../../include/archcheck/diff/regression_report.h)
-  — `NewCrossAreaDependency` и новое поле в `RegressionReport`
+  — `NewCrossAreaDependency` and the new field in `RegressionReport`
 - [src/diff/regression_report.cpp](../../src/diff/regression_report.cpp)
-  — area-classifier, агрегация cross-area рёбер, детекция новых пар и текстовый вывод
+  — area classifier, cross-area edge aggregation, detection of new pairs and text output
 - [tests/unit/diff/regression_report_test.cpp](../../tests/unit/diff/regression_report_test.cpp)
-  — unit coverage сигнала
+  — unit coverage of the signal
 - [tests/integration/diff/git_diff_test.cpp](../../tests/integration/diff/git_diff_test.cpp)
   — git-based integration scenario
 
-## Чем управляется
+## What controls it
 
-- обычным `archcheck --diff <revspec> [path]`
-- zero-config path heuristic, без `.archcheck.yml`
+- the ordinary `archcheck --diff <revspec> [path]`
+- zero-config path heuristic, without `.archcheck.yml`
 
-## С чем связана
+## What it relates to
 
-- `graph::addedEdges()` / `graph::grownSccs()` — уже существующий diff core
-- `graph_probe.py` — исследовательский предшественник идеи
-- будущий config-policy layer (`layers` / `forbidden` / `independence`) — точный successor этого эвристического сигнала
+- `graph::addedEdges()` / `graph::grownSccs()` — already-existing diff core
+- `graph_probe.py` — the research predecessor of the idea
+- the future config-policy layer (`layers` / `forbidden` / `independence`) — the precise successor of this heuristic signal
 
-## Диагностика
+## Diagnostics
 
-Если сигнал выглядит шумным:
+If the signal looks noisy:
 
-1. проверить, как именно эвристика нарезала области по путям;
-2. открыть `sampleFrom -> sampleTo` и убедиться, что include реальный;
-3. помнить, что `include/` + `src/` одной библиотеки может выглядеть как новая area-pair связь в zero-config режиме;
-4. для точного boundary enforcement переходить на config-defined modules в `v0.2`.
+1. check how exactly the heuristic sliced the areas by paths;
+2. open `sampleFrom -> sampleTo` and make sure the include is real;
+3. remember that `include/` + `src/` of the same library may look like a new area-pair link in zero-config mode;
+4. for precise boundary enforcement, switch to config-defined modules in `v0.2`.

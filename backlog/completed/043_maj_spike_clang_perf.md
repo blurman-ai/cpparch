@@ -1,56 +1,56 @@
-# [SCAN] Спайк: libclang на spdlog/fmt — закрыть вопрос «нужен ли fast-backend в v0.1»
+# [SCAN] Spike: libclang on spdlog/fmt — close the question "is a fast backend needed in v0.1"
 
-**Дата создания:** 2026-05-29
-**Дата старта:** 2026-05-29
-**Статус:** wip
-**Модуль:** SCAN
-**Приоритет:** major
-**Сложность:** S (1–2 дня: setup + замер + краткий отчёт)
-**Блокирует:** #042 (clang_semantic_backend — скоуп зависит от ответа спайка)
-**Заблокирован:** —
-**Related:** #7 (gh — owner), #006 (spec_refactor — заложил двух-бекендную схему), #042 (clang_semantic_backend)
+**Created:** 2026-05-29
+**Started:** 2026-05-29
+**Status:** wip
+**Module:** SCAN
+**Priority:** major
+**Complexity:** S (1–2 days: setup + measurement + a short report)
+**Blocks:** #042 (clang_semantic_backend — its scope depends on the spike's answer)
+**Blocked by:** —
+**Related:** #7 (gh — owner), #006 (spec_refactor — laid down the two-backend scheme), #042 (clang_semantic_backend)
 
-## Цель
+## Goal
 
-**Одна цифра, закрывающая открытый архитектурный вопрос из спека: нужна ли двух-бекендная схема в v0.1.**
+**One number that closes the open architectural question from the spec: is the two-backend scheme needed in v0.1.**
 
-Не «поиграться с clang». Не «начать пилить libclang-бэкенд». Замерить время и пиковую память `clang_parseTranslationUnit` + `clang_getInclusions` по каждому TU реального проекта.
+Not "play with clang". Not "start building the libclang backend". Measure the time and peak memory of `clang_parseTranslationUnit` + `clang_getInclusions` per TU of a real project.
 
-- **Если секунды на средний проект** — libclang-only живёт, fast-бэкенд в MVP не нужен, скоуп #042 усыхает до «libclang as default», `--with-clang`-флаг не нужен.
-- **Если минуты** — fast-бэкенд обязателен в v0.1, двух-бекендная схема подтверждена, #042 идёт как запланировано.
+- **If seconds for a medium project** — libclang-only is viable, a fast backend isn't needed in the MVP, the scope of #042 shrinks to "libclang as default", and the `--with-clang` flag isn't needed.
+- **If minutes** — a fast backend is mandatory in v0.1, the two-backend scheme is confirmed, and #042 proceeds as planned.
 
-## Контекст
+## Context
 
-Двух-бекендная схема (fast preprocessor + libclang opt-in) — текущее решение спека и #006. Но это решение принято без замеров, по интуиции «libclang дорогой». Пока не проверено руками — нельзя ни уверенно строить #042 на этой архитектуре, ни упростить её.
+The two-backend scheme (fast preprocessor + libclang opt-in) is the current decision of the spec and #006. But that decision was made without measurements, on the intuition that "libclang is expensive". Until it's verified by hand, you can neither confidently build #042 on this architecture nor simplify it.
 
-**Технический нюанс:** для include-графа AST не нужен — `clang_getInclusions` отдаёт дерево включений напрямую. Но дорогая часть всё равно `parseTranslationUnit`, её не обойти, если хочешь резолвить реальные пути (а не наивный regex по `#include`, который ломается на include-путях и `#ifdef`). Вот это и есть настоящий водораздел между двумя бекендами — точность резолвинга против скорости. Спайк должен дать это руками.
+**Technical nuance:** the AST is not needed for the include graph — `clang_getInclusions` returns the inclusion tree directly. But the expensive part is still `parseTranslationUnit`, which can't be avoided if you want to resolve real paths (rather than a naive regex over `#include`, which breaks on include paths and `#ifdef`). This is the real watershed between the two backends — resolution accuracy versus speed. The spike should give this by hand.
 
-## План выполнения
+## Execution plan
 
-- [x] Взять реальный проект как target (предпочтительно `spdlog` или `fmt` — компактные, известные, есть `compile_commands.json`)
-- [x] Сгенерировать `compile_commands.json` (CMake export)
-- [x] Минимальный код: загрузить `CompilationDatabase`, по каждому TU вызвать `clang_parseTranslationUnit`, потом `clang_getInclusions` для построения include-графа
-- [x] **Замер 1:** total wall-clock на полном проходе (горячий cache, 3 прогона, медиана)
-- [x] **Замер 2:** пиковая RSS (`/usr/bin/time -v` или `getrusage`)
-- [x] **Замер 3:** wall-clock одного среднего TU
-- [ ] Сравнить с грубой оценкой fast-backend (regex по `#include` на тех же TU — несколько секунд на всё)
-- [ ] Решение в `docs/dev/spike_clang_perf.md` (1 страница): цифры + вывод + рекомендация по #042
-- [ ] Обновить `docs/architecture-spec.md`: либо подтвердить двух-бекендную схему ссылкой на спайк, либо переписать §«Двух-бекендная схема» под libclang-only
-- [ ] Закрыть либо удалить флаг `--with-clang` в плане #042 в зависимости от результата
+- [x] Take a real project as a target (preferably `spdlog` or `fmt` — compact, well-known, with a `compile_commands.json`)
+- [x] Generate `compile_commands.json` (CMake export)
+- [x] Minimal code: load the `CompilationDatabase`, for each TU call `clang_parseTranslationUnit`, then `clang_getInclusions` to build the include graph
+- [x] **Measurement 1:** total wall-clock on a full pass (hot cache, 3 runs, median)
+- [x] **Measurement 2:** peak RSS (`/usr/bin/time -v` or `getrusage`)
+- [x] **Measurement 3:** wall-clock of a single median TU
+- [ ] Compare against a rough estimate of the fast backend (regex over `#include` on the same TUs — a few seconds for everything)
+- [ ] Decision in `docs/dev/spike_clang_perf.md` (1 page): numbers + conclusion + recommendation for #042
+- [ ] Update `docs/architecture-spec.md`: either confirm the two-backend scheme with a link to the spike, or rewrite §"Two-backend scheme" for libclang-only
+- [ ] Close or remove the `--with-clang` flag in the #042 plan depending on the result
 
-## Критерий приёмки
+## Acceptance criterion
 
-После прогона спайка ответ на вопрос «нужен ли fast-backend в v0.1» сформулирован одной строкой с цифрой и линкуется в #042 как обоснование.
+After running the spike, the answer to "is a fast backend needed in v0.1" is stated in a single line with a number and is linked into #042 as justification.
 
-## Сделано
+## Done
 
-**2026-05-29 — setup + первый замер libclang**
+**2026-05-29 — setup + first libclang measurement**
 
-- Хост: Astra Linux 1.7, GCC 8.3, CMake 3.18.4. Доустановлено через apt: `libclang-19-dev`, `time` (GNU). libclang-19 = свежая ветка из astra2-репы.
-- Target: **spdlog** (master, `2e71fdf3`) — fmt master не конфигурируется на CMake 3.18 (нужны policy ≥ 3.27 для `INTERFACE_LIBRARY DEBUG_POSTFIX`).
-- compile_commands.json: spdlog + tests + examples (без bench) → **141 TU**.
-- Spike в [experiments/clang_perf/](experiments/clang_perf/): `CMakeLists.txt`, `main.cpp` (loop по `CompilationDatabase` → `parseTranslationUnit` с `SkipFunctionBodies` + `DetailedPreprocessingRecord` + `KeepGoing` → `getInclusions`), `regex_baseline.cpp` (наивный fast-backend на regex по `#include`), `README.md`.
-- 3 прогона `clang_perf` (Release, hot cache):
+- Host: Astra Linux 1.7, GCC 8.3, CMake 3.18.4. Installed via apt: `libclang-19-dev`, `time` (GNU). libclang-19 = the fresh branch from the astra2 repo.
+- Target: **spdlog** (master, `2e71fdf3`) — fmt master doesn't configure on CMake 3.18 (needs policy ≥ 3.27 for `INTERFACE_LIBRARY DEBUG_POSTFIX`).
+- compile_commands.json: spdlog + tests + examples (without bench) → **141 TU**.
+- Spike in [experiments/clang_perf/](experiments/clang_perf/): `CMakeLists.txt`, `main.cpp` (loop over `CompilationDatabase` → `parseTranslationUnit` with `SkipFunctionBodies` + `DetailedPreprocessingRecord` + `KeepGoing` → `getInclusions`), `regex_baseline.cpp` (a naive fast backend on regex over `#include`), `README.md`.
+- 3 `clang_perf` runs (Release, hot cache):
 
 | Run | Wall (s) | Median TU (ms) | Peak RSS (MB) |
 |-----|---------:|---------------:|--------------:|
@@ -58,76 +58,76 @@
 | 2   | 14.72    | 71.39          | 136           |
 | 3   | 15.12    | 74.10          | 136           |
 
-- **Цифра: ~15 секунд на 141 TU = ~105 ms/TU средне, ~73 ms median.** Полная масштабная картина: проект на ~1500 TU (×10 spdlog) → ~2.5 минуты на libclang-only single-thread. С параллелизмом по TU (libclang thread-safe per-index) — реалистично ~30-40 секунд на типичный проект.
+- **Number: ~15 seconds on 141 TU = ~105 ms/TU average, ~73 ms median.** The full-scale picture: a project of ~1500 TU (×10 spdlog) → ~2.5 minutes on libclang-only single-thread. With parallelism across TUs (libclang is thread-safe per-index) — realistically ~30-40 seconds for a typical project.
 
-**2026-05-29 — regex baseline + отчёт + sync спека/задачи**
+**2026-05-29 — regex baseline + report + sync of spec/task**
 
-- regex-baseline ×3 прогона на тех же 141 TU: **total 11 мс, median 0.04 мс/TU, peak RSS 3.5 MB.**
-- Контраст: libclang ×1350 медленнее по wall, ×40 тяжелее по памяти.
-- Отчёт: [docs/dev/spike_clang_perf.md](../../docs/dev/spike_clang_perf.md) — цифры, экстраполяция, рекомендация.
-- Спека: §«Двух-бекендная схема» подтверждена ссылкой на отчёт, риск #1 (libclang перф) обновлён конкретными цифрами.
-- #042: разблокирован, скоуп остаётся как написан, добавлена заметка про libclang ≥ 18.
+- regex-baseline ×3 runs on the same 141 TU: **total 11 ms, median 0.04 ms/TU, peak RSS 3.5 MB.**
+- Contrast: libclang is ×1350 slower by wall, ×40 heavier in memory.
+- Report: [docs/dev/spike_clang_perf.md](../../docs/dev/spike_clang_perf.md) — numbers, extrapolation, recommendation.
+- Spec: §"Two-backend scheme" confirmed with a link to the report; risk #1 (libclang perf) updated with concrete numbers.
+- #042: unblocked, scope stays as written, a note added about libclang ≥ 18.
 
-**Итоговый ответ:** двух-бекендная схема нужна. libclang в v0.1 — opt-in (`--with-clang`), default = fast-backend.
+**Final answer:** the two-backend scheme is needed. libclang in v0.1 is opt-in (`--with-clang`), default = fast backend.
 
-## В работе
+## In progress
 
-- (пусто — задача готова к закрытию)
+- (empty — the task is ready to close)
 
-## Следующие шаги
+## Next steps
 
-Все шаги завершены. Дальше — #042 фаза 1 (CMake opt-in + скелет `clang_scanner.h/.cpp`).
+All steps are complete. Next — #042 phase 1 (CMake opt-in + a skeleton `clang_scanner.h/.cpp`).
 
-## Как работает
+## How it works
 
-Спайк = два бинаря на одну и ту же выборку TU из `compile_commands.json`:
+The spike = two binaries on the same TU sample from `compile_commands.json`:
 
-1. `clang_perf` — открывает БД через `clang_CompilationDatabase_fromDirectory`, для каждой TU вызывает `clang_parseTranslationUnit` (с `SkipFunctionBodies | DetailedPreprocessingRecord | KeepGoing`) и `clang_getInclusions`. Это близкий аналог того, что archcheck libclang-backend будет делать. Замер per-TU + total через `std::chrono::steady_clock`, peak RSS — через внешний `/usr/bin/time -v`.
-2. `regex_baseline` — читает только список TU из БД, grep'ом по regex считает `#include`-строки в каждом TU. Не разрешает пути, не идёт рекурсивно. Это lower-bound «fast-backend наивный»; реалистичный preprocessor-only бэкенд будет в ~10× медленнее baseline'а.
+1. `clang_perf` — opens the DB via `clang_CompilationDatabase_fromDirectory`, for each TU calls `clang_parseTranslationUnit` (with `SkipFunctionBodies | DetailedPreprocessingRecord | KeepGoing`) and `clang_getInclusions`. This is a close analog of what the archcheck libclang backend will do. Per-TU + total measurement via `std::chrono::steady_clock`, peak RSS via an external `/usr/bin/time -v`.
+2. `regex_baseline` — reads only the list of TUs from the DB, and with a grep over a regex counts `#include` lines in each TU. Does not resolve paths, does not recurse. This is a lower bound for "naive fast backend"; a realistic preprocessor-only backend will be ~10× slower than the baseline.
 
-Контраст двух цифр (libclang ~15s vs regex ~11ms на одних и тех же 141 TU) даёт порядок величины: libclang в ~1350 раз дороже регэкса по wall-clock на тех же входах, что подтверждает решение спека — fast-backend нужен для CI guard-job'а, libclang — opt-in для семантики.
+The contrast of the two numbers (libclang ~15s vs regex ~11ms on the same 141 TU) gives the order of magnitude: libclang is ~1350× more expensive than the regex by wall-clock on the same inputs, which confirms the spec's decision — a fast backend is needed for the CI guard job, libclang is opt-in for semantics.
 
-## Итог
+## Outcome
 
-**Статус:** completed
-**Дата завершения:** 2026-05-29
+**Status:** completed
+**Completed:** 2026-05-29
 
-Ответ на вопрос задачи зафиксирован одной строкой: **двух-бекендная схема нужна, скоуп #042 не меняется.** Артефакты — [docs/dev/spike_clang_perf.md](../../docs/dev/spike_clang_perf.md) (отчёт), [experiments/clang_perf/](../../experiments/clang_perf/) (воспроизводимый спайк).
+The answer to the task's question is recorded in a single line: **the two-backend scheme is needed, the scope of #042 doesn't change.** Artifacts — [docs/dev/spike_clang_perf.md](../../docs/dev/spike_clang_perf.md) (report), [experiments/clang_perf/](../../experiments/clang_perf/) (reproducible spike).
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Real-world target (spdlog/fmt), не synthetic | синтетика не даёт реалистичных include-цепочек, оценка libclang перекосится |
-| Не на CI | измерения шумят, нужны стабильные цифры |
-| Спайк = решение, а не задел кода | результат — обновлённый спек, а не библиотека кода |
-| Target = spdlog, не fmt | fmt master требует CMake ≥ 3.27 (наш Astra-host = 3.18). spdlog конфигурируется чисто и даёт больше TU (с tests+examples → 141 vs fmt-ядро = 1). |
-| libclang **19**, не 11 | 11 — старая ветка с менее эффективным parser'ом; 19 — то, что archcheck будет требовать как минимум. Замер «худшего случая» (старее) был бы вводящим в заблуждение. Зафиксировать версию в отчёте. |
-| Прямой `find_path` libclang.so + Index.h, не `find_package(Clang)` | На Astra `find_package(Clang CONFIG)` цепляет битый llvm-11 ClangConfig.cmake (ссылается на отсутствующий ClangTargets.cmake). Для C API CMake-пакет не нужен. |
-| `SkipFunctionBodies` в `parseTranslationUnit` | archcheck не нужны тела функций — нужны namespace/decl/include-граф. SkipFunctionBodies ускоряет ~2x на коде с тяжёлыми шаблонами. Реалистично для «бенчмарка под нашу задачу». |
-| Внешний `/usr/bin/time -v` для RSS, не `getrusage` внутри | проще, не пачкает спайк-код измерительной обвязкой. |
+| Decision | Reason |
+|----------|--------|
+| Real-world target (spdlog/fmt), not synthetic | synthetic doesn't give realistic include chains, the libclang estimate would be skewed |
+| Not on CI | measurements are noisy, stable numbers are needed |
+| Spike = a decision, not a code groundwork | the result is an updated spec, not a code library |
+| Target = spdlog, not fmt | fmt master requires CMake ≥ 3.27 (our Astra host = 3.18). spdlog configures cleanly and gives more TUs (with tests+examples → 141 vs fmt-core = 1). |
+| libclang **19**, not 11 | 11 is an old branch with a less efficient parser; 19 is what archcheck will require at minimum. Measuring the "worst case" (older) would be misleading. Pin the version in the report. |
+| Direct `find_path` of libclang.so + Index.h, not `find_package(Clang)` | On Astra `find_package(Clang CONFIG)` pulls in a broken llvm-11 ClangConfig.cmake (references a missing ClangTargets.cmake). The CMake package isn't needed for the C API. |
+| `SkipFunctionBodies` in `parseTranslationUnit` | archcheck doesn't need function bodies — it needs namespace/decl/include graph. SkipFunctionBodies speeds things up ~2x on code with heavy templates. Realistic for "a benchmark for our task". |
+| External `/usr/bin/time -v` for RSS, not `getrusage` inside | simpler, doesn't pollute the spike code with measurement scaffolding. |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `experiments/clang_perf/CMakeLists.txt` | new — конфиг спайка (libclang-19 через прямой find_path) |
-| `experiments/clang_perf/main.cpp` | new — libclang per-TU замер |
+| File | Change |
+|------|--------|
+| `experiments/clang_perf/CMakeLists.txt` | new — spike config (libclang-19 via direct find_path) |
+| `experiments/clang_perf/main.cpp` | new — libclang per-TU measurement |
 | `experiments/clang_perf/regex_baseline.cpp` | new — fast-backend lower bound |
-| `experiments/clang_perf/README.md` | new — как запустить, что доустанавливать |
-| `experiments/clang_perf/.gitignore` | new — артефакты `*.csv`/`*.time` не коммитим (содержат локальные абсолютные пути) |
-| `docs/dev/spike_clang_perf.md` | отчёт с цифрами и решением (TBD) |
-| `docs/architecture-spec.md` | подтвердить / переписать §«Двух-бекендная схема» (TBD) |
-| `backlog/new/042_maj_clang_semantic_backend.md` | обновить скоуп по результатам (TBD) |
+| `experiments/clang_perf/README.md` | new — how to run, what to install |
+| `experiments/clang_perf/.gitignore` | new — `*.csv`/`*.time` artifacts not committed (contain local absolute paths) |
+| `docs/dev/spike_clang_perf.md` | report with numbers and decision (TBD) |
+| `docs/architecture-spec.md` | confirm / rewrite §"Two-backend scheme" (TBD) |
+| `backlog/new/042_maj_clang_semantic_backend.md` | update scope per results (TBD) |
 
-## Чем управляется
-
-<!-- TODO -->
-
-## С чем связана
+## Controlled by
 
 <!-- TODO -->
 
-## Диагностика
+## Related to
+
+<!-- TODO -->
+
+## Diagnostics
 
 <!-- TODO -->

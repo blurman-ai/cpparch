@@ -1,160 +1,160 @@
 # [CI][RELEASE] Prebuilt archcheck binary for downstream CI consumers
 
-**Дата создания:** 2026-06-25
-**Дата старта:** 2026-06-25
-**Статус:** completed
-**Модуль:** CI / RELEASE / DOCS
-**Приоритет:** major
-**Сложность:** M
-**Блокирует:** быстрые downstream-интеграции `archcheck` в чужих CI без сборки из исходников
-**Заблокирован:** —
+**Created:** 2026-06-25
+**Start date:** 2026-06-25
+**Status:** completed
+**Module:** CI / RELEASE / DOCS
+**Priority:** major
+**Complexity:** M
+**Blocks:** fast downstream integrations of `archcheck` in third-party CI without building from source
+**Blocked by:** —
 **Related:** #136 (CLI/docs contract), #138 (release readiness), docs/ci_usage.md
 
-## Цель
+## Goal
 
-Дать пользователям `archcheck` нормальный install path для CI: скачать pinned
-prebuilt binary из GitHub Release, проверить версию/checksum и сразу запускать
-`archcheck`, не тратя 3-4 минуты каждого workflow run на `git clone cpparch` +
+Give `archcheck` users a proper install path for CI: download a pinned
+prebuilt binary from a GitHub Release, verify the version/checksum, and run
+`archcheck` immediately, without spending 3-4 minutes of every workflow run on `git clone cpparch` +
 `cmake` + `FetchContent` + build.
 
-## Контекст
+## Context
 
-В `leadline` `archcheck` был встроен по текущему гайду `docs/ci_usage.md` через
-сборку из исходников внутри downstream workflow. Это работает, но первый реальный
-run показал цену: job `Archcheck` занял около 4 минут, почти полностью на сборку
-инструмента. Сам binary маленький: локальный Linux x86_64 release `archcheck` около
-1.6 MB и зависит только от стандартных системных библиотек (`libstdc++`, `libm`,
+In `leadline`, `archcheck` was wired in per the current `docs/ci_usage.md` guide via
+a build from source inside the downstream workflow. This works, but the first real
+run showed the cost: the `Archcheck` job took about 4 minutes, almost entirely on building the
+tool. The binary itself is small: a local Linux x86_64 release `archcheck` is about
+1.6 MB and depends only on standard system libraries (`libstdc++`, `libm`,
 `libgcc_s`, `libc`).
 
-Для CLI-инструмента, который используется как gate в других репозиториях, сборка из
-исходников должна быть fallback/developer path, а не основной recommended CI path.
-Основной path: versioned release asset.
+For a CLI tool used as a gate in other repositories, building from
+source should be a fallback/developer path, not the main recommended CI path.
+The main path: a versioned release asset.
 
-## Что сделать
+## What to do
 
-- Добавить release workflow в `cpparch`, который на tag `vX.Y.Z` собирает
-  `archcheck` для `ubuntu-24.04` / Linux x86_64.
-- Упаковать binary в asset с предсказуемым именем, например:
+- Add a release workflow to `cpparch` that, on tag `vX.Y.Z`, builds
+  `archcheck` for `ubuntu-24.04` / Linux x86_64.
+- Package the binary into an asset with a predictable name, e.g.:
   `archcheck-${version}-linux-x86_64.tar.gz`.
-- Публиковать checksum рядом с binary (`.sha256`) и документировать проверку.
-- В asset включить минимум:
+- Publish a checksum next to the binary (`.sha256`) and document the verification.
+- Include in the asset at minimum:
   - `archcheck`;
   - `LICENSE`;
-  - короткий `README`/install note, если полезно.
-- Проверить, что скачанный asset исполняется на clean GitHub-hosted
-  `ubuntu-24.04` runner и печатает корректный `archcheck --version`.
-- Обновить `docs/ci_usage.md`:
-  - recommended path: скачать pinned release binary;
-  - fallback path: собрать из исходников;
-  - запретить `latest` как CI default, рекомендовать pin по tag + checksum.
-- Обновить `.github/workflows/example_archcheck_pr.yml`, чтобы install step
-  использовал release binary, а build-from-source остался комментарием/fallback.
+  - a short `README`/install note, if useful.
+- Verify that the downloaded asset runs on a clean GitHub-hosted
+  `ubuntu-24.04` runner and prints a correct `archcheck --version`.
+- Update `docs/ci_usage.md`:
+  - recommended path: download the pinned release binary;
+  - fallback path: build from source;
+  - forbid `latest` as a CI default, recommend a pin by tag + checksum.
+- Update `.github/workflows/example_archcheck_pr.yml` so that the install step
+  uses the release binary, and build-from-source remains a comment/fallback.
 
 ## Acceptance
 
-- [x] Есть GitHub Release asset для Linux x86_64 с `archcheck` — **v0.1.0 выпущен**
+- [x] There is a GitHub Release asset for Linux x86_64 with `archcheck` — **v0.1.0 released**
       (https://github.com/blurman-ai/cpparch/releases/tag/v0.1.0), tarball 1.3 MB.
-- [x] Есть checksum asset (`.sha256`) и пример проверки checksum в CI snippet
+- [x] There is a checksum asset (`.sha256`) and a checksum-verification example in the CI snippet
       (`ci_usage.md`, `example_archcheck_pr.yml`, release notes).
-- [x] `docs/ci_usage.md` показывает быстрый install path через pinned release.
-- [x] `example_archcheck_pr.yml` больше не требует CMake build в happy path
-      (release-download в happy path, build-from-source — закомментированный fallback).
-- [x] В отдельном smoke job скачанный release asset запускается
-      (`--version`/`--help`/`.`) — job `smoke` в `release.yml`, зелёный на v0.1.0.
-- [x] Downstream workflow может заменить build step на download/install без
-      изменения `archcheck --diff` контракта (бинарь в `/usr/local/bin`, вызов `archcheck` без пути).
+- [x] `docs/ci_usage.md` shows a fast install path via a pinned release.
+- [x] `example_archcheck_pr.yml` no longer requires a CMake build in the happy path
+      (release-download in the happy path, build-from-source — a commented-out fallback).
+- [x] In a separate smoke job the downloaded release asset runs
+      (`--version`/`--help`/`.`) — job `smoke` in `release.yml`, green on v0.1.0.
+- [x] A downstream workflow can replace the build step with a download/install without
+      changing the `archcheck --diff` contract (binary in `/usr/local/bin`, calling `archcheck` without a path).
 
-## Прогресс (2026-06-25)
+## Progress (2026-06-25)
 
-Сделано (всё локально верифицировано, не закоммичено):
-- `.github/workflows/release.yml` — новый. Триггер на тег `v[0-9]+.[0-9]+.[0-9]+(-*)`,
-  Release-сборка на ubuntu-24.04 (`-static-libstdc++ -static-libgcc`), version-check
-  бинаря против тега, упаковка `archcheck-X.Y.Z-linux-x86_64.tar.gz` (+LICENSE,
-  README.install) + `.sha256`, `gh release create`, отдельный smoke-job на чистом runner.
-  rc/alpha/beta-теги → prerelease.
-- `docs/ci_usage.md` — секция «Установка в CI»: recommended pinned release + fallback
-  build-from-source; оба сценария (full scan / PR diff) переведены на release-install;
-  явный запрет mutable `latest`.
+Done (all verified locally, not committed):
+- `.github/workflows/release.yml` — new. Trigger on tag `v[0-9]+.[0-9]+.[0-9]+(-*)`,
+  Release build on ubuntu-24.04 (`-static-libstdc++ -static-libgcc`), version-check
+  of the binary against the tag, packaging `archcheck-X.Y.Z-linux-x86_64.tar.gz` (+LICENSE,
+  README.install) + `.sha256`, `gh release create`, a separate smoke job on a clean runner.
+  rc/alpha/beta tags → prerelease.
+- `docs/ci_usage.md` — "Installing in CI" section: recommended pinned release + fallback
+  build-from-source; both scenarios (full scan / PR diff) moved to release-install;
+  an explicit ban on the mutable `latest`.
 - `.github/workflows/example_archcheck_pr.yml` — happy path = release download+checksum,
-  build-from-source закомментирован как fallback.
-- `docs/dev/git_workflow.md` — шаг 7 release-процесса: GitHub Release теперь автоматический.
-- `.claude/commands/release.md` — новая команда `/release X.Y.Z`: bump→changelog→build
-  gate→commit→annotated tag→push (тег запускает release.yml). Подтверждение перед push.
+  build-from-source commented out as a fallback.
+- `docs/dev/git_workflow.md` — step 7 of the release process: the GitHub Release is now automatic.
+- `.claude/commands/release.md` — a new command `/release X.Y.Z`: bump→changelog→build
+  gate→commit→annotated tag→push (the tag triggers release.yml). Confirmation before push.
 
-Локальная верификация:
-- Release-сборка с `-static-libstdc++ -static-libgcc` ОК; `ldd` = только libm/libc/ld
-  (libstdc++/libgcc_s ушли), `--version` = `archcheck 0.1.0`.
-- End-to-end pack→sha256→verify(ЦЕЛ)→extract→`archcheck --version`→`archcheck empty`(exit 0) — OK.
+Local verification:
+- Release build with `-static-libstdc++ -static-libgcc` OK; `ldd` = only libm/libc/ld
+  (libstdc++/libgcc_s gone), `--version` = `archcheck 0.1.0`.
+- End-to-end pack→sha256→verify(TARGET)→extract→`archcheck --version`→`archcheck empty`(exit 0) — OK.
 
-Закоммичено + запушено в master:
+Committed + pushed to master:
 - 3bd3c07 — release pipeline + /release command.
-- b79b96b — version-check vs tag numeric core (rc-теги не падают).
-- 167bbf0 — fix checksum verify в release notes (rename-форма падала у потребителя;
-  воспроизвёл обе формы локально: rename → exit 1, original-names → OK).
+- b79b96b — version-check vs tag numeric core (rc tags do not fail).
+- 167bbf0 — fix checksum verify in release notes (the rename form failed for the consumer;
+  reproduced both forms locally: rename → exit 1, original-names → OK).
 
-Dry-run на реальных GitHub-runner'ах (rc1, затем rc2 после фикса) — оба полностью
-зелёные, после проверки оба прибраны (тег+release удалены). На чистом ubuntu-24.04:
+Dry-run on real GitHub runners (rc1, then rc2 after the fix) — both fully
+green, after the check both cleaned up (tag+release deleted). On a clean ubuntu-24.04:
 checksum `...tar.gz: OK`, `archcheck 0.1.0`, `Usage:`, `No violations found.`.
-Версия бинаря (статик-линк, ldd=libm/libc/ld) совпала с тегом. Asset ~1.3 MB gz.
+The binary's version (static-link, ldd=libm/libc/ld) matched the tag. Asset ~1.3 MB gz.
 
-Боевой релиз **v0.1.0 выпущен** (fed39d9 → tag v0.1.0):
-https://github.com/blurman-ai/cpparch/releases/tag/v0.1.0, prerelease=false, 4 asset'а.
+Production release **v0.1.0 published** (fed39d9 → tag v0.1.0):
+https://github.com/blurman-ai/cpparch/releases/tag/v0.1.0, prerelease=false, 4 assets.
 
-### Astra 1.7 / старый glibc (по ходу задачи)
+### Astra 1.7 / old glibc (along the way)
 
-Находка (скептик-проверка): динамический ubuntu-24.04 asset требует **glibc ≥ 2.38**
-и НЕ запускается на Astra 1.7 (glibc 2.28) — `version 'GLIBC_2.38' not found`.
-Решение (выбор юзера — «два asset'а»): второй asset собирается с `-static`
-(libc вшита, зависимости от glibc нет; archcheck форкает git и не трогает
-NSS/getpwnam → статическая glibc безопасна). Релиз теперь публикует оба:
-- `archcheck-X.Y.Z-linux-x86_64.tar.gz` — динамический, glibc ≥ 2.38, меньше;
-- `archcheck-X.Y.Z-linux-x86_64-static.tar.gz` — статический, любой Linux ≥ 3.2 (Astra/Debian10/RHEL8).
+Finding (skeptic-check): the dynamic ubuntu-24.04 asset requires **glibc ≥ 2.38**
+and does NOT run on Astra 1.7 (glibc 2.28) — `version 'GLIBC_2.38' not found`.
+Decision (user's choice — "two assets"): the second asset is built with `-static`
+(libc baked in, no glibc dependency; archcheck forks git and does not touch
+NSS/getpwnam → static glibc is safe). The release now publishes both:
+- `archcheck-X.Y.Z-linux-x86_64.tar.gz` — dynamic, glibc ≥ 2.38, smaller;
+- `archcheck-X.Y.Z-linux-x86_64-static.tar.gz` — static, any Linux ≥ 3.2 (Astra/Debian10/RHEL8).
 
-Доказано в CI: job `smoke-oldglibc` в контейнере `debian:10` (glibc 2.28 = база
-Astra) скачивает static-asset и запускает — `ldd ... 2.28`, `archcheck 0.1.0`,
-`No violations found.`, exit 0. Локально на этой машине (тоже Astra 1.7, glibc 2.28)
-static-бинарь тоже работает (`ldd` → «не является динамическим…»).
+Proven in CI: job `smoke-oldglibc` in a `debian:10` container (glibc 2.28 = Astra base)
+downloads the static asset and runs it — `ldd ... 2.28`, `archcheck 0.1.0`,
+`No violations found.`, exit 0. Locally on this machine (also Astra 1.7, glibc 2.28)
+the static binary also works (`ldd` → "not a dynamic…").
 
-Коммиты: c4350b9 (glibc-нота в доке), fed39d9 (static-asset + debian:10 smoke).
-Dry-run rc3 — все 3 job'а зелёные, прибран.
+Commits: c4350b9 (glibc note in the docs), fed39d9 (static asset + debian:10 smoke).
+Dry-run rc3 — all 3 jobs green, cleaned up.
 
-Осталось (внешнее, на стороне пользователя):
-- Проверить на `leadline`: заменить build-from-source на release-download
-  (static-asset под Astra-раннер, если он там), full scan = `No violations found`.
+Remaining (external, on the user's side):
+- Verify on `leadline`: replace build-from-source with release-download
+  (static asset for the Astra runner, if it is there), full scan = `No violations found`.
 
-## Итог
+## Outcome
 
-**Статус:** completed
-**Дата завершения:** 2026-06-25
+**Status:** completed
+**Completion date:** 2026-06-25
 
-Release-пайплайн (`release.yml`) на тег `vX.Y.Z` собирает и публикует два Linux
-x86_64 asset'а (dynamic glibc≥2.38 + fully-static) с `.sha256` и smoke-job'ами
-(чистый runner + `debian:10` для старого glibc). `v0.1.0` выпущен и живой.
-`docs/ci_usage.md` + `example_archcheck_pr.yml` дают готовый install path:
-download → `sha256sum -c` → `install /usr/local/bin`, **по умолчанию static**
-(работает на любом glibc, в т.ч. Astra 1.7 / ubuntu-22.04). `/release` команда
-автоматизирует bump→changelog→tag→push.
+The release pipeline (`release.yml`) on tag `vX.Y.Z` builds and publishes two Linux
+x86_64 assets (dynamic glibc≥2.38 + fully-static) with `.sha256` and smoke jobs
+(clean runner + `debian:10` for old glibc). `v0.1.0` released and live.
+`docs/ci_usage.md` + `example_archcheck_pr.yml` give a ready install path:
+download → `sha256sum -c` → `install /usr/local/bin`, **static by default**
+(works on any glibc, including Astra 1.7 / ubuntu-22.04). The `/release` command
+automates bump→changelog→tag→push.
 
-**Изменённые файлы (финальный заход, commit 4bc33aa):**
-- `docs/ci_usage.md` — дефолт install-сниппетов переведён на static-asset.
-- `.github/workflows/example_archcheck_pr.yml` — пример тоже на static.
-- `README.md` — указатель на `docs/ci_usage.md`.
+**Changed files (final pass, commit 4bc33aa):**
+- `docs/ci_usage.md` — the install snippet default moved to the static asset.
+- `.github/workflows/example_archcheck_pr.yml` — the example also on static.
+- `README.md` — pointer to `docs/ci_usage.md`.
 
-Ранее (этой задачей): `release.yml`, `/release`, glibc-нота, static-asset +
-debian:10 smoke — коммиты 3bd3c07, b79b96b, 167bbf0, c4350b9, fed39d9, 3bd9b14, 8a9d810.
+Earlier (this task): `release.yml`, `/release`, glibc note, static asset +
+debian:10 smoke — commits 3bd3c07, b79b96b, 167bbf0, c4350b9, fed39d9, 3bd9b14, 8a9d810.
 
-**Внешний follow-up (вне cpparch):** проверить на `leadline` замену
-build-from-source на release-download (static-asset под Astra-раннер).
+**External follow-up (outside cpparch):** verify on `leadline` the replacement of
+build-from-source with release-download (static asset for the Astra runner).
 
-## Не делать в этой задаче
+## Do not do in this task
 
-- Не делать package manager интеграции (`apt`, Homebrew, pipx, npm) — это отдельный
-  distribution layer после первого binary release.
-- Не делать Docker action как основной path. Docker может быть follow-up, но для
-  одного маленького CLI binary release asset проще, быстрее и прозрачнее.
-- Не использовать mutable `latest` в документации как рекомендуемый CI input.
+- Do not do package manager integrations (`apt`, Homebrew, pipx, npm) — that is a separate
+  distribution layer after the first binary release.
+- Do not make a Docker action the main path. Docker can be a follow-up, but for
+  a single small CLI binary a release asset is simpler, faster, and more transparent.
+- Do not use the mutable `latest` in the documentation as the recommended CI input.
 
-## Возможный CI snippet для потребителя
+## Possible CI snippet for the consumer
 
 ```yaml
 - name: Install archcheck
@@ -176,17 +176,17 @@ build-from-source на release-download (static-asset под Astra-раннер)
     archcheck --version
 ```
 
-## Проверка
+## Verification
 
-- На `cpparch`: release workflow dry-run/manual test на temporary tag.
-- На `leadline`: заменить локально build-from-source install step на release download
-  и убедиться, что full scan остаётся `No violations found`.
+- On `cpparch`: release workflow dry-run/manual test on a temporary tag.
+- On `leadline`: locally replace the build-from-source install step with a release download
+  and confirm the full scan stays `No violations found`.
 
-## Риски
+## Risks
 
-- ABI/glibc совместимость: собирать на `ubuntu-24.04` удобно для текущих runners, но
-  это не самый широкий Linux baseline. Для v0.1 достаточно, но в docs явно указать
-  supported runner image.
-- Supply chain: binary должен быть pinned по tag/checksum; mutable latest запрещён
-  как default.
-- Release process не должен зависеть от downstream репозитория.
+- ABI/glibc compatibility: building on `ubuntu-24.04` is convenient for current runners, but
+  it is not the widest Linux baseline. Good enough for v0.1, but state the
+  supported runner image explicitly in the docs.
+- Supply chain: the binary must be pinned by tag/checksum; mutable latest forbidden
+  as a default.
+- The release process must not depend on a downstream repository.

@@ -1,103 +1,103 @@
-# [RESEARCH][CORPUS] boolean_state per-struct drift — прогон по полному корпусу + отчёт
+# [RESEARCH][CORPUS] boolean_state per-struct drift — full-corpus run + report
 
-**Дата создания:** 2026-06-23
-**Дата старта:** 2026-06-25
-**Дата завершения:** 2026-06-25
-**Статус:** done (выполнено иным методом — см. ИТОГ)
-**Модуль:** RESEARCH / experiments/boolean_state
+**Created:** 2026-06-23
+**Started:** 2026-06-25
+**Completed:** 2026-06-25
+**Status:** done (done by a different method — see OUTCOME)
+**Module:** RESEARCH / experiments/boolean_state
 
-## ИТОГ (2026-06-25) — сделано из нативных событий #090, НЕ Python-blame
+## OUTCOME (2026-06-25) — done from native #090 events, NOT Python blame
 
-**Отклонение от буквы задачи (осознанное):** вместо прогона leaky-Python `perstruct_drift.py`
-(VEND-regex) построили per-struct историю из **нативных событий #090** — переразобрали 10 735
-bool-коммитов (`archcheck --diff`, 37.8 мин, 8 воркеров), агрегировали по `(repo,struct)` с дедупом
-file-move. Причина: нативный фильтр vendored/test/generated строже Python-VEND (юзер: «почему
-питон-скрипт, а не наш фильтр?»). Скрипты: `experiments/boolean_state/perstruct_history_from_events.py`
-+ `perstruct_history_aggregate.py`. Отчёт: `docs/research/boolean_state_perstruct_drift_fullcorpus.md`
-(НОВЫЙ файл; #089-отчёт не тронут).
+**Deviation from the letter of the task (deliberate):** instead of running the leaky-Python `perstruct_drift.py`
+(VEND-regex), we built per-struct history from **native #090 events** — re-parsed 10,735
+bool commits (`archcheck --diff`, 37.8 min, 8 workers), aggregated by `(repo,struct)` with file-move
+dedup. Reason: the native vendored/test/generated filter is stricter than Python-VEND (user: "why a
+Python script and not our filter?"). Scripts: `experiments/boolean_state/perstruct_history_from_events.py`
++ `perstruct_history_aggregate.py`. Report: `docs/research/boolean_state_perstruct_drift_fullcorpus.md`
+(NEW file; the #089 report was not touched).
 
-**Результат:** 8 280 (repo,struct) накопили буль; **499** в ≥4 коммитах (335 content + 163 config + 1 churn)
-в **240 репах**. Eye-check топ-15: ~11/15 чистый TP (доминируют UI controller/view god-объекты),
-эталонная boolean-blindness (RtlirVariable `is_real/is_string/is_event`), остаток — demo/config/churn.
-**Prevalence 20.2% ≈ 21% из #089** (кросс-валидация на корпусе ×16). Якоря #089 MethodState (MOLA) +
-Channel (FluidNC) воспроизведены; EditorShell/HttpTransact вне окна корпус-прогона (разница линз).
+**Result:** 8,280 (repo,struct) accumulated a bool; **499** across ≥4 commits (335 content + 163 config + 1 churn)
+in **240 repos**. Eye-check top-15: ~11/15 clean TP (UI controller/view god-objects dominate),
+the reference boolean-blindness (RtlirVariable `is_real/is_string/is_event`), the rest — demo/config/churn.
+**Prevalence 20.2% ≈ 21% from #089** (cross-validation on a corpus ×16). The #089 anchors MethodState (MOLA) +
+Channel (FluidNC) were reproduced; EditorShell/HttpTransact were outside the corpus-run window (a lens difference).
 
-**Критерии приёмки:** отчёт + CSV есть, eye-check топ-15 с вердиктом проведён, prevalence оценён
-и сошёлся с #089, артефакты #089 не тронуты. ✓
-**Приоритет:** major
-**Блокирует:** даёт свежие живые примеры для #090 (решение «делать/не делать» drift-метрику)
-**Заблокирован:** —
-**Related:** #089 (research, вердикт MAYBE — done), #090 (реализация drift-метрики — future), #124 (per-commit корпус-прогон)
+**Acceptance criteria:** report + CSV exist, eye-check top-15 with verdicts done, prevalence estimated
+and consistent with #089, #089 artifacts untouched. ✓
+**Priority:** major
+**Blocks:** provides fresh live examples for #090 (the "do/don't" decision on the drift metric)
+**Blocked by:** —
+**Related:** #089 (research, verdict MAYBE — done), #090 (drift-metric implementation — future), #124 (per-commit corpus run)
 
-## Цель
+## Goal
 
-Прогнать готовый прототип `experiments/boolean_state/perstruct_drift.py` по **полному текущему корпусу (~1685 реп в `~/oss`)**, а не по старому 73-репному агентскому сэмплу из #089. На выходе — **отчёт** со свежим топом content-структур, накопивших булевы поля через ≥4 разных коммита (constraint decay в структурах), + CSV для дальнейшего разбора.
+Run the existing prototype `experiments/boolean_state/perstruct_drift.py` over the **full current corpus (~1685 repos in `~/oss`)**, rather than the old 73-repo agentic sample from #089. The output — a **report** with a fresh top list of content structs that accumulated boolean fields across ≥4 distinct commits (constraint decay in structs), + a CSV for further analysis.
 
-Зачем: в разговоре всплыло, что у нас нет живых примеров «булы копятся в структурах» с большого корпуса — только эталоны #089 (EditorShell, HttpTransact::State, Terminal, MethodState, Channel…) на 73 репах. Эта задача закрывает пробел: даёт актуальную картину распространённости и список свежих кандидатов.
+Why: a conversation surfaced that we have no live examples of "bools accumulating in structs" from a large corpus — only the #089 reference cases (EditorShell, HttpTransact::State, Terminal, MethodState, Channel…) on 73 repos. This task closes the gap: it gives a current picture of prevalence and a list of fresh candidates.
 
-## Что это НЕ
+## What this is NOT
 
-- НЕ реализация правила в `src/` (это #090, deferred по YAGNI — спрос пока не подтверждён).
-- НЕ изменение продуктового бинаря. Чистый Python-прогон прототипа по корпусу.
-- НЕ статический «много булей сейчас» (это 78% шум по #089). Сигнал — **per-struct накопление по git-истории**, прототип это уже делает.
+- NOT a rule implementation in `src/` (that's #090, deferred under YAGNI — demand not yet confirmed).
+- NOT a change to the product binary. A pure Python run of the prototype over the corpus.
+- NOT a static "many bools right now" (that's 78% noise per #089). The signal is **per-struct accumulation over git history**, which the prototype already does.
 
-## Входные данные (всё на месте, ничего клонировать не надо)
+## Input data (everything is in place, nothing to clone)
 
-- Прототип: `experiments/boolean_state/perstruct_drift.py` (валидирован в #089: per-struct атрибуция + depth-0 парсер → 0% грубых FP на eye-check топ-14).
-- Корпус: `~/oss/<repo>/` — 1685 реп.
-- Список реп: первая колонка `experiments/per_commit/worklist_full.tsv` (1685 distinct), либо просто все `*/.git` в `~/oss`.
-- Пороги (как в #089, не менять без причины): `MIN_FIELDS=4`, `MIN_COMMITS=4`.
+- Prototype: `experiments/boolean_state/perstruct_drift.py` (validated in #089: per-struct attribution + depth-0 parser → 0% gross FP on the top-14 eye-check).
+- Corpus: `~/oss/<repo>/` — 1685 repos.
+- Repo list: first column of `experiments/per_commit/worklist_full.tsv` (1685 distinct), or simply all `*/.git` in `~/oss`.
+- Thresholds (as in #089, don't change without reason): `MIN_FIELDS=4`, `MIN_COMMITS=4`.
 
-## Параметры / пороги
+## Parameters / thresholds
 
-| Параметр | Значение | Источник |
+| Parameter | Value | Source |
 |---|---|---|
-| `MIN_FIELDS` | 4 | bool-полей в структуре, чтобы вообще блеймить |
-| `MIN_COMMITS` | 4 | поля пришли через ≥4 разных коммита = дрейф |
-| `OSS` | `~/oss` | корпус |
-| вендор-фильтр | `VEND` regex в скрипте | lib/third_party/extern/vendor/imgui/sdl/examples |
-| config-bag фильтр | `CFG_NAME` regex | `*Config/*Options/*Settings/*Params…` → выносятся отдельно |
+| `MIN_FIELDS` | 4 | bool fields in a struct to blame it at all |
+| `MIN_COMMITS` | 4 | fields arrived across ≥4 distinct commits = drift |
+| `OSS` | `~/oss` | corpus |
+| vendor filter | `VEND` regex in the script | lib/third_party/extern/vendor/imgui/sdl/examples |
+| config-bag filter | `CFG_NAME` regex | `*Config/*Options/*Settings/*Params…` → broken out separately |
 
-## План выполнения
+## Plan
 
-### 1. Параметризовать пути (НЕ затирать артефакты #089)
-Прототип сейчас хардкодит `LIST = "/tmp/agentic_local.txt"` и **перезаписывает** `docs/research/boolean_state_perstruct_drift.md` (это валидированный отчёт #089 — НЕ трогать). Поэтому:
-- [ ] Собрать список реп полного корпуса: `cut -f1 experiments/per_commit/worklist_full.tsv | sort -u | xargs -n1 basename > /tmp/corpus_full.txt` (скрипт ждёт имена реп относительно `OSS`, не абсолютные пути).
-- [ ] В копии/варианте скрипта (`perstruct_drift_fullcorpus.py`) переопределить:
+### 1. Parameterize paths (do NOT overwrite #089 artifacts)
+The prototype currently hardcodes `LIST = "/tmp/agentic_local.txt"` and **overwrites** `docs/research/boolean_state_perstruct_drift.md` (this is the validated #089 report — DO NOT touch). Therefore:
+- [ ] Assemble the full-corpus repo list: `cut -f1 experiments/per_commit/worklist_full.tsv | sort -u | xargs -n1 basename > /tmp/corpus_full.txt` (the script expects repo names relative to `OSS`, not absolute paths).
+- [ ] In a copy/variant of the script (`perstruct_drift_fullcorpus.py`) override:
   - `LIST = "/tmp/corpus_full.txt"`
-  - выходной отчёт → **новый файл** `docs/research/boolean_state_perstruct_drift_fullcorpus.md`
+  - output report → **new file** `docs/research/boolean_state_perstruct_drift_fullcorpus.md`
   - CSV → `experiments/boolean_state/perstruct_drift_fullcorpus.csv`
-- [ ] (experiments/ и /tmp — gitignored/вне репо; новый md в docs/research/ — это новый артефакт, старый не трогаем.)
+- [ ] (experiments/ and /tmp — gitignored/outside the repo; the new md in docs/research/ is a new artifact, the old one is left untouched.)
 
-### 2. Прогон
-- [ ] Запустить в фоне (1685 реп × git blame по хедерам — десятки минут до часов; прогон корпус-`--diff` идёт параллельно, не мешать ему — это другой процесс).
-- [ ] Прогресс пишется построчно (`[i/N] repo: per-struct drifts=…`).
+### 2. Run
+- [ ] Run in the background (1685 repos × git blame over headers — tens of minutes to hours; the corpus `--diff` run is going in parallel, don't disturb it — it's a different process).
+- [ ] Progress is written line by line (`[i/N] repo: per-struct drifts=…`).
 
-### 3. Отчёт
-- [ ] Свежий `boolean_state_perstruct_drift_fullcorpus.md`: топ-40 content-структур (config-bag исключены), счётчики коммитов/полей/дней, ссылки на файлы.
-- [ ] Сводка: сколько структур-дрейфов всего / content / config-bag, в скольки репах, оценка prevalence (доля реп с реальным дрейфом).
+### 3. Report
+- [ ] Fresh `boolean_state_perstruct_drift_fullcorpus.md`: top-40 content structs (config-bag excluded), commit/field/day counters, links to files.
+- [ ] Summary: how many struct drifts total / content / config-bag, in how many repos, prevalence estimate (share of repos with real drift).
 
-### 4. Самопроверка (обязательна — см. CLAUDE.md «Самопроверка выводов»)
-- [ ] Глазами проверить топ-10–14 content-структур: реальный дрейф vs config-bag vs FP (открыть файл + `git log -L` / blame пары полей). Не верить агрегату — перечислить случаи независимо.
-- [ ] Свериться с эталонами #089 (EditorShell donner, HttpTransact::State trafficserver, microsoft/terminal Terminal, MOLA MethodState, FluidNC Channel): они в полном корпусе? числа правдоподобны?
-- [ ] Зафиксировать класс остаточных FP (генерёнка, bool в сигнатурах не depth-0, разные структуры с одним именем) если появятся на большем корпусе.
+### 4. Self-check (mandatory — see CLAUDE.md "Self-check of conclusions")
+- [ ] Eyeball-verify the top-10–14 content structs: real drift vs config-bag vs FP (open the file + `git log -L` / blame the field pairs). Don't trust the aggregate — enumerate the cases independently.
+- [ ] Cross-check against the #089 reference cases (EditorShell donner, HttpTransact::State trafficserver, microsoft/terminal Terminal, MOLA MethodState, FluidNC Channel): are they in the full corpus? are the numbers plausible?
+- [ ] Record the class of residual FPs (generated code, bool in signatures not at depth-0, different structs with the same name) if they appear on the larger corpus.
 
-## Критерий приёмки
+## Acceptance criterion
 
-- Отчёт `docs/research/boolean_state_perstruct_drift_fullcorpus.md` существует, топ-40 заполнен реальными структурами с кликабельными путями.
-- CSV полный.
-- Eye-check топ-10+ проведён, вердикт TP/config/FP по каждому, prevalence оценён.
-- Артефакты #089 (`boolean_state_perstruct_drift.md`, examples.md) НЕ затронуты.
-- Вывод: подтверждают ли свежие данные prevalence ~21% из #089, или большой корпус двигает оценку.
+- The report `docs/research/boolean_state_perstruct_drift_fullcorpus.md` exists, the top-40 is filled with real structs with clickable paths.
+- The CSV is complete.
+- Eye-check of top-10+ done, TP/config/FP verdict for each, prevalence estimated.
+- The #089 artifacts (`boolean_state_perstruct_drift.md`, examples.md) are NOT touched.
+- Conclusion: do the fresh data confirm the ~21% prevalence from #089, or does the large corpus shift the estimate.
 
-## Подводные камни (из опыта #089 и корпус-прогонов)
+## Pitfalls (from #089 experience and corpus runs)
 
-- **Не затирать `docs/research/boolean_state_perstruct_drift.md`** — там зафиксирован результат #089. Только новый файл.
-- **shallow-клоны → blame неполный**: дата первого поля может быть «срезана» границей клона, span занижен. Это lower-bound, не баг (как в #089).
-- **config-bag ≠ FP**: `*Options/*Config` с 10+ булями — легитимны, фильтр `CFG_NAME` их выносит; но он ловит не всё (в #089 6 из 14 топовых были config-bag с именем мимо фильтра). Это семантика, не баг парсера — разруливать глазами.
-- **git blame по большому корпусу долго**: таймаут 120s на файл уже в скрипте; репы с гигантскими хедерами могут отвалиться — это ок, логируется.
-- Не плодить процессы-сироты git (см. memory: корпус-прогон гигиена). Прототип blame синхронный, per-file — сирот не порождает, но если параллелить — убивать ГРУППУ.
+- **Do not overwrite `docs/research/boolean_state_perstruct_drift.md`** — it holds the #089 result. New file only.
+- **shallow clones → incomplete blame**: the date of the first field may be "cut off" at the clone boundary, the span understated. This is a lower bound, not a bug (as in #089).
+- **config-bag ≠ FP**: `*Options/*Config` with 10+ bools are legitimate; the `CFG_NAME` filter breaks them out; but it doesn't catch everything (in #089, 6 of the top-14 were config-bags whose name slipped past the filter). This is semantics, not a parser bug — resolve by eye.
+- **git blame over a large corpus is slow**: a 120s per-file timeout is already in the script; repos with giant headers may fall off — that's fine, it's logged.
+- Don't spawn orphan git processes (see memory: corpus-run hygiene). The prototype's blame is synchronous, per-file — it doesn't spawn orphans, but if parallelized — kill the GROUP.
 
-## Заметки для исполнителя (Haiku-friendly)
+## Notes for the executor (Haiku-friendly)
 
-Это механический прогон готового валидированного скрипта + eye-check. НЕ переписывать логику парсера/блейма (она проверена в #089). НЕ менять пороги. НЕ трогать `src/`. Единственные правки в коде — три константы пути (LIST / два выходных файла). Если результат выглядит «слишком гладко» или числа резко расходятся с #089 — это повод перепроверить руками, а не закрывать задачу.
+This is a mechanical run of a ready, validated script + eye-check. Do NOT rewrite the parser/blame logic (it's verified in #089). Do NOT change the thresholds. Do NOT touch `src/`. The only code edits are three path constants (LIST / two output files). If the result looks "too smooth" or the numbers diverge sharply from #089 — that's a reason to re-verify by hand, not to close the task.

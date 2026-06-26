@@ -1,78 +1,78 @@
-# [DOCS][CLI] Синхронизировать help/README с реальным CLI-контрактом после advisory-first wave
+# [DOCS][CLI] Sync help/README with the real CLI contract after the advisory-first wave
 
-**Дата создания:** 2026-06-23
-**Дата старта:** 2026-06-23
-**Статус:** completed
-**Модуль:** DOCS / CLI
-**Приоритет:** critical
-**Сложность:** S
-**Блокирует:** публичный README/help как доверенный контракт для первого запуска и CI
-**Заблокирован:** #141 (centralize_gate_policy) для код-части (help) — описывать gate-контракт лучше после code-level SSOT, иначе help снова разойдётся с россыпью строковых проверок. README-часть может идти в docs-кластере (#139 → #137 → #136)
+**Created:** 2026-06-23
+**Started:** 2026-06-23
+**Status:** completed
+**Module:** DOCS / CLI
+**Priority:** critical
+**Difficulty:** S
+**Blocks:** the public README/help as a trusted contract for the first run and CI
+**Blocked by:** #141 (centralize_gate_policy) for the code part (help) — the gate contract is better described after a code-level SSOT, otherwise help will diverge again from a scattering of string checks. The README part can go in the docs cluster (#139 → #137 → #136)
 **Related:** #044 (docs_readme_sync_shipped), #045 (docs_sync_roadmap_mvp_spec), #075 (mvp_v1_trusted_diff_workflow), #118 (drift4_lateral_rule), #133 (first_run_noise_floor)
 
-## Цель
+## Goal
 
-Привести `--help`, `README.md` и CI-facing описание CLI к тому, что бинарь реально делает сегодня: что gate, что advisory, и какие режимы вообще существуют.
+Bring `--help`, `README.md`, and the CI-facing CLI description into line with what the binary actually does today: what gates, what is advisory, and which modes even exist.
 
-## Контекст
+## Context
 
-После волны `#075/#096/#097/#101/#118/#123/#133` код и пользовательские тексты снова разъехались.
+After the `#075/#096/#097/#101/#118/#123/#133` wave, the code and the user-facing text drifted apart again.
 
-- `--drift-baseline` в help и README всё ещё описан как gate только для `DRIFT.1/DRIFT.2`, но код уже гейтит и `DRIFT.4.CYCLE`:
+- `--drift-baseline` in help and README is still described as a gate only for `DRIFT.1/DRIFT.2`, but the code already gates `DRIFT.4.CYCLE` too:
   [src/main.cpp#L31-L47](../../src/main.cpp#L31-L47),
   [src/cli/check_command.cpp#L74-L87](../../src/cli/check_command.cpp#L74-L87).
-- Обычный `check` после `#133` advisory-first: exit 1 только на `SF.9`, а `SF.7/SF.8/Lakos.*` остаются advisory.
-  Это зафиксировано в коде и changelog, но в README всё ещё читается как более общий
-  «non-zero on failure» без чёткого контракта:
+- Plain `check` after `#133` is advisory-first: exit 1 only on `SF.9`, while `SF.7/SF.8/Lakos.*` stay advisory.
+  This is fixed in the code and changelog, but in README it still reads like a more general
+  "non-zero on failure" without a clear contract:
   [src/cli/check_command.cpp#L90-L107](../../src/cli/check_command.cpp#L90-L107),
   [CHANGELOG.md#L76-L89](../../CHANGELOG.md#L76-L89),
   [README.md#L23-L35](../../README.md#L23-L35).
-- `--diff` давно шире, чем «graph regressions only»: кроме графа он уже печатает SATD,
-  test co-evolution, local complexity, new clone drift и flag-argument drift:
+- `--diff` has long been broader than "graph regressions only": besides the graph it already prints SATD,
+  test co-evolution, local complexity, new clone drift, and flag-argument drift:
   [src/cli/diff_command.cpp#L143-L211](../../src/cli/diff_command.cpp#L143-L211).
-  В README это отражено частично и несистемно.
-- В help уже есть `--history`, но публичный нарратив README вокруг него почти отсутствует:
+  In README this is reflected partially and unsystematically.
+- Help already has `--history`, but the public README narrative around it is almost absent:
   [src/main.cpp#L36-L42](../../src/main.cpp#L36-L42).
 
-Итог: сейчас пользователь не может по одним только `README` и `--help` надёжно понять,
-какие сигналы ломают CI, а какие лишь советуют.
+Bottom line: right now, from `README` and `--help` alone, the user cannot reliably tell
+which signals break CI and which are merely advisory.
 
-## План выполнения
+## Execution plan
 
-- [ ] Снять фактическую матрицу CLI-поведения: режим, exit-semantics, gating/advisory, формат вывода.
-- [ ] Обновить `src/main.cpp::print_help()`, чтобы `--drift-baseline` и `check` описывали текущий gate-контракт.
-- [ ] Переписать `README.md` разделы `What it does`, `Quick start`, `Status` под advisory-first модель.
-- [ ] Проверить `docs/ci_integration.md` и пример workflow: нет ли там старого контракта «любое нарушение = fail».
-- [ ] Дожать e2e/CLI-тесты на help-текст и статусные формулировки, чтобы следующая волна снова не уехала молча.
+- [ ] Capture the actual matrix of CLI behavior: mode, exit semantics, gating/advisory, output format.
+- [ ] Update `src/main.cpp::print_help()` so that `--drift-baseline` and `check` describe the current gate contract.
+- [ ] Rewrite the `README.md` sections `What it does`, `Quick start`, `Status` under the advisory-first model.
+- [ ] Check `docs/ci_integration.md` and the example workflow: is there any old "any violation = fail" contract there?
+- [ ] Finish off the e2e/CLI tests for the help text and status wording, so the next wave doesn't silently drift again.
 
-## Сделано
+## Done
 
-- `src/main.cpp::print_help()` синхронизирован с gate/advisory контрактом check, drift and diff.
-- README переписан под advisory-first модель и check JSON `gate` / `disposition`.
-- `docs/ci_integration.md` описывает `--diff` как gating verdict + advisory blocks, JSON как shipped, SARIF как future.
-- CLI E2E проверяет help-текст для `SF.9`, `DRIFT.4.CYCLE` и diff gate формулировки.
+- `src/main.cpp::print_help()` synced with the gate/advisory contract of check, drift, and diff.
+- README rewritten under the advisory-first model and the check JSON `gate` / `disposition`.
+- `docs/ci_integration.md` describes `--diff` as a gating verdict + advisory blocks, JSON as shipped, SARIF as future.
+- The CLI E2E checks the help text for `SF.9`, `DRIFT.4.CYCLE`, and the diff gate wording.
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-- Нет. При изменении gate policy сначала менять `rules/gate_policy`, затем help/docs/tests.
+- None. When changing the gate policy, first change `rules/gate_policy`, then help/docs/tests.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Править help и README вместе | это один пользовательский контракт; частичная синхронизация быстро протухает |
-| Описывать gate/advisory явно по каждому режиму | формула `exit non-zero on failure` уже недостаточна и вводит в заблуждение |
-| Проверять ещё и CI-доки | именно там старый контракт больнее всего бьёт по ожиданиям пользователей |
+| Decision | Reason |
+|----------|--------|
+| Edit help and README together | it's one user contract; partial syncing goes stale quickly |
+| Describe gate/advisory explicitly for each mode | the formula `exit non-zero on failure` is already insufficient and misleading |
+| Check the CI docs too | that's exactly where the old contract hits user expectations hardest |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `src/main.cpp` | обновить текст `--help` под фактические gate/advisory правила |
-| `README.md` | синхронизировать публичное описание CLI |
-| `docs/ci_integration.md` | выровнять CI-нарратив с advisory-first моделью |
-| `tests/integration/cli_smoke_e2e_test.cpp` | закрепить help/status-контракт тестом |
+| File | Change |
+|------|--------|
+| `src/main.cpp` | update the `--help` text under the actual gate/advisory rules |
+| `README.md` | sync the public CLI description |
+| `docs/ci_integration.md` | align the CI narrative with the advisory-first model |
+| `tests/integration/cli_smoke_e2e_test.cpp` | lock the help/status contract with a test |

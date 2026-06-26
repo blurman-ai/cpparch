@@ -1,19 +1,19 @@
 # DRIFT.1 fixture — LibreSprite PR #581
 
-Минимальный воспроизводимый срез графа под единственный реальный DRIFT.1 hit
-из 2026-05-29 dogfood-прогона (см. `docs/research/ai_drift_cases.md` и
-`docs/milestones.md` §«Прогон 10»).
+A minimal reproducible graph slice for the single real DRIFT.1 hit
+from the 2026-05-29 dogfood run (see `docs/research/ai_drift_cases.md` and
+`docs/milestones.md` §"Run 10").
 
 - **Repo:** `LibreSprite/LibreSprite`
 - **PR:** #581 (macOS / menu-search / toolbar badges)
 - **Before / After SHA:** `60eed0f` → `276fdbd`
-- **Источник:** commit `0aa57ad` "Add keyboard shortcut badges to toolbar icons"
+- **Source:** commit `0aa57ad` "Add keyboard shortcut badges to toolbar icons"
   (Co-Authored-By: Claude Opus 4.5)
-- **Скептик-фрейминг:** edge присутствует в upstream `aseprite/aseprite`,
-  но LibreSprite-форк на `60eed0f` его не нёс. Проверено `git show` + `git log`,
-  вердикт CONFIRMED (см. секцию «Верификация» в `ai_drift_cases.md`).
+- **Skeptic framing:** the edge is present in upstream `aseprite/aseprite`,
+  but the LibreSprite fork at `60eed0f` did not carry it. Verified via `git show` + `git log`,
+  verdict CONFIRMED (see the "Verification" section in `ai_drift_cases.md`).
 
-`baseline.graph.yml` фиксирует before-состояние: `toolbar.cpp` включает только
-`toolbar.h`. Файлы в директории — after-состояние: добавлен прямой include
-`#include "app/pref/preferences.h"`. DRIFT.1 должен поймать ровно одно
-новое ребро `app/ui/toolbar.cpp -> app/pref/preferences.h`.
+`baseline.graph.yml` captures the before-state: `toolbar.cpp` includes only
+`toolbar.h`. The files in the directory are the after-state: a direct include
+`#include "app/pref/preferences.h"` was added. DRIFT.1 should catch exactly one
+new edge `app/ui/toolbar.cpp -> app/pref/preferences.h`.

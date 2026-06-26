@@ -1,114 +1,114 @@
-# [CLI][GRAPH] Git-based анализ: считать дельту графа, а не полный snapshot
+# [CLI][GRAPH] Git-based analysis: compute the graph delta, not a full snapshot
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-27
-**Статус:** completed
-**Модуль:** CLI, GRAPH
-**Приоритет:** critical
-**Сложность:** L (3-5 дней)
-**Блокирует:** —
-**Заблокирован:** — (#015, #016 закрыты)
+**Created:** 2026-05-26
+**Started:** 2026-05-27
+**Status:** completed
+**Module:** CLI, GRAPH
+**Priority:** critical
+**Difficulty:** L (3-5 days)
+**Blocks:** —
+**Blocked by:** — (#015, #016 closed)
 **Related:** #008 (dependency_graph_foundation), #009 (ai_drift_regression_rules, future)
 
-## Цель
+## Goal
 
-Сделать так, чтобы archcheck в CI говорил не «в проекте 27 циклов» (бесполезно
-для PR-ревью legacy-проекта), а **«эта PR ввела 1 новый цикл и 3 новых
-unresolved-импорта»**. То есть рассчитывать архитектурную **дельту** по
-git-ref-у (commit, branch, range), не по полному snapshot-у.
+Make archcheck in CI say not "the project has 27 cycles" (useless
+for reviewing a PR on a legacy project), but **"this PR introduced 1 new cycle and 3 new
+unresolved imports"**. That is, compute the architectural **delta** against a
+git ref (commit, branch, range), not against a full snapshot.
 
-## Контекст
+## Context
 
-Сейчас `archcheck --graph <path>` строит и анализирует **всё** дерево
-проекта. На реальном `gm` (2192 файла) находит 2 цикла в Unigine SDK,
-708 unresolved, 138 ambiguous. В PR-context это шум: новых нарушений нет,
-старые исторические. CI должен фокусироваться на **изменениях, которые
-внесла именно эта PR**.
+Right now `archcheck --graph <path>` builds and analyzes the **entire** project
+tree. On the real `gm` (2192 files) it finds 2 cycles in the Unigine SDK,
+708 unresolved, 138 ambiguous. In a PR context this is noise: there are no new violations,
+the old ones are historical. CI should focus on **the changes
+this particular PR introduced**.
 
-Есть два пути сравнения, оба валидны:
+There are two comparison paths, both valid:
 
-1. **Baseline-файл (#016)** — `.archcheck/graph-baseline.yaml` в репо.
-   PR-валидация: построил граф текущего состояния, сравнил с baseline,
-   рапортовал только дельту. Минус: нужно «прикреплять» baseline к main и
-   обновлять его при сознательных архитектурных изменениях.
+1. **Baseline file (#016)** — `.archcheck/graph-baseline.yaml` in the repo.
+   PR validation: build the graph of the current state, compare it with the baseline,
+   report only the delta. Downside: you need to "attach" the baseline to main and
+   update it on deliberate architectural changes.
 
-2. **Git-based (эта задача)** — `archcheck --diff main..HEAD` или
-   `archcheck --since HEAD~1`. Tool сам делает `git checkout` (или
-   `git show:file`) для двух состояний, строит два графа, считает дельту.
-   Минус: дороже (два прохода), нужна git-интеграция.
+2. **Git-based (this task)** — `archcheck --diff main..HEAD` or
+   `archcheck --since HEAD~1`. The tool itself does `git checkout` (or
+   `git show:file`) for the two states, builds two graphs, computes the delta.
+   Downside: more expensive (two passes), needs git integration.
 
-Часто эти подходы **дополняют** друг друга:
-- baseline — для длинных периодов и больших разовых рефакторингов;
-- git-diff — для каждой PR в режиме «не ухудшается ли тут».
+Often these approaches **complement** each other:
+- baseline — for long periods and large one-off refactorings;
+- git-diff — for every PR in "is this getting worse here" mode.
 
-Задача — реализовать git-diff путь. baseline-путь идёт в #016 параллельно
-и переиспользует те же primitives из #015.
+The task is to implement the git-diff path. The baseline path goes into #016 in parallel
+and reuses the same primitives from #015.
 
-## План выполнения
+## Execution plan
 
-- [x] Определить CLI-форму: канонический `--diff <revspec>` (`a..b` или одиночный `<ref>` = `<ref>..WORKTREE`). `--since`/`--vs-base` решено НЕ вводить — git revspec покрывает оба сценария
-- [x] Решить как читать «прошлое» состояние: `git worktree add --detach --quiet <tmp> <ref>` (fork/exec). Для текущего worktree — sentinel `WORKTREE` без checkout-а. Без libgit2; libgit2 — будущая оптимизация по требованию
-- [x] Реализовать `include/archcheck/git/git_state.h` / `src/git/git_state.cpp`: RAII `Worktree`, `materializeRef`, `findRepoRoot`, `parseRevspec`. Без shell-injection (fork/exec + execvp с argv)
-- [x] Построить два графа (baseline, current), переиспользовать pipeline из `--graph` через новый helper `archcheck::graph::buildGraphForPath()`
-- [x] Применить diff-примитивы из #015 (`addedEdges`, `removedEdges`, `grownSccs`) внутри `archcheck::diff::buildRegressionReport`
-- [x] Reporter: `archcheck::diff::writeTextReport` — «added_edges/removed_edges/grown_cycles», далее перечисление с file:line (пока без line, line будет когда в EdgeRef появятся location-метаданные)
-- [x] Exit codes: 0 = `!hasRegression`, 1 = `hasRegression` (новые рёбра ИЛИ выросшие циклы; removed-only ≠ регрессия), 2 = invalid revspec / not-a-repo / git failure
-- [x] Тесты: 6 интеграционных через `mkdtemp` + git CLI: добавленное ребро, замыкание цикла, no-op (docs), single-ref→WORKTREE, findRepoRoot из подкаталога, invalid ref
-- [x] CI-пример: `.github/workflows/example_archcheck_pr.yml` — `archcheck --diff origin/main..HEAD .` + upload-artifact
+- [x] Define the CLI form: the canonical `--diff <revspec>` (`a..b` or a single `<ref>` = `<ref>..WORKTREE`). `--since`/`--vs-base` decided NOT to introduce — a git revspec covers both scenarios
+- [x] Decide how to read the "past" state: `git worktree add --detach --quiet <tmp> <ref>` (fork/exec). For the current worktree — the sentinel `WORKTREE` with no checkout. Without libgit2; libgit2 — a future optimization on demand
+- [x] Implement `include/archcheck/git/git_state.h` / `src/git/git_state.cpp`: RAII `Worktree`, `materializeRef`, `findRepoRoot`, `parseRevspec`. No shell injection (fork/exec + execvp with argv)
+- [x] Build two graphs (baseline, current), reusing the pipeline from `--graph` through the new helper `archcheck::graph::buildGraphForPath()`
+- [x] Apply the diff primitives from #015 (`addedEdges`, `removedEdges`, `grownSccs`) inside `archcheck::diff::buildRegressionReport`
+- [x] Reporter: `archcheck::diff::writeTextReport` — "added_edges/removed_edges/grown_cycles", followed by a listing with file:line (no line yet, line will come when location metadata appears in EdgeRef)
+- [x] Exit codes: 0 = `!hasRegression`, 1 = `hasRegression` (new edges OR grown cycles; removed-only ≠ regression), 2 = invalid revspec / not-a-repo / git failure
+- [x] Tests: 6 integration tests via `mkdtemp` + git CLI: an added edge, closing a cycle, a no-op (docs), single-ref→WORKTREE, findRepoRoot from a subdirectory, an invalid ref
+- [x] CI example: `.github/workflows/example_archcheck_pr.yml` — `archcheck --diff origin/main..HEAD .` + upload-artifact
 
-## Сделано
+## Done
 
-- **CLI**: добавлен `--diff <revspec> [path]` в [src/main.cpp](src/main.cpp) (path по умолчанию = cwd).
-- **Парсер revspec**: `parseRevspec` ([include/archcheck/git/git_state.h:17](include/archcheck/git/git_state.h#L17)); `a..b`, `<ref>`, отвергает `...`/пустые стороны.
-- **Git-материализация**: RAII `Worktree` (move-only) + `materializeRef` через fork/exec `git worktree add --detach`. Cleanup через `git worktree remove --force` + `fs::remove_all` (best-effort). Sentinel `WORKTREE` для текущего рабочего дерева без checkout-а.
-- **Graph build pipeline извлечён**: `buildGraphForPath()` ([include/archcheck/graph/graph_builder.h](include/archcheck/graph/graph_builder.h)). `--graph` и оба прохода `--diff` теперь дёргают один helper.
-- **Регрессионный отчёт**: `RegressionReport` ([include/archcheck/diff/regression_report.h](include/archcheck/diff/regression_report.h)) — DTO + `buildRegressionReport` (резолвит NodeId в строки) + `writeTextReport`.
-- **Тесты**: 20 новых `[diff]`-кейсов (parseRevspec, regression_report, end-to-end через temp git-репо). Всего 131 кейс, 380 ассертов, 100% pass. Lizard 0 warnings (CCN ≤15, length ≤30). clang-format-18 чист.
-- **CI-пример**: [.github/workflows/example_archcheck_pr.yml](.github/workflows/example_archcheck_pr.yml).
-- **Smoke на собственном репо**: `archcheck --diff HEAD .` корректно показывает 19 новых рёбер и 1 удалённое от текущей PR; exit code 1.
+- **CLI**: added `--diff <revspec> [path]` to [src/main.cpp](src/main.cpp) (path defaults to cwd).
+- **Revspec parser**: `parseRevspec` ([include/archcheck/git/git_state.h:17](include/archcheck/git/git_state.h#L17)); `a..b`, `<ref>`, rejects `...`/empty sides.
+- **Git materialization**: RAII `Worktree` (move-only) + `materializeRef` via fork/exec `git worktree add --detach`. Cleanup via `git worktree remove --force` + `fs::remove_all` (best-effort). Sentinel `WORKTREE` for the current working tree without a checkout.
+- **Graph build pipeline extracted**: `buildGraphForPath()` ([include/archcheck/graph/graph_builder.h](include/archcheck/graph/graph_builder.h)). `--graph` and both `--diff` passes now call one helper.
+- **Regression report**: `RegressionReport` ([include/archcheck/diff/regression_report.h](include/archcheck/diff/regression_report.h)) — a DTO + `buildRegressionReport` (resolves NodeId to strings) + `writeTextReport`.
+- **Tests**: 20 new `[diff]` cases (parseRevspec, regression_report, end-to-end via a temp git repo). 131 cases total, 380 assertions, 100% pass. Lizard 0 warnings (CCN ≤15, length ≤30). clang-format-18 clean.
+- **CI example**: [.github/workflows/example_archcheck_pr.yml](.github/workflows/example_archcheck_pr.yml).
+- **Smoke on our own repo**: `archcheck --diff HEAD .` correctly shows 19 new edges and 1 removed from the current PR; exit code 1.
 
-## В работе
+## In progress
 
-- (пусто) — задача готова к коммиту/ревью.
+- (empty) — the task is ready for commit/review.
 
-## Следующие шаги
+## Next steps
 
-1. **Готово к `/commit`** — задача целиком в одном merge, как просил пользователь (вне обычного режима «≤50 строк/коммит»).
-2. **Дальше (вне этой задачи)**: line-числа в `EdgeRef` (сейчас reporter показывает только пути; для file:line нужно тянуть location из scanner-а — отдельная задача).
-3. **Оптимизация (по требованию)**: переход с fork/exec на libgit2 — когда профилирование покажет, что worktree add доминирует.
-4. **GitHub-комментирование PR**: пример workflow выкладывает артефакт, но не комментирует PR — добавить step через `actions/github-script` можно позже, когда определимся с форматом.
+1. **Ready for `/commit`** — the task lands entirely in one merge, as the user requested (outside the usual "≤50 lines/commit" mode).
+2. **Next (outside this task)**: line numbers in `EdgeRef` (the reporter currently shows only paths; for file:line we need to carry location from the scanner — a separate task).
+3. **Optimization (on demand)**: switching from fork/exec to libgit2 — when profiling shows that worktree add dominates.
+4. **GitHub PR commenting**: the example workflow uploads an artifact but does not comment on the PR — adding a step via `actions/github-script` can come later, once we settle on the format.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Git-diff и baseline — два равноправных пути | Покрывают разные сценарии CI / разные команды; не конкурирующие |
-| Сначала fork/exec git, потом если нужно — libgit2 | Меньше зависимостей, проще на старте; libgit2 — оптимизация по требованию |
-| Exit code 1 только на «регрессии», не на «старых нарушениях» | CI должен пропускать PR, которая ничего не ухудшила, даже если legacy грязный |
-| Передавать ref-ы как git revspec (`a..b`, `HEAD~1`) | Знакомый формат, парсит сам git |
-| Канонический CLI: `--diff <revspec>`; одиночный `<ref>` → `<ref>..WORKTREE` | `--since` и `--vs-base` синтаксически избыточны: revspec покрывает оба. Одна форма — меньше путаницы в документации |
-| `git worktree add --detach <tmp> <ref>` vs `git show :file` | worktree даёт реальное дерево → переиспользуется существующий pipeline `buildGraphForPath`. `git show` пришлось бы оборачивать в виртуальный FS-провайдер — не оправдано на старте |
-| Sentinel `WORKTREE` — текущий рабочий каталог, без checkout-а | Для локального запуска и `--diff <ref>` пропускаем worktree add (бесплатно). RAII-обёртка дегенерирует в non-owning |
-| Removed-only diff ≠ регрессия | PR, которая только убирает рёбра, делает архитектуру строже — CI должен пропустить |
-| Resolved NodeId → paths в `RegressionReport` upfront | Отчёт переживёт baseline/current графы; reporter не зависит от lifetime двух DependencyGraph |
+| Git-diff and baseline — two equal paths | They cover different CI scenarios / different teams; not competing |
+| fork/exec git first, then libgit2 if needed | Fewer dependencies, simpler to start; libgit2 is an on-demand optimization |
+| Exit code 1 only on a "regression", not on "old violations" | CI should let a PR through if it made nothing worse, even if the legacy is dirty |
+| Pass refs as a git revspec (`a..b`, `HEAD~1`) | A familiar format, git parses it itself |
+| Canonical CLI: `--diff <revspec>`; a single `<ref>` → `<ref>..WORKTREE` | `--since` and `--vs-base` are syntactically redundant: a revspec covers both. One form — less confusion in the docs |
+| `git worktree add --detach <tmp> <ref>` vs `git show :file` | a worktree gives a real tree → the existing `buildGraphForPath` pipeline is reused. `git show` would have to be wrapped in a virtual FS provider — not justified at the start |
+| Sentinel `WORKTREE` — the current working directory, without a checkout | For a local run and `--diff <ref>` we skip worktree add (free). The RAII wrapper degenerates into a non-owning one |
+| Removed-only diff ≠ regression | A PR that only removes edges makes the architecture stricter — CI should let it through |
+| Resolved NodeId → paths in `RegressionReport` upfront | The report outlives the baseline/current graphs; the reporter does not depend on the lifetime of the two DependencyGraphs |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `include/archcheck/graph/graph_builder.h` | new — публичный helper `buildGraphForPath()` (общий entry для `--graph` и `--diff`) |
-| `src/graph/graph_builder.cpp` | new — реализация (move-нутая логика из main.cpp) |
+| `include/archcheck/graph/graph_builder.h` | new — the public helper `buildGraphForPath()` (a shared entry for `--graph` and `--diff`) |
+| `src/graph/graph_builder.cpp` | new — implementation (logic moved out of main.cpp) |
 | `include/archcheck/git/git_state.h` | new — `Revspec`, `Worktree` (RAII), `parseRevspec`, `findRepoRoot`, `materializeRef` |
-| `src/git/git_state.cpp` | new — fork/exec git (`execvp`, без shell). Helpers: `execChild`, `drainFd`, `collectChild` |
+| `src/git/git_state.cpp` | new — fork/exec git (`execvp`, no shell). Helpers: `execChild`, `drainFd`, `collectChild` |
 | `include/archcheck/diff/regression_report.h` | new — `RegressionReport` (paths-resolved), `buildRegressionReport`, `writeTextReport` |
 | `src/diff/regression_report.cpp` | new |
-| `src/main.cpp` | + `--diff <revspec> [path]` dispatch; `run_graph` упрощён до вызова buildGraphForPath; добавлен `--diff` в `print_help` |
-| `src/CMakeLists.txt` | + 3 новых исходника в `archcheck_core` |
-| `tests/CMakeLists.txt` | + 3 новых test-юнита |
-| `tests/unit/git/git_state_test.cpp` | new — 6 кейсов parseRevspec |
-| `tests/unit/diff/regression_report_test.cpp` | new — 4 кейса buildRegressionReport/writeTextReport |
-| `tests/integration/diff/git_diff_test.cpp` | new — 6 end-to-end кейсов через `mkdtemp` + git CLI |
-| `.github/workflows/example_archcheck_pr.yml` | new — пример CI job для пользователей |
-| `backlog/wip/018_crt_git_diff_analysis.md` | move из `new/` + checkpoint |
+| `src/main.cpp` | + `--diff <revspec> [path]` dispatch; `run_graph` simplified to a buildGraphForPath call; `--diff` added to `print_help` |
+| `src/CMakeLists.txt` | + 3 new sources in `archcheck_core` |
+| `tests/CMakeLists.txt` | + 3 new test units |
+| `tests/unit/git/git_state_test.cpp` | new — 6 parseRevspec cases |
+| `tests/unit/diff/regression_report_test.cpp` | new — 4 buildRegressionReport/writeTextReport cases |
+| `tests/integration/diff/git_diff_test.cpp` | new — 6 end-to-end cases via `mkdtemp` + git CLI |
+| `.github/workflows/example_archcheck_pr.yml` | new — an example CI job for users |
+| `backlog/wip/018_crt_git_diff_analysis.md` | move from `new/` + checkpoint |
 
-**НЕ тронуты в этой PR**: `docs/architecture-spec.md` — уточнение про два пути (baseline+git-diff, как они сосуществуют) ждёт пока соберётся достаточный опыт от пользователей, чтобы написать осмысленный раздел. Пометить отдельной задачей.
+**NOT touched in this PR**: `docs/architecture-spec.md` — clarifying the two paths (baseline+git-diff, how they coexist) waits until enough user experience accumulates to write a meaningful section. Mark it as a separate task.

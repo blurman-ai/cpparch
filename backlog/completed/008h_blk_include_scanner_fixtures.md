@@ -1,52 +1,52 @@
-# [SCAN][FIXTURES] Include scanner — integration fixtures с диска
+# [SCAN][FIXTURES] Include scanner — integration fixtures from disk
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** SCAN, FIXTURES
-**Приоритет:** blocker
-**Сложность:** S (< 1 дня)
-**Блокирует:** —
-**Заблокирован:** #008g (include_scanner_macro_include_diagnostic)
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** SCAN, FIXTURES
+**Priority:** blocker
+**Complexity:** S (< 1 day)
+**Blocks:** —
+**Blocked by:** #008g (include_scanner_macro_include_diagnostic)
 **Related:** #008 (dependency_graph_foundation), #017 (graph_fixtures)
 
-## Цель
+## Goal
 
-Зафиксировать поведение include-scanner-а на реальных файлах с диска, не только
-на inline-строках в unit-тестах.
+Pin down the include-scanner's behavior on real files from disk, not just on
+inline strings in unit tests.
 
-## Контекст
+## Context
 
-После 008a…g scanner полностью покрыт unit-тестами (33 кейса). Но клиент
-scanner-а в реальности будет читать `*.h` / `*.cpp` с диска через resolver и
-discovery (#011/#012). Чтобы убедиться, что `scan_includes(std::string_view)`
-не страдает от различий «inline literal vs file content» (BOM, trailing
-whitespace, кодировка, бинарное чтение), нужен integration слой: фикстуры
-лежат отдельными файлами в `fixtures/scan/include_scanner/`, тест читает их и
-прогоняет через `scan_includes`.
+After 008a…g the scanner is fully covered by unit tests (33 cases). But the
+scanner's real client will read `*.h` / `*.cpp` from disk via the resolver and
+discovery (#011/#012). To make sure that `scan_includes(std::string_view)`
+doesn't suffer from differences between "inline literal vs file content" (BOM, trailing
+whitespace, encoding, binary reads), an integration layer is needed: the fixtures
+live as separate files in `fixtures/scan/include_scanner/`, the test reads them and
+runs them through `scan_includes`.
 
-Это **не** делает scanner правилом (rules имеют формат `pass/` + `fail_*/` per
-MVP.md). Scanner — extraction primitive, поэтому фикстуры плоские: одна .cpp
-на сценарий.
+This does **not** turn the scanner into a rule (rules have the `pass/` + `fail_*/` format per
+MVP.md). The scanner is an extraction primitive, so the fixtures are flat: one .cpp
+per scenario.
 
-## Сделано
+## Done
 
-- **2026-05-26** — `fixtures/scan/include_scanner/` с 6 файлами:
+- **2026-05-26** — `fixtures/scan/include_scanner/` with 6 files:
   - `simple.cpp` — angle + quote + angle.
-  - `comments.cpp` — `//` и многострочный `/* */`.
-  - `string_literal.cpp` — `#include` внутри обычной строки.
-  - `raw_string.cpp` — `#include` внутри `R"(…)"`.
-  - `continuation.cpp` — `\\\n` внутри `#include`.
+  - `comments.cpp` — `//` and multiline `/* */`.
+  - `string_literal.cpp` — `#include` inside an ordinary string.
+  - `raw_string.cpp` — `#include` inside `R"(…)"`.
+  - `continuation.cpp` — `\\\n` inside `#include`.
   - `macro_include.cpp` — `#include CONFIG_HEADER` → diagnostic.
-- **2026-05-26** — `tests/integration/scan/scanner_fixtures_test.cpp` — 6 TEST_CASE, читают файл и проверяют конкретные ожидания по `directives` и `diagnostics`.
-- **2026-05-26** — `tests/CMakeLists.txt` подключает integration test source, передаёт `ARCHCHECK_FIXTURES_DIR` как compile definition, и добавляет линковку `stdc++fs` для GCC < 9 (системный g++ 8.3 в среде разработки).
-- **2026-05-26** — Debug-сборка чистая, ctest 39/39 зелёные.
+- **2026-05-26** — `tests/integration/scan/scanner_fixtures_test.cpp` — 6 TEST_CASE, read the file and check specific expectations on `directives` and `diagnostics`.
+- **2026-05-26** — `tests/CMakeLists.txt` wires in the integration test source, passes `ARCHCHECK_FIXTURES_DIR` as a compile definition, and adds `stdc++fs` linking for GCC < 9 (system g++ 8.3 in the dev environment).
+- **2026-05-26** — Debug build clean, ctest 39/39 green.
 
-## Как работает
+## How it works
 
-Test source хранит абсолютный путь к фикстурам через макрос
-`ARCHCHECK_FIXTURES_DIR`, прокинутый CMake-ом:
+The test source stores the absolute path to the fixtures via the macro
+`ARCHCHECK_FIXTURES_DIR`, passed through by CMake:
 
 ```cmake
 target_compile_definitions(archcheck_tests PRIVATE
@@ -54,7 +54,7 @@ target_compile_definitions(archcheck_tests PRIVATE
 )
 ```
 
-В тесте helper:
+In the test helper:
 
 ```cpp
 std::filesystem::path fixture(std::string_view name)
@@ -63,41 +63,41 @@ std::filesystem::path fixture(std::string_view name)
 }
 ```
 
-`read(p)` открывает файл в `std::ios::binary` и забирает всё через
-`istreambuf_iterator`. Результат скармливается в `scan_includes`. Дальше —
-обычные `REQUIRE` на size, kind, token, line.
+`read(p)` opens the file in `std::ios::binary` and pulls everything through
+`istreambuf_iterator`. The result is fed into `scan_includes`. After that — the
+usual `REQUIRE` on size, kind, token, line.
 
-## Чем управляется
+## What controls it
 
-- `ARCHCHECK_FIXTURES_DIR` — задаётся CMake-ом, единственный «магический» путь.
-- Никаких env vars / runtime-флагов.
+- `ARCHCHECK_FIXTURES_DIR` — set by CMake, the single "magic" path.
+- No env vars / runtime flags.
 
-## С чем связана
+## What it relates to
 
-- Public API scanner-а — без изменений.
-- CMake target `archcheck_tests` теперь линкуется ещё с `stdc++fs` (на GCC ≥ 9 — no-op).
-- Когда появится resolver (#012), эти же фикстуры можно переиспользовать как «маленький проект» для проверки discovery.
+- The scanner's public API — unchanged.
+- The CMake target `archcheck_tests` now also links against `stdc++fs` (on GCC ≥ 9 — a no-op).
+- When the resolver (#012) arrives, these same fixtures can be reused as a "small project" for testing discovery.
 
-## Диагностика
+## Diagnostics
 
-- Если падает `REQUIRE(f.is_open())` — проверь, что `ARCHCHECK_FIXTURES_DIR` смотрит на правильный путь (CMake-cache мог застрять, `cmake --build` после `cmake -B` спасает).
-- Если на новой машине билд не линкуется по `<filesystem>` — обнови CMake-проверку версии GCC.
-- Если новая фикстура «не находится» — проверь имя в `fixture("...")`, оно должно совпадать с файлом дословно.
+- If `REQUIRE(f.is_open())` fails — check that `ARCHCHECK_FIXTURES_DIR` points to the right path (the CMake cache may be stale, `cmake --build` after `cmake -B` saves the day).
+- If on a new machine the build won't link against `<filesystem>` — update the CMake GCC version check.
+- If a new fixture "isn't found" — check the name in `fixture("...")`, it must match the file verbatim.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Плоская структура `fixtures/scan/include_scanner/*.cpp` | Scanner — primitive, не правило; `pass/`/`fail_*/` иерархия для него избыточна |
-| Один TEST_CASE на фикстуру | Читаемее, чем data-driven; каждая фикстура отвечает на конкретный вопрос |
-| `ARCHCHECK_FIXTURES_DIR` как compile def | Не нужно тащить env var и устанавливать его в CI; CMake уже знает корень репо |
-| Бинарное чтение через `istreambuf_iterator` | Никакой text-mode конверсии переносов (Windows бы поломала ожидания line numbers) |
-| Поддержка `stdc++fs` через CMake version check | g++ 8.3 в среде разработки требует, GCC ≥ 9 ничего не теряет |
+| Decision | Rationale |
+|---------|-----------|
+| Flat structure `fixtures/scan/include_scanner/*.cpp` | The scanner is a primitive, not a rule; the `pass/`/`fail_*/` hierarchy is excessive for it |
+| One TEST_CASE per fixture | More readable than data-driven; each fixture answers a specific question |
+| `ARCHCHECK_FIXTURES_DIR` as a compile def | No need to drag along an env var and set it in CI; CMake already knows the repo root |
+| Binary read via `istreambuf_iterator` | No text-mode newline conversion (Windows would break the line-number expectations) |
+| `stdc++fs` support via CMake version check | g++ 8.3 in the dev environment requires it, GCC ≥ 9 loses nothing |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
+| File | Change |
+|------|--------|
 | `fixtures/scan/include_scanner/simple.cpp` | new |
 | `fixtures/scan/include_scanner/comments.cpp` | new |
 | `fixtures/scan/include_scanner/string_literal.cpp` | new |
@@ -105,4 +105,4 @@ std::filesystem::path fixture(std::string_view name)
 | `fixtures/scan/include_scanner/continuation.cpp` | new |
 | `fixtures/scan/include_scanner/macro_include.cpp` | new |
 | `tests/integration/scan/scanner_fixtures_test.cpp` | new |
-| `tests/CMakeLists.txt` | + integration source, + `ARCHCHECK_FIXTURES_DIR`, + `stdc++fs` link для GCC<9 |
+| `tests/CMakeLists.txt` | + integration source, + `ARCHCHECK_FIXTURES_DIR`, + `stdc++fs` link for GCC<9 |

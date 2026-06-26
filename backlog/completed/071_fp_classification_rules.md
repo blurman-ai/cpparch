@@ -1,144 +1,144 @@
-# #071: Правила FP Classification для дупликатов
+# #071: FP Classification rules for duplicates
 
-**Дата создания:** 2026-06-03  
-**Статус:** wip  
-**Дата старта:** 2026-06-03  
-**Приоритет:** high  
-
----
-
-## Цель
-
-Систематизировать и зафиксировать **объективные правила** различия между:
-- **TP (True Positive)** — реальный copy-paste, нужен рефактор
-- **FP (False Positive)** — легитимный паттерн, гарды должны его отфильтровать
-
-Цель: в следующих сессиях при анализе дубликатов сразу применять правила и не выдумывать FP там, где их нет.
+**Created:** 2026-06-03  
+**Status:** wip  
+**Started:** 2026-06-03  
+**Priority:** high  
 
 ---
 
-## Сделано
+## Goal
 
-- [x] **P0.2 whole-file гард** — файл-агрегация (≥80% фрагментов меньшего файла совпали → whole-file clone), считается в `ScanResult.wholeFileClones`, пары убираются. Тесты зелёные.
-- [x] **P0.9 generated гард** — `isGeneratedPath` (`.pb.cc`, `moc_`, `ui_`, `.tab.c`, `lex.yy`, `/generated/`). Единственный выживший path-гард.
-- [x] **Вывод дубликатов структурирован** (`src/main.cpp`): `(TYPE, weighted, line)`, whole-file счётчик, пересортировка по weighted, поле `Pair::type` (EXACT/RENAMED/LITERAL/MIXED/STRUCTURAL) через `cloneType()`.
-- ❌ **P0.7 (platform) и P0.8 (perf-variant) УДАЛЕНЫ** (2026-06-03): давили реальный TP. Идентичные POSIX-функции (`OS::sleep`/`truncateFile`, w=1.0) между os_macos/os_linux — выносимый копипаст, а path-гард не отличал их от platform-специфики. «identical = report, regardless of path».
-- ⚠️ **НЕ гард:** status_bar `addText/Icon/ColorIndicator` — **TP высокого приоритета** (worst-kind: copy + сменили один тип). Репортить, не давить.
-- 📊 **Эмпирика:** LibreSprite, все 16 коммитов → 10 уникальных пар, **все TP, 0 FP** (подтверждено). Корпусные «58% FP» — артефакт дженерик-детектора, наша архитектура их не производит.
-- [ ] Прогнать триаж ([triage_dup_commits.py](../../experiments/triage_dup_commits.py)) на др. репах (vmecpp, corpus-репы) — проверить 0-FP на ширине
-- [ ] ⚠️ Секции «Правила (Draft)» и «Внешняя опора» ниже всё ещё описывают P0.7/P0.8 как FP-гарды — переписать под факт (удалены)
-- [ ] Написать правила в `docs/duplication_architecture.md` § **FP Classification Rules**
+Systematize and lock in **objective rules** for distinguishing between:
+- **TP (True Positive)** — real copy-paste, needs a refactor
+- **FP (False Positive)** — a legitimate pattern, the guards should filter it out
+
+Goal: in future sessions, when analyzing duplicates, apply the rules immediately and not invent FPs where there are none.
 
 ---
 
-## Внешняя опора (authority, не мнение)
+## Done
 
-Наш extractability-тест совпадает с эмпирическим каталогом
+- [x] **P0.2 whole-file guard** — file aggregation (≥80% of the smaller file's fragments matched → whole-file clone), counted in `ScanResult.wholeFileClones`, the pairs are removed. Tests green.
+- [x] **P0.9 generated guard** — `isGeneratedPath` (`.pb.cc`, `moc_`, `ui_`, `.tab.c`, `lex.yy`, `/generated/`). The only surviving path guard.
+- [x] **Duplicate output is structured** (`src/main.cpp`): `(TYPE, weighted, line)`, whole-file counter, re-sorting by weighted, the `Pair::type` field (EXACT/RENAMED/LITERAL/MIXED/STRUCTURAL) via `cloneType()`.
+- ❌ **P0.7 (platform) and P0.8 (perf-variant) REMOVED** (2026-06-03): they suppressed real TP. Identical POSIX functions (`OS::sleep`/`truncateFile`, w=1.0) between os_macos/os_linux are extractable copy-paste, and the path guard didn't tell them apart from platform specifics. "identical = report, regardless of path".
+- ⚠️ **NOT a guard:** status_bar `addText/Icon/ColorIndicator` — **high-priority TP** (worst-kind: copy + changed one type). Report, don't suppress.
+- 📊 **Empirics:** LibreSprite, all 16 commits → 10 unique pairs, **all TP, 0 FP** (confirmed). The corpus "58% FP" is an artifact of the generic detector; our architecture doesn't produce them.
+- [ ] Run the triage ([triage_dup_commits.py](../../experiments/triage_dup_commits.py)) on other repos (vmecpp, corpus repos) — check 0-FP at scale
+- [ ] ⚠️ The "Rules (Draft)" and "External support" sections below still describe P0.7/P0.8 as FP guards — rewrite to match the facts (removed)
+- [ ] Write the rules into `docs/duplication_architecture.md` § **FP Classification Rules**
+
+---
+
+## External support (authority, not opinion)
+
+Our extractability test matches the empirical catalog of
 **Kapser & Godfrey, «"Cloning considered harmful" considered harmful»** (Empirical
-Software Engineering, 2008, 13(6):645–692) — это снимает упрёк «вкусовщина»
-(принцип проекта «authority over opinion»):
+Software Engineering, 2008, 13(6):645–692) — this removes the "matter of taste" objection
+(the project principle "authority over opinion"):
 
-- их **parameterized code** (копия, сводимая в одну параметризованную функцию) —
-  именно наш **worst-kind TP** (скопировал блок, поменял один токен);
-- их **platform variations** / **replicate & specialize** — были нашими гардами
-  P0.7-P0.8 (удалены 2026-06-03; ныне действуют только P0.9 generated и P0.2 whole-file);
-- их тезис: вред определяется **контекстом и коэволюцией**, не сходством текста —
-  ровно поэтому severity выносим в отдельный сигнал (см. #078, co-change).
+- their **parameterized code** (a copy reducible to a single parameterized function) is
+  exactly our **worst-kind TP** (copied a block, changed one token);
+- their **platform variations** / **replicate & specialize** were our guards
+  P0.7-P0.8 (removed 2026-06-03; now only P0.9 generated and P0.2 whole-file remain);
+- their thesis: harm is determined by **context and co-evolution**, not by text similarity —
+  exactly why we move severity into a separate signal (see #078, co-change).
 
-Сводка типов клонов, эмпирика вреда и методы детекта со ссылками:
+A summary of clone types, harm empirics, and detection methods with references:
 [../../docs/research/code_clones.md](../../docs/research/code_clones.md).
 
-## Правила (зафиксированы в docs/duplication_architecture.md §5.x)
+## Rules (locked in docs/duplication_architecture.md §5.x)
 
-Формализованные критерии различия TP/FP перенесены в основной архитектурный документ: [docs/duplication_architecture.md](../../docs/duplication_architecture.md) §5.x **FP Classification Rules (#071)**.
+The formalized TP/FP distinction criteria have been moved to the main architecture document: [docs/duplication_architecture.md](../../docs/duplication_architecture.md) §5.x **FP Classification Rules (#071)**.
 
-Там же — extractability-тест (порядок применения до сигналов), 4 верных TP-сигнала, действующие гарды (P0.2, P0.9), история удаления P0.7/P0.8 и контекст severity.
+There you'll also find: the extractability test (the order of application, before the signals), the 4 valid TP signals, the active guards (P0.2, P0.9), the history of removing P0.7/P0.8, and the severity context.
 
-### Историческая справка: удалённые гарды
+### Historical note: removed guards
 
-**P0.7 (platform-twins)** и **P0.8 (perf-variants)** были path-гардами, которые привили к idea "разные платформы → разные реализации → не дублирование". Удалены 2026-06-03, потому что на практике идентичный код (например, `OS::sleep()` одинаков на POSIX) может быть как действительной платформо-специфичностью (разные syscalls), так и копипастом простых helper-функций. Гард не может различить — давит и TP, и FP. Решение: **identical = report, regardless of path**; тогда human reviewer видит пару и принимает решение.
+**P0.7 (platform-twins)** and **P0.8 (perf-variants)** were path guards tied to the idea "different platforms → different implementations → not duplication". Removed 2026-06-03, because in practice identical code (e.g., `OS::sleep()` is the same on POSIX) can be either genuine platform specificity (different syscalls) or copy-paste of simple helper functions. A guard can't tell them apart — it suppresses both TP and FP. The decision: **identical = report, regardless of path**; then a human reviewer sees the pair and makes the call.
 
 ---
 
-## Ключевые решения
+## Key decisions
 
-- **«identical = report, regardless of path»** — path-based FP-гарды неверны: идентичный код выносим = TP, даже между платформами. P0.7/P0.8 удалены.
-- **similarity-score ≠ refactor-priority** — низкий weighted (разные типы разбавляют bag-of-words) ≠ FP; такие пары рискуют быть ПРОПУЩЕННЫМИ, не over-reported.
-- **worst-kind TP** = copy block + сменить один токен (status_bar indicator-триплет) — высокий приоритет, не «средний».
-- **Наша архитектура ≠ дженерик-детектор** — function-фрагменты ≥30 токенов + P0.6 не производят большинство корпусных «FP» (decl-хидеры, coincidental). 42% precision к нам неприменимо.
-- **Generated (P0.9)** — единственный честный path-FP; но маркеры ловят мало реального, нужен banner-scan сырого файла.
+- **"identical = report, regardless of path"** — path-based FP guards are wrong: identical code is extractable = TP, even across platforms. P0.7/P0.8 removed.
+- **similarity-score ≠ refactor-priority** — a low weighted (different types dilute the bag-of-words) ≠ FP; such pairs risk being MISSED, not over-reported.
+- **worst-kind TP** = copy a block + change one token (status_bar indicator triplet) — high priority, not "medium".
+- **Our architecture ≠ a generic detector** — function fragments ≥30 tokens + P0.6 don't produce most of the corpus "FP" (decl headers, coincidental). The 42% precision doesn't apply to us.
+- **Generated (P0.9)** — the only honest path-FP; but the markers catch little of the real stuff, a banner-scan of the raw file is needed.
 
-## Изменённые файлы (закоммичены — проверено 2026-06-11)
+## Changed files (committed — verified 2026-06-11)
 
-- `src/scan/duplication/duplication_scanner.cpp` — P0.2 whole-file (`phase8WholeFileSuppress`, строка 336), P0.9 generated (`isGeneratedPath`, строка 173); P0.7/P0.8 удалены. В master (история: `1329d06`, `be56245`).
-- `include/archcheck/scan/duplication/duplication_scanner.h` — `ScanResult.wholeFileClones`, опции гардов.
-- `src/main.cpp` — структурированный вывод дубликатов (TYPE/weighted/line, счётчик, сортировка).
-- `tests/duplication_path_guards_test.cpp` — P0.9 + whole-file кейсы.
-- `experiments/triage_dup_commits.py`, `experiments/dup_triage_libresprite.md` — триаж-инструмент + отчёт.
+- `src/scan/duplication/duplication_scanner.cpp` — P0.2 whole-file (`phase8WholeFileSuppress`, line 336), P0.9 generated (`isGeneratedPath`, line 173); P0.7/P0.8 removed. In master (history: `1329d06`, `be56245`).
+- `include/archcheck/scan/duplication/duplication_scanner.h` — `ScanResult.wholeFileClones`, guard options.
+- `src/main.cpp` — structured duplicate output (TYPE/weighted/line, counter, sorting).
+- `tests/duplication_path_guards_test.cpp` — P0.9 + whole-file cases.
+- `experiments/triage_dup_commits.py`, `experiments/dup_triage_libresprite.md` — triage tool + report.
 - mem: `fp_classification_rules`.
 
-## В работе / Следующие шаги
+## In progress / Next steps
 
-1. Прогнать триаж на vmecpp / corpus-репах — проверить 0-FP на ширине (ждёт go; **research, вне Haiku-скоупа**).
-2. Переписать устаревшие секции «Правила (Draft)» / «Внешняя опора» — план для Haiku ниже.
-3. (опц.) generated banner-scan; data-table гард (риск прибить biquad-TP) — **вне скоупа**, P1.3 закрыт данными в #083 (не реализуем до v0.2 semantic).
+1. Run the triage on vmecpp / corpus repos — check 0-FP at scale (awaits go; **research, outside the Haiku scope**).
+2. Rewrite the stale "Rules (Draft)" / "External support" sections — plan for Haiku below.
+3. (opt.) generated banner-scan; data-table guard (risk of killing the biquad TP) — **out of scope**, P1.3 closed by data in #083 (not implemented until v0.2 semantic).
 
-## План для Haiku (2026-06-11) — только документация
+## Plan for Haiku (2026-06-11) — documentation only
 
-Перед стартом ОБЯЗАН прочитать целиком: эту задачу, [docs/dev/haiku_task_guide.md](../../docs/dev/haiku_task_guide.md) §2, [docs/duplication_architecture.md](../../docs/duplication_architecture.md) (весь — это контекст подсистемы).
+Before starting, MUST read in full: this task, [docs/dev/haiku_task_guide.md](../../docs/dev/haiku_task_guide.md) §2, [docs/duplication_architecture.md](../../docs/duplication_architecture.md) (the whole thing — it's the subsystem context).
 
-**Это docs-only задача. C++ код, тесты, эксперименты НЕ трогать.**
+**This is a docs-only task. Do NOT touch C++ code, tests, experiments.**
 
-### Главная ловушка (прочитай дважды)
+### The main trap (read twice)
 
-Секция «Правила (Draft)» этой задачи **частично неверна**: пункты FP-2 (platform) и FP-3 (perf-variants) описывают гарды P0.7/P0.8 как действующие, но они **УДАЛЕНЫ 2026-06-03** (см. «Сделано» и «Ключевые решения»). Авторитетная семантика — секция «Ключевые решения», главный принцип: **«identical = report, regardless of path»**. НЕ переноси Draft в доку как есть.
+The "Rules (Draft)" section of this task is **partially wrong**: items FP-2 (platform) and FP-3 (perf-variants) describe the guards P0.7/P0.8 as active, but they are **REMOVED 2026-06-03** (see "Done" and "Key decisions"). The authoritative semantics is the "Key decisions" section, the main principle: **"identical = report, regardless of path"**. Do NOT carry the Draft into the doc as is.
 
-### Действующие гарды (факты, проверены 2026-06-11 по коду)
+### Active guards (facts, verified 2026-06-11 from the code)
 
-В `src/scan/duplication/duplication_scanner.cpp` живы: P0.2 whole-file (`phase8WholeFileSuppress:336`), P0.9 generated (`isGeneratedPath:173`). P0.7/P0.8 — удалены. P1.3 header↔impl — закрыт данными (#083), не реализован. Перед написанием доки ОБЯЗАН перепроверить grep'ом — если набор гардов изменился, остановись и доложи.
+In `src/scan/duplication/duplication_scanner.cpp` these are alive: P0.2 whole-file (`phase8WholeFileSuppress:336`), P0.9 generated (`isGeneratedPath:173`). P0.7/P0.8 — removed. P1.3 header↔impl — closed by data (#083), not implemented. Before writing the doc, MUST re-verify with grep — if the set of guards has changed, stop and report.
 
-### Шаг 1 — секция в `docs/duplication_architecture.md`
+### Step 1 — section in `docs/duplication_architecture.md`
 
-В §5 «Классы ложных срабатываний и как лечим» (строка ~182) добавить подсекцию `### 5.x FP Classification Rules (#071)`:
+In §5 "Classes of false positives and how we treat them" (line ~182) add a subsection `### 5.x FP Classification Rules (#071)`:
 
-1. **Порядок применения: extractability-тест ПЕРВЫМ** — «можно ли вынести в одну функцию с параметрами?» да → TP, нет (разные семантики) → FP.
-2. **TP-сигналы** — 4 пункта из секции «Правила (Draft) → TP» (они верны, переносить можно): идентичный код в разных файлах (w≥0.95); полный скопированный блок (w=1.0 cross-file); 3+ повторения в одном файле; extractable.
-3. **Действующие FP-гарды** — только те, что есть в коде (см. факты выше): P0.2, P0.9.
-4. **История P0.7/P0.8** — абзац: были path-гардами platform/perf-variants, удалены 2026-06-03, причина — давили реальный TP (идентичные POSIX-функции между os_macos/os_linux — выносимый копипаст); принцип «identical = report».
-5. **Авторитет** — ссылка на Kapser & Godfrey 2008 и [docs/research/code_clones.md](../../docs/research/code_clones.md) (формулировка из секции «Внешняя опора», вычистив упоминание P0.7/P0.8 как наших гардов).
-6. Severity по co-change — отдельный сигнал, см. #078 (одна строка, не расписывать).
+1. **Order of application: the extractability test FIRST** — "can it be extracted into a single function with parameters?" yes → TP, no (different semantics) → FP.
+2. **TP signals** — 4 items from the "Rules (Draft) → TP" section (they are correct, can be carried over): identical code in different files (w≥0.95); a full copied block (w=1.0 cross-file); 3+ repetitions in one file; extractable.
+3. **Active FP guards** — only those present in the code (see facts above): P0.2, P0.9.
+4. **History of P0.7/P0.8** — a paragraph: they were path guards for platform/perf-variants, removed 2026-06-03, the reason — they suppressed real TP (identical POSIX functions between os_macos/os_linux — extractable copy-paste); the "identical = report" principle.
+5. **Authority** — a reference to Kapser & Godfrey 2008 and [docs/research/code_clones.md](../../docs/research/code_clones.md) (the wording from the "External support" section, scrubbing the mention of P0.7/P0.8 as our guards).
+6. Severity by co-change — a separate signal, see #078 (one line, don't elaborate).
 
-### Шаг 2 — починить секции этой задачи
+### Step 2 — fix the sections of this task
 
-- «Правила (Draft)» → переименовать в «Правила (зафиксированы в docs/duplication_architecture.md §5.x)», FP-пункты 2-3 переписать как историю удаления, FP-пункт 4 (if-elif цепь) пометить честно: гардом не реализован, остаётся ручным критерием триажа.
-- «Внешняя опора» — убрать «наши гарды P0.7-P0.9» → «наш P0.9 и удалённые P0.7/P0.8».
+- "Rules (Draft)" → rename to "Rules (locked in docs/duplication_architecture.md §5.x)", rewrite FP items 2-3 as the removal history, mark FP item 4 (the if-elif chain) honestly: not implemented as a guard, remains a manual triage criterion.
+- "External support" — remove "our guards P0.7-P0.9" → "our P0.9 and the removed P0.7/P0.8".
 
 ### Definition of done
 
-- `grep -n "FP Classification" docs/duplication_architecture.md` → ≥1 строка.
-- В новой подсекции extractability-тест идёт ДО списков сигналов.
-- `grep -n "P0.7\|P0.8" docs/duplication_architecture.md backlog/wip/071_fp_classification_rules.md` — каждое вхождение только в контексте «удалены».
-- `grep -cn "uncommitted\|Коммитов пока нет" backlog/wip/071_fp_classification_rules.md` → 0.
-- `git status` — изменены только `docs/duplication_architecture.md` и этот файл.
-- Никаких «outdated»-баннеров — устаревшее переписывается, не помечается.
+- `grep -n "FP Classification" docs/duplication_architecture.md` → ≥1 line.
+- In the new subsection, the extractability test comes BEFORE the signal lists.
+- `grep -n "P0.7\|P0.8" docs/duplication_architecture.md backlog/wip/071_fp_classification_rules.md` — every occurrence only in the context of "removed".
+- `grep -cn "uncommitted\|No commits yet" backlog/wip/071_fp_classification_rules.md` → 0.
+- `git status` — only `docs/duplication_architecture.md` and this file changed.
+- No "outdated" banners — stale content is rewritten, not flagged.
 
-### Эскалация (когда остановиться и передать старшей модели)
+### Escalation (when to stop and hand off to a senior model)
 
-Остановись, запиши сюда «Заблокировано: <что/почему>» и доложи, если: grep по коду показал набор гардов, отличный от заявленного выше; нашёл противоречие между «Ключевые решения» и docs/duplication_architecture.md, которое нельзя разрешить принципом «identical = report»; кажется, что надо менять код. Дальше — Sonnet, затем Opus.
+Stop, write here "Blocked: <what/why>" and report if: a grep over the code shows a set of guards different from the one declared above; you found a contradiction between "Key decisions" and docs/duplication_architecture.md that can't be resolved by the "identical = report" principle; it seems you need to change code. Next — Sonnet, then Opus.
 
 ---
 
 ## Related
 
-- mem:`fp_classification_rules` — буду обновлять по ходу работы
+- mem:`fp_classification_rules` — I'll update it as the work proceeds
 
 
-## Итог
-**Статус:** completed — правила TP/FP записаны в `docs/duplication_architecture.md`
-§5.x (extractability-тест первым, TP-сигналы, действующие гарды P0.2/P0.9, история
-удаления P0.7/P0.8), память `fp_classification_rules` обновлена (commit 2217fbc).
-Оставшийся пункт «триаж на ширине (vmecpp, corpus)» перенесён в
+## Result
+**Status:** completed — the TP/FP rules are written into `docs/duplication_architecture.md`
+§5.x (extractability test first, TP signals, the active guards P0.2/P0.9, the history of
+removing P0.7/P0.8), the memory `fp_classification_rules` updated (commit 2217fbc).
+The remaining item "triage at scale (vmecpp, corpus)" was moved to
 #132 (`backlog/new/132_maj_oracle_quantitative_validation.md`).
-Пост-скриптум 2026-06-11: правила сразу применились в #107 (disagreement-triage) —
-extractability-тест подтвердил TP в собственном лексере.
-**Дата завершения:** 2026-06-11
+Postscript 2026-06-11: the rules were immediately applied in #107 (disagreement triage) —
+the extractability test confirmed a TP in our own lexer.
+**Completed:** 2026-06-11

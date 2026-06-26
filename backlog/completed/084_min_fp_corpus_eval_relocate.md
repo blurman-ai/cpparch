@@ -1,67 +1,67 @@
-# [SCAN][DUPLICATION][BUILD] Вынести `fp_corpus_eval` из shipped `archcheck_core`
+# [SCAN][DUPLICATION][BUILD] Move `fp_corpus_eval` out of the shipped `archcheck_core`
 
-**Дата создания:** 2026-06-05
-**Дата старта:** 2026-06-05
-**Дата завершения:** 2026-06-05
-**Статус:** completed
-**Модуль:** SCAN/DUPLICATION + BUILD
-**Приоритет:** minor
-**Сложность:** S
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #082 (alignment umbrella — родитель, Slice 5a/5b), #083 (precision — единственный реальный потребитель честной корпус-метрики)
+**Creation date:** 2026-06-05
+**Start date:** 2026-06-05
+**Completion date:** 2026-06-05
+**Status:** completed
+**Module:** SCAN/DUPLICATION + BUILD
+**Priority:** minor
+**Difficulty:** S
+**Blocks:** —
+**Blocked by:** —
+**Related:** #082 (alignment umbrella — parent, Slice 5a/5b), #083 (precision — the only real consumer of an honest corpus metric)
 
-## Цель
+## Goal
 
-Убрать research/QA-харнесс оценки precision из основной shipped-библиотеки
-`archcheck_core`, чтобы product-код не нёс non-product placeholder.
+Remove the research/QA precision-evaluation harness from the main shipped library
+`archcheck_core`, so the product code doesn't carry a non-product placeholder.
 
-## Контекст (откуда задача)
+## Context (where the task comes from)
 
 [src/scan/duplication/fp_corpus_eval.cpp](../../src/scan/duplication/fp_corpus_eval.cpp)
-скомпилён в `archcheck_core` ([src/CMakeLists.txt](../../src/CMakeLists.txt) строка ~13),
-но:
+is compiled into `archcheck_core` ([src/CMakeLists.txt](../../src/CMakeLists.txt) line ~13),
+but:
 
-- используется **только тестами** ([tests/duplication_fp_corpus_eval_test.cpp](../../tests/duplication_fp_corpus_eval_test.cpp)),
-  не на runtime-пути `--duplication`;
-- `evaluateAgainstCorpus` — **placeholder** («assume all pairs are TP»), реальной
-  метрики не считает (тестируется только degenerate-кейс).
+- it's used **only by tests** ([tests/duplication_fp_corpus_eval_test.cpp](../../tests/duplication_fp_corpus_eval_test.cpp)),
+  not on the runtime path of `--duplication`;
+- `evaluateAgainstCorpus` — a **placeholder** ("assume all pairs are TP"), it doesn't compute a real
+  metric (only the degenerate case is tested).
 
-В #082 (Slice 5b) это помечено как «internal QA-tooling вне user-facing surface» и
-сознательно оставлено — relocation это структурная build-правка, отдельная от
-alignment контрактов.
+In #082 (Slice 5b) this is marked as "internal QA tooling outside the user-facing surface" and
+deliberately left in place — relocation is a structural build change, separate from
+the alignment contracts.
 
-## Что нужно (выбрать одно)
+## What's needed (pick one)
 
-1. **Переместить** в test-only target (убрать из `archcheck_core`, линковать только в
-   `archcheck_tests`); либо отдельная `research/`-директория вне основного билда.
-2. **Реализовать** `evaluateAgainstCorpus` по-настоящему, если корпус-метрика нужна
-   (тогда это часть #083).
-3. **Явно изолировать** как research-namespace/комментарий с пометкой «not product».
+1. **Move** into a test-only target (remove from `archcheck_core`, link only into
+   `archcheck_tests`); or a separate `research/` directory outside the main build.
+2. **Implement** `evaluateAgainstCorpus` for real, if the corpus metric is needed
+   (then it's part of #083).
+3. **Explicitly isolate** as a research namespace/comment marked "not product".
 
-Рекомендация: вариант 1 (test-only target) — минимально и честно.
+Recommendation: option 1 (test-only target) — minimal and honest.
 
 ## Acceptance criteria
 
-- [x] `archcheck_core` (shipped-lib) больше не содержит placeholder corpus-eval кода.
-- [x] Тест `duplication_fp_corpus_eval_test` продолжает собираться и проходить.
-- [x] Build зелёный; coverage-пороги держатся.
+- [x] `archcheck_core` (the shipped lib) no longer contains placeholder corpus-eval code.
+- [x] The test `duplication_fp_corpus_eval_test` continues to build and pass.
+- [x] Build green; coverage thresholds hold.
 
-## Как сделано (2026-06-05)
+## How it was done (2026-06-05)
 
-Выбран вариант 1 (test-only target), файлы оставлены на месте:
+Option 1 chosen (test-only target), the files left in place:
 
-- `src/CMakeLists.txt` — `scan/duplication/fp_corpus_eval.cpp` убран из списка
-  источников `archcheck_core`, на его месте — комментарий-пойнтер.
+- `src/CMakeLists.txt` — `scan/duplication/fp_corpus_eval.cpp` removed from the
+  `archcheck_core` source list, a pointer comment in its place.
 - `tests/CMakeLists.txt` — `${CMAKE_SOURCE_DIR}/src/scan/duplication/fp_corpus_eval.cpp`
-  добавлен в источники `archcheck_tests` (компилируется прямо в тест-бинарь).
-- `include/archcheck/scan/duplication/fp_corpus_eval.h` — шапка помечена как
-  research/QA test-only harness (не часть shipped `archcheck_core`).
+  added to the `archcheck_tests` sources (compiled straight into the test binary).
+- `include/archcheck/scan/duplication/fp_corpus_eval.h` — the header marked as a
+  research/QA test-only harness (not part of the shipped `archcheck_core`).
 
-**Проверка:** `ar t libarchcheck_core.a` — нет `fp_corpus_eval.o`; `nm` — нет
-corpus-символов в shipped-lib. Тест `duplication_fp_corpus_eval_test` собирается и
-проходит. Полный gate: clang-format/cppcheck/lizard чисто, build, 344/344, smoke,
+**Verification:** `ar t libarchcheck_core.a` — no `fp_corpus_eval.o`; `nm` — no
+corpus symbols in the shipped lib. The test `duplication_fp_corpus_eval_test` builds and
+passes. Full gate: clang-format/cppcheck/lizard clean, build, 344/344, smoke,
 coverage 91.4/95.8/57.2 — PASS.
 
-**Заметка:** placeholder `evaluateAgainstCorpus` остался placeholder'ом — реальную
-корпус-метрику считать здесь не требовалось; если понадобится, это часть #083.
+**Note:** the placeholder `evaluateAgainstCorpus` stayed a placeholder — computing the real
+corpus metric wasn't required here; if needed, it's part of #083.

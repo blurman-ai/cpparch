@@ -1,93 +1,93 @@
 # [GRAPH][DIFF] Metric regression detection in RegressionReport
 
-**Дата создания:** 2026-05-28
-**Дата старта:** 2026-05-28
-**Статус:** completed
-**Модуль:** GRAPH / DIFF
-**Приоритет:** major
-**Сложность:** medium
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-05-28
+**Started:** 2026-05-28
+**Status:** completed
+**Module:** GRAPH / DIFF
+**Priority:** major
+**Difficulty:** medium
+**Blocks:** —
+**Blocked by:** —
 **Related:** #009 (ai_drift_regression_rules), #027 (coverage_90_percent)
 
-## Цель
+## Goal
 
-Расширить `RegressionReport` метрическими регрессиями (рост max chain length, появление новых god-headers,
-дельты CCD/ACD/NCCD) и добавить тесты, которые обнаруживают эти регрессии через git-сравнение двух ревизий.
+Extend `RegressionReport` with metric regressions (growth of max chain length, the appearance of new god-headers,
+CCD/ACD/NCCD deltas) and add tests that detect these regressions via a git comparison of two revisions.
 
-## Контекст
+## Context
 
-Сейчас `RegressionReport` умеет только сравнивать рёбра и SCC-циклы (`addedEdges`, `removedEdges`,
-`grownCycles`). В MVP заявлены три дополнительные категории нарушений:
+Right now `RegressionReport` can only compare edges and SCC cycles (`addedEdges`, `removedEdges`,
+`grownCycles`). The MVP declares three additional violation categories:
 
-- **Lakos chain length** — порог по умолчанию 10; при его превышении или росте между ревизиями — регрессия.
-- **God-headers (fan-in)** — порог по умолчанию 30; узлы с fan-in выше порога, которых не было в baseline —
-  регрессия.
-- **CCD/ACD/NCCD** — сводные метрики Lakos; рост ACD или NCCD между ревизиями — регрессия.
+- **Lakos chain length** — default threshold 10; a regression when it is exceeded or grows between revisions.
+- **God-headers (fan-in)** — default threshold 30; nodes with fan-in above the threshold that were not in the baseline —
+  a regression.
+- **CCD/ACD/NCCD** — aggregate Lakos metrics; growth of ACD or NCCD between revisions is a regression.
 
-`computeIncludeDepths` (chain depth) уже есть в `algorithms.h`; fan-in и CCD/ACD/NCCD нужно добавить.
+`computeIncludeDepths` (chain depth) already exists in `algorithms.h`; fan-in and CCD/ACD/NCCD need to be added.
 
-Интеграционные тесты через реальные git-репозитории уже работают (см. `tests/integration/diff/git_diff_test.cpp`);
-новые сценарии дописываются туда же.
+Integration tests through real git repositories already work (see `tests/integration/diff/git_diff_test.cpp`);
+new scenarios are added there too.
 
-### Стратегия тестовых git-репозиториев
+### Strategy for test git repositories
 
-Исследование паттернов из libgit2, gitoxide, go-git показало три подхода:
+Studying the patterns from libgit2, gitoxide, go-git revealed three approaches:
 
-1. **Программное создание (наш подход)** — `mkdtemp` + `git init/commit` через `std::system`. Уже применяется
-   в `git_diff_test.cpp`. Достаточно для всех тестов #029: каждый сценарий — 2 коммита (before/after),
-   создаётся в `TempDir` и удаляется после теста. Ключевые предосторожности: фиксировать `user.email/name`,
-   отключать `commit.gpgsign`.
+1. **Programmatic creation (our approach)** — `mkdtemp` + `git init/commit` via `std::system`. Already used
+   in `git_diff_test.cpp`. Sufficient for all #029 tests: each scenario is 2 commits (before/after),
+   created in a `TempDir` and removed after the test. Key precautions: fix `user.email/name`,
+   disable `commit.gpgsign`.
 
-2. **Pre-built bare repo в `tests/resources/`** (libgit2 style) — бинарный `.git`-каталог коммитится
-   в репо. Быстро, но непрозрачно и сложно менять. **Не используем.**
+2. **Pre-built bare repo in `tests/resources/`** (libgit2 style) — a binary `.git` directory is committed
+   to the repo. Fast, but opaque and hard to change. **Not used.**
 
-3. **Fixture-скрипт + `.bundle` файл** (gitoxide style) — bash-скрипт создаёт сложную историю,
-   результат упаковывается в `git bundle create`. Скрипт и бандл коммитятся; тест клонирует бандл.
-   **Резервный вариант:** применить, если в будущем понадобится сканирование N последних коммитов
-   (feature "scan git log"), где программное создание 50+ коммитов станет слишком медленным.
-   Разместить в `tests/fixtures/bundles/`.
+3. **Fixture script + `.bundle` file** (gitoxide style) — a bash script creates a complex history,
+   the result is packed with `git bundle create`. The script and bundle are committed; the test clones the bundle.
+   **Fallback option:** apply it if we later need to scan the N most recent commits
+   (the "scan git log" feature), where programmatically creating 50+ commits would become too slow.
+   Place it under `tests/fixtures/bundles/`.
 
-**Вывод для #029:** программный подход, патерн `TempDir` + `initRepo` + `commitAll` уже готов.
+**Conclusion for #029:** the programmatic approach, the `TempDir` + `initRepo` + `commitAll` pattern, is already ready.
 
-## План выполнения
+## Execution plan
 
-### Алгоритмы (`graph/algorithms`)
+### Algorithms (`graph/algorithms`)
 
-- [ ] Добавить `computeFanIn(const DependencyGraph&) → vector<size_t>` (обратная степень каждого узла).
-- [ ] Добавить `computeCCD(const DependencyGraph&) → size_t`
-      (∑ |reachableFrom(n)| + 1 для всех n; +1 считает сам узел).
-- [ ] Добавить `computeGraphMetrics(const DependencyGraph&) → GraphMetrics` — агрегирует
+- [ ] Add `computeFanIn(const DependencyGraph&) → vector<size_t>` (in-degree of each node).
+- [ ] Add `computeCCD(const DependencyGraph&) → size_t`
+      (∑ |reachableFrom(n)| + 1 over all n; the +1 counts the node itself).
+- [ ] Add `computeGraphMetrics(const DependencyGraph&) → GraphMetrics` — aggregates
       maxChainLength, maxFanIn, CCD, ACD (`double = CCD / N`), NCCD (`double = ACD / log2(N+1)`).
 
-### Структуры (`diff/regression_report.h`)
+### Structures (`diff/regression_report.h`)
 
-- [ ] Добавить `struct MetricDelta { size_t baseline; size_t current; }` (для целых метрик).
-- [ ] Расширить `RegressionReport`:
+- [ ] Add `struct MetricDelta { size_t baseline; size_t current; }` (for integer metrics).
+- [ ] Extend `RegressionReport`:
   ```cpp
   std::optional<MetricDelta>  chainLengthGrown;   // set only when current.max > baseline.max
   std::vector<std::string>    newGodHeaders;       // nodes crossing fan-in threshold (default 30)
   std::optional<double>       nccdDelta;           // set when NCCD grew
   ```
-- [ ] Обновить `hasRegression()`: добавить проверку `chainLengthGrown`, `!newGodHeaders.empty()`,
+- [ ] Update `hasRegression()`: add the checks `chainLengthGrown`, `!newGodHeaders.empty()`,
       `nccdDelta > 0`.
 
-### Реализация (`diff/regression_report.cpp`)
+### Implementation (`diff/regression_report.cpp`)
 
-- [ ] Принять `MetricThresholds { size_t chainLengthLimit = 10; size_t godHeaderFanIn = 30; }` вторым
-      аргументом `buildRegressionReport` (со значениями по умолчанию — zero-config остаётся).
-- [ ] Вычислять `GraphMetrics` для baseline и current; заполнять новые поля.
+- [ ] Accept `MetricThresholds { size_t chainLengthLimit = 10; size_t godHeaderFanIn = 30; }` as a second
+      argument to `buildRegressionReport` (with default values — zero-config stays).
+- [ ] Compute `GraphMetrics` for baseline and current; fill the new fields.
 
-### Текстовый отчёт (`report/writeTextReport`)
+### Text report (`report/writeTextReport`)
 
-- [ ] Добавить строки в вывод:
+- [ ] Add lines to the output:
   ```
-  chain_length:   <N>  [+<delta>]     (только если выросло)
-  god_headers:    <K>  new: h1, h2    (только при наличии)
-  nccd:           <F>  [+<delta>]     (только если выросло)
+  chain_length:   <N>  [+<delta>]     (only if it grew)
+  god_headers:    <K>  new: h1, h2    (only if present)
+  nccd:           <F>  [+<delta>]     (only if it grew)
   ```
 
-### Unit-тесты (`tests/unit/diff/regression_report_test.cpp`)
+### Unit tests (`tests/unit/diff/regression_report_test.cpp`)
 
 - [ ] `chain length grew → chainLengthGrown set, hasRegression() true`
 - [ ] `chain length did not grow → chainLengthGrown nullopt`
@@ -95,66 +95,66 @@
 - [ ] `NCCD grew → nccdDelta > 0, hasRegression() true`
 - [ ] `writeTextReport emits chain_length / god_headers / nccd lines only when grown`
 
-### Интеграционные тесты (`tests/integration/diff/git_diff_test.cpp`)
+### Integration tests (`tests/integration/diff/git_diff_test.cpp`)
 
 - [ ] `git: PR adds deep include chain → chainLengthGrown detected`
-  Сценарий: baseline = `a→b→c` (depth 2); PR добавляет `b→d→e→f→...` (depth > baseline max).
+  Scenario: baseline = `a→b→c` (depth 2); the PR adds `b→d→e→f→...` (depth > baseline max).
 - [ ] `git: PR creates god-header → newGodHeaders non-empty`
-  Сценарий: baseline = граф без высокого fan-in; PR добавляет 31+ входящих рёбер в один узел.
+  Scenario: baseline = a graph without high fan-in; the PR adds 31+ incoming edges to a single node.
 - [ ] `git: PR increases NCCD → nccdDelta detected`
-  Сценарий: baseline = разреженный граф; PR уплотняет зависимости, NCCD растёт.
+  Scenario: baseline = a sparse graph; the PR densifies dependencies, NCCD grows.
 - [ ] `git (memory variant): chain length regression detected via GitObjectFileSource`
-  Повторяет первый сценарий через in-memory путь (без worktree checkout).
+  Repeats the first scenario through the in-memory path (without a worktree checkout).
 
-### Fixtures (опционально, если понадобятся отдельные fixture-проекты)
+### Fixtures (optional, if separate fixture projects are needed)
 
-- [ ] `fixtures/chain_length/pass/` — цепочка в пределах порога
-- [ ] `fixtures/chain_length/fail_deep/` — цепочка превышает порог
+- [ ] `fixtures/chain_length/pass/` — a chain within the threshold
+- [ ] `fixtures/chain_length/fail_deep/` — a chain exceeding the threshold
 - [ ] `fixtures/god_header/pass/`
 - [ ] `fixtures/god_header/fail_fanin/`
 
-## Сделано
+## Done
 
-- **2026-05-28** — весь план реализован коммитом `c480e39` (тем же коммитом, что создал этот файл; секция «Сделано» тогда не была заполнена — файл задачи ошибочно остался в `new/` со статусом `new` до бэклог-ревью 2026-06-11):
-  - `computeFanIn` O(E) + `GraphMetrics` (maxChainLength / maxFanIn / CCD / ACD / NCCD) + `computeGraphMetrics` в `graph/algorithms`;
-  - `MetricDelta`, `MetricThresholds` (chainLengthLimit=10, godHeaderFanIn=30), поля `chainLengthGrown` / `newGodHeaders` / `nccdDelta` в `RegressionReport`, `hasRegression()` расширен;
-  - `writeTextReport` выводит chain_length / god_headers / nccd только при регрессии;
-  - unit-тесты (+160 строк `regression_report_test.cpp`) и 4 git-интеграционных теста (+93 строки `git_diff_test.cpp`), coverage gate пройден (lines 95.9%).
+- **2026-05-28** — the entire plan was implemented in commit `c480e39` (the same commit that created this file; the "Done" section was not filled in at the time — the task file was mistakenly left in `new/` with status `new` until the backlog review on 2026-06-11):
+  - `computeFanIn` O(E) + `GraphMetrics` (maxChainLength / maxFanIn / CCD / ACD / NCCD) + `computeGraphMetrics` in `graph/algorithms`;
+  - `MetricDelta`, `MetricThresholds` (chainLengthLimit=10, godHeaderFanIn=30), the fields `chainLengthGrown` / `newGodHeaders` / `nccdDelta` in `RegressionReport`, `hasRegression()` extended;
+  - `writeTextReport` emits chain_length / god_headers / nccd only on a regression;
+  - unit tests (+160 lines of `regression_report_test.cpp`) and 4 git integration tests (+93 lines of `git_diff_test.cpp`), the coverage gate passed (lines 95.9%).
 
-## Следующие шаги
+## Next steps
 
-- Закрыто. Опциональные fixture-проекты (`fixtures/chain_length/`, `fixtures/god_header/`) не создавались — сценарии покрыты программными git-тестами, отдельные фикстуры не понадобились.
+- Closed. The optional fixture projects (`fixtures/chain_length/`, `fixtures/god_header/`) were not created — the scenarios are covered by programmatic git tests, separate fixtures were not needed.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| `MetricThresholds` как аргумент со значениями по умолчанию | Zero-config остаётся, но пороги можно переопределить из YAML-конфига позже |
-| Отдельная `computeGraphMetrics` вместо прямых вызовов | Избегает двойного вычисления depths и fan-in в `buildRegressionReport` |
-| `newGodHeaders` — список имён, не NodeId | Имена нужны для текстового отчёта; NodeId — деталь реализации |
-| `nccdDelta` — `optional<double>`, не bool | Позволяет показать числовое изменение в отчёте |
+| `MetricThresholds` as an argument with default values | Zero-config stays, but the thresholds can be overridden from the YAML config later |
+| A separate `computeGraphMetrics` instead of direct calls | Avoids computing depths and fan-in twice in `buildRegressionReport` |
+| `newGodHeaders` — a list of names, not NodeId | The names are needed for the text report; NodeId is an implementation detail |
+| `nccdDelta` — `optional<double>`, not bool | Allows showing the numeric change in the report |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
 | `include/archcheck/graph/algorithms.h` | + `computeFanIn`, `GraphMetrics`, `computeGraphMetrics` |
-| `src/graph/algorithms.cpp` | Реализация новых функций |
-| `include/archcheck/diff/regression_report.h` | + `MetricDelta`, `MetricThresholds`, новые поля в `RegressionReport` |
-| `src/diff/regression_report.cpp` | Заполнение новых полей |
-| `src/report/text_reporter.cpp` | Новые строки вывода |
-| `tests/unit/diff/regression_report_test.cpp` | +5 unit-тестов |
-| `tests/integration/diff/git_diff_test.cpp` | +4 git-интеграционных теста |
+| `src/graph/algorithms.cpp` | Implementation of the new functions |
+| `include/archcheck/diff/regression_report.h` | + `MetricDelta`, `MetricThresholds`, new fields in `RegressionReport` |
+| `src/diff/regression_report.cpp` | Filling the new fields |
+| `src/report/text_reporter.cpp` | New output lines |
+| `tests/unit/diff/regression_report_test.cpp` | +5 unit tests |
+| `tests/integration/diff/git_diff_test.cpp` | +4 git integration tests |
 
-## Как работает
+## How it works
 
-`buildRegressionReport` считает `computeGraphMetrics` для baseline и current графов и заполняет три
-опциональных поля: `chainLengthGrown` (рост max include depth), `newGodHeaders` (узлы, впервые
-пересёкшие fan-in порог 30), `nccdDelta` (рост Normalized ACD — ловит уплотнение графа без единого
-большого ребра). Пороги — `MetricThresholds` со значениями по умолчанию, zero-config сохранён.
+`buildRegressionReport` computes `computeGraphMetrics` for the baseline and current graphs and fills three
+optional fields: `chainLengthGrown` (growth of max include depth), `newGodHeaders` (nodes that crossed the
+fan-in threshold of 30 for the first time), `nccdDelta` (growth of Normalized ACD — catches densification of
+the graph without any single large edge). The thresholds are `MetricThresholds` with default values, zero-config preserved.
 
-## Итог
+## Outcome
 
-**Статус:** completed
-**Дата завершения:** 2026-05-28 (фактическая, коммит `c480e39`); файл закрыт 2026-06-11 по итогам бэклог-ревью.
-**Причина задержки закрытия:** реализация и файл задачи попали в один коммит, чекбоксы и статус не были обновлены — задача 2 недели выглядела неначатой. Дублей работы не возникло, но #057 и TASK_TRACKER ссылались на неё как на несделанную.
+**Status:** completed
+**Completed:** 2026-05-28 (actual, commit `c480e39`); the file was closed on 2026-06-11 following the backlog review.
+**Reason for the late closure:** the implementation and the task file landed in one commit, the checkboxes and status were not updated — for 2 weeks the task looked unstarted. No duplicated work occurred, but #057 and TASK_TRACKER referenced it as not done.

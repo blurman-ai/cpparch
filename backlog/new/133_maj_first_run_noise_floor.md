@@ -1,90 +1,90 @@
-# [RULES][CLI] First-run noise floor: ChainLength/GodHeader флудят на header-heavy либах
+# [RULES][CLI] First-run noise floor: ChainLength/GodHeader flood on header-heavy libs
 
-**Дата создания:** 2026-06-19
-**Дата старта:** 2026-06-19
-**Статус:** wip — основной фикс (advisory в check-mode) сделан + проверен; остаток = `--diff` mass-rename guard (узкий)
-**Модуль:** RULES / GRAPH / CLI
-**Приоритет:** major (go-public quality — первый контакт)
+**Created:** 2026-06-19
+**Started:** 2026-06-19
+**Status:** wip — the main fix (advisory in check-mode) is done + verified; the remainder = `--diff` mass-rename guard (narrow)
+**Module:** RULES / GRAPH / CLI
+**Priority:** major (go-public quality — first contact)
 
-## Сделано (2026-06-19) — решение «advisory в check-mode»
+## Done (2026-06-19) — the "advisory in check-mode" decision
 
-Выбор пользователя: **gating (exit 1) в check-mode только за цикл (SF.9)**; ChainLength,
-GodHeader, SF.7/SF.8 — reported, но advisory (exit 0). Это рекомендация §7 отчёта
-(«gate = циклы; god-header и прочее advisory») и зеркало модели `--diff`/drift.
+User's choice: **gating (exit 1) in check-mode only for a cycle (SF.9)**; ChainLength,
+GodHeader, SF.7/SF.8 — reported but advisory (exit 0). This is recommendation §7 of the report
+("gate = cycles; god-header and the rest advisory") and a mirror of the `--diff`/drift model.
 
-- `src/cli/check_command.cpp`: добавлен `reportCheckGate` (по образцу `reportDriftGate`)
-  — exit 1 только если есть `SF.9`; печатает «N advisory finding(s) … not gated …
-  use --baseline». Заменил `return all.empty() ? 0 : 1;`.
-- Тест `cli_smoke_e2e_test.cpp`: новая цикл-фикстура (gating exit 1) + кейс «SF.7
-  репортится, но exit 0»; json-тест → exit 0.
-- **Верификация (re-run sanity):** abseil 219 наход. → **exit 0**, spdlog 40 → **0**,
-  fmt → **0**; curl → **exit 1** (цикл `curl.h↔multi.h` гейтит — TP, как и надо).
-  547/547 тестов, dogfood 0, lizard/format чисты. НЕ коммичено (параллельные сессии).
-- ⚠️ **Контракт exit-кодов сдвинулся** (check-mode: 1 = только циклы, не «любые
-  нарушения») — нужно записать в CHANGELOG (v0.1, pre-tag, допустимо).
+- `src/cli/check_command.cpp`: added `reportCheckGate` (modeled on `reportDriftGate`)
+  — exit 1 only if there's an `SF.9`; prints "N advisory finding(s) … not gated …
+  use --baseline". Replaced `return all.empty() ? 0 : 1;`.
+- Test `cli_smoke_e2e_test.cpp`: a new cycle fixture (gating exit 1) + the case "SF.7
+  reported but exit 0"; json test → exit 0.
+- **Verification (re-run sanity):** abseil 219 findings → **exit 0**, spdlog 40 → **0**,
+  fmt → **0**; curl → **exit 1** (the cycle `curl.h↔multi.h` gates — TP, as it should).
+  547/547 tests, dogfood 0, lizard/format clean. NOT committed (parallel sessions).
+- ⚠️ **The exit-code contract shifted** (check-mode: 1 = cycles only, not "any
+  violation") — needs to be recorded in CHANGELOG (v0.1, pre-tag, acceptable).
 
-**Остаток:** только `--diff` mass-rename guard (ниже) — узко, не блокирует go-public.
-**Блокирует:** анонс / выход к публике (первый чужой репо не должен тонуть в шуме)
-**Заблокирован:** —
-**Related:** #127 (vendored exclusion — снимает ЧАСТЬ шума, но abseil не vendored), #126 (SF.9 component collapse), #057 (cheap graph signals), MVP.md §«--baseline с первого дня»
+**Remainder:** only the `--diff` mass-rename guard (below) — narrow, doesn't block go-public.
+**Blocks:** the announcement / public release (the first foreign repo must not drown in noise)
+**Blocked by:** —
+**Related:** #127 (vendored exclusion — removes PART of the noise, but abseil isn't vendored), #126 (SF.9 component collapse), #057 (cheap graph signals), MVP.md §"--baseline from day one"
 
-## Доказательство (first-run sanity, 2026-06-19)
+## Evidence (first-run sanity, 2026-06-19)
 
-`archcheck <repo>` (check-mode, без `--baseline`) на известных C++-репах:
+`archcheck <repo>` (check-mode, no `--baseline`) on well-known C++ repos:
 
-| Репа | Всего | Разбивка | exit |
-|------|-------|----------|------|
+| Repo | Total | Breakdown | exit |
+|------|-------|-----------|------|
 | fmt | 1 | SF.8 ×1 | — |
 | nlohmann_json | 2 | ChainLength ×2 | — |
 | spdlog | 40 | **ChainLength ×39**, SF.8 ×1 | 1 |
 | curl | 14 | ChainLength ×5, **GodHeader ×8**, SF.9 ×1 (TP) | 1 |
 | **abseil** | **219** | **ChainLength ×211**, GodHeader ×8 | 1 |
 
-**Вывод:** шум первого запуска — это **ChainLength** (порог цепочки 10) и вторично
-**GodHeader** (fan-in 50). Циклы НЕ шумят (abseil/spdlog — 0 циклов; curl-цикл
-`curl.h↔multi.h` — настоящий TP). Это и есть «5000 нарушений на первом запуске», от
-которого спека защищается `--baseline` — но **наивный первый `archcheck <repo>`** (а
-именно так человек щупает инструмент) выдаёт abseil = 219, exit 1, и его спишут.
+**Conclusion:** first-run noise is **ChainLength** (chain threshold 10) and secondarily
+**GodHeader** (fan-in 50). Cycles do NOT make noise (abseil/spdlog — 0 cycles; the curl cycle
+`curl.h↔multi.h` is a genuine TP). This is exactly the "5000 violations on first run" that the
+spec defends against with `--baseline` — but a **naive first `archcheck <repo>`** (which is
+exactly how a person probes the tool) yields abseil = 219, exit 1, and it gets written off.
 
-## Почему это go-public блокер
+## Why this is a go-public blocker
 
-Первое, что делает скептик с HN: `archcheck` на своём/известном репе **без флагов**.
-Если ответ — «219 нарушений, в основном include chain depth 11 > 10» — он закрывает
-вкладку. Узкая бесспорная ценность (цикл/копипаст, введённый PR) утонет в ChainLength-шуме.
+The first thing a skeptic from HN does: `archcheck` on their own/a known repo **with no flags**.
+If the answer is "219 violations, mostly include chain depth 11 > 10" — they close the
+tab. The narrow, indisputable value (a cycle/copy-paste introduced by a PR) drowns in ChainLength noise.
 
-## Что решить (это дизайн, не правится наспех)
+## What to decide (this is design, not patched in haste)
 
-1. **ChainLength порог 10 — слишком агрессивен для современного header-heavy C++.**
-   abseil/spdlog/nlohmann深 цепочки — норма, не долг. Варианты:
-   - поднять дефолтный порог (15? 20? — замерить распределение по корпусу);
-   - сделать ChainLength **advisory** (не gating/exit-1) в check-mode — оставить
-     gating только за cycle/god-header (как в `--diff`);
-   - оставить порог, но в check-mode без `--baseline` печатать явную подсказку
-     «N existing findings — run with --baseline to gate only new drift».
-2. **GodHeader на config/logging-хабах** (`curl_setup.h` fan-in 309) — структурно-но-
-   легитимно (см. историю showcase #003, снят как слабый). fan-in-only прокси.
-   Вариант: allowlist известных широких хедеров / понизить severity до advisory.
-3. **First-run UX:** возможно, дефолтный `archcheck <repo>` без `--baseline` должен
-   сам предлагать `--baseline` («это снимок всего долга; для CI-гейта возьми --diff»).
+1. **ChainLength threshold 10 — too aggressive for modern header-heavy C++.**
+   abseil/spdlog/nlohmann deep chains are the norm, not debt. Options:
+   - raise the default threshold (15? 20? — measure the distribution across the corpus);
+   - make ChainLength **advisory** (not gating/exit-1) in check-mode — keep
+     gating only for cycle/god-header (as in `--diff`);
+   - keep the threshold, but in check-mode without `--baseline` print an explicit hint
+     "N existing findings — run with --baseline to gate only new drift".
+2. **GodHeader on config/logging hubs** (`curl_setup.h` fan-in 309) — structurally-but-
+   legitimate (see the showcase history #003, removed as weak). A fan-in-only proxy.
+   Option: allowlist of known wide headers / lower severity to advisory.
+3. **First-run UX:** perhaps the default `archcheck <repo>` without `--baseline` should
+   itself suggest `--baseline` ("this is a snapshot of all debt; for the CI gate use --diff").
 
-## Цикл-гейт mass-rename (узкий остаток, отдельно)
+## Cycle-gate mass-rename (narrow remainder, separate)
 
-В check-mode циклы чисты. В `--diff` ~19% cycle-fires — артефакты массовых
-include-rewrite/move (coal 252 файла, allwpilib 2477). Это **отдельный** `--diff`-guard:
-подавлять `grown_cycles`, когда коммит = массовый rename (>N rename-рёбер). Не для
-check-mode; вынести в #131-проверку или сюда подпунктом. `.tmpl/_impl`-идиома уже
-исключена (#088/#126) — её НЕ трогать (curl-цикл и JANA2-жемчужина — настоящие TP).
+In check-mode cycles are clean. In `--diff` ~19% of cycle-fires are artifacts of mass
+include-rewrite/move (coal 252 files, allwpilib 2477). This is a **separate** `--diff` guard:
+suppress `grown_cycles` when the commit = a mass rename (>N rename edges). Not for
+check-mode; move it to the #131 check or here as a sub-item. The `.tmpl/_impl` idiom is already
+excluded (#088/#126) — do NOT touch it (the curl cycle and the JANA2 gem are genuine TP).
 
-## Проверка (фикстуры обязательны)
+## Verification (fixtures mandatory)
 
-- [ ] Решение по ChainLength зафиксировано (порог / advisory / baseline-подсказка).
-- [ ] Фикстуры: header-heavy цепочка глубины 12 → поведение по выбранному варианту.
-- [ ] Re-run sanity: abseil/spdlog/curl → шум упал до защитимого; exit-1 только на
-      реальных gating-сигналах (или с явной first-run-подсказкой).
-- [ ] Цикл/копипаст-TP (curl-цикл, JANA2) НЕ подавлены.
+- [ ] Decision on ChainLength fixed (threshold / advisory / baseline hint).
+- [ ] Fixtures: a header-heavy chain of depth 12 → behavior per the chosen option.
+- [ ] Re-run sanity: abseil/spdlog/curl → noise dropped to a defensible level; exit-1 only on
+      real gating signals (or with an explicit first-run hint).
+- [ ] Cycle/copy-paste TP (the curl cycle, JANA2) NOT suppressed.
 
-## Самопроверка
+## Self-check
 
-Не «занизить пороги, чтобы числа выглядели тихо» — это обратный обман. Цель — чтобы
-**оставшиеся** срабатывания были defensible, а existing-долг шёл через `--baseline`,
-как и задумано. Замерить распределение цепочек по корпусу перед сдвигом порога.
+Not "lower the thresholds so the numbers look quiet" — that's the inverse deception. The goal is for the
+**remaining** firings to be defensible, while existing debt goes through `--baseline`,
+as intended. Measure the chain distribution across the corpus before shifting the threshold.

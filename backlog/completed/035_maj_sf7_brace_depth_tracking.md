@@ -1,49 +1,49 @@
-# [RULES] SF.7: не отслеживается глубина {} → ложные срабатывания внутри функций и лямбд
+# [RULES] SF.7: brace `{}` depth is not tracked → false positives inside functions and lambdas
 
-**Дата создания:** 2026-05-28
-**Дата старта:** —
-**Статус:** completed
-**Модуль:** RULES
-**Приоритет:** major
-**Сложность:** S
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-05-28
+**Started:** —
+**Status:** completed
+**Module:** RULES
+**Priority:** major
+**Difficulty:** S
+**Blocks:** —
+**Blocked by:** —
 **Related:** #028 (rules_engine_mvp)
 
-## Цель
+## Goal
 
-SF.7 должен репортить только `using namespace` на глобальном уровне или уровне namespace, не внутри тел функций, методов и лямбд.
+SF.7 should report only `using namespace` at global or namespace scope, not inside function bodies, method bodies, or lambdas.
 
-## Контекст
+## Context
 
-Прогон на Catch2 (commit `69e0473`) выявил ложные срабатывания. Два конкретных паттерна (проверено вручную):
+A run on Catch2 (commit `69e0473`) surfaced false positives. Two specific patterns (verified by hand):
 
-**Паттерн 1 — `using namespace` внутри тела метода:**
+**Pattern 1 — `using namespace` inside a method body:**
 ```cpp
 // catch_tostring.hpp:270
 template<>
 struct StringMaker<bool> {
     static std::string convert(bool b) {
-        using namespace std::string_literals;  // SF.7 срабатывает — ложное
+        using namespace std::string_literals;  // SF.7 fires — false positive
         return b ? "true"s : "false"s;
     }
 };
 ```
 
-**Паттерн 2 — `using namespace` внутри лямбды в макросе:**
+**Pattern 2 — `using namespace` inside a lambda in a macro:**
 ```cpp
 // catch_generators.hpp:251
 #define GENERATE(...) \
     Catch::Generators::generate(...,
       [](){ using namespace Catch::Generators; return makeGenerators(__VA_ARGS__); })
-                    // ^^^ SF.7 срабатывает — ложное, лямбда не глобальный scope
+                    // ^^^ SF.7 fires — false positive, lambda is not global scope
 ```
 
-Текущая реализация (`sf7_using_namespace.cpp`) — построчный поиск `using namespace` без отслеживания `{}`-глубины. Любая строка с этим паттерном даёт нарушение.
+The current implementation (`sf7_using_namespace.cpp`) is a line-by-line search for `using namespace` with no `{}`-depth tracking. Any line containing this pattern produces a violation.
 
-## Решение
+## Solution
 
-Добавить счётчик глубины вложенности `{}` в `scanFile`. Репортить `using namespace` только при `brace_depth == 0`.
+Add a `{}` nesting-depth counter to `scanFile`. Report `using namespace` only when `brace_depth == 0`.
 
 ```cpp
 int braceDepth = 0;
@@ -54,31 +54,31 @@ for (each line) {
 }
 ```
 
-Ограничения подхода:
-- Строки-подсчёт `{}`— не настоящий парсер: строки и комментарии могут содержать фигурные скобки. Для большинства реальных заголовков это достаточно. Полный парсинг — libclang (отдельная тема, v0.2).
-- Многострочные выражения (лямбда на нескольких строках) покрываются корректно — счётчик правильно растёт и падает.
+Limitations of this approach:
+- Counting `{}` from strings is not a real parser: strings and comments can contain braces. For most real-world headers this is good enough. Full parsing is libclang (a separate topic, v0.2).
+- Multi-line expressions (a lambda spanning several lines) are handled correctly — the counter rises and falls properly.
 
 ## Plan
 
-- [ ] `sf7_using_namespace.cpp`: добавить `braceDepth` счётчик в `scanFile`
-- [ ] Проверить: Catch2 → 0 ложных SF.7 в `catch_tostring.hpp` и `catch_generators.hpp`
-- [ ] Проверить: fmt, spdlog, abseil — нет регрессий
-- [ ] Фикстура: `fixtures/sf7/pass_using_inside_function/` — `using namespace` внутри функции → pass
-- [ ] Фикстура: `fixtures/sf7/fail_using_global/` — существующая, остаётся fail
-- [ ] Unit-тест для нового паттерна
+- [ ] `sf7_using_namespace.cpp`: add a `braceDepth` counter to `scanFile`
+- [ ] Verify: Catch2 → 0 false SF.7 in `catch_tostring.hpp` and `catch_generators.hpp`
+- [ ] Verify: fmt, spdlog, abseil — no regressions
+- [ ] Fixture: `fixtures/sf7/pass_using_inside_function/` — `using namespace` inside a function → pass
+- [ ] Fixture: `fixtures/sf7/fail_using_global/` — existing, stays fail
+- [ ] Unit test for the new pattern
 
-## Сделано
+## Done
 
-- Реализованы совместно с #038 в одном коммите `71e4fa3`
-- `updateBlockCommentState()` хелпер + `braceDepth` в `scanFile`: два loop-прохода по строке (`{` до check, `}` после) — корректно обрабатывает inline-лямбды
-- 5 новых unit-тестов: function body, inline lambda, after closing brace, block comment, after block comment
-- Фикстуры: `fixtures/sf7_using_namespace/pass_using_inside_function/`, `pass_using_in_block_comment/`
+- Implemented together with #038 in a single commit `71e4fa3`
+- `updateBlockCommentState()` helper + `braceDepth` in `scanFile`: two loop passes over the line (`{` before the check, `}` after) — handles inline lambdas correctly
+- 5 new unit tests: function body, inline lambda, after closing brace, block comment, after block comment
+- Fixtures: `fixtures/sf7_using_namespace/pass_using_inside_function/`, `pass_using_in_block_comment/`
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `src/rules/sf7_using_namespace.cpp` | `updateBlockCommentState()` + `braceDepth` + `inBlockComment` в `scanFile` |
-| `tests/unit/rules/sf7_using_namespace_test.cpp` | 5 новых тестов |
-| `fixtures/sf7_using_namespace/pass_using_inside_function/a.h` | новый |
-| `fixtures/sf7_using_namespace/pass_using_in_block_comment/a.h` | новый |
+| File | Change |
+|------|--------|
+| `src/rules/sf7_using_namespace.cpp` | `updateBlockCommentState()` + `braceDepth` + `inBlockComment` in `scanFile` |
+| `tests/unit/rules/sf7_using_namespace_test.cpp` | 5 new tests |
+| `fixtures/sf7_using_namespace/pass_using_inside_function/a.h` | new |
+| `fixtures/sf7_using_namespace/pass_using_in_block_comment/a.h` | new |

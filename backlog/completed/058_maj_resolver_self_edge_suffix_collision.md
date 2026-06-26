@@ -1,118 +1,118 @@
-# [SCAN] Резолвер: ложное self-ребро при suffix-коллизии системного include
+# [SCAN] Resolver: false self-edge on a system-include suffix collision
 
-**Дата создания:** 2026-05-31
-**Дата старта:** 2026-05-31
-**Дата завершения:** 2026-05-31
-**Статус:** completed
-**Модуль:** SCAN
-**Приоритет:** major
-**Сложность:** S
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #036 (ambiguous_mirror_dirs — тот же класс, ambiguous-вариант), #054 (ai_repo_duplication_run — откуда всплыл баг), #057 (lakos_fanout_coupling_checks — `[SELF]` детектор там в кандидатах)
+**Created:** 2026-05-31
+**Started:** 2026-05-31
+**Completed:** 2026-05-31
+**Status:** completed
+**Module:** SCAN
+**Priority:** major
+**Difficulty:** S
+**Blocks:** —
+**Blocked by:** —
+**Related:** #036 (ambiguous_mirror_dirs — same class, the ambiguous variant), #054 (ai_repo_duplication_run — where the bug surfaced), #057 (lakos_fanout_coupling_checks — the `[SELF]` detector is a candidate there)
 
-## Цель
+## Goal
 
-Убрать ложное ребро зависимости X→X, которое резолвер создавал, когда системный/
-библиотечный `#include <name.h>` суффиксно совпадал с одноимённым проектным файлом.
-Такое ребро рождало фантомный 1-узловой цикл и заставляло SF.9 врать.
+Remove the false dependency edge X→X that the resolver created when a system/library
+`#include <name.h>` collided by suffix with a same-named project file.
+Such an edge gave birth to a phantom 1-node cycle and made SF.9 lie.
 
-## Контекст
+## Context
 
-Баг всплыл не из юнит-теста, а из исследовательского прогона #054: дешёвый
-граф-детектор `[SELF]` ([experiments/ai_repo_run/graph_probe.py](../../experiments/ai_repo_run/graph_probe.py))
-пометил self-include в 16 репах корпуса. Ручная проверка `grep`'ом показала: почти
-все — **не** `#include "self"`, а системные угловые includes:
+The bug surfaced not from a unit test but from the research run #054: the cheap
+graph detector `[SELF]` ([experiments/ai_repo_run/graph_probe.py](../../experiments/ai_repo_run/graph_probe.py))
+flagged a self-include in 16 repos of the corpus. A manual `grep` check showed: almost
+all of them are **not** `#include "self"` but system angle-bracket includes:
 
 ```bash
-grep -n include _aidev_run/bitcoin/src/compat/cpuid.h   # 11: #include <cpuid.h>   (системный!)
-grep -n include _aidev_run/esphome/.../md5/md5.h        # 18: #include <md5.h>     (НЕ свой)
-grep -n include _aidev_run/FastLED/src/fl/stl/alloca.h  # 37: #include <alloca.h>  (системный)
+grep -n include _aidev_run/bitcoin/src/compat/cpuid.h   # 11: #include <cpuid.h>   (system!)
+grep -n include _aidev_run/esphome/.../md5/md5.h        # 18: #include <md5.h>     (NOT its own)
+grep -n include _aidev_run/FastLED/src/fl/stl/alloca.h  # 37: #include <alloca.h>  (system)
 ```
 
-### Первопричина (трасса для `bitcoin/src/compat/cpuid.h` + `<cpuid.h>`)
+### Root cause (trace for `bitcoin/src/compat/cpuid.h` + `<cpuid.h>`)
 
-1. `resolve_angle` → `find_exact("cpuid.h")` — промах (в индексе полный путь
-   `src/compat/cpuid.h`, не `cpuid.h`).
-2. → `resolve_by_suffix` → `suffixIndex["cpuid.h"]` возвращает **сам исходник**
-   (его путь оканчивается на `cpuid.h`).
-3. `candidates.size() == 1` → `make_project(... candidates.front())` → **ребро X→X**.
+1. `resolve_angle` → `find_exact("cpuid.h")` — miss (the index holds the full path
+   `src/compat/cpuid.h`, not `cpuid.h`).
+2. → `resolve_by_suffix` → `suffixIndex["cpuid.h"]` returns **the source itself**
+   (its path ends with `cpuid.h`).
+3. `candidates.size() == 1` → `make_project(... candidates.front())` → **edge X→X**.
 
-Тот же класс, что #036, но #036 чинил *ambiguous* (2+ кандидата, mirror-фильтр);
-здесь — **единственный** кандидат, поэтому фильтр не срабатывал.
+The same class as #036, but #036 fixed the *ambiguous* case (2+ candidates, mirror filter);
+here there is a **single** candidate, so the filter didn't fire.
 
-### Масштаб (по корпусу `_aidev_run/`, 68 реп)
+### Scale (across the `_aidev_run/` corpus, 68 repos)
 
-- **26 ложных self-рёбер**.
-- **8 реп, где self-loop был ЕДИНСТВЕННЫМ «циклом»** (sccs_cyclic полностью ложный):
+- **26 false self-edges**.
+- **8 repos where the self-loop was the ONLY "cycle"** (sccs_cyclic entirely false):
   bitcoin, cvxpy, KataGo, llama.cpp, nntrainer, ScalableVectorSearch,
-  scenario_simulator_v2, whisper.cpp → SF.9 у них репортил несуществующий цикл.
+  scenario_simulator_v2, whisper.cpp → SF.9 reported a nonexistent cycle for them.
 
-## Решение
+## Solution
 
-Минимальный неоспоримый инвариант: **компонент не зависит от себя**. Один guard в
-`resolveInclude` (единственная точка после обоих путей резолва — ловит и
-angle-suffix, и quote-dir-relative варианты):
+A minimal, indisputable invariant: **a component does not depend on itself**. One guard in
+`resolveInclude` (the single point after both resolve paths — catches both the
+angle-suffix and the quote-dir-relative variants):
 
-- self-target (`files[target].path == sourceFile`) понижается до not-found тега:
-  External для `<...>`, Unresolved для `"..."` (ровно то, чем системный заголовок
-  и является);
-- легитимное ребро на *другой* одноимённый файл (path ≠ source) не трогается.
+- a self-target (`files[target].path == sourceFile`) is downgraded to a not-found tag:
+  External for `<...>`, Unresolved for `"..."` (exactly what a system header
+  is);
+- a legitimate edge to a *different* same-named file (path ≠ source) is not touched.
 
-## Сделано
+## Done
 
-- [x] Guard в `resolveInclude` ([src/scan/include_resolver.cpp](../../src/scan/include_resolver.cpp)).
-- [x] +3 unit-теста ([tests/unit/scan/include_resolver_test.cpp](../../tests/unit/scan/include_resolver_test.cpp)):
+- [x] Guard in `resolveInclude` ([src/scan/include_resolver.cpp](../../src/scan/include_resolver.cpp)).
+- [x] +3 unit tests ([tests/unit/scan/include_resolver_test.cpp](../../tests/unit/scan/include_resolver_test.cpp)):
       angle system-suffix → External; quote token-suffix → Unresolved; same
-      basename в ДРУГОМ файле → по-прежнему Project (guard не переусердствует).
-- [x] Сборка чистая; **тесты 260/260**; **lizard 0 предупреждений**.
-- [x] Корпусная перепроверка после фикса: **self-edges 0/68**; все 8 фантомных
-      циклов исчезли (cyclic=0); реальные клубки целы (mc2 56, OptiScaler 13,
-      FastLED 11, acts 46, esphome 1 — на месте, т.е. настоящий 2-узловой цикл
-      esphome не подавлен).
-- [x] CHANGELOG.md — bullet в `### Fixed`.
-- [x] GRAPH_PROBE_FINDINGS.md §3 — диагноз/фикс/проверка.
+      basename in a DIFFERENT file → still Project (the guard does not overreach).
+- [x] Clean build; **tests 260/260**; **lizard 0 warnings**.
+- [x] Corpus recheck after the fix: **self-edges 0/68**; all 8 phantom
+      cycles gone (cyclic=0); the real tangles intact (mc2 56, OptiScaler 13,
+      FastLED 11, acts 46, esphome 1 — in place, i.e. the real 2-node cycle of
+      esphome is not suppressed).
+- [x] CHANGELOG.md — bullet in `### Fixed`.
+- [x] GRAPH_PROBE_FINDINGS.md §3 — diagnosis/fix/check.
 
-## Принцип работы
+## How it works
 
-`resolveInclude` сначала вызывает `resolve_quote`/`resolve_angle` как раньше,
-затем проверяет результат: если вердикт `Project` и целевой узел — это сам
-`sourceFile`, ребро отбрасывается (понижение до External/Unresolved по виду
-директивы). Проверка по полному repo-relative пути (`files[target].path ==
-sourceFile`), поэтому одноимённый файл в другом каталоге остаётся валидной целью.
-Guard единственный и стоит в общей точке, поэтому покрывает оба пути резолва без
-дублирования.
+`resolveInclude` first calls `resolve_quote`/`resolve_angle` as before,
+then checks the result: if the verdict is `Project` and the target node is the
+`sourceFile` itself, the edge is dropped (downgraded to External/Unresolved by the kind
+of directive). The check is by full repo-relative path (`files[target].path ==
+sourceFile`), so a same-named file in another directory stays a valid target.
+The guard is single and sits at the common point, so it covers both resolve paths without
+duplication.
 
-## Чем управляется
+## What controls it
 
-Ничем — zero-config инвариант, порогов и флагов нет. Self-ребро не бывает
-осмысленным ни как зависимость, ни как цикл.
+Nothing — a zero-config invariant, no thresholds or flags. A self-edge is never
+meaningful, neither as a dependency nor as a cycle.
 
-## С чем связана
+## What it relates to
 
-- **#036** — родственный баг (suffix-коллизия), но ambiguous-вариант (2+
-  кандидата → mirror-dir фильтр). Этот фикс — single-candidate вариант, который
-  #036 не покрывал.
-- **#054** — исследовательский прогон, в котором детектор `[SELF]` вскрыл баг.
-- **SF.9 / DRIFT.2** — потребители графа, которые получали фантомные циклы; после
-  фикса перестают.
+- **#036** — a related bug (suffix collision), but the ambiguous variant (2+
+  candidates → mirror-dir filter). This fix is the single-candidate variant, which
+  #036 did not cover.
+- **#054** — the research run in which the `[SELF]` detector exposed the bug.
+- **SF.9 / DRIFT.2** — graph consumers that were getting phantom cycles; after the
+  fix they stop.
 
-## Диагностика
+## Diagnostics
 
-Если снова появится подозрение на self-loop:
+If a self-loop suspicion arises again:
 ```bash
 build/debug/src/archcheck --save-graph-baseline /tmp/g.txt <repo>
 python3 experiments/ai_repo_run/graph_probe.py /tmp/g.txt <repo> | grep -A3 '\[SELF\]'
 ```
-Любое срабатывание `[SELF]` теперь должно быть реальным `#include "self"` —
-проверять `grep -n include <file>`: кавычки + тот же относительный путь = настоящий
-дефект; угловые скобки = смотреть, не вернулась ли регрессия резолвера.
+Any `[SELF]` firing should now be a real `#include "self"` —
+check `grep -n include <file>`: quotes + the same relative path = a genuine
+defect; angle brackets = look whether a resolver regression came back.
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `src/scan/include_resolver.cpp` | guard от self-edge в `resolveInclude` |
-| `tests/unit/scan/include_resolver_test.cpp` | +3 теста (angle-self / quote-self / different-file) |
-| `CHANGELOG.md` | bullet в `### Fixed` |
-| `experiments/ai_repo_run/GRAPH_PROBE_FINDINGS.md` | §3 диагноз/фикс/корпусная проверка |
+| `src/scan/include_resolver.cpp` | guard against the self-edge in `resolveInclude` |
+| `tests/unit/scan/include_resolver_test.cpp` | +3 tests (angle-self / quote-self / different-file) |
+| `CHANGELOG.md` | bullet in `### Fixed` |
+| `experiments/ai_repo_run/GRAPH_PROBE_FINDINGS.md` | §3 diagnosis/fix/corpus check |

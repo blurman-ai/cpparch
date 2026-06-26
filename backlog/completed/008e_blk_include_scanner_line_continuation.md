@@ -1,68 +1,68 @@
 # [SCAN] Include scanner — logical-line continuation
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** SCAN
-**Приоритет:** blocker
-**Сложность:** S (< 1 дня)
-**Блокирует:** #008f (include_scanner_first_significant_char)
-**Заблокирован:** #008d (include_scanner_skip_string_literals)
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** SCAN
+**Priority:** blocker
+**Difficulty:** S (< 1 day)
+**Blocks:** #008f (include_scanner_first_significant_char)
+**Blocked by:** #008d (include_scanner_skip_string_literals)
 **Related:** #008 (dependency_graph_foundation)
 
-## Цель
+## Goal
 
-Склеивать строки, заканчивающиеся на `\` + EOL, в одну logical line ещё до
-лексического анализа.
+Splice lines ending in `\` + EOL into a single logical line before
+lexical analysis.
 
-## Сделано
+## Done
 
-- **2026-05-26** — введён `struct Joined { text, line_of_offset }` и pre-pass `join_continuations`, удаляющий `\\\n` и сохраняющий мэппинг offset → физическая строка.
-- **2026-05-26** — `scan_includes` теперь идёт `source → join_continuations → preprocess → line iteration`, line_no берётся через `line_at(joined, line_start)`.
-- **2026-05-26** — 6 unit-тестов: splice внутри `#include`, между keyword и токеном, внутри токена, несколько подряд, `\` без `\n` (не continuation), сохранение физической нумерации после splice. 25/25 общий счёт.
+- **2026-05-26** — introduced `struct Joined { text, line_of_offset }` and a `join_continuations` pre-pass that removes `\\\n` and preserves the offset → physical line mapping.
+- **2026-05-26** — `scan_includes` now flows `source → join_continuations → preprocess → line iteration`, with line_no taken via `line_at(joined, line_start)`.
+- **2026-05-26** — 6 unit tests: splice inside `#include`, between keyword and token, inside the token, several in a row, `\` without `\n` (not a continuation), preservation of physical numbering after splice. 25/25 overall.
 
-## Как работает
+## How it works
 
 `join_continuations(source) -> Joined`:
-- идёт по байтам;
-- если `source[i]=='\\'` и `source[i+1]=='\n'` — оба символа выкидываются, физическая строка увеличивается, output не растёт;
-- иначе символ копируется в `Joined::text`, его физическая строка кладётся в `Joined::line_of_offset[offset]`.
+- walks byte by byte;
+- if `source[i]=='\\'` and `source[i+1]=='\n'` — both characters are dropped, the physical line increments, output does not grow;
+- otherwise the character is copied into `Joined::text`, and its physical line is stored in `Joined::line_of_offset[offset]`.
 
-`Joined::line_of_offset` — `vector<int>`, один элемент на байт `text`. Это даёт O(1) lookup физической строки по offset, который позже используется в `line_at`.
+`Joined::line_of_offset` is a `vector<int>`, one element per byte of `text`. This gives O(1) lookup of the physical line by offset, later used in `line_at`.
 
 `scan_includes`:
 1. `joined = join_continuations(source)`.
-2. `cleaned = preprocess(joined.text)` (комментарии + raw strings, длина та же).
-3. Идём по `cleaned` через `\n` — для каждого segment вызываем `try_extract(segment, line_at(joined, line_start))`. Так директива сообщает физическую строку первого символа logical line.
+2. `cleaned = preprocess(joined.text)` (comments + raw strings, same length).
+3. Walk `cleaned` by `\n` — for each segment call `try_extract(segment, line_at(joined, line_start))`. This way the directive reports the physical line of the first character of the logical line.
 
-## Чем управляется
+## Controlled by
 
-- Без флагов / env.
+- No flags / env.
 
-## С чем связана
+## Related to
 
-- Тот же `src/scan/include_scanner.cpp`.
-- Public API не изменился — клиенты 008a продолжают работать.
+- Same `src/scan/include_scanner.cpp`.
+- Public API unchanged — 008a clients keep working.
 
-## Диагностика
+## Diagnostics
 
-- Если directive рапортует «не ту» строку — проверить, не было ли splice выше; `line_at` берёт физическую строку первого символа logical line (что соответствует ожиданиям пользователя).
-- CRLF (`\\\r\n`) пока не поддерживается — известное ограничение, нормализация будет в #011 (file reader).
-- Splice применяется и внутри raw strings (что технически расходится с C++ phase-2 special rule), но для include detection это безвредно: содержимое raw string всё равно проглатывается `consume_raw_string`. Документирую как известное упрощение.
+- If a directive reports the "wrong" line — check whether there was a splice above; `line_at` takes the physical line of the first character of the logical line (which matches user expectations).
+- CRLF (`\\\r\n`) is not supported yet — a known limitation, normalization will land in #011 (file reader).
+- Splice is applied inside raw strings too (which technically diverges from the C++ phase-2 special rule), but for include detection this is harmless: raw string contents are swallowed by `consume_raw_string` anyway. Documented as a known simplification.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Отдельная pre-pass `join_continuations`, не интегрировано в `preprocess` | Линейно и читаемо; mapping физической строки удобно хранить рядом с text |
-| `line_of_offset` как `vector<int>` | Память на 4 байта на байт исходника — приемлемо для v0.1; альтернативы (RLE, бинарный поиск по диапазонам) преждевременны |
-| Splice применяется и внутри raw strings | Упрощение; не порождает false-positive в текущей грамматике |
-| Без поддержки `\\\r\n` | Сейчас scanner всегда получает уже нормализованный LF-источник; CRLF — задача file reader |
+| A separate `join_continuations` pre-pass, not integrated into `preprocess` | Linear and readable; the physical-line mapping is conveniently stored alongside text |
+| `line_of_offset` as `vector<int>` | 4 bytes of memory per source byte is acceptable for v0.1; alternatives (RLE, binary search over ranges) are premature |
+| Splice applied inside raw strings too | A simplification; produces no false-positives in the current grammar |
+| No `\\\r\n` support | For now the scanner always receives an already-normalized LF source; CRLF is the file reader's job |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `src/scan/include_scanner.cpp` | `Joined` / `join_continuations` / `line_at`, новый pipeline `scan_includes` |
-| `tests/unit/scan/include_scanner_test.cpp` | 6 кейсов continuation |
+| `src/scan/include_scanner.cpp` | `Joined` / `join_continuations` / `line_at`, new `scan_includes` pipeline |
+| `tests/unit/scan/include_scanner_test.cpp` | 6 continuation cases |

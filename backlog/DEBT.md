@@ -1,54 +1,54 @@
 # Tech debt / known gaps
 
-Живой реестр гэпов и долга, найденных по ходу работы. Правило: уткнулся в
-«этого нет / тут дыра» → донести пользователю (что/последствия/как чинить/вопрос),
-и если не чиним сразу — записать сюда. **Разгребается на `/backlog-review`**:
-протухшее → в задачу `backlog/new/`, ненужное → вычеркнуть.
+A living registry of gaps and debt found along the way. Rule: when you hit
+"this doesn't exist / there's a hole here" → tell the user (what/consequences/how to fix/question),
+and if we don't fix it right away — record it here. **Cleared on `/backlog-review`**:
+stale → into a `backlog/new/` task, unneeded → strike out.
 
-Формат записи:
-- **[YYYY-MM-DD] Короткое имя** — что это; *последствие*; как чинить; (related #NNN). Статус.
+Entry format:
+- **[YYYY-MM-DD] Short name** — what it is; *consequence*; how to fix; (related #NNN). Status.
 
 ---
 
-## Открытые
+## Open
 
-_(пусто)_
+_(empty)_
 
-## Закрыто
+## Closed
 
-- **[2026-06-14→15] archcheck молча дифит против пустого дерева при нерезолвящемся
-  baseline-ref** — `archcheck --diff X..Y`, где `X` (напр. `sha^` root/shallow-boundary
-  коммита) не резолвится: бинарь молча брал пустой baseline → весь репозиторий считался
-  «добавленным» (на shallow-корпусе ~50-62% граф-находок были этим артефактом). *Решение
-  (юзер): вариант (a)* — warning в stderr, без изменения exit/gate. **→ РЕАЛИЗОВАНО
+- **[2026-06-14→15] archcheck silently diffs against an empty tree on an unresolvable
+  baseline-ref** — `archcheck --diff X..Y`, where `X` (e.g. `sha^` of a root/shallow-boundary
+  commit) does not resolve: the binary silently took an empty baseline → the whole repository was counted
+  as "added" (on a shallow corpus ~50-62% of graph findings were this artifact). *Decision
+  (user): variant (a)* — a warning to stderr, without changing exit/gate. **→ IMPLEMENTED
   2026-06-15:** `diff_command.cpp::warnIfBaselineUnresolved` (rev-parse --verify ref^{object},
-  warning при неудаче) + e2e-тест. Локальный коммит, пуш ждёт PR. (related #124)
+  warning on failure) + an e2e test. Local commit, push waits for a PR. (related #124)
 
-- **[2026-06-14→15] Граф-гейт и граф-дрейф не уважают bulk-import гейт (#117)** — clone/
-  complexity скипались на bulk (added > 10000), а graph gating+drift — нет → массовый
-  импорт (вендор/генерёнка, add'ы 100k–5M строк) раздувал граф легитимно-но-неинтересно
-  (~23/28 топ-граф-коммитов — bulk). *Решение (юзер): вариант (b) + принцип* — граф НЕ
-  гейтит на bulk-коммитах: bulk может быть «as-is, потом починю» или не кодом автора →
-  блокировать merge по графу нельзя; инструмент ловит МЕДЛЕННЫЙ дрейф, не разовый залив.
-  **→ РЕАЛИЗОВАНО 2026-06-15:** `runDiffFullPath` считает advisory первым, при bulk
-  (complexitySkippedAddedLines>0) граф (gating+drift) не строится — пустой report, gate ok;
-  + e2e-тест (цикл+bulk → не гейтится). Локальный коммит, пуш ждёт PR. (related #124, #117)
+- **[2026-06-14→15] The graph gate and graph drift don't respect the bulk-import gate (#117)** — clone/
+  complexity were skipped on bulk (added > 10000), but graph gating+drift were not → a mass
+  import (vendor/generated, adds of 100k–5M lines) inflated the graph legitimately-but-uninterestingly
+  (~23/28 of the top graph commits — bulk). *Decision (user): variant (b) + a principle* — the graph does NOT
+  gate on bulk commits: bulk may be "as-is, fix later" or not the author's code →
+  blocking a merge by the graph is not allowed; the tool catches SLOW drift, not a one-time dump.
+  **→ IMPLEMENTED 2026-06-15:** `runDiffFullPath` computes advisory first, on bulk
+  (complexitySkippedAddedLines>0) the graph (gating+drift) is not built — an empty report, gate ok;
+  + an e2e test (cycle+bulk → not gated). Local commit, push waits for a PR. (related #124, #117)
 
-- **[2026-06-14] empty-blob десинк `git cat-file --batch` в memory-режиме графа** —
-  `GitObjectFileSource::read()` на пустом (0-байт) блобе возвращался по `size==0`, не
-  вычитав хвостовой `\n` → batch-поток сдвигался, все последующие файлы читались криво
-  → фантомные include-рёбра / выросшие циклы / god-headers в `--diff-mode=memory`.
-  *Последствие:* системная порча ВСЕХ граф-категорий корпус-прогона (memory-режим);
-  copy-paste/complexity/SATD/test не затронуты (контентные, блоб-чтение корректно).
-  Нашёл dogfooding'ом (прогон archcheck поймал баг archcheck): memory 102/118/3 vs
-  disk 0/0/0 на коммите, не трогавшем циклические файлы. Фикс: `parseBlobSize` →
-  `optional<size_t>` (nullopt = не блоб, без хвоста; значение вкл. 0 = блоб, вычитать
-  content(0)+trailer). Проверено: memory==disk на 3 коммитах, 530/530 тестов, +юнит-тест.
-  (related #124). **→ исправлено и закоммичено 2026-06-15 (f3ab6ac), пуш ждёт PR.**
+- **[2026-06-14] empty-blob desync of `git cat-file --batch` in the graph memory mode** —
+  `GitObjectFileSource::read()` on an empty (0-byte) blob returned by `size==0` without
+  reading the trailing `\n` → the batch stream shifted, all subsequent files were read wrong
+  → phantom include edges / grown cycles / god-headers in `--diff-mode=memory`.
+  *Consequence:* systemic corruption of ALL graph categories of a corpus run (memory mode);
+  copy-paste/complexity/SATD/test untouched (content-based, blob reading is correct).
+  Found by dogfooding (running archcheck caught an archcheck bug): memory 102/118/3 vs
+  disk 0/0/0 on a commit that didn't touch cyclic files. Fix: `parseBlobSize` →
+  `optional<size_t>` (nullopt = not a blob, no trailer; a value incl. 0 = blob, read
+  content(0)+trailer). Verified: memory==disk on 3 commits, 530/530 tests, +a unit test.
+  (related #124). **→ fixed and committed 2026-06-15 (f3ab6ac), push waits for a PR.**
 
-- **[2026-06-14] diff-JSON не отдаёт факт bulk-import-skip** — при `--diff --format=json`
-  пропуск advisory из-за bulk-import (#117) не виден: пустой список нарушений нельзя
-  отличить от «проверил, чисто». *Последствие:* корпусные JSON-консьюмеры считают
-  bulk-коммиты «чистыми», перекос статистики. Чинить: добавить поле в advisory-JSON
-  (`complexity_skipped_added_lines`). (related #124, #117). **→ исправлено в коде
-  этой сессией 2026-06-14.**
+- **[2026-06-14] diff-JSON does not report the bulk-import-skip fact** — on `--diff --format=json`
+  the skipping of advisory due to bulk-import (#117) is invisible: an empty violations list can't be
+  distinguished from "checked, clean". *Consequence:* corpus JSON consumers count
+  bulk commits as "clean", skewing the statistics. Fix: add a field to the advisory JSON
+  (`complexity_skipped_added_lines`). (related #124, #117). **→ fixed in the code
+  this session 2026-06-14.**

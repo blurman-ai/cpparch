@@ -1,101 +1,101 @@
-# [RULES][SF.8] детектор guard пропускает `#ifndef` после длинной шапки-комментария
+# [RULES][SF.8] guard detector misses `#ifndef` after a long header comment
 
-**Дата создания:** 2026-06-14
-**Дата старта:** 2026-06-19
-**Дата завершения:** 2026-06-19
-**Статус:** done
-**Модуль:** RULES / SCAN
-**Приоритет:** major
-**Сложность:** quick_win
+**Created:** 2026-06-14
+**Started:** 2026-06-19
+**Completed:** 2026-06-19
+**Status:** done
+**Module:** RULES / SCAN
+**Priority:** major
+**Difficulty:** quick_win
 
-## Сделано (2026-06-19)
+## Done (2026-06-19)
 
-Корень был в `sf8_include_guard.cpp`: `hasIncludeGuard`/`isObjcFile` считали
-первые `kScanLines=60` **непустых** строк, включая комментарии, поэтому гард
-nanovdb на строке 125 (после ~122-строчной шапки) не находился — бюджет
-исчерпывался на лицензии. Любой фиксированный потолок строк баг не решает.
+The root cause was in `sf8_include_guard.cpp`: `hasIncludeGuard`/`isObjcFile` counted
+the first `kScanLines=60` **non-empty** lines, including comments, so the nanovdb
+guard on line 125 (after a ~122-line header) was not found — the budget was
+exhausted on the license. Any fixed line ceiling does not solve the bug.
 
-Фикс: добавлен `stripComment` (block-comment-aware, состояние `/* */` между
-строками) + общий `scanLeadingCode`; теперь бюджет считает только строки **кода**,
-а длина шапки не имеет значения. `closesGuardPair` хранит имена как `std::string`
-(сканируемая строка — временный буфер). Self-contained, include_scanner не трогаю.
+Fix: added `stripComment` (block-comment-aware, `/* */` state carried across
+lines) + a shared `scanLeadingCode`; now the budget counts only lines of **code**,
+and the header length no longer matters. `closesGuardPair` stores the names as `std::string`
+(the scanned line is a temporary buffer). Self-contained, include_scanner not touched.
 
-- Тесты: +3 юнит-кейса (гард под 100-строчным блок-баннером; `#pragma once` под
-  100-строчным `//`-баннером; длинный баннер без гарда → всё ещё горит). 540/540 зелёные.
-- Dogfood `src/ include/ tests/` → 0 нарушений.
-- Перекрёстная проверка бинарём: `nano.h` (гард на стр. 123) не флагается,
-  `bare.h` (без гарда) горит. Не только агрегат — конкретные случаи руками.
-- Фикстура-контракт: `fixtures/sf8_include_guard/pass/guard_below_block_banner.h`.
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** goodfirstissue dogfood (openvdb), #127 (vendor — смежно, но это ОТДЕЛЬНЫЙ баг про свой код)
+- Tests: +3 unit cases (guard under a 100-line block banner; `#pragma once` under
+  a 100-line `//` banner; long banner without a guard → still fires). 540/540 green.
+- Dogfood `src/ include/ tests/` → 0 violations.
+- Cross-check with the binary: `nano.h` (guard on line 123) is not flagged,
+  `bare.h` (without a guard) fires. Not just the aggregate — specific cases by hand.
+- Fixture contract: `fixtures/sf8_include_guard/pass/guard_below_block_banner.h`.
+**Blocks:** —
+**Blocked by:** —
+**Related:** goodfirstissue dogfood (openvdb), #127 (vendor — adjacent, but this is a SEPARATE bug about our own code)
 
-## Цель
+## Goal
 
-SF.8 (header missing `#pragma once`/include guard) даёт false positive, когда
-include-guard `#ifndef X` стоит **не у начала файла, а после длинного лицензионного/
-doc-блока**. Детектор, судя по всему, ищет guard только в «голове» файла.
+SF.8 (header missing `#pragma once`/include guard) gives a false positive when
+the include-guard `#ifndef X` is **not at the start of the file, but after a long license/
+doc block**. The detector apparently looks for the guard only in the "head" of the file.
 
-## Доказательство (подтверждено пере-проверкой, 2026-06-14)
+## Evidence (confirmed by recheck, 2026-06-14)
 
-Прогон archcheck по **openvdb**: SF.8 ×30, ВСЕ в `nanovdb/`. Пере-проверил файлы
-руками (отдельный клон):
+Run of archcheck over **openvdb**: SF.8 ×30, ALL in `nanovdb/`. Rechecked the files
+by hand (a separate clone):
 
-| Файл | archcheck говорит | На самом деле |
+| File | archcheck says | Actually |
 |---|---|---|
-| `nanovdb/nanovdb/NanoVDB.h` | missing guard | `#ifndef NANOVDB_NANOVDB_H_HAS_BEEN_INCLUDED` на **строке 125** |
-| `nanovdb/nanovdb/HostBuffer.h` | missing guard | guard на **строке 77** |
+| `nanovdb/nanovdb/NanoVDB.h` | missing guard | `#ifndef NANOVDB_NANOVDB_H_HAS_BEEN_INCLUDED` on **line 125** |
+| `nanovdb/nanovdb/HostBuffer.h` | missing guard | guard on **line 77** |
 
-В обоих guard ЕСТЬ, но после ~75-125 строк лицензии/документации. archcheck его
-не находит → ложное «missing». nanovdb — часть самого OpenVDB (СВОЙ код), не vendor.
+Both have a guard, but after ~75-125 lines of license/documentation. archcheck does not
+find it → a false "missing". nanovdb is part of OpenVDB itself (OUR code), not vendor.
 
-## Гипотеза о причине (проверить по коду)
+## Hypothesis about the cause (verify against the code)
 
-Детектор SF.8 (`src/rules/sf8_*` или scan-слой) вероятно:
-- читает только первые N строк/байт файла, ИЛИ
-- ждёт `#ifndef`/`#pragma once` как первую значащую директиву и сдаётся, встретив
-  что-то иное (хотя комментарии должен пропускать).
+The SF.8 detector (`src/rules/sf8_*` or the scan layer) probably:
+- reads only the first N lines/bytes of the file, OR
+- expects `#ifndef`/`#pragma once` as the first significant directive and gives up upon meeting
+  anything else (although it should skip comments).
 
-Проверить в коде, где именно обрывается поиск guard. Файл правила найти через
+Check in the code where exactly the guard search aborts. Find the rule file via
 `grep -rl 'pragma once' src/rules src/scan`.
 
-## Как чинить (эскиз)
+## How to fix (sketch)
 
-Сканировать на guard **весь файл** (или хотя бы до первой не-комментарий/не-pragma
-значащей строки кода), а не фиксированную голову. Корректно пропускать:
-- ведущие блочные `/* ... */` и строчные `//` комментарии любой длины;
-- пустые строки;
-- затем первый `#pragma once` ИЛИ парный `#ifndef X` / `#define X` (классический guard).
-Стоимость: чтение чуть дальше по файлу; для больших файлов можно ограничить разумным
-потолком (напр. до первого `#include` или первой не-pp строки кода).
+Scan for the guard over the **whole file** (or at least up to the first non-comment/non-pragma
+significant line of code), not a fixed head. Correctly skip:
+- leading block `/* ... */` and line `//` comments of any length;
+- empty lines;
+- then the first `#pragma once` OR a paired `#ifndef X` / `#define X` (the classic guard).
+Cost: reading a bit further into the file; for large files it can be capped at a reasonable
+ceiling (e.g. up to the first `#include` or the first non-pp line of code).
 
-## Замечание про самопроверку (урок этой находки)
+## Note on self-checking (lesson of this finding)
 
-Кластер из 30 одинаковых SF.8 в одной подпапке СНАЧАЛА выглядел как TP (по доводу
-«селективности» — раз флагнуто не всё, детект исправен). Это рассуждение здесь
-ОБМАНУЛО: селективна была не корректность правила, а единый стиль nanovdb (guard
-после шапки). Спасла только ручная пере-проверка файла. Урок в backlog: кластер
-однотипных SF.8 в одном поддереве → проверять guard в самом файле, не верить агрегату.
+A cluster of 30 identical SF.8s in one subfolder LOOKED like a TP at first (by the
+"selectivity" argument — if not everything is flagged, the detector works). That reasoning
+MISLED here: what was selective was not the rule's correctness but nanovdb's uniform style (guard
+after the header). Only a manual recheck of the file saved it. Lesson for the backlog: a cluster of
+identical SF.8s in one subtree → check the guard in the file itself, do not trust the aggregate.
 
-## Проверка (фикстуры обязательны)
+## Verification (fixtures are mandatory)
 
-- [x] guard под большим `/* license */` блоком → 0 (юнит + фикстура
+- [x] guard under a large `/* license */` block → 0 (unit + fixture
       `pass/guard_below_block_banner.h`)
-- [x] `#pragma once` после `//`-шапки → 0 (юнит-кейс)
-- [x] реально без guard → горит, не пере-подавили (юнит-кейс «long banner with no guard»)
-- [ ] regression на реальном клоне openvdb nanovdb (30 → ~0) — вынесено в #131
-      (свежий golden-замер); локально подтверждено синтетикой формы nanovdb
+- [x] `#pragma once` after a `//` header → 0 (unit case)
+- [x] genuinely without a guard → fires, not over-suppressed (unit case "long banner with no guard")
+- [ ] regression on a real clone of openvdb nanovdb (30 → ~0) — moved to #131
+      (fresh golden measurement); locally confirmed with synthetics shaped like nanovdb
 
-## Изменённые файлы
+## Changed files
 
-- `src/rules/sf8_include_guard.cpp` — `stripComment` + `scanLeadingCode`; бюджет
-  считает строки кода, не комментарии; `closesGuardPair` владеет именами (commit `9f247a6`)
-- `tests/unit/rules/sf8_include_guard_test.cpp` — +3 кейса
-- `fixtures/sf8_include_guard/pass/guard_below_block_banner.h` — фикстура-контракт
+- `src/rules/sf8_include_guard.cpp` — `stripComment` + `scanLeadingCode`; the budget
+  counts lines of code, not comments; `closesGuardPair` owns the names (commit `9f247a6`)
+- `tests/unit/rules/sf8_include_guard_test.cpp` — +3 cases
+- `fixtures/sf8_include_guard/pass/guard_below_block_banner.h` — fixture contract
 
-## Итог
+## Outcome
 
-**Статус:** completed. Баг (30 FP на openvdb/nanovdb) устранён в корне: любой
-фиксированный потолок строк ломался на длинной шапке — теперь комментарии
-стрипаются и не жгут бюджет. Перекрёстка бинарём подтвердила. Регрессия на
-реальном клоне openvdb — в #131.
+**Status:** completed. The bug (30 FPs on openvdb/nanovdb) eliminated at the root: any
+fixed line ceiling broke on a long header — now comments are stripped and do not burn the
+budget. The binary cross-check confirmed it. The regression on a real openvdb clone —
+in #131.

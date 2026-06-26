@@ -1,116 +1,116 @@
-# [DOCS] Проверить доступность имени archcheck
+# [DOCS] Check availability of the name archcheck
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** DOCS
-**Приоритет:** blocker
-**Сложность:** S (час-два)
-**Блокирует:** #004 (project_skeleton), #002 (github_actions_ci)
-**Заблокирован:** —
+**Date created:** 2026-05-26
+**Date started:** 2026-05-26
+**Date completed:** 2026-05-26
+**Status:** done
+**Module:** DOCS
+**Priority:** blocker
+**Difficulty:** S (an hour or two)
+**Blocks:** #004 (project_skeleton), #002 (github_actions_ci)
+**Blocked by:** —
 **Related:** —
 
-## Цель
+## Goal
 
-Подтвердить или отвергнуть имя `archcheck` (бинарь) / `cpparch` (рабочее имя репо) до начала кода — переименование после первого релиза дорого.
+Confirm or reject the name `archcheck` (binary) / `cpparch` (working repo name) before starting on code — renaming after the first release is expensive.
 
-## Контекст
+## Context
 
-Из `docs/architecture-spec.md` §"Ключевые риски", item 4 (на момент задачи): name availability на GitHub/PyPI/crates.io/Homebrew не проверена. README использовал `cpparch`, спека — `archcheck`. Нужно было сойтись на одном.
+From `docs/architecture-spec.md` §"Key risks", item 4 (at the time of the task): name availability on GitHub/PyPI/crates.io/Homebrew was not checked. The README used `cpparch`, the spec — `archcheck`. We needed to converge on one.
 
-## План выполнения
+## Execution plan
 
-- [x] GitHub: проверить, есть ли `github.com/*/archcheck` с C++ контекстом
+- [x] GitHub: check whether `github.com/*/archcheck` exists with a C++ context
 - [x] PyPI: `pip index versions archcheck`
-- [x] crates.io: проверить, занят ли крейт `archcheck`
-- [x] Homebrew: проверить formula
-- [x] npm — для полноты (некоторые dev-tools публикуются и туда)
-- [x] Trademarks: беглый поиск
-- [x] Если `archcheck` занят — кандидаты-замены (`archlint`, `cpparch`, `archdep`, `lakos`)
-- [x] Зафиксировать финальное имя в README.md и architecture-spec.md
+- [x] crates.io: check whether the `archcheck` crate is taken
+- [x] Homebrew: check the formula
+- [x] npm — for completeness (some dev tools are published there too)
+- [x] Trademarks: a quick search
+- [x] If `archcheck` is taken — replacement candidates (`archlint`, `cpparch`, `archdep`, `lakos`)
+- [x] Lock the final name into README.md and architecture-spec.md
 
-## Сделано
+## Done
 
-- **2026-05-26** — Проверка обоих priority-имён прошла через WebFetch / WebSearch. Результат:
+- **2026-05-26** — A check of both priority names went through WebFetch / WebSearch. Result:
 
-  | Имя | GitHub | PyPI | crates.io | Homebrew | npm | Trademark/brand | Итог |
+  | Name | GitHub | PyPI | crates.io | Homebrew | npm | Trademark/brand | Verdict |
   |---|---|---|---|---|---|---|---|
-  | **archcheck** | ✅ org/user свободен; ~10 одноимённых репо у частных юзеров, все 0–2 stars, разные языки (Python/Java/JS/Go/HTML), C++ нет | ✅ 404 | ✅ 404 | ✅ 404 | ✅ 404 | ✅ конфликтов не найдено | ✅ **взять** |
-  | **cpparch** | ✅ свободно; ~10 одноимённых репо, личные C++-архивы; `willjoseph/cpparch` 2015 — заброшен, 0 stars | ✅ 404 | ✅ 404 | ✅ 404 | ✅ 404 | ⚠️ нет прямого конфликта, но созвучие с `cppcheck` создаёт фоновый шум в поиске и наборе | ⚠️ риск |
+  | **archcheck** | ✅ org/user free; ~10 same-named repos under private users, all 0–2 stars, various languages (Python/Java/JS/Go/HTML), no C++ | ✅ 404 | ✅ 404 | ✅ 404 | ✅ 404 | ✅ no conflicts found | ✅ **take it** |
+  | **cpparch** | ✅ free; ~10 same-named repos, personal C++ archives; `willjoseph/cpparch` 2015 — abandoned, 0 stars | ✅ 404 | ✅ 404 | ✅ 404 | ✅ 404 | ⚠️ no direct conflict, but the similarity to `cppcheck` creates background noise in search and typing | ⚠️ risk |
 
-  Запасные кандидаты (`archlint`, `archguard-cpp`, `cpp-arch`, `archdep`, `lakos`) проверять не понадобилось — `archcheck` чист.
+  The backup candidates (`archlint`, `archguard-cpp`, `cpp-arch`, `archdep`, `lakos`) didn't need checking — `archcheck` is clean.
 
-- **2026-05-26** — Принято: **`archcheck`** как имя продукта.
+- **2026-05-26** — Decided: **`archcheck`** as the product name.
 
-- **2026-05-26** — Bulk-замена `cpparch` → `archcheck` (с вариантами `Cpparch` → `Archcheck`, `CPPARCH` → `ARCHCHECK`) во всех `.md` репо, кроме:
-  - `.claude/commands/findings.md` — там путь к memory `~/.claude/projects/-home-localadm-projects-cpparch/...` соответствует имени локальной директории, не имени продукта.
-  - `backlog/completed/007_*.md` — историческая запись, не редактируется задним числом.
+- **2026-05-26** — Bulk replacement `cpparch` → `archcheck` (with the variants `Cpparch` → `Archcheck`, `CPPARCH` → `ARCHCHECK`) in all `.md` files of the repo, except:
+  - `.claude/commands/findings.md` — there the memory path `~/.claude/projects/-home-localadm-projects-cpparch/...` corresponds to the name of the local directory, not the product name.
+  - `backlog/completed/007_*.md` — a historical record, not edited after the fact.
 
-- **2026-05-26** — Зачищено в `docs/architecture-spec.md`:
-  - Preamble «Рабочее название. Альтернативы…» убран.
-  - «Ключевые риски» item 4 (про имя) удалён; пункты 5/6/7 перенумерованы в 4/5/6.
-  - «Следующие шаги»: пункт 1 (проверить имя) и пункт 3 (решить вопрос двух-бекендной схемы) удалены — оба закрыты; остальные перенумерованы.
+- **2026-05-26** — Cleaned up in `docs/architecture-spec.md`:
+  - The preamble "Working name. Alternatives…" was removed.
+  - "Key risks" item 4 (about the name) deleted; items 5/6/7 renumbered to 4/5/6.
+  - "Next steps": item 1 (check the name) and item 3 (decide the two-backend scheme question) deleted — both closed; the rest renumbered.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| `archcheck`, не `cpparch` | Семантика прозрачнее; нет коллизии с известным `cppcheck` (легко перепутать в поиске и при наборе); совпадает с авторитетным написанием в спеке. `cpparch` тоже технически свободен, но создаёт фоновый шум. |
-| Не делать защитную регистрацию squatting-аккаунтов на PyPI/crates/npm | Pre-1.0 OSS, без публикации — нет смысла. Если кто-то займёт пока мы строим v0.1 — пересмотрим. |
-| Имя локальной директории `cpparch` оставляем | Переименование сломало бы memory-путь Claude и все hard-coded paths в shell-конфиге. Это косметика, не влияет на продукт. |
-| GitHub-репо рекомендуется переименовать в `archcheck` | Settings → General → Repository name. GitHub автоматически redirect-ит старый URL. Это ручное действие пользователя — не делается через git. |
+| `archcheck`, not `cpparch` | Clearer semantics; no collision with the well-known `cppcheck` (easy to confuse in search and typing); matches the authoritative spelling in the spec. `cpparch` is also technically free, but creates background noise. |
+| Don't do defensive registration of squatting accounts on PyPI/crates/npm | Pre-1.0 OSS, with no publication — no point. If someone takes it while we build v0.1 — we'll reconsider. |
+| Keep the local directory name `cpparch` | Renaming would break Claude's memory path and all hard-coded paths in the shell config. This is cosmetic, doesn't affect the product. |
+| The GitHub repo is recommended to be renamed to `archcheck` | Settings → General → Repository name. GitHub automatically redirects the old URL. This is a manual user action — not done via git. |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение | Commit |
+| File | Change | Commit |
 |------|-----------|--------|
-| `README.md` | `# cpparch` → `# archcheck`, все упоминания | (текущий) |
-| `docs/architecture-spec.md` | preamble очищен, item 4 рисков удалён, «Следующие шаги» обновлены | (текущий) |
-| `CHANGELOG.md` | `archcheck` в шапке; URL `[Unreleased]` ссылается на новый репо-URL | (текущий) |
-| `CLAUDE.md` | заменены все упоминания | (текущий) |
-| `AGENTS.md` | заменены все упоминания | (текущий) |
-| `docs/MVP.md`, `docs/code_style.md`, `docs/code_quality.md`, `docs/dev/git_workflow.md` | заменены все упоминания | (текущий) |
-| `docs/research/README.md` и `docs/research/rules/*.md` | заменены все упоминания | (текущий) |
-| `backlog/README.md`, `backlog/new/001*`, `backlog/new/005*` | заменены все упоминания | (текущий) |
+| `README.md` | `# cpparch` → `# archcheck`, all mentions | (current) |
+| `docs/architecture-spec.md` | preamble cleaned, risks item 4 removed, "Next steps" updated | (current) |
+| `CHANGELOG.md` | `archcheck` in the header; the `[Unreleased]` URL points to the new repo URL | (current) |
+| `CLAUDE.md` | all mentions replaced | (current) |
+| `AGENTS.md` | all mentions replaced | (current) |
+| `docs/MVP.md`, `docs/code_style.md`, `docs/code_quality.md`, `docs/dev/git_workflow.md` | all mentions replaced | (current) |
+| `docs/research/README.md` and `docs/research/rules/*.md` | all mentions replaced | (current) |
+| `backlog/README.md`, `backlog/new/001*`, `backlog/new/005*` | all mentions replaced | (current) |
 
-## Как работает
+## How it works
 
-После #003 все внутренние документы используют одно имя — `archcheck`. Принцип такой:
+After #003 all internal documents use one name — `archcheck`. The principle is this:
 
-1. **Имя продукта (бинаря и проекта)** — `archcheck`. Используется в README, спеке, CHANGELOG, документации, commit messages.
-2. **Имя локальной директории** — остаётся `cpparch` для совместимости с уже настроенными tool-путями (Claude memory, IDE-конфиг). Это не влияет на пользователя продукта.
-3. **GitHub-репо** — пока называется `cpparch`. Рекомендация: пользователю переименовать через Settings → General → Repository name → `archcheck`. GitHub автоматически настроит redirect со старого URL.
-4. **Зарезервированные namespace-ы** на PyPI/crates.io/npm/Homebrew — не занимаем. Если кто-то нас опередит до публикации — пересмотрим (см. backup-имена в плане).
+1. **The product name (binary and project)** — `archcheck`. Used in the README, spec, CHANGELOG, documentation, commit messages.
+2. **The local directory name** — stays `cpparch` for compatibility with already-configured tool paths (Claude memory, IDE config). This doesn't affect the user of the product.
+3. **The GitHub repo** — still named `cpparch` for now. Recommendation: have the user rename it via Settings → General → Repository name → `archcheck`. GitHub will automatically set up a redirect from the old URL.
+4. **Reserved namespaces** on PyPI/crates.io/npm/Homebrew — we don't take them. If someone beats us to it before publication — we'll reconsider (see the backup names in the plan).
 
-## Чем управляется
+## What governs it
 
-- Согласованность имени в репо — проверяется через `grep -rn cpparch --include="*.md"`. Должно возвращать только:
-  - `.claude/commands/findings.md` (memory-путь, ожидаемо).
-  - `backlog/completed/007_crt_workflow_setup.md` (исторические референсы, ожидаемо).
-  - `backlog/completed/003_blk_name_availability_check.md` — этот файл (документация процесса).
-- При повторном sed-проходе в будущем — добавлять новые исключения через `! -path` в команде `find`.
+- Name consistency in the repo — checked via `grep -rn cpparch --include="*.md"`. Should return only:
+  - `.claude/commands/findings.md` (memory path, expected).
+  - `backlog/completed/007_crt_workflow_setup.md` (historical references, expected).
+  - `backlog/completed/003_blk_name_availability_check.md` — this file (process documentation).
+- On a repeated sed pass in the future — add new exclusions via `! -path` in the `find` command.
 
-## С чем связана
+## What it relates to
 
-- **#004 (project_skeleton)** — теперь разблокирована. Когда создадим `CMakeLists.txt`, имя бинаря будет `archcheck`. Использовать как target name.
-- **#002 (github_actions_ci)** — разблокирована. CI-workflow будет ссылаться на `archcheck` бинарь.
-- **#006 (spec_refactor)** — синхронизация имени с README/спекой попадает в одну из его подзадач (общий рефакторинг); часть этой работы уже выполнена тут.
+- **#004 (project_skeleton)** — now unblocked. When we create `CMakeLists.txt`, the binary name will be `archcheck`. Use it as the target name.
+- **#002 (github_actions_ci)** — unblocked. The CI workflow will reference the `archcheck` binary.
+- **#006 (spec_refactor)** — syncing the name with the README/spec falls into one of its subtasks (the general refactor); part of this work has already been done here.
 
-## Диагностика
+## Diagnostics
 
-Команды для верификации:
+Commands for verification:
 
 ```bash
-# нет рудиментов имени в кодовой базе (кроме ожидаемых исключений):
+# no remnants of the name in the codebase (except the expected exclusions):
 grep -rn "cpparch" --include="*.md" | grep -v findings.md | grep -v completed/007 | grep -v completed/003
 
-# имя в шапке README — archcheck:
+# the name in the README header — archcheck:
 head -1 README.md
 
-# имя в шапке спеки — archcheck:
+# the name in the spec header — archcheck:
 head -1 docs/architecture-spec.md
 
-# в CHANGELOG.md URL ссылается на правильный репо (после ручного переименования на GitHub):
+# in CHANGELOG.md the URL points to the correct repo (after the manual rename on GitHub):
 grep blurman-ai/ CHANGELOG.md
 ```

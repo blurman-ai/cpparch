@@ -1,151 +1,151 @@
-# [DOCS] Рефакторинг архитектурной спеки v2.0 → v2.1
+# [DOCS] Refactoring the architecture spec v2.0 → v2.1
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** DOCS
-**Приоритет:** major
-**Сложность:** medium
-**Блокирует:** #004 (project_skeleton — определяет, что строим в v0.1), #002 (github_actions_ci — определяет, что гоняем в CI)
-**Заблокирован:** —
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** DOCS
+**Priority:** major
+**Difficulty:** medium
+**Blocks:** #004 (project_skeleton — defines what we build in v0.1), #002 (github_actions_ci — defines what we run in CI)
+**Blocked by:** —
 **Related:** —
 
-## Цель
+## Goal
 
-Перепозиционировать [docs/architecture-spec.md](../../docs/architecture-spec.md) так, чтобы headline продукта стал **«module boundaries + cycles в CI для C++»**, а SF.*-hygiene, Lakos-метрики и Martin metrics перешли в supporting roles. Параллельно — синхронизировать roadmap с собственными рисками (baseline) и сделать fast backend основой v0.1.
+Reposition [docs/architecture-spec.md](../../docs/architecture-spec.md) so that the product headline becomes **"module boundaries + cycles in CI for C++"**, while SF.* hygiene, Lakos metrics, and Martin metrics move into supporting roles. In parallel — sync the roadmap with its own risks (baseline) and make the fast backend the foundation of v0.1.
 
-## Контекст
+## Context
 
-Получена развёрнутая внешняя критика спеки. Главные тезисы (актуальны на сегодня):
+We received detailed external criticism of the spec. The main points (still relevant today):
 
-1. **В спеке смешаны три разных продукта**: archunit-style guardrail, source hygiene, архитектурная аналитика. Это три job-to-be-done с тремя разными покупателями (тимлид, разработчик, архитектор) и разными ожиданиями от первого запуска.
-2. **Реальный value-prop** = module boundaries + cycles + baseline + хороший CI output. Headline. Остальное — supporting.
-3. **Fast backend (preprocessor-only)** должен быть основой v0.1, а не отложенным спайком. Это **продуктовое** решение (порог входа), не техническое — что спека сама признаёт в строке 308, но в roadmap (строки 402–406) v0.1 всё ещё стартует через libclang.
-4. **Baseline должен быть day-one.** В рисках (строка 457) это написано прямо, в roadmap (строка 418) baseline в v0.2. Это противоречие — баг в документе.
-5. **SF.4/SF.5/SF.10 — слабые правила** (продуктово). SF.4 ценности почти нет. SF.5 ломается на generated code. SF.10 семантически дорогая, доверия низкое.
-6. **Martin metrics — преждевременны в v0.3.** Это не то, что двигает ранний adoption. Перенести в v0.4+ или сделать «по запросу пользователей».
-7. **`--suggest-config` — выпил кандидат.** Авто-вывод модульной структуры либо тривиален (по каталогам), либо магия, которой не поверят.
-8. **«Эти правила не подлежат обсуждению»** в строке 146 читается враждебно. Переформулировать — смысл (атрибуция как защита от пушбэка) сохранить, риторику смягчить.
-9. **Constraint decay LLM paper** — это сильнейший рычаг позиционирования (AI guardrail), и спека его недоиспользует. Поднять в первый абзац.
+1. **The spec mixes three different products**: an archunit-style guardrail, source hygiene, and architectural analytics. These are three jobs-to-be-done with three different buyers (team lead, developer, architect) and different expectations from the first run.
+2. **The real value prop** = module boundaries + cycles + baseline + good CI output. The headline. Everything else is supporting.
+3. **The fast backend (preprocessor-only)** should be the foundation of v0.1, not a deferred spike. This is a **product** decision (barrier to entry), not a technical one — which the spec itself acknowledges on line 308, but in the roadmap (lines 402–406) v0.1 still starts via libclang.
+4. **Baseline should be day-one.** In the risks section (line 457) this is stated directly, but in the roadmap (line 418) baseline is in v0.2. This contradiction is a bug in the document.
+5. **SF.4/SF.5/SF.10 are weak rules** (product-wise). SF.4 has almost no value. SF.5 breaks on generated code. SF.10 is semantically expensive, with low confidence.
+6. **Martin metrics are premature in v0.3.** They are not what drives early adoption. Move them to v0.4+ or make them "on user request."
+7. **`--suggest-config` — a cut candidate.** Auto-inferring module structure is either trivial (by directories) or magic that nobody will trust.
+8. **"These rules are not up for discussion"** on line 146 reads as hostile. Rephrase — keep the meaning (attribution as a defense against pushback), soften the rhetoric.
+9. **The constraint decay LLM paper** is the strongest positioning lever (AI guardrail), and the spec underuses it. Raise it into the first paragraph.
 
-С чем согласен и с чем спорю — см. итоговую позицию в conversation log сессии 2026-05-26.
+For what I agree with and what I dispute — see the final position in the conversation log of the 2026-05-26 session.
 
-## План выполнения
+## Execution plan
 
-- [x] **1. Headline-рефакторинг README.md и `## TL;DR` спеки.** Новый цикл: `module boundaries + cycles в CI` → `baseline для legacy` → `Lakos и CCG как цитируемые источники, не бренд`. Constraint-decay paper — в первый абзац.
-- [x] **2. Roadmap-правка `## Roadmap` (строки 398–449).** Конкретно:
-   - v0.1: fast backend (preprocessor-only), `forbidden_deps`/`allowed_deps`, циклы (SF.9), god-headers, длина include-цепочек, **baseline day-one**, простой text-репорт, JSON-репорт, exit codes.
-   - v0.2: libclang backend, остальные SF (SF.2, SF.5, SF.10, SF.11, SF.21), точная версия SF.7.
-   - v0.3: правила из C/I/NL секций CCG, правила из BDE wiki (см. [docs/research/rules/](../../docs/research/rules/)).
-   - v0.4: Martin metrics (только если попросят пользователи), templates под clean/hexagonal/onion.
-   - v0.5: distribution polish, доки, регрессионные проверки.
-   - **Выпил**: `--suggest-config`.
-- [x] **3. Раздел `## Дефолтный анализ` (строки 138–215).** Уровень 1 (SF) — оставить, но переформулировать «не подлежат обсуждению» → «атрибуция: источник официальный, можно выключить, но дефолт обоснован». SF.4 — убрать из дефолтов (низкая ценность). SF.5/SF.10 — пометить как требующие libclang и v0.2+. Уровень 3 (Martin) — перенести в опции под флагом.
-- [x] **4. Раздел `## Анализ по конфигу` (строки 217–292).** Headline-пример конфига — `forbidden_deps` + `no_cycles`, без SF-флагов. SF.* появляются как `defaults: core_guidelines: true`, под строкой про baseline.
-- [x] **5. Раздел `### Открытый архитектурный вопрос: двух-бекендная схема` (строки 306–317).** Закрыть вопрос: fast backend — default, libclang — opt-in для семантических правил. Переписать как принятое решение, не как «отложено».
-- [x] **6. `## Ключевые риски` (строки 453–467).** Удалить риск про baseline (он теперь решён в v0.1). Удалить риск про fast/slow backend (решено). Оставить: имя, libclang перформанс (для v0.2+), compile_commands availability (но менее остро при fast backend default), юзабилити дефолтных правил, шаблоны C++.
-- [x] **7. Перепроверить `## Что делает (и что не делает)` (строки 110–134).** Список «не делает» — оставить. «Делает» — переформулировать в соответствии с новым headline.
-- [x] **8. Изменить версию документа на v2.1, в шапку — короткое summary изменений от v2.0.**
+- [x] **1. Headline refactor of README.md and the spec's `## TL;DR`.** New cycle: `module boundaries + cycles in CI` → `baseline for legacy` → `Lakos and CCG as cited sources, not a brand`. The constraint-decay paper goes into the first paragraph.
+- [x] **2. Roadmap edit `## Roadmap` (lines 398–449).** Specifically:
+   - v0.1: fast backend (preprocessor-only), `forbidden_deps`/`allowed_deps`, cycles (SF.9), god-headers, include-chain length, **baseline day-one**, simple text report, JSON report, exit codes.
+   - v0.2: libclang backend, remaining SF (SF.2, SF.5, SF.10, SF.11, SF.21), precise version of SF.7.
+   - v0.3: rules from the C/I/NL sections of CCG, rules from the BDE wiki (see [docs/research/rules/](../../docs/research/rules/)).
+   - v0.4: Martin metrics (only if users ask), templates for clean/hexagonal/onion.
+   - v0.5: distribution polish, docs, regression checks.
+   - **Cut**: `--suggest-config`.
+- [x] **3. Section `## Default analysis` (lines 138–215).** Level 1 (SF) — keep, but rephrase "not up for discussion" → "attribution: the source is official, you can disable it, but the default is justified." SF.4 — remove from defaults (low value). SF.5/SF.10 — mark as requiring libclang and v0.2+. Level 3 (Martin) — move to options behind a flag.
+- [x] **4. Section `## Config-driven analysis` (lines 217–292).** The headline config example — `forbidden_deps` + `no_cycles`, without SF flags. SF.* appear as `defaults: core_guidelines: true`, below the line about baseline.
+- [x] **5. Section `### Open architectural question: the two-backend scheme` (lines 306–317).** Close the question: the fast backend is the default, libclang is opt-in for semantic rules. Rewrite as an accepted decision, not as "deferred."
+- [x] **6. `## Key risks` (lines 453–467).** Remove the risk about baseline (it's now solved in v0.1). Remove the risk about fast/slow backend (solved). Keep: name, libclang performance (for v0.2+), compile_commands availability (but less acute with fast backend default), usability of the default rules, C++ templates.
+- [x] **7. Recheck `## What it does (and doesn't do)` (lines 110–134).** Keep the "doesn't do" list. Rephrase "does" to match the new headline.
+- [x] **8. Change the document version to v2.1, add a short summary of changes from v2.0 to the header.**
 
-## Сделано
+## Done
 
-- **2026-05-26** — Шаг 5: раздел «Открытый архитектурный вопрос» переписан как принятое решение. Fast backend (preprocessor-only) — default в v0.1, libclang — opt-in через `--with-clang` / полноценно в v0.2. Список v0.1-правил сужен до include-only набора, семантические SF.2/5/10/11 явно отложены в v0.2. Смежный bullet «Парсинг» в разделе технологического стека приведён в соответствие. Коммит `fcfef01`.
-- **2026-05-26** — Шаги 1 + 7: переписаны `## TL;DR` и `### Делает` в спеке, синхронизирован README. Новый headline: «модульные границы и циклы зависимостей в CI», baseline day-one, AI-guardrail (constraint decay paper) поднят в третий абзац. Lakos / Core Guidelines / Martin понижены до «в дополнение» — атрибуция, не бренд. README: добавлена строчка про AI constraint decay в Why, Key Features перенумерованы (baseline и no-setup поднялись), список «What it does» отражает fast backend как default. Коммит `21173fc`.
-- **2026-05-26** — Шаг 2: roadmap полностью переписан. v0.1 теперь cover-story «модульные границы + циклы в CI без compile_commands», явный набор правил (SF.9 / god-headers / chain-length / SF.7/8/21) и baseline day-one. v0.2 — libclang backend и semantic SF (SF.2/5/10/11). v0.3 — правила из C/I/NL CCG + BDE (ссылка на docs/research/rules/). v0.4 — Martin metrics опционально + distribution. v0.5 — templates + регрессионная проверка. Отдельная секция «Что не делаем» с `--suggest-config` выпиленным навсегда. Коммит `89737d7`.
-- **2026-05-26** — Шаги 3 + 4: переработан раздел «Дефолтный анализ» — фраза «не подлежат обсуждению» заменена на «атрибуция, но всё можно выключить»; добавлена колонка «Фаза» к таблице SF-правил (v0.1 / v0.2); SF.4 явно убран из дефолтов с обоснованием; Martin metrics помечены опциональными для v0.4. Раздел «Анализ по конфигу» переориентирован — комментарии в YAML-примере подчёркивают, что `modules` + `forbidden_deps` это ядро, defaults — вторичная секция; добавлен «Минимально-полезный конфиг» как entry point. Команды: убран `--suggest-config`, добавлены `--with-clang`, явный `archcheck` без аргументов как первый запуск, пометка v0.2 на SARIF.
+- **2026-05-26** — Step 5: the "Open architectural question" section rewritten as an accepted decision. Fast backend (preprocessor-only) — default in v0.1, libclang — opt-in via `--with-clang` / fully in v0.2. The v0.1 rule list narrowed to the include-only set, semantic SF.2/5/10/11 explicitly deferred to v0.2. The adjacent "Parsing" bullet in the tech stack section brought into line. Commit `fcfef01`.
+- **2026-05-26** — Steps 1 + 7: rewrote `## TL;DR` and `### Does` in the spec, synced the README. New headline: "module boundaries and dependency cycles in CI", baseline day-one, AI-guardrail (constraint decay paper) raised to the third paragraph. Lakos / Core Guidelines / Martin demoted to "in addition" — attribution, not a brand. README: added a line about AI constraint decay in Why, Key Features renumbered (baseline and no-setup moved up), the "What it does" list reflects the fast backend as default. Commit `21173fc`.
+- **2026-05-26** — Step 2: roadmap fully rewritten. v0.1 is now the cover story "module boundaries + cycles in CI without compile_commands", with an explicit rule set (SF.9 / god-headers / chain-length / SF.7/8/21) and baseline day-one. v0.2 — libclang backend and semantic SF (SF.2/5/10/11). v0.3 — rules from C/I/NL CCG + BDE (link to docs/research/rules/). v0.4 — Martin metrics optional + distribution. v0.5 — templates + regression check. A separate "What we don't do" section with `--suggest-config` cut forever. Commit `89737d7`.
+- **2026-05-26** — Steps 3 + 4: reworked the "Default analysis" section — the phrase "not up for discussion" replaced with "attribution, but everything can be disabled"; added a "Phase" column to the SF-rules table (v0.1 / v0.2); SF.4 explicitly removed from defaults with justification; Martin metrics marked optional for v0.4. The "Config-driven analysis" section reoriented — comments in the YAML example emphasize that `modules` + `forbidden_deps` is the core, defaults is a secondary section; added a "Minimally useful config" as an entry point. Commands: removed `--suggest-config`, added `--with-clang`, an explicit `archcheck` with no arguments as the first run, a v0.2 note on SARIF.
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. Прочитать `docs/architecture-spec.md` целиком ещё раз с маркером «что попадает под рефакторинг».
-2. Прочитать `docs/research/rules/` — там кандидаты на правила следующих волн, которые надо разнести по v0.2/v0.3/v0.4.
-3. Сделать diff-стиль правок (не переписывать целиком — точечно по разделам).
-4. После — сверить README.md и [docs/research/README.md](../../docs/research/README.md) на консистентность с новой спекой.
+1. Read `docs/architecture-spec.md` in full once more with a marker for "what falls under the refactor."
+2. Read `docs/research/rules/` — there are candidates for the rules of the next waves, which need to be distributed across v0.2/v0.3/v0.4.
+3. Make diff-style edits (don't rewrite wholesale — pointwise by section).
+4. Afterwards — check README.md and [docs/research/README.md](../../docs/research/README.md) for consistency with the new spec.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Не переписывать спеку целиком, а править diff-стилем | v2.0 — большой документ, целиком переписывать дорого и риск потерять важные нюансы; точечная правка по разделам безопаснее |
-| Fast backend = default в v0.1 | Продуктовое решение (порог входа), не техническое |
-| Baseline = day-one | Иначе обещание «easy adoption в legacy» — пустое |
-| Martin metrics → v0.4 (опционально) | Не двигают ранний adoption, добавляют семантический долг в v0.3 |
-| `--suggest-config` → выпил | Дорогая эвристика с сомнительной пользой |
-| Constraint decay paper → headline | Самая свежая и сильная нишевая позиция; в спеке она спрятана глубоко |
+| Decision | Reason |
+|----------|--------|
+| Don't rewrite the spec wholesale, edit diff-style | v2.0 is a large document; rewriting it entirely is expensive and risks losing important nuances; pointwise edits by section are safer |
+| Fast backend = default in v0.1 | Product decision (barrier to entry), not technical |
+| Baseline = day-one | Otherwise the "easy adoption in legacy" promise is empty |
+| Martin metrics → v0.4 (optional) | They don't drive early adoption, they add semantic debt in v0.3 |
+| `--suggest-config` → cut | Expensive heuristic with dubious value |
+| Constraint decay paper → headline | The freshest and strongest niche position; in the spec it's buried deep |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение | Commit |
-|------|-----------|--------|
-| `docs/architecture-spec.md` | шаг 5: «двух-бекендная схема» → принятое решение; bullet «Парсинг» обновлён | `fcfef01` |
-| `docs/architecture-spec.md` | шаг 5b: убрана ссылка на process-doc из stability contract | `f19c130` |
-| `docs/architecture-spec.md` | шаги 1+7: TL;DR и «Что делает» переписаны под новый headline | `21173fc` |
-| `README.md` | шаги 1+7: synced — Why с constraint decay, Key Features перенумерованы | `21173fc` |
-| `docs/architecture-spec.md` | шаг 2: roadmap полностью перевёрстан под fast-backend-first | `89737d7` |
-| `docs/architecture-spec.md` | шаги 3+4: дефолтный анализ + анализ по конфигу переориентированы | `1f6d587` |
-| `docs/architecture-spec.md` | шаги 6+8: риски очищены, версия → v2.1 с summary | (текущий) |
+| File | Change | Commit |
+|------|--------|--------|
+| `docs/architecture-spec.md` | step 5: "two-backend scheme" → accepted decision; "Parsing" bullet updated | `fcfef01` |
+| `docs/architecture-spec.md` | step 5b: removed reference to the process doc from the stability contract | `f19c130` |
+| `docs/architecture-spec.md` | steps 1+7: TL;DR and "What it does" rewritten for the new headline | `21173fc` |
+| `README.md` | steps 1+7: synced — Why with constraint decay, Key Features renumbered | `21173fc` |
+| `docs/architecture-spec.md` | step 2: roadmap fully reworked for fast-backend-first | `89737d7` |
+| `docs/architecture-spec.md` | steps 3+4: default analysis + config-driven analysis reoriented | `1f6d587` |
+| `docs/architecture-spec.md` | steps 6+8: risks cleaned up, version → v2.1 with summary | (current) |
 
-## Как работает
+## How it works
 
-После #006 спека v2.1 устроена так:
+After #006 the v2.1 spec is structured as follows:
 
-1. **Шапка (`# archcheck …`)** — короткое summary изменений от v2.0 (список с ссылками на номера задач).
-2. **`## TL;DR`** — четыре абзаца: (1) ядро = модульные границы + циклы + baseline в CI; (2) дыра в экосистеме; (3) AI-guardrail / constraint decay; (4) «в дополнение» — Lakos / Core Guidelines / Martin как цитируемые источники, не бренд.
-3. **`## Проблема` / `## Доказательства спроса` / `## Почему именно C++` / `## Целевая аудитория`** — без изменений, marketing-обвязка.
-4. **`## Что делает (и что не делает)`** — список «делает» отражает fast backend default, baseline day-one, ссылки на §«Двух-бекендная схема» и §«Дефолтный анализ».
-5. **`## Дефолтный анализ`** — три уровня (SF / Lakos / Martin) + Уровень 4 (несомненные практики). Каждое SF-правило имеет колонку «Фаза» (v0.1 / v0.2). Martin — опционально, v0.4. Управление правилами через CLI / config / inline comment.
-6. **`## Анализ по конфигу`** — пример YAML с комментариями по блокам (modules → rules → defaults → thresholds) + «минимально-полезный конфиг» для legacy. Команды без `--suggest-config`.
-7. **`## Stability contract`** — таблица breaking vs non-breaking по интерфейсам (#007).
-8. **`## Архитектура инструмента`** — двух-бекендная схема как принятое решение (fast = default, libclang = opt-in / v0.2).
-9. **`## Roadmap`** — v0.1 cover-story (модульные границы + циклы в CI без compile_commands) → v0.2 (libclang + semantic SF) → v0.3 (C/I/NL + BDE) → v0.4 (Martin + distribution) → v0.5 (templates + community). Отдельная секция «Что не делаем» с `--suggest-config`.
-10. **`## Ключевые риски`** — 5 пунктов, обновлены под новое состояние; лицензионный риск убран (решён).
+1. **Header (`# archcheck …`)** — a short summary of changes from v2.0 (a list with links to task numbers).
+2. **`## TL;DR`** — four paragraphs: (1) the core = module boundaries + cycles + baseline in CI; (2) the gap in the ecosystem; (3) AI-guardrail / constraint decay; (4) "in addition" — Lakos / Core Guidelines / Martin as cited sources, not a brand.
+3. **`## Problem` / `## Demand evidence` / `## Why C++ specifically` / `## Target audience`** — unchanged, marketing wrapper.
+4. **`## What it does (and doesn't do)`** — the "does" list reflects the fast backend default, baseline day-one, links to §"Two-backend scheme" and §"Default analysis".
+5. **`## Default analysis`** — three levels (SF / Lakos / Martin) + Level 4 (undisputed practices). Each SF rule has a "Phase" column (v0.1 / v0.2). Martin — optional, v0.4. Rule management via CLI / config / inline comment.
+6. **`## Config-driven analysis`** — a YAML example with comments per block (modules → rules → defaults → thresholds) + a "minimally useful config" for legacy. Commands without `--suggest-config`.
+7. **`## Stability contract`** — a breaking vs non-breaking table by interface (#007).
+8. **`## Tool architecture`** — the two-backend scheme as an accepted decision (fast = default, libclang = opt-in / v0.2).
+9. **`## Roadmap`** — v0.1 cover story (module boundaries + cycles in CI without compile_commands) → v0.2 (libclang + semantic SF) → v0.3 (C/I/NL + BDE) → v0.4 (Martin + distribution) → v0.5 (templates + community). A separate "What we don't do" section with `--suggest-config`.
+10. **`## Key risks`** — 5 items, updated for the new state; the licensing risk removed (solved).
 
-## Чем управляется
+## What controls it
 
-- **Версия документа** — в шапке и в footer-е. При следующей переработке: bump до 2.2, добавить summary секцию в начало.
-- **Связь с CHANGELOG.md** — спека описывает дизайн, CHANGELOG фиксирует изменения релизных артефактов. Не дублировать.
-- **Связь с roadmap-фактами** — таблица «Фаза» в SF-правилах должна совпадать с тем, что прописано в `## Roadmap`. При следующем bump-е версии: сверять.
+- **Document version** — in the header and the footer. On the next rework: bump to 2.2, add a summary section at the start.
+- **Link to CHANGELOG.md** — the spec describes the design, CHANGELOG records changes to release artifacts. Don't duplicate.
+- **Link to roadmap facts** — the "Phase" table in the SF rules must match what's written in `## Roadmap`. On the next version bump: cross-check.
 
-## С чем связана
+## What it relates to
 
-- **#003** — имя продукта зафиксировано, спека вычищена от cpparch / cpparch-alternatives.
-- **#007** — секция «Stability contract» появилась в рамках #007, упоминается в шапке спеки v2.1.
-- **#001, #002, #004, #005** — теперь разблокированы (или становятся более конкретными):
-  - **#004 (project_skeleton)** — CMake-каркас должен соответствовать roadmap v0.1: fast backend single binary, никакой обязательной libclang-зависимости в v0.1.
-  - **#002 (github_actions_ci)** — CI запускает archcheck сам на себе по правилам v0.1; добавятся новые шаги по мере прихода v0.2/v0.3.
-  - **#005 (sarif_reporter_spec)** — SARIF теперь явно v0.2+, не блокер для v0.1.
-  - **#001 (dogfood_static_analyzers)** — может быть запущена сразу, не зависит от рефакторинга спеки.
-- **`docs/research/rules/`** — это длинный список кандидатов на правила; roadmap (v0.2 / v0.3 / v0.4) теперь явно ссылается на этот каталог, но не дублирует его содержимое.
+- **#003** — the product name is fixed, the spec is cleaned of cpparch / cpparch-alternatives.
+- **#007** — the "Stability contract" section appeared as part of #007, mentioned in the v2.1 spec header.
+- **#001, #002, #004, #005** — now unblocked (or become more concrete):
+  - **#004 (project_skeleton)** — the CMake skeleton must match the v0.1 roadmap: fast backend single binary, no mandatory libclang dependency in v0.1.
+  - **#002 (github_actions_ci)** — CI runs archcheck on itself by the v0.1 rules; new steps will be added as v0.2/v0.3 arrive.
+  - **#005 (sarif_reporter_spec)** — SARIF is now explicitly v0.2+, not a blocker for v0.1.
+  - **#001 (dogfood_static_analyzers)** — can be started immediately, doesn't depend on the spec refactor.
+- **`docs/research/rules/`** — this is a long list of rule candidates; the roadmap (v0.2 / v0.3 / v0.4) now explicitly references this directory but doesn't duplicate its contents.
 
-## Диагностика
+## Diagnostics
 
-Как понять, что спека в правильном состоянии:
+How to tell the spec is in the right state:
 
 ```bash
-# Версия 2.1:
+# Version 2.1:
 head -2 docs/architecture-spec.md
 
-# TL;DR начинается с module boundaries, не с Lakos / CCG:
+# TL;DR starts with module boundaries, not with Lakos / CCG:
 sed -n '/^## TL;DR/,/^---/p' docs/architecture-spec.md | head -5
 
-# SF.4 не в дефолтах (только в комментарии):
+# SF.4 not in defaults (only in a comment):
 grep -n "SF.4" docs/architecture-spec.md
 
-# Двух-бекендная схема — принятое решение:
-grep -n "^### " docs/architecture-spec.md | grep -i "бекенд\|backend"
+# Two-backend scheme — an accepted decision:
+grep -n "^### " docs/architecture-spec.md | grep -i "backend"
 
-# --suggest-config выпилен:
+# --suggest-config cut:
 grep -n "suggest-config" docs/architecture-spec.md
-# должно вернуть только секцию «Что не делаем»
+# should return only the "What we don't do" section
 
-# Лицензионный риск убран:
-grep -n "Лицензия" docs/architecture-spec.md
-# должно вернуть ноль или только LICENSE-related референсы
+# Licensing risk removed:
+grep -ni "License" docs/architecture-spec.md
+# should return zero or only LICENSE-related references
 
-# Stability contract на месте:
+# Stability contract in place:
 grep -n "^## Stability contract" docs/architecture-spec.md
 ```

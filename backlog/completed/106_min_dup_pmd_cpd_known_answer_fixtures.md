@@ -1,123 +1,122 @@
-# [DUPLICATION][TEST] PMD CPD testdata как known-answer фикстуры для токенового слоя
+# [DUPLICATION][TEST] PMD CPD testdata as known-answer fixtures for the token layer
 
-**Дата создания:** 2026-06-11
-**Дата старта:** 2026-06-11
-**Статус:** wip — подход пересмотрен (см. Прогресс)
-**Модуль:** DUPLICATION / SCAN / TEST
-**Приоритет:** minor
-**Сложность:** S
-**Блокирует:** доверие к selective normalization (#056/#059)
-**Заблокирован:** —
+**Created:** 2026-06-11
+**Start date:** 2026-06-11
+**Status:** wip — approach revised (see Progress)
+**Module:** DUPLICATION / SCAN / TEST
+**Priority:** minor
+**Complexity:** S
+**Blocks:** trust in selective normalization (#056/#059)
+**Blocked by:** —
 **Related:** #053 (line), #056 (token), #059 (precision), #107 (external oracle cross-validation)
 
-## Цель
+## Goal
 
-Взять готовые маленькие C/C++-файлы из тест-ресурсов PMD CPD (BSD-лицензия) и
-завести их как **known-answer фикстуры** для нашего токенового слоя и selective
-normalization. Каждый файл PMD заточен под один сценарий лексера/нормализации и
-идёт в паре с `.txt`-ожиданием — это ровно то, чем мы и так проверяем токен-проход,
-только написанное и отревьюенное чужими руками.
+Take ready-made small C/C++ files from the PMD CPD test resources (BSD license) and
+set them up as **known-answer fixtures** for our token layer and selective
+normalization. Each PMD file is tailored to one lexer/normalization scenario and
+comes paired with a `.txt` expectation — that is exactly how we check the token pass anyway,
+only written and reviewed by someone else.
 
-## Контекст
+## Context
 
-Источник (BSD-3, можно копировать с атрибуцией):
+Source (BSD-3, can be copied with attribution):
 `pmd-cpp/src/test/resources/net/sourceforge/pmd/lang/cpp/cpd/testdata/`
 https://github.com/pmd/pmd/tree/main/pmd-cpp/src/test/resources/net/sourceforge/pmd/lang/cpp/cpd/testdata
 
-Прямые попадания в наши режимы:
-- `ignoreIdents.cpp`, `ignoreLiterals.cpp` — игнор идентификаторов/литералов
-  (наш ключевой режим selective normalization, см. docs/duplication_architecture.md).
-- `literals.cpp`, `listOfNumbers.cpp` (+ варианты `_ignored`, `_ignored_identifiers`)
-  — нормализация литералов.
+Direct hits into our modes:
+- `ignoreIdents.cpp`, `ignoreLiterals.cpp` — ignoring identifiers/literals
+  (our key selective-normalization mode, see docs/duplication_architecture.md).
+- `literals.cpp`, `listOfNumbers.cpp` (+ variants `_ignored`, `_ignored_identifiers`)
+  — literal normalization.
 - `continuation*.cpp`, `multilineMacros.cpp`, `preprocessorDirectives.cpp` —
-  склейки строк и препроцессор (трогает наш fast-backend).
+  line continuations and the preprocessor (touches our fast backend).
 - `specialComments.cpp`, `tabWidth.cpp`, `unicodeStrings.cpp`, `utf8-bom_*.cpp` —
-  пограничные кейсы лексера.
+  lexer edge cases.
 
-PMD-ожидания (`.txt`) — это их формат токенов, НЕ наш. Их нельзя сравнивать байт-в-байт;
-надо переразметить ожидание под наш токен-выход (или под clone-пары, где это уместно).
+The PMD expectations (`.txt`) are their token format, NOT ours. They cannot be compared byte-for-byte;
+the expectation must be re-marked for our token output (or for clone pairs, where appropriate).
 
-## Что сделать
+## What to do
 
-1. Скопировать релевантные `.cpp` в `fixtures/duplication/normalization/` с файлом
-   `ATTRIBUTION.md` (PMD, BSD-3, ссылка на коммит-источник).
-2. Для каждого определить ожидаемое поведение НАШЕГО детектора (а не PMD):
-   с нормализацией identifiers/literals две «структурно одинаковые, но разные имена»
-   секции должны схлопываться в клон-пару; без — нет.
-3. Завести Catch2-тест: прогон токенового слоя на фикстуре → проверка ожидаемых
-   клон-пар / отсутствия таковых.
-4. Зафиксировать расхождения (если наш лексер ведёт себя иначе на continuation /
-   utf8-bom / multiline-macros) — это либо баг, либо осознанное отличие в задаче.
+1. Copy the relevant `.cpp` into `fixtures/duplication/normalization/` with an
+   `ATTRIBUTION.md` file (PMD, BSD-3, link to the source commit).
+2. For each, define the expected behavior of OUR detector (not PMD's):
+   with identifier/literal normalization, two "structurally identical but differently named"
+   sections must collapse into a clone pair; without — no.
+3. Set up a Catch2 test: run the token layer on the fixture → check the expected
+   clone pairs / their absence.
+4. Record discrepancies (if our lexer behaves differently on continuation /
+   utf8-bom / multiline-macros) — that is either a bug or a deliberate difference in the task.
 
 ## Definition of Done
 
-- Фикстуры лежат под `fixtures/duplication/`, с атрибуцией.
-- Зелёный Catch2-тест, покрывающий минимум ignoreIdents / ignoreLiterals / literals.
-- Расхождения с нашим лексером либо устранены, либо явно задокументированы.
-- Не трогаем сам детектор без причины — задача про покрытие, не про рефакторинг.
+- Fixtures live under `fixtures/duplication/`, with attribution.
+- A green Catch2 test covering at least ignoreIdents / ignoreLiterals / literals.
+- Discrepancies with our lexer are either fixed or explicitly documented.
+- Don't touch the detector itself without reason — the task is about coverage, not refactoring.
 
-## Прогресс (2026-06-11) — подход пересмотрен
+## Progress (2026-06-11) — approach revised
 
-Полный разбор: `experiments/clone_oracle_validation/FINDINGS.md`.
+Full analysis: `experiments/clone_oracle_validation/FINDINGS.md`.
 
-**Ключевой вывод: end-to-end (CLI `--duplication`) — НЕ годится для PMD-сниппетов.**
-PMD testdata — это одиночные сниппеты, а наш детектор работает на гранулярности
-функций внутри корпуса и keys candidacy на общих **редких токенах** (df≤4),
-переживших нормализацию. Прогнали 6 синтетических фикстур (renamed/exact/литералы) —
-ни одна не сработала, даже байт-идентичная пара. Корни (по чтению кода):
-- `idf=log(N/df)` вырождается в 0 на корпусе из 2 фрагментов;
-- candidacy требует общий редкий токен (`buildRareTokenIndex`/`findCandidatePairs`);
-- нормализатор (`pushIdentifierToken`, keepCalls) схлопывает все не-call идентификаторы
-  в generic `id`, оставляя редкими только имена вызовов и литералы.
-=> generic-болванка (`alpha/beta`) корректно игнорируется (анти-FP), но и наша
-known-answer фикстура не ловится.
+**Key conclusion: end-to-end (CLI `--duplication`) — NOT suitable for PMD snippets.**
+PMD testdata are single snippets, while our detector works at the granularity of
+functions inside a corpus and keys candidacy on shared **rare tokens** (df≤4)
+that survived normalization. We ran 6 synthetic fixtures (renamed/exact/literals) —
+none fired, not even a byte-identical pair. The roots (from reading the code):
+- `idf=log(N/df)` degenerates to 0 on a corpus of 2 fragments;
+- candidacy requires a shared rare token (`buildRareTokenIndex`/`findCandidatePairs`);
+- the normalizer (`pushIdentifierToken`, keepCalls) collapses all non-call identifiers
+  into a generic `id`, leaving only call names and literals as rare.
+=> a generic dummy (`alpha/beta`) is correctly ignored (anti-FP), but our
+known-answer fixture is also not caught.
 
-**Пересмотренный план (вместо CLI end-to-end):**
-1. Тестировать **компоненты напрямую** в Catch2: выход `lex()`-нормализатора на
-   PMD `ignoreIdents/ignoreLiterals/literals` (наш токен-стрим vs ожидание,
-   адаптированное из PMD `.txt`); `weightedJaccard` на руками собранных bag'ах.
-2. Скопировать релевантные PMD `.cpp` в `fixtures/duplication/normalization/`
-   с `ATTRIBUTION.md` (PMD, BSD-3).
-3. Для end-to-end кейсов (если нужны) — строить реалистичный мини-корпус с
-   distinctive именами вызовов, не 2-функциональные игрушки.
+**Revised plan (instead of CLI end-to-end):**
+1. Test **the components directly** in Catch2: the output of the `lex()` normalizer on
+   PMD `ignoreIdents/ignoreLiterals/literals` (our token stream vs the expectation,
+   adapted from PMD `.txt`); `weightedJaccard` on hand-assembled bags.
+2. Copy the relevant PMD `.cpp` into `fixtures/duplication/normalization/`
+   with `ATTRIBUTION.md` (PMD, BSD-3).
+3. For end-to-end cases (if needed) — build a realistic mini-corpus with
+   distinctive call names, not 2-function toys.
 
-**Блокирующая зависимость:** перед построением suite разобрать аномалию из #107/§4
-(точная копия с редким литералом молча срезается) — иначе «0 пар» ≠ «нет клонов».
-Скачанные PMD-файлы и репро-фикстуры: `experiments/clone_oracle_validation/pmd/`.
+**Blocking dependency:** before building the suite, resolve the anomaly from #107/§4
+(an exact copy with a rare literal is silently dropped) — otherwise "0 pairs" ≠ "no clones".
+The downloaded PMD files and repro fixtures: `experiments/clone_oracle_validation/pmd/`.
 
-## Обновление (2026-06-11, вечер) — блокер снят, подход подтверждён
+## Update (2026-06-11, evening) — blocker lifted, approach confirmed
 
-- Блокирующая аномалия (#107/§4) **разрешена**: это P0.6 joint-floor tradeoff (line≥0.50
-  по сырым строкам режет «тяжёлые» переименования), не баг. Значит «0 пар» теперь
-  объяснимо, suite строить можно.
-- Первый компонентный тест по пересмотренному подходу уже есть и зелёный:
-  `tests/duplication_renamed_recall_test.cpp` (rename-blind токены vs raw-line floor).
-  Это шаблон для остальных known-answer кейсов на базе PMD-сниппетов.
-- Дальше: адаптировать PMD `ignoreIdents/ignoreLiterals/literals` под component-level
-  проверки `lex()` (наш токен-стрим), скопировать в `fixtures/duplication/normalization/`
-  с ATTRIBUTION (BSD-3).
+- The blocking anomaly (#107/§4) is **resolved**: it is the P0.6 joint-floor tradeoff (line≥0.50
+  on raw lines cuts "heavy" renames), not a bug. So "0 pairs" is now explainable, the suite can be built.
+- The first component test by the revised approach already exists and is green:
+  `tests/duplication_renamed_recall_test.cpp` (rename-blind tokens vs raw-line floor).
+  This is the template for the other known-answer cases based on PMD snippets.
+- Next: adapt PMD `ignoreIdents/ignoreLiterals/literals` to component-level
+  checks of `lex()` (our token stream), copy into `fixtures/duplication/normalization/`
+  with ATTRIBUTION (BSD-3).
 
-## Как работает
+## How it works
 
-Фикстуры — пары файлов, различающиеся ровно одной осью (значения литералов /
-имена локалов / имя callee); компонентный тест гонит их через `lex()` и сравнивает
-нормализованные seq: blind-оси обязаны совпасть, selective-ось (callee) — отличиться.
+The fixtures are pairs of files differing along exactly one axis (literal values /
+local names / callee name); the component test runs them through `lex()` and compares
+the normalized seq: the blind axes must match, the selective axis (callee) — must differ.
 
-## Ключевые решения
+## Key decisions
 
-- **Component-level вместо CLI end-to-end**: candidacy детектора (редкие токены,
-  idf) съедает крошечные сниппеты — честная known-answer проверка живёт на уровне
-  `lex()`, не бинаря.
-- **PMD `.txt`-ожидания не переносились**: это формат ИХ токенизатора; переразметка
-  под НАШУ семантику (seq-равенство/неравенство) — суть задачи.
-- **Точный пин количества `lit` (13)** вместо `>=` — сильнее ловит регрессии лексера.
+- **Component-level instead of CLI end-to-end**: the detector's candidacy (rare tokens,
+  idf) eats tiny snippets — an honest known-answer check lives at the level of
+  `lex()`, not the binary.
+- **PMD `.txt` expectations not ported**: that is THEIR tokenizer's format; re-marking
+  for OUR semantics (seq equality/inequality) — is the essence of the task.
+- **An exact pin of the `lit` count (13)** instead of `>=` — catches lexer regressions more strongly.
 
-## Изменённые файлы
+## Changed files
 
-- `fixtures/duplication/normalization/` — 5 фикстур + ATTRIBUTION.md (commit 2ff4522)
+- `fixtures/duplication/normalization/` — 5 fixtures + ATTRIBUTION.md (commit 2ff4522)
 - `tests/duplication_pmd_normalization_test.cpp` — 3 TEST_CASE (commit 2ff4522)
-- `tests/duplication_renamed_recall_test.cpp` — пин P0.6 tradeoff (commit 1fbc9f4)
+- `tests/duplication_renamed_recall_test.cpp` — P0.6 tradeoff pin (commit 1fbc9f4)
 
-## Итог
-**Статус:** completed
-**Дата завершения:** 2026-06-11
+## Outcome
+**Status:** completed
+**Completion date:** 2026-06-11

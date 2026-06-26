@@ -1,167 +1,167 @@
-# [SCAN][DUPLICATION] Поднять precision `--duplication` до gate-grade
+# [SCAN][DUPLICATION] Raise `--duplication` precision to gate-grade
 
-**Дата создания:** 2026-06-05
-**Дата старта:** 2026-06-05
-**Статус:** future (целевой релиз: v0.2+ — gate-grade precision требует semantic-слоя)
-**Модуль:** SCAN/DUPLICATION
-**Приоритет:** major
-**Сложность:** L
-**Блокирует:** опциональный blocking `--duplication` gate в CI
-**Заблокирован:** P2 semantic/LLM confirm-слой (v0.2) — см. validation ниже
-**Related:** #082 (alignment umbrella — родитель, Slice 5b), #070 (FP fix proposals + спека header-impl gate), #071 (FP/TP classification), #078 (co-change harm-signal / severity)
+**Created:** 2026-06-05
+**Started:** 2026-06-05
+**Status:** future (target release: v0.2+ — gate-grade precision requires the semantic layer)
+**Module:** SCAN/DUPLICATION
+**Priority:** major
+**Complexity:** L
+**Blocks:** an optional blocking `--duplication` gate in CI
+**Blocked by:** P2 semantic/LLM confirm layer (v0.2) — see validation below
+**Related:** #082 (alignment umbrella — parent, Slice 5b), #070 (FP fix proposals + spec of the header-impl gate), #071 (FP/TP classification), #078 (co-change harm-signal / severity)
 
-## Цель
+## Goal
 
-Поднять precision детектора дубликатов до уровня, на котором `--duplication` можно
-безопасно сделать **blocking CI-gate** (падать на регрессии дублирования), а не только
+Raise the precision of the duplicate detector to a level where `--duplication` can
+safely be made a **blocking CI gate** (fail on a duplication regression), not just an
 advisory report.
 
-## Контекст (откуда задача)
+## Context (where the task comes from)
 
-В рамках #082 (Slice 5b) duplication сознательно шипнут как **advisory reporting
-capability** (`--duplication` — report-only, всегда `exit 0`, не блокирует CI). Это
-честная рамка: [docs/product_vision.md](../../docs/product_vision.md) прямо фиксирует,
-что **precision недостаточен для trusted CI-gate** (idiom-floor ~40 FP, неустранимый
-без семантики). Поднять precision — это **algorithm work**, который #082 вынесла из
-scope («Не улучшать сам алгоритм duplication "заодно"»). Эта задача — про то, что #082
-отложила.
+Within #082 (Slice 5b) duplication was deliberately shipped as an **advisory reporting
+capability** (`--duplication` — report-only, always `exit 0`, does not block CI). This is
+an honest framing: [docs/product_vision.md](../../docs/product_vision.md) directly states
+that **precision is insufficient for a trusted CI gate** (idiom-floor ~40 FP, irremovable
+without semantics). Raising precision is **algorithm work**, which #082 moved out of
+scope ("Don't improve the duplication algorithm itself 'along the way'"). This task is about what #082
+deferred.
 
-## Что нужно
+## What's needed
 
-1. Реализовать честный **P1.3 header-impl gate** (сейчас удалён как no-op; готовая
-   спека — в [#070](../wip/070_maj_checker_fp_fix_proposals.md): matched-span ≥70%
-   decl-токенов → suppress).
-2. Измерить precision на размеченном корпусе (см. также #084 — харнесс оценки).
-3. Оценить **P2 semantic/LLM confirm** (в CHANGELOG помечен `⏳ v0.2`) как путь пробить
+1. Implement an honest **P1.3 header-impl gate** (currently removed as a no-op; a ready
+   spec — in [#070](../wip/070_maj_checker_fp_fix_proposals.md): matched-span ≥70%
+   of decl tokens → suppress).
+2. Measure precision on a labeled corpus (see also #084 — the evaluation harness).
+3. Evaluate **P2 semantic/LLM confirm** (marked `⏳ v0.2` in the CHANGELOG) as a path to break through the
    idiom-floor.
-4. Только при достижении gate-grade precision — добавить опцию gating
-   (`--duplication --gate` или порог), с явным exit-контрактом.
+4. Only upon reaching gate-grade precision — add a gating option
+   (`--duplication --gate` or a threshold), with an explicit exit contract.
 
 ## Acceptance criteria
 
-- [ ] Измеримая precision на корпусе с зафиксированной методикой.
-- [ ] P1.3 (или эквивалент) реализован и покрыт fixtures/тестами.
-- [ ] Принято решение: достаточно ли precision для опционального gate; если да —
-      gate-режим реализован с явным exit-кодом и документирован во всех слоях.
-- [ ] Если precision всё ещё недостаточен — это явно зафиксировано, `--duplication`
-      остаётся advisory, задача закрыта с честным выводом.
+- [ ] Measurable precision on a corpus with a fixed methodology.
+- [ ] P1.3 (or equivalent) implemented and covered by fixtures/tests.
+- [ ] Decision made: is precision sufficient for an optional gate; if yes —
+      the gate mode is implemented with an explicit exit code and documented in all layers.
+- [ ] If precision is still insufficient — this is explicitly recorded, `--duplication`
+      stays advisory, the task is closed with an honest conclusion.
 
-## Заметки
+## Notes
 
-- Не ломать текущий advisory-контракт (`exit 0`) по умолчанию — gating только opt-in.
-- fixtures обязательны (правило проекта).
+- Don't break the current advisory contract (`exit 0`) by default — gating is opt-in only.
+- Fixtures are mandatory (project rule).
 
-## Scoping / разведка (2026-06-05, при старте)
+## Scoping / reconnaissance (2026-06-05, at start)
 
-Разобраны структуры данных сканера для реализации P1.3:
+The scanner's data structures for implementing P1.3 were analyzed:
 
 - `Fragment` ([include/archcheck/scan/duplication/fragmenter.h](../../include/archcheck/scan/duplication/fragmenter.h))
-  даёт `seq` (упорядоченные нормализованные токены), `rawSeq` (сырые написания,
-  выровнены с seq), `normLines`, `diversity`, `tokenCount`. Этого достаточно, чтобы
-  считать declaration-маркеры (`virtual`/`override`/`final`/access-specifier/`Q_OBJECT`/
-  pure-`= 0`) и контроль-флоу (`if`/`for`/`while`/`return`/`switch`).
-- Существующие P1-классификаторы (`phase10DataTableClassifier`,
-  `phase11BoilerplateDensity`) — чистые ~15-25-строчные функции: P1.1 down-weight
-  (`p.weighted *= k`), P1.2 filter (drop). P1.3 встанет тем же паттерном.
-- **Важно:** `extractFragments` эмитит тела `)`-`{` (function/control bodies), а не
-  чистые декларации. Значит header-impl FP возникает в специфических формах (inline-тела
-  в .h, init-list конструкторов, параллельные определения). Точную форму нужно увидеть
-  на 6 размеченных header-impl примерах из корпуса.
+  provides `seq` (ordered normalized tokens), `rawSeq` (raw spellings,
+  aligned with seq), `normLines`, `diversity`, `tokenCount`. This is enough to
+  count declaration markers (`virtual`/`override`/`final`/access-specifier/`Q_OBJECT`/
+  pure-`= 0`) and control flow (`if`/`for`/`while`/`return`/`switch`).
+- Existing P1 classifiers (`phase10DataTableClassifier`,
+  `phase11BoilerplateDensity`) — clean ~15-25-line functions: P1.1 down-weight
+  (`p.weighted *= k`), P1.2 filter (drop). P1.3 will follow the same pattern.
+- **Important:** `extractFragments` emits `)`-`{` bodies (function/control bodies), not
+  clean declarations. So the header-impl FP arises in specific forms (inline bodies
+  in .h, ctor init-lists, parallel definitions). The exact form needs to be seen
+  on the 6 labeled header-impl examples from the corpus.
 
-### Почему имплементация не сделана при старте (честно)
+### Why the implementation wasn't done at start (honestly)
 
-1. **Recall-gate требует корпуса.** Спека #070 прямо требует прогон против 195 TP с
-   метрикой TP-retention и откатом при падении recall. Корпус (`fp_corpus_r2.tsv`,
-   6 header-impl FP) — в **untracked `experiments/`**, не hermetic. Влить precision-
-   suppressor, не измерив recall, — нарушение этоса #082 (не шипать невалидируемое).
-2. **Эвристика decl-vs-executable нетривиальна** на токенах (отличить `void foo();` от
-   `foo();` без парсера). Ошибка → либо нет пользы, либо суппресс реальных TP.
+1. **The recall gate requires the corpus.** The #070 spec directly requires a run against 195 TP with
+   a TP-retention metric and a rollback on recall drop. The corpus (`fp_corpus_r2.tsv`,
+   6 header-impl FP) — in an **untracked `experiments/`**, not hermetic. Merging a precision
+   suppressor without measuring recall is a violation of the #082 ethos (don't ship the unvalidatable).
+2. **The decl-vs-executable heuristic is non-trivial** on tokens (distinguish `void foo();` from
+   `foo();` without a parser). An error → either no benefit, or suppression of real TP.
 
-### План реализации (когда есть корпус)
+### Implementation plan (when the corpus is available)
 
-1. Посмотреть 6 размеченных header-impl FP → понять фактическую форму fragment'ов.
-2. Реализовать `phase12HeaderImplGate` (имя свободно — no-op удалён в #082) как
-   консервативный классификатор: declRatio ≥0.7 **И** <2 executable-statement → suppress.
-3. Fixtures: `fixtures/duplication/header_impl/pass/` (реальный logic-клон — НЕ суппрессить),
-   `fixtures/duplication/header_impl/fail_*/` (параллельные декларации — суппресс).
-4. Прогон recall-retention против корпуса; откат при падении recall > порога.
-5. Только при достаточной aggregate precision — решать про opt-in gate (item 4 выше).
+1. Look at the 6 labeled header-impl FP → understand the actual form of the fragments.
+2. Implement `phase12HeaderImplGate` (name is free — the no-op was removed in #082) as a
+   conservative classifier: declRatio ≥0.7 **AND** <2 executable statements → suppress.
+3. Fixtures: `fixtures/duplication/header_impl/pass/` (a real logic clone — do NOT suppress),
+   `fixtures/duplication/header_impl/fail_*/` (parallel declarations — suppress).
+4. Run recall-retention against the corpus; roll back on a recall drop > threshold.
+5. Only upon sufficient aggregate precision — decide on the opt-in gate (item 4 above).
 
-**Статус:** стартована, заскоуплена.
+**Status:** started, scoped.
 
-### Уточнение (2026-06-05): корпус НА МЕСТЕ
+### Clarification (2026-06-05): the corpus IS IN PLACE
 
-Прежнее «корпус недоступен» — **неверно**: `experiments/` это локальная untracked
-песочница, и на этой машине она есть. Корпус присутствует:
-`experiments/verification/fp_corpus_r2.tsv` (160 KB, 197 размеченных строк, в т.ч.
-**6 header-impl FP**). Примеры header-impl: platform-split stubs (os_macos vs os_linux,
+The earlier "corpus unavailable" is **incorrect**: `experiments/` is a local untracked
+sandbox, and on this machine it exists. The corpus is present:
+`experiments/verification/fp_corpus_r2.tsv` (160 KB, 197 labeled lines, incl.
+**6 header-impl FP**). Header-impl examples: platform-split stubs (os_macos vs os_linux,
 `return accept-all`), Qt-test parallel decls (Q_OBJECT/initTestCase), NVI-lifecycle
-скелеты (OnComponentCreated/...).
+skeletons (OnComponentCreated/...).
 
-**Главная трудность (вскрыта корпусом):** header-impl FP на токенах **не отличить**
-от структурного TP. Рядом в корпусе TP «AKP05 клонирован из AKP03» — структурно
-идентичен (byte-identical методы), но это настоящий copy-paste. Stub `return true;` vs
-реальная логика `return computeX();` — без AST/валидации не разделить. Крудовый
-token-эвристик даст шум за marginal gain (потому P1-классификаторы и помечены
-«requires validation» в CHANGELOG).
+**Main difficulty (uncovered by the corpus):** a header-impl FP on tokens is **indistinguishable**
+from a structural TP. Right next to it in the corpus is the TP "AKP05 cloned from AKP03" — structurally
+identical (byte-identical methods), but it's a real copy-paste. A stub `return true;` vs
+real logic `return computeX();` — without AST/validation they can't be separated. A crude
+token heuristic gives noise for marginal gain (which is why the P1 classifiers are marked
+"requires validation" in the CHANGELOG).
 
-**Recall-safety решена частью:** пайплайн дропает по weighted только в
-`phase8JointTokenOrderFloor` (ДО P1-блока); P1-классификаторы идут последними. Значит
-P1.3 как **down-weight** (не drop), вставленный после `phase11`, recall-neutral —
-худший случай: структурный TP ранжируется чуть ниже в advisory-выводе, но всё равно
-репортится.
+**Recall-safety is partly solved:** the pipeline drops by weighted only in
+`phase8JointTokenOrderFloor` (BEFORE the P1 block); the P1 classifiers run last. So
+P1.3 as a **down-weight** (not drop), inserted after `phase11`, is recall-neutral — worst
+case: a structural TP is ranked slightly lower in the advisory output, but is still
+reported.
 
-**Правильный путь (focused-сессия, не autonomous-burst):**
-1. Прогнать детектор на размеченных репо корпуса (harness `duplication_all_projects_test`
-   / `duplication_vmecpp_test`, читают `sandbox/`/`drift_repos/` — non-hermetic).
-2. Цикл: эвристик → измерить precision/recall на 197 размеченных → тюнить.
-3. Ship как down-weight (recall-safe) при доказанном discrimination FP-vs-TP.
+**The right path (a focused session, not an autonomous burst):**
+1. Run the detector on the labeled repos of the corpus (harness `duplication_all_projects_test`
+   / `duplication_vmecpp_test`, they read `sandbox/`/`drift_repos/` — non-hermetic).
+2. Loop: heuristic → measure precision/recall on the 197 labeled → tune.
+3. Ship as a down-weight (recall-safe) once FP-vs-TP discrimination is proven.
 
-Без этого цикла имплементация = угадайка. Ждёт focused-сессии с прогоном по репо.
+Without this loop the implementation = guesswork. Awaiting a focused session with a run over the repos.
 
-## VALIDATION-ПРОГОН (2026-06-05) — решающий результат
+## VALIDATION RUN (2026-06-05) — the decisive result
 
-Прогон выполнен (корпусные репо нашлись в `~/oss/_aidev_dense/`).
-Для каждой из 6 размеченных header-impl FP: checkout корпусного SHA → `archcheck
---duplication` → проверка, репортит ли *текущий* детектор labeled FP-пару.
+The run was performed (corpus repos found in `~/oss/_aidev_dense/`).
+For each of the 6 labeled header-impl FP: checkout the corpus SHA → `archcheck
+--duplication` → check whether the *current* detector reports the labeled FP pair.
 
-| Репо | corpus SHA | header-impl FP репортится? |
+| Repo | corpus SHA | header-impl FP reported? |
 |---|---|---|
-| DataDog/java-profiler (os_macos↔os_linux) | b7cc386a | **НЕТ** — не пейрится |
-| fenrus75/powertop (test-stub↔prod) | 24956009 | **НЕТ** |
-| deltaeecs/CSR4MPI (.h↔.cpp decl-def) | top | **НЕТ** (0 пар вообще) |
-| ImagingTools/Acf (Qt-test .h/.cpp) | f8440296 | **НЕТ** (27 пар, labeled нет) |
-| b-macker/NAAb (sibling NVI headers) | c1d8208d | **НЕТ** (12 пар, labeled нет) |
-| **ImagingTools/AcfSln** (NVI `C*Comp.cpp`) | 28335c8c | **ДА** — 5× **EXACT weighted=1** |
+| DataDog/java-profiler (os_macos↔os_linux) | b7cc386a | **NO** — not paired |
+| fenrus75/powertop (test-stub↔prod) | 24956009 | **NO** |
+| deltaeecs/CSR4MPI (.h↔.cpp decl-def) | top | **NO** (0 pairs at all) |
+| ImagingTools/Acf (Qt-test .h/.cpp) | f8440296 | **NO** (27 pairs, none labeled) |
+| b-macker/NAAb (sibling NVI headers) | c1d8208d | **NO** (12 pairs, none labeled) |
+| **ImagingTools/AcfSln** (NVI `C*Comp.cpp`) | 28335c8c | **YES** — 5× **EXACT weighted=1** |
 
-### Выводы (данными, не гаданием)
+### Conclusions (by data, not guesswork)
 
-1. **5 из 6 header-impl FP корпуса УЖЕ устранены** текущим archcheck. Корпус-baseline
-   (6 header-impl, 42.1% precision, round 2) мерился по **старому/standalone** детектору;
-   нынешний archcheck с P0+P1-гардами их уже не даёт. То есть P1.3-цель в основном
-   **уже закрыта** существующими механизмами.
-2. **Единственный остаток — AcfSln — это EXACT weighted=1** (NVI-скелеты компонент-`.cpp`).
-   По токенам они **неотличимы** от настоящего copy-paste (тот же weighted=1). Любой
-   token-based P1.3 (down-weight/drop) задавит их **вместе с реальными клонами** → recall
-   страдает или precision не растёт. Подтверждает: остаток требует **семантики** (понять,
-   что это разные компоненты с одинаковым lifecycle-скелетом), а не token-эвристики.
+1. **5 of the 6 header-impl FP of the corpus are ALREADY eliminated** by the current archcheck. The corpus
+   baseline (6 header-impl, 42.1% precision, round 2) was measured with the **old/standalone** detector;
+   the current archcheck with P0+P1 gates no longer produces them. That is, the P1.3 goal is largely
+   **already closed** by existing mechanisms.
+2. **The only remainder — AcfSln — is EXACT weighted=1** (NVI skeletons of component-`.cpp`).
+   On tokens they are **indistinguishable** from a real copy-paste (the same weighted=1). Any
+   token-based P1.3 (down-weight/drop) would suppress them **together with real clones** → recall
+   suffers or precision doesn't rise. This confirms: the remainder requires **semantics** (understanding
+   that these are different components with the same lifecycle skeleton), not a token heuristic.
 
-### Итоговое решение по #083
+### Final decision on #083
 
-**P1.3 (token header-impl gate) НЕ реализуем** — цель в основном закрыта, остаток
-контрпродуктивен на токенах. Шире: доминирующий FP-класс — **idiom (108) + idiom-floor
-(~40)** — корпус и CHANGELOG прямо говорят, что неустраним без семантики. Значит
-**gate-grade precision недостижим token-level средствами**; путь — **P2 semantic/LLM
-confirm-слой**, а это **v0.2** (см. CHANGELOG: «LLM confirmation planned v0.2»).
+**P1.3 (token header-impl gate) is NOT to be implemented** — the goal is largely closed, the remainder is
+counterproductive on tokens. More broadly: the dominant FP class — **idiom (108) + idiom-floor
+(~40)** — the corpus and CHANGELOG directly say it's irremovable without semantics. So
+**gate-grade precision is unreachable by token-level means**; the path is the **P2 semantic/LLM
+confirm layer**, and that's **v0.2** (see CHANGELOG: "LLM confirmation planned v0.2").
 
-→ `--duplication` остаётся **advisory** (как зафиксировано в #082-Slice5b) до появления
-P2-семантики в v0.2. Статус задачи → **blocked** (на v0.2 semantic backend), остаётся в
-`wip/` (по правилу «blocked ≠ completed, держим в wip со статусом blocked»). Token-level
-тюнинг здесь ROI не даёт — переоткрывать, когда появится семантический слой v0.2.
+→ `--duplication` stays **advisory** (as recorded in #082-Slice5b) until P2 semantics appear
+in v0.2. Task status → **blocked** (on the v0.2 semantic backend), stays in
+`wip/` (by the rule "blocked ≠ completed, keep in wip with status blocked"). Token-level
+tuning here gives no ROI — reopen once the v0.2 semantic layer appears.
 
-### Что считать «сделанным» в рамках этой сессии
+### What counts as "done" within this session
 
-- Validation-loop **прогнан** (то, что просил пользователь): 6 header-impl репо,
-  before-состояние текущего детектора измерено.
-- P1.3-вопрос **закрыт данными**: не реализуем (5/6 уже устранены, остаток семантический).
-- Корректно зафиксировано, что gate-grade = v0.2 semantic-зависимость, а не token-работа.
+- The validation loop was **run** (what the user asked for): 6 header-impl repos,
+  the before-state of the current detector measured.
+- The P1.3 question is **closed by data**: not to be implemented (5/6 already eliminated, the remainder semantic).
+- It's correctly recorded that gate-grade = a v0.2 semantic dependency, not token work.

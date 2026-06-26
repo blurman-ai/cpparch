@@ -1,33 +1,32 @@
-# [SCAN] #056 --diff: vendor-exclude (miniz/stb и пр.)
+# [SCAN] #056 --diff: vendor-exclude (miniz/stb etc.)
 
-**Дата создания:** 2026-05-31
-**Статус:** dropped (поглощена #065/#069/#070)
-**Модуль:** SCAN
-**Приоритет:** minor
+**Created:** 2026-05-31
+**Status:** dropped (absorbed by #065/#069/#070)
+**Module:** SCAN
+**Priority:** minor
 **Related:** #060, #056
 
-## Цель
-Часть «TP» в iter1 — вендоренные копии библиотек (две копии `miniz`, `stb_image`):
-технически копипаста, но не код проекта. Должны отсекаться excludes (как snapshot),
-регистронезависимо: `third_party`, `extern`, `vendor`, `borealis/.../extern`, и по
-сигналам (license-шапка / `@generated`).
+## Goal
+Part of the "TP" in iter1 are vendored copies of libraries (two copies of `miniz`, `stb_image`):
+technically copy-paste, but not project code. They should be cut by excludes (like a snapshot),
+case-insensitively: `third_party`, `extern`, `vendor`, `borealis/.../extern`, and by
+signals (license header / `@generated`).
 
-## Проверка
-- [ ] iter-N: vendored-пары не репортятся; реальные project-копии остаются.
+## Verification
+- [ ] iter-N: vendored pairs are not reported; real project copies remain.
 
-## Итог
+## Outcome
 
-**Статус:** dropped — цель достигнута другими задачами, собственной работы не осталось.
-**Дата закрытия:** 2026-06-11 (бэклог-ревью).
+**Status:** dropped — the goal was achieved by other tasks, no work of its own remained.
+**Closed:** 2026-06-11 (backlog review).
 
-Запрошенное поведение реализовано трижды на разных уровнях:
-- в спайке — vendor-exclude вошёл в iter2-фиксы #060 (коммит `0beb2f7`, вместе с #061);
-- в продукте — vendor/third_party/extern-исключение централизовано в #069
-  (`src/scan/project_files.cpp`), duplication-проход вендоренные файлы не видит вовсе;
-- generated-файлы (`@generated`, protobuf/moc/flex-bison) отсекает P0.9-гард `isGeneratedPath`
+The requested behavior was implemented three times at different levels:
+- in the spike — vendor-exclude went into the iter2 fixes of #060 (commit `0beb2f7`, together with #061);
+- in the product — vendor/third_party/extern exclusion centralized in #069
+  (`src/scan/project_files.cpp`), the duplication pass doesn't see vendored files at all;
+- generated files (`@generated`, protobuf/moc/flex-bison) are cut by the P0.9 guard `isGeneratedPath`
   (#065 → #070, `src/scan/duplication/duplication_scanner.cpp`), whole-file vendored-twin
-  подавляет P0.2 (#070).
+  is suppressed by P0.2 (#070).
 
-Незакрытым из исходной идеи остался только сигнал «license-шапка» — сознательно не делаем:
-на корпусе FP этого класса уже гасятся путями и `@generated`-маркерами.
-
+The only part of the original idea left unclosed is the "license header" signal — deliberately not done:
+on the corpus, FPs of this class are already suppressed by paths and `@generated` markers.

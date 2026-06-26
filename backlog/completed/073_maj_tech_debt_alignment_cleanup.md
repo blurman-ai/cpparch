@@ -1,365 +1,365 @@
-# [CORE][DOCS][BACKLOG] Свести техдолг по контрактам, CLI-оркестрации и рассинхрону документов
+# [CORE][DOCS][BACKLOG] Consolidate the tech debt around contracts, CLI orchestration, and document drift
 
-**Дата создания:** 2026-06-02
-**Дата старта:** 2026-06-11
-**Дата завершения:** 2026-06-12
-**Статус:** completed
-**Модуль:** CORE / CLI / DOCS / BACKLOG
-**Приоритет:** major
-**Сложность:** L
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-06-02
+**Started:** 2026-06-11
+**Completed:** 2026-06-12
+**Status:** completed
+**Module:** CORE / CLI / DOCS / BACKLOG
+**Priority:** major
+**Difficulty:** L
+**Blocks:** —
+**Blocked by:** —
 **Related:** #045 (docs_sync_roadmap_mvp_spec), #051 (config_loader_v1), #057 (lakos_fanout_coupling_checks), #060 (checker_validation_hardening_loop), #070 (checker_fp_fix_proposals)
-**Источник истины:** [docs/architecture-spec.md](../../docs/architecture-spec.md), [docs/ROADMAP.md](../../docs/ROADMAP.md), [docs/config_format.md](../../docs/config_format.md)
+**Source of truth:** [docs/architecture-spec.md](../../docs/architecture-spec.md), [docs/ROADMAP.md](../../docs/ROADMAP.md), [docs/config_format.md](../../docs/config_format.md)
 
-## Цель
+## Goal
 
-Собрать в одну задачу накопившийся **неслучайный техдолг** вокруг shipped v0.1:
-не новые фичи, а расхождения между кодом, CLI-контрактами, документами и backlog.
-Задача нужна как umbrella: чтобы сначала выровнять продуктовую реальность, а уже
-потом безопасно расширять правила и исследовательские ветки.
+Gather into one task the accumulated **non-random tech debt** around shipped v0.1:
+not new features, but the divergences between the code, the CLI contracts, the documents, and the backlog.
+The task is needed as an umbrella: to first align the product reality, and only
+then safely extend the rules and research branches.
 
-## Контекст
+## Context
 
-Кодовое ядро `archcheck` уже живое: есть `scan -> graph -> rules -> report`,
-diff/drift, baseline, config loader, unit/integration tests. Но вокруг ядра
-накопился слой долгов двух типов:
+The `archcheck` code core is already alive: there's `scan -> graph -> rules -> report`,
+diff/drift, baseline, config loader, unit/integration tests. But around the core a
+layer of debt has accumulated, of two kinds:
 
-1. **Продуктовые контракты расходятся с реальной реализацией.**
-2. **Документы и backlog расходятся между собой и с текущим деревом.**
+1. **Product contracts diverge from the actual implementation.**
+2. **The documents and the backlog diverge from each other and from the current tree.**
 
-Это уже не «косметика в доках». Часть расхождений напрямую вводит пользователя в
-заблуждение (`--config`, формат diagnostics, разные пороги в `check` и `--diff`).
+This is no longer "cosmetics in the docs". Some of the divergences directly mislead the
+user (`--config`, the diagnostics format, different thresholds in `check` and `--diff`).
 
 ## TL;DR
 
-Главный долг не в графовом ядре, а в **alignment**:
+The main debt is not in the graph core, but in **alignment**:
 
-- CLI обещает больше, чем исполняет.
-- Модель данных уже не покрывает обещанный output contract.
-- `main.cpp` перерос в application-god-file и стал источником расхождения режимов.
-- roadmap/backlog/research документы описывают разные состояния продукта.
-- Часть `wip`-задач ссылается на уже удалённые артефакты.
+- The CLI promises more than it delivers.
+- The data model no longer covers the promised output contract.
+- `main.cpp` has grown into an application god-file and become a source of mode divergence.
+- The roadmap/backlog/research documents describe different states of the product.
+- Some `wip` tasks reference already-deleted artifacts.
 
-Пока это не сведено, любая новая фича повышает стоимость сопровождения непропорционально.
+Until this is consolidated, any new feature raises the maintenance cost disproportionately.
 
-## Инвентаризация техдолга
+## Tech debt inventory
 
-### 1. Ложный контракт `--config`
+### 1. False contract `--config`
 
-- CLI help обещает `--config <path> ... run check`.
-- Loader реально парсит `modules` + `layers` / `independence` / `forbidden`.
-- Но runtime использует из `Config` только `thresholds`; модульные правила не
-  применяются вообще.
+- CLI help promises `--config <path> ... run check`.
+- The loader actually parses `modules` + `layers` / `independence` / `forbidden`.
+- But the runtime uses only `thresholds` from `Config`; the module rules are
+  not applied at all.
 
-Следствие:
+Consequence:
 
-- пользователь получает «конфиг принят», но архитектурные правила из конфига не работают;
-- у нас есть shipped surface area без shipped semantics;
-- это опаснее обычного TODO, потому что поведение выглядит завершённым.
+- the user gets "config accepted", but the architecture rules from the config don't work;
+- we have shipped surface area without shipped semantics;
+- this is more dangerous than an ordinary TODO, because the behavior looks complete.
 
-## Что сделать
+## What to do
 
-- [ ] Принять продуктовое решение: либо `--config` временно validate-only, либо
-      довести config-rules до runtime.
-- [ ] Если validate-only: честно поменять help/README/spec и exit behavior.
-- [ ] Если runtime: отдельная задача на `config -> rule pipeline`, без маскировки под «мелкий фикс».
+- [ ] Make a product decision: either `--config` is temporarily validate-only, or
+      bring config rules through to the runtime.
+- [ ] If validate-only: honestly change help/README/spec and the exit behavior.
+- [ ] If runtime: a separate task for `config -> rule pipeline`, without masquerading as a "minor fix".
 
-### 2. Диагностический контракт расходится с моделью `Violation`
+### 2. The diagnostic contract diverges from the `Violation` model
 
-- Документы и AGENTS-фрейминг обещают `file:line:column`.
-- `Violation` хранит только `file`, `line`, `message`, `ruleId`.
-- Text/JSON reporters колонку не выводят, потому что её просто негде взять.
+- The documents and the AGENTS framing promise `file:line:column`.
+- `Violation` stores only `file`, `line`, `message`, `ruleId`.
+- The text/JSON reporters don't emit the column, because there's simply nowhere to get it.
 
-Следствие:
+Consequence:
 
-- пользовательский контракт уже шире, чем реальная доменная модель;
-- дальше будет больно добавлять точные location-based rules и suppression.
+- the user contract is already wider than the actual domain model;
+- it will be painful later to add precise location-based rules and suppression.
 
-## Что сделать
+## What to do
 
-- [ ] Принять один контракт: либо реально расширить `Violation` до `column`,
-      либо понизить все документы до `file[:line]`.
-- [ ] Если добавляем `column`: обновить baseline/json schema и сразу зафиксировать migration policy.
+- [ ] Adopt one contract: either actually extend `Violation` to `column`,
+      or downgrade all documents to `file[:line]`.
+- [ ] If adding `column`: update the baseline/json schema and immediately fix a migration policy.
 
-### 3. Разные пороги у `check` и `--diff`
+### 3. Different thresholds for `check` and `--diff`
 
-- Обычный `Lakos.GodHeader` живёт на пороге `50`.
-- Diff/report слой держит свой дефолт `30`.
-- Это разные источники истины для одной и той же сущности.
+- The ordinary `Lakos.GodHeader` lives at threshold `50`.
+- The diff/report layer keeps its own default `30`.
+- These are different sources of truth for one and the same entity.
 
-Следствие:
+Consequence:
 
-- один и тот же проект может быть зелёным в `check` и красным в `--diff`;
-- метрики и regression semantics становятся недоверяемыми.
+- the same project can be green in `check` and red in `--diff`;
+- the metrics and regression semantics become untrustworthy.
 
-## Что сделать
+## What to do
 
-- [ ] Свести threshold defaults к одному месту.
-- [ ] Пробросить их в diff-mode явно, а не через скрытые литералы.
-- [ ] Покрыть тестом именно консистентность между `check` и `--diff`.
+- [ ] Bring the threshold defaults to one place.
+- [ ] Pass them into diff-mode explicitly, not through hidden literals.
+- [ ] Cover with a test exactly the consistency between `check` and `--diff`.
 
-### 4. `src/main.cpp` стал application god-file
+### 4. `src/main.cpp` has become an application god-file
 
-- Сейчас там ~570 строк оркестрации: parsing CLI, baseline I/O, graph preview,
+- Right now there are ~570 lines of orchestration: parsing the CLI, baseline I/O, graph preview,
   diff-mode, drift-mode, config discovery, report dispatch.
-- Именно здесь уже живут режимные расхождения и дублированные правила выбора defaults.
+- This is exactly where the mode divergences and duplicated defaults-selection rules already live.
 
-Следствие:
+Consequence:
 
-- новые режимы добавлять всё дороже;
-- легко получить ещё одно поведение «только этот режим забыл пробросить X»;
-- application layer перестал быть очевидным.
+- adding new modes gets ever more expensive;
+- it's easy to get yet another "only this mode forgot to pass X" behavior;
+- the application layer is no longer obvious.
 
-## Что сделать
+## What to do
 
-- [ ] Разрезать CLI-оркестрацию на маленькие application-level команды:
+- [ ] Split the CLI orchestration into small application-level commands:
       `check`, `diff`, `graph`, `scan`, baseline helpers.
-- [ ] Убрать из `main.cpp` policy decisions, которые должны жить в shared layer.
-- [ ] Оставить в `main.cpp` только thin dispatch.
+- [ ] Remove from `main.cpp` the policy decisions that should live in a shared layer.
+- [ ] Leave in `main.cpp` only a thin dispatch.
 
-### 5. SF.8 проверяется слабее, чем заявлено
+### 5. SF.8 is checked more weakly than declared
 
-- Текущая эвристика считает header guarded, если в первых строках увидела любой `#ifndef`.
-- Проверки пары `#ifndef` + `#define` одного и того же guard-а нет.
-- Это создаёт ложные отрицания и делает правило менее строгим, чем выглядит по названию.
+- The current heuristic considers a header guarded if it saw any `#ifndef` in the first lines.
+- There's no check for a pair of `#ifndef` + `#define` for the same guard.
+- This creates false negatives and makes the rule less strict than its name suggests.
 
-## Что сделать
+## What to do
 
-- [ ] Усилить SF.8 до реального include-guard pattern.
-- [ ] Не размазывать логику: reuse уже существующего scanner knowledge, где возможно.
-- [ ] Добавить fixtures на ложный `#ifndef` без guard semantics.
+- [ ] Strengthen SF.8 to a real include-guard pattern.
+- [ ] Don't smear the logic: reuse existing scanner knowledge where possible.
+- [ ] Add fixtures for a false `#ifndef` without guard semantics.
 
-### 6. Discovery config зависит от `cwd`, а не от проверяемого root
+### 6. Config discovery depends on `cwd`, not on the checked root
 
-- `archcheck /path/to/project` ищет `.archcheck.yml` от текущей директории процесса.
-- Это делает поведение неочевидным для CI, monorepo и внешнего запуска.
+- `archcheck /path/to/project` looks for `.archcheck.yml` from the process's current directory.
+- This makes the behavior non-obvious for CI, monorepos, and external invocation.
 
-## Что сделать
+## What to do
 
-- [ ] Привязать discovery к `root`, который реально проверяется.
-- [ ] Явно задокументировать precedence: `--config` > discovered-near-root > embedded defaults.
+- [ ] Tie discovery to the `root` that is actually being checked.
+- [ ] Explicitly document the precedence: `--config` > discovered-near-root > embedded defaults.
 
-### 7. Документы описывают несколько разных продуктов
+### 7. The documents describe several different products
 
-- `docs/MVP.md` всё ещё про старый pre-#006 MVP с `compile_commands.json` и dependency rules как ядром.
-- `docs/ROADMAP.md` одновременно тащит duplication line-pass `#053` в текущий scope.
-- `docs/architecture-spec.md` в ряде мест ещё использует устаревший vocabulary
-  (`forbidden_deps` / `allowed_deps`) рядом с уже принятым typed config contract.
-- `AGENTS.md` критически устарел: пишет `pre-implementation`, «нет src/tests/CMake», старые naming rules.
+- `docs/MVP.md` is still about the old pre-#006 MVP with `compile_commands.json` and dependency rules as the core.
+- `docs/ROADMAP.md` simultaneously drags the duplication line-pass `#053` into the current scope.
+- `docs/architecture-spec.md` in several places still uses stale vocabulary
+  (`forbidden_deps` / `allowed_deps`) next to the already-adopted typed config contract.
+- `AGENTS.md` is critically outdated: it says `pre-implementation`, "no src/tests/CMake", old naming rules.
 
-Следствие:
+Consequence:
 
-- агент или новый разработчик не может быстро понять, что реально shipped;
-- при конфликте документов у нас нет стабильной опоры;
-- исследовательские решения маскируются под product reality.
+- an agent or a new developer can't quickly understand what's actually shipped;
+- on a document conflict, we have no stable footing;
+- research decisions masquerade as product reality.
 
-## Что сделать
+## What to do
 
-- [ ] Закрыть #045 как ближайший docs-blocker.
-- [ ] Обновить `AGENTS.md` до фактического состояния репо и текущего style contract.
-- [ ] Убрать из публичных документов формулировки, которые обещают v0.2-фичи как v0.1-core.
+- [ ] Close #045 as the nearest docs blocker.
+- [ ] Update `AGENTS.md` to the actual state of the repo and the current style contract.
+- [ ] Remove from the public documents wording that promises v0.2 features as v0.1-core.
 
-### 8. Backlog содержит stale WIP и битые ссылки на удалённые артефакты
+### 8. The backlog contains stale WIP and broken links to deleted artifacts
 
-- `docs/duplication_architecture.md` фиксирует, что line-based `#053` и его дерево удалены.
-- При этом `backlog/wip/053_...` всё ещё активен и ссылается на отсутствующие `experiments/line_duplication/*`.
-- Roadmap продолжает считать `#053` частью активного v0.1 narrative.
+- `docs/duplication_architecture.md` records that line-based `#053` and its tree are deleted.
+- Meanwhile `backlog/wip/053_...` is still active and references the missing `experiments/line_duplication/*`.
+- The roadmap continues to count `#053` as part of the active v0.1 narrative.
 
-Следствие:
+Consequence:
 
-- backlog теряет ценность как система состояния;
-- старые исследования выглядят как «в работе», хотя уже отменены архитектурным решением.
+- the backlog loses value as a state system;
+- old research looks "in progress" though it has already been cancelled by an architectural decision.
 
-## Что сделать
+## What to do
 
-- [ ] Перевести отменённые ветки из `wip` в корректное состояние: закрыть, архивировать или переписать как historical note.
-- [ ] Почистить ссылки на удалённые артефакты.
-- [ ] Свести duplication narrative к одному живому пути: `#056` + `#070` + `#060`.
+- [ ] Move the cancelled branches out of `wip` into a correct state: close, archive, or rewrite as a historical note.
+- [ ] Clean up the links to deleted artifacts.
+- [ ] Reduce the duplication narrative to one live path: `#056` + `#070` + `#060`.
 
-### 9. Исследовательский слой разросся сильнее продуктового
+### 9. The research layer has grown larger than the product layer
 
-- В `src/include/tests` меньше сотни файлов.
-- В `experiments/` уже сильно больше тысячи файлов.
-- Это нормально для research-фазы, но уже требует отдельной hygiene policy.
+- `src/include/tests` has fewer than a hundred files.
+- `experiments/` already has well over a thousand files.
+- This is normal for the research phase, but already calls for a separate hygiene policy.
 
-Следствие:
+Consequence:
 
-- signal-to-noise при навигации по репо падает;
-- backlog и docs начинают ссылаться на экспериментальные артефакты как на product truth;
-- stale research artifacts дольше живут без решения.
+- the signal-to-noise ratio when navigating the repo drops;
+- the backlog and docs start referencing experimental artifacts as product truth;
+- stale research artifacts live longer without a decision.
 
-## Что сделать
+## What to do
 
-- [ ] Зафиксировать правило: что считается product source of truth, а что experiment-only.
-- [ ] Ограничить прямые ссылки из roadmap/current docs на экспериментальные файлы без ADR/summary слоя.
-- [ ] При необходимости вынести крупные исследования в подкаталоги с явным lifecycle-статусом.
+- [ ] Lock in a rule: what counts as the product source of truth, and what is experiment-only.
+- [ ] Limit direct references from the roadmap/current docs to experimental files without an ADR/summary layer.
+- [ ] If necessary, move large research into subdirectories with an explicit lifecycle status.
 
-### 10. Мелкий, но системный долг по single source of truth
+### 10. Minor but systemic debt around the single source of truth
 
-- literal thresholds и policy живут в нескольких местах;
-- docs/code_style и AGENTS расходятся по naming (`name_` vs `_name`, `I*` vs no-`I`);
-- часть completed/new задач уже фиксирует одно решение, а спецификация ещё другое.
+- literal thresholds and policy live in several places;
+- docs/code_style and AGENTS diverge on naming (`name_` vs `_name`, `I*` vs no-`I`);
+- some completed/new tasks already record one decision while the spec records another.
 
-Следствие:
+Consequence:
 
-- каждый следующий change-set требует синхронизации вручную;
-- вероятность тихого повторного рассинхрона высокая.
+- every next change-set requires manual syncing;
+- the probability of a silent re-divergence is high.
 
-## Что сделать
+## What to do
 
-- [ ] Для каждого shipped user-facing контракта иметь ровно один product source of truth.
-- [ ] Явно разделить: spec / roadmap / historical backlog notes / experiment reports.
+- [ ] For every shipped user-facing contract, have exactly one product source of truth.
+- [ ] Explicitly separate: spec / roadmap / historical backlog notes / experiment reports.
 
-## План выполнения
+## Execution plan
 
-### P0 — убрать недоверяемые контракты
+### P0 — remove the untrustworthy contracts
 
-- [x] Решение по `--config`: validate-only vs real runtime semantics. *(закрыто #082 Slice 1/2: validate-only)*
-- [x] Свести diagnostic contract (`line`/`column`) к реальности. *(закрыто #082: понижено до `file:line` везде)*
-- [x] Свести пороги `GodHeader` между `check` и `--diff`. *(2026-06-11: diff берёт порог из discovered config; дефолт `MetricThresholds` 30 → 50; тест-пин на равенство дефолтов)*
-- [x] Привязать config discovery к `root`, не к `cwd`. *(2026-06-11: `discoverConfig(root)`, walkup от анализируемого root; precedence задокументирован в config_format.md)*
+- [x] Decision on `--config`: validate-only vs real runtime semantics. *(closed in #082 Slice 1/2: validate-only)*
+- [x] Bring the diagnostic contract (`line`/`column`) in line with reality. *(closed in #082: downgraded to `file:line` everywhere)*
+- [x] Bring the `GodHeader` thresholds between `check` and `--diff` together. *(2026-06-11: diff takes the threshold from the discovered config; the `MetricThresholds` default 30 → 50; a test-pin on default equality)*
+- [x] Tie config discovery to `root`, not to `cwd`. *(2026-06-11: `discoverConfig(root)`, walkup from the analyzed root; the precedence is documented in config_format.md)*
 
-### P1 — стабилизировать application layer
+### P1 — stabilize the application layer
 
-- [x] Разрезать `src/main.cpp`. *(2026-06-12: 786 → 275 строк; thin dispatch + `src/cli/` units)*
-- [x] Вытащить baseline/diff/config helpers в отдельные application units. *(2026-06-12: check/baseline/drift → `cli/check_command`, diff → `cli/diff_command`, preview → `cli/preview_commands`, discovery → `config::discover`)*
-- [x] Дожать SF.8 до корректной guard-semantics. *(2026-06-11: требуется пара `#ifndef NAME` + `#define NAME`; lone `#ifndef` (NDEBUG-tweak) больше не считается guard; фикстура `fail_ifndef_no_define/` + 3 unit-теста)*
+- [x] Split `src/main.cpp`. *(2026-06-12: 786 → 275 lines; thin dispatch + `src/cli/` units)*
+- [x] Pull out the baseline/diff/config helpers into separate application units. *(2026-06-12: check/baseline/drift → `cli/check_command`, diff → `cli/diff_command`, preview → `cli/preview_commands`, discovery → `config::discover`)*
+- [x] Push SF.8 to correct guard semantics. *(2026-06-11: a pair `#ifndef NAME` + `#define NAME` is required; a lone `#ifndef` (NDEBUG-tweak) no longer counts as a guard; the fixture `fail_ifndef_no_define/` + 3 unit tests)*
 
-### P2 — синхронизировать документы и backlog
+### P2 — sync the documents and the backlog
 
-- [x] Закрыть #045. *(закрыто, commit 87878fa)*
-- [x] Обновить `AGENTS.md`. *(закрыто #082 Slice 3: полный rewrite)*
-- [x] Нормализовать duplication roadmap и убрать stale `#053` narrative. *(закрыто: #053 → `backlog/dropped/`, #085 completed, duplication = shipped advisory per #082 Slice 5b)*
-- [x] Почистить `wip`/`new`, где ссылки ведут в удалённые артефакты. *(закрыто #082 Slice 4: 26 битых ссылок исправлено)*
+- [x] Close #045. *(closed, commit 87878fa)*
+- [x] Update `AGENTS.md`. *(closed in #082 Slice 3: full rewrite)*
+- [x] Normalize the duplication roadmap and remove the stale `#053` narrative. *(closed: #053 → `backlog/dropped/`, #085 completed, duplication = shipped advisory per #082 Slice 5b)*
+- [x] Clean up `wip`/`new` where the links lead to deleted artifacts. *(closed in #082 Slice 4: 26 broken links fixed)*
 
-### P3 — hygiene research vs product
+### P3 — research vs product hygiene
 
-- [x] Зафиксировать policy для `experiments/`. *(закрыто: `experiments/` в `.gitignore` как локальная песочница, вне git)*
-- [x] Ограничить использование experimental artifacts как источника истины для shipped behavior. *(закрыто #082: текущие docs/AGENTS/roadmap не ссылаются на `experiments/`)*
+- [x] Lock in a policy for `experiments/`. *(closed: `experiments/` in `.gitignore` as a local sandbox, outside git)*
+- [x] Limit the use of experimental artifacts as a source of truth for shipped behavior. *(closed in #082: the current docs/AGENTS/roadmap don't reference `experiments/`)*
 
-## Сделано
+## Done
 
-### Ребейз инвентаризации (2026-06-11)
+### Rebase of the inventory (2026-06-11)
 
-Задача написана 2026-06-02; umbrella **#082** (2026-06-05, completed) закрыла
-бо́льшую часть пунктов: `--config` → validate-only (решение зафиксировано в #082),
-diagnostics → `file:line`, AGENTS.md rewrite, link hygiene, duplication-статус,
-плюс #045 (commit 87878fa) и backlog-pass'ы (#053 → dropped/, #085). Из 10 пунктов
-живыми на 2026-06-11 остались только №3 (пороги diff), №4 (main.cpp), №5 (SF.8), №6 (discovery cwd).
+The task was written 2026-06-02; the umbrella **#082** (2026-06-05, completed) closed
+most of the items: `--config` → validate-only (the decision is fixed in #082),
+diagnostics → `file:line`, the AGENTS.md rewrite, link hygiene, the duplication status,
+plus #045 (commit 87878fa) and backlog passes (#053 → dropped/, #085). Of the 10 items,
+the ones still live on 2026-06-11 were only #3 (diff thresholds), #4 (main.cpp), #5 (SF.8), #6 (discovery cwd).
 
-### Пороги `check` vs `--diff` (п.3) — 2026-06-11
+### `check` vs `--diff` thresholds (item 3) — 2026-06-11
 
-- `MetricThresholds::godHeaderFanIn` 30 → 50 (= дефолт `config::Thresholds`), комментарий-якорь в header.
-- `--diff` теперь discovery-ит `.archcheck.yml` от repo root и пробрасывает
-  `thresholds.godHeaderFanIn` в `buildRegressionReport` (раньше — скрытый литерал 30);
-  `ConfigError` в diff-режиме → exit 2 (контракт).
-- Тест-пин: `MetricThresholds{} == Config{}.thresholds` (git_diff_test.cpp).
+- `MetricThresholds::godHeaderFanIn` 30 → 50 (= the `config::Thresholds` default), an anchor comment in the header.
+- `--diff` now discovers `.archcheck.yml` from the repo root and passes
+  `thresholds.godHeaderFanIn` into `buildRegressionReport` (previously — a hidden literal 30);
+  `ConfigError` in diff mode → exit 2 (the contract).
+- Test-pin: `MetricThresholds{} == Config{}.thresholds` (git_diff_test.cpp).
 
-### Config discovery от root (п.6) — 2026-06-11
+### Config discovery from root (item 6) — 2026-06-11
 
-- `discoverConfig(root)`: walkup от анализируемого root, не от CWD процесса;
-  `archcheck /path/to/project` подхватывает конфиг проекта из любого места запуска.
-- `docs/config_format.md`: формулировка discovery + явный precedence
+- `discoverConfig(root)`: walkup from the analyzed root, not from the process CWD;
+  `archcheck /path/to/project` picks up the project config from any launch location.
+- `docs/config_format.md`: the discovery wording + the explicit precedence
   `--config` > discovered-near-root > embedded defaults.
 
-### SF.8 guard-semantics (п.5) — 2026-06-11
+### SF.8 guard semantics (item 5) — 2026-06-11
 
-- Guard = пара `#ifndef NAME` + последующий `#define NAME` того же макроса в окне
-  60 непустых строк (несколько pending `#ifndef` допускается, `#define` другого имени не закрывает guard).
-- Lone `#ifndef` (типичный кейс `#ifndef NDEBUG`) больше не проходит за guard — устранён false negative.
-- `#pragma once`, BOM, ObjC, `.inc` — поведение не изменилось; dogfood `src/ include/ tests/` — 0 нарушений.
+- A guard = a pair `#ifndef NAME` + a subsequent `#define NAME` of the same macro within a window
+  of 60 non-empty lines (several pending `#ifndef`s are allowed, a `#define` of a different name doesn't close the guard).
+- A lone `#ifndef` (the typical `#ifndef NDEBUG` case) no longer passes as a guard — the false negative is eliminated.
+- `#pragma once`, BOM, ObjC, `.inc` — behavior unchanged; dogfood `src/ include/ tests/` — 0 violations.
 
-Верификация: build Debug, 465/465 тестов, dogfood 0 нарушений, smoke `--diff` на
-реальном revspec, lizard/clang-format чисто.
+Verification: build Debug, 465/465 tests, dogfood 0 violations, smoke `--diff` on
+a real revspec, lizard/clang-format clean.
 
-### Разрез `main.cpp` (п.4) — 2026-06-12
+### Splitting `main.cpp` (item 4) — 2026-06-12
 
-Behavior-preserving рефакторинг четырьмя срезами (каждый ≤2 новых файлов,
-сборка+тесты зелёные после каждого):
+A behavior-preserving refactor in four slices (each ≤2 new files,
+build+tests green after each):
 
-- **c1** — `config::discover(root)` перенесён в config-подсистему
-  (`config_loader.{h,cpp}`): shared discovery policy для check и diff,
-  +2 unit-теста (walkup-найденный конфиг / embedded defaults).
+- **c1** — `config::discover(root)` moved into the config subsystem
+  (`config_loader.{h,cpp}`): a shared discovery policy for check and diff,
+  +2 unit tests (walkup-found config / embedded defaults).
 - **c2** — `src/cli/check_command.{h,cpp}`: `OutputFormat`/`BaselineMode`/`BaselineOpts`,
   baseline save/load/filter, drift-gate policy, `runCheck`, `runSaveGraphBaseline`.
 - **c3** — `src/cli/preview_commands.{h,cpp}`: `runScan`/`runGraph`/`runDuplication`/`runHistory`.
 - **c4** — `src/cli/diff_command.{h,cpp}`: `DiffMode`, `runDiff` + advisories
   (SATD, test co-evolution, local complexity drift).
 
-`main.cpp`: 786 → 275 строк — только help/version, argv-парсинг (`dispatch_*`),
-`main()`. CLI-юниты — внутренние заголовки `src/cli/*.h` (не в `include/archcheck/` —
-не публичный API), executable получил `target_include_directories(PRIVATE src/)`.
-Переехавшие функции переименованы в `lowerCamelCase` per code_style (`run_check` →
-`cli::runCheck`); тела не менялись. Известное наследие: lizard-warning на
-`applyBaselineAndReport` (CCN 12, 38 строк) существовал и в main.cpp — не новый долг.
+`main.cpp`: 786 → 275 lines — only help/version, argv parsing (`dispatch_*`),
+`main()`. The CLI units are internal headers `src/cli/*.h` (not in `include/archcheck/` —
+not a public API), the executable got `target_include_directories(PRIVATE src/)`.
+The moved functions were renamed to `lowerCamelCase` per code_style (`run_check` →
+`cli::runCheck`); the bodies weren't changed. Known legacy: the lizard warning on
+`applyBaselineAndReport` (CCN 12, 38 lines) existed in main.cpp too — not new debt.
 
-Верификация: build Debug, 467/467 тестов, dogfood `src/ include/ tests/` 0 нарушений
-(новые заголовки проходят SF.7/8/9), smoke всех режимов CLI (check/json/config/
-baseline save+load/graph-baseline/drift/scan/graph/diff), clang-format 18.1.3 чисто.
+Verification: build Debug, 467/467 tests, dogfood `src/ include/ tests/` 0 violations
+(the new headers pass SF.7/8/9), smoke of all CLI modes (check/json/config/
+baseline save+load/graph-baseline/drift/scan/graph/diff), clang-format 18.1.3 clean.
 
-## Критерий приёмки
+## Acceptance criteria
 
-- [x] Пользовательский контракт CLI больше не обещает поведение, которого нет. *(#082)*
-- [x] `check` и `--diff` используют согласованные thresholds/policy. *(2026-06-11)*
-- [x] Для config discovery нет зависимости от случайного `cwd`. *(2026-06-11)*
-- [x] `docs/MVP.md`, `docs/ROADMAP.md`, `docs/architecture-spec.md`, `AGENTS.md` не противоречат shipped v0.1/v0.2 scope. *(#082 + #045)*
-- [x] В `backlog/wip/` не остаётся задач, чьё текущее состояние противоречит архитектурным решениям или ссылается на удалённые деревья. *(#082 Slice 4 + backlog-pass'ы, #053 → dropped/)*
-- [x] `src/main.cpp` перестаёт быть местом концентрации всей application policy. *(2026-06-12: thin dispatch, 275 строк)*
+- [x] The CLI user contract no longer promises behavior that isn't there. *(#082)*
+- [x] `check` and `--diff` use consistent thresholds/policy. *(2026-06-11)*
+- [x] For config discovery there's no dependency on a random `cwd`. *(2026-06-11)*
+- [x] `docs/MVP.md`, `docs/ROADMAP.md`, `docs/architecture-spec.md`, `AGENTS.md` don't contradict the shipped v0.1/v0.2 scope. *(#082 + #045)*
+- [x] No tasks remain in `backlog/wip/` whose current state contradicts the architectural decisions or references deleted trees. *(#082 Slice 4 + backlog passes, #053 → dropped/)*
+- [x] `src/main.cpp` stops being the place where all the application policy is concentrated. *(2026-06-12: thin dispatch, 275 lines)*
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Делать одну umbrella-задачу, не россыпь микро-тикетов | техдолг здесь системный и связан причинно; по отдельности он теряет контекст |
-| Не дублировать работу #082 — ребейз инвентаризации перед стартом | #082 (XL umbrella, 2026-06-05) закрыла пп.1,2,7,8,9,10; здесь остаются только пп.3,4,5,6 |
-| Дефолт diff-порога выровнен на 50 (= check), а не наоборот | 50 — документированный авторитетный порог Lakos.GodHeader (help, config_format.md); 30 был скрытым литералом diff-слоя |
-| Diff discovery-ит конфиг от repo root (worktree-версия `.archcheck.yml`) | состояние worktree — текущая policy проекта; конфиг из baseline-ref не читаем |
-| SF.8: пара ifndef+define, без поддержки `#if !defined(...)` | покрывает заявленную guard-semantics без расширения скоупа; `!defined`-форма и раньше не принималась |
-| Сначала alignment, потом новые правила | пока базовые контракты недостоверны, каждая новая фича повышает стоимость поддержки |
-| Не смешивать docs cleanup с product cleanup | часть пунктов требует решения по поведению, а не переписывания текста |
-| Duplication stale-state считать техдолгом, а не «просто research» | backlog/current docs уже потребляют этот narrative как будто он product-relevant |
+| Decision | Reason |
+|----------|--------|
+| Make one umbrella task, not a scatter of micro-tickets | the tech debt here is systemic and causally connected; on its own it loses context |
+| Don't duplicate #082's work — rebase the inventory before starting | #082 (XL umbrella, 2026-06-05) closed items 1,2,7,8,9,10; only items 3,4,5,6 remain here |
+| The diff-threshold default aligned to 50 (= check), not the other way | 50 is the documented authoritative Lakos.GodHeader threshold (help, config_format.md); 30 was a hidden literal in the diff layer |
+| Diff discovers the config from the repo root (the worktree version of `.archcheck.yml`) | the worktree state is the project's current policy; the config from the baseline ref isn't readable |
+| SF.8: a pair ifndef+define, without supporting `#if !defined(...)` | covers the declared guard semantics without scope creep; the `!defined` form wasn't accepted before either |
+| Alignment first, then new rules | while the basic contracts are untrustworthy, every new feature raises the support cost |
+| Don't mix docs cleanup with product cleanup | some items require a behavior decision, not text rewriting |
+| Treat the duplication stale-state as tech debt, not "just research" | the backlog/current docs already consume this narrative as if it were product-relevant |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `backlog/wip/073_maj_tech_debt_alignment_cleanup.md` | umbrella-задача; 2026-06-11 ребейз по #082 + лог прогресса |
-| `include/archcheck/diff/regression_report.h` | дефолт `godHeaderFanIn` 30 → 50 + комментарий-якорь на config.h |
-| `src/main.cpp` | `discoverConfig(root)`; diff пробрасывает thresholds из конфига, ConfigError → exit 2 |
-| `tests/integration/diff/git_diff_test.cpp` | тест-пин равенства дефолтов check/diff |
-| `docs/config_format.md` | discovery от analyzed root + явный precedence |
-| `src/rules/sf8_include_guard.cpp` | guard = пара `#ifndef`+`#define` одного макроса (`directiveArg`) |
-| `tests/unit/rules/sf8_include_guard_test.cpp` | 3 теста: lone ifndef, чужой define, комментарий между парой |
-| `fixtures/sf8_include_guard/fail_ifndef_no_define/ndebug_tweak.h` | фикстура false-guard (`#ifndef NDEBUG`) |
+| File | Change |
+|------|--------|
+| `backlog/wip/073_maj_tech_debt_alignment_cleanup.md` | the umbrella task; 2026-06-11 rebase against #082 + progress log |
+| `include/archcheck/diff/regression_report.h` | default `godHeaderFanIn` 30 → 50 + an anchor comment to config.h |
+| `src/main.cpp` | `discoverConfig(root)`; diff passes the thresholds from the config, ConfigError → exit 2 |
+| `tests/integration/diff/git_diff_test.cpp` | a test-pin on the equality of check/diff defaults |
+| `docs/config_format.md` | discovery from the analyzed root + an explicit precedence |
+| `src/rules/sf8_include_guard.cpp` | a guard = a pair `#ifndef`+`#define` of one macro (`directiveArg`) |
+| `tests/unit/rules/sf8_include_guard_test.cpp` | 3 tests: lone ifndef, a foreign define, a comment between the pair |
+| `fixtures/sf8_include_guard/fail_ifndef_no_define/ndebug_tweak.h` | a false-guard fixture (`#ifndef NDEBUG`) |
 | `include/archcheck/config/config_loader.h`, `src/config/config_loader.cpp` | c1: `config::discover(root)` — shared discovery policy |
-| `tests/unit/config/test_loader.cpp` | c1: 2 теста на `discover` |
+| `tests/unit/config/test_loader.cpp` | c1: 2 tests for `discover` |
 | `src/cli/check_command.{h,cpp}` | c2: check + baseline/drift/report policy |
 | `src/cli/preview_commands.{h,cpp}` | c3: scan/graph/duplication/history |
-| `src/cli/diff_command.{h,cpp}` | c4: diff-режим + advisories |
-| `src/main.cpp` | 786 → 275 строк: help/version + thin argv-dispatch |
-| `src/CMakeLists.txt` | cli/*.cpp в executable, PRIVATE include на src/ |
+| `src/cli/diff_command.{h,cpp}` | c4: diff mode + advisories |
+| `src/main.cpp` | 786 → 275 lines: help/version + thin argv-dispatch |
+| `src/CMakeLists.txt` | cli/*.cpp into the executable, PRIVATE include on src/ |
 
-## Как работает
+## How it works
 
-Umbrella закрыта в три слоя. (1) Контрактные фиксы: дефолт `MetricThresholds`
-выровнен на 50 и запинен тестом к `config::Thresholds`, `--diff` берёт порог из
-discovered-конфига; discovery (`config::discover(root)`) идёт walkup от
-анализируемого root, а не CWD процесса. (2) SF.8: guard засчитывается только при
-паре `#ifndef NAME` + `#define NAME` (helper `closesGuardPair`, окно 60 непустых
-строк) — lone `#ifndef` больше не проходит. (3) Application layer: `main.cpp` —
-thin dispatch (help/version + argv-парсинг), вся командная policy — во внутренних
-юнитах `src/cli/` (`check_command`, `diff_command`, `preview_commands`).
+The umbrella was closed in three layers. (1) Contract fixes: the `MetricThresholds`
+default is aligned to 50 and pinned by a test to `config::Thresholds`, `--diff` takes the threshold from
+the discovered config; discovery (`config::discover(root)`) goes walkup from the
+analyzed root, not the process CWD. (2) SF.8: a guard is counted only on
+a pair `#ifndef NAME` + `#define NAME` (the helper `closesGuardPair`, a window of 60 non-empty
+lines) — a lone `#ifndef` no longer passes. (3) Application layer: `main.cpp` —
+thin dispatch (help/version + argv parsing), all command policy is in the internal
+units `src/cli/` (`check_command`, `diff_command`, `preview_commands`).
 
-## Итог
+## Result
 
-**Статус:** completed
-**Дата завершения:** 2026-06-12
+**Status:** completed
+**Completed:** 2026-06-12
 
-Из 10 пунктов инвентаризации 6 закрыла umbrella #082 (+#045, backlog-pass'ы) —
-зафиксировано ребейзом; оставшиеся 4 (пороги diff, discovery root, SF.8,
-main.cpp) закрыты здесь. Все критерии приёмки выполнены. Верификация: build
-Debug, 467/467 тестов, dogfood `src/ include/ tests/` 0 нарушений, smoke всех
-CLI-режимов, clang-format 18.1.3 / cppcheck / lizard чисто, coverage
-92.8/96.3/59.8 PASS. Известное наследие: lizard-warning `applyBaselineAndReport`
-(CCN 12) — переехал из main.cpp как есть, не новый долг.
+Of the 10 inventory items, 6 were closed by the umbrella #082 (+#045, backlog passes) —
+fixed by the rebase; the remaining 4 (diff thresholds, discovery root, SF.8,
+main.cpp) are closed here. All acceptance criteria are met. Verification: build
+Debug, 467/467 tests, dogfood `src/ include/ tests/` 0 violations, smoke of all
+CLI modes, clang-format 18.1.3 / cppcheck / lizard clean, coverage
+92.8/96.3/59.8 PASS. Known legacy: the lizard warning `applyBaselineAndReport`
+(CCN 12) — moved out of main.cpp as is, not new debt.

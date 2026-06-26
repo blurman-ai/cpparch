@@ -1,203 +1,203 @@
-# [GRAPH] Lateral drift: доработка пайплайна и корпусный прогон критерия
+# [GRAPH] Lateral drift: pipeline refinement and corpus run of the criterion
 
-**Дата создания:** 2026-06-12
-**Дата старта:** 2026-06-12
-**Статус:** wip
-**Модуль:** GRAPH][SCAN
-**Приоритет:** major
-**Сложность:** unknown
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #077 (per_commit_graph_drift_export), #103 (copypaste_per_commit_drift — тот же исследовательский конвейер), #042 (clang_semantic_backend — заголовки-мосты)
+**Created:** 2026-06-12
+**Started:** 2026-06-12
+**Status:** wip
+**Module:** GRAPH][SCAN
+**Priority:** major
+**Difficulty:** unknown
+**Blocks:** —
+**Blocked by:** —
+**Related:** #077 (per_commit_graph_drift_export), #103 (copypaste_per_commit_drift — the same research pipeline), #042 (clang_semantic_backend — bridge headers)
 
-## Цель
+## Goal
 
-Довести per-commit graph-drift пайплайн до состояния, в котором критерий бокового
-межмодульного дрейфа ([docs/research/lateral_module_drift_criterion.md](../../docs/research/lateral_module_drift_criterion.md))
-можно посчитать на 481 репе корпуса, и прогнать его: сколько LATERAL.{CYCLE,SDP,NEW}
-остаётся от 21 736 сырых edge-событий.
+Bring the per-commit graph-drift pipeline to a state where the criterion of lateral
+cross-module drift ([docs/research/lateral_module_drift_criterion.md](../../docs/research/lateral_module_drift_criterion.md))
+can be computed over the 481 corpus repos, and run it: how many LATERAL.{CYCLE,SDP,NEW}
+remain out of 21,736 raw edge events.
 
-## Контекст
+## Context
 
-Корпусная проверка (2026-06-12) показала: 95% записей `added_edges>0` — шум (активность,
-не дрейф); настоящий сигнал — циклы (1%, из них 94 в небольших коммитах) и боковые рёбра
-между peer-модулями. Критерий спроектирован и обоснован литературой (MacCormack shared-
-классификация, Martin SDP, Lakos levelization, ArchLint-эвристики, персистентность по
-Li/Liang) — см. research-док. Ниша конфиг-фри edge-level критерия в литературе/инструментах
-не закрыта — потенциально оригинальный результат + кандидат в продуктовое правило DRIFT.4.
+The corpus check (2026-06-12) showed: 95% of records with `added_edges>0` are noise (activity,
+not drift); the real signal is cycles (1%, of which 94 in small commits) and lateral edges
+between peer modules. The criterion is designed and grounded in the literature (MacCormack shared
+classification, Martin SDP, Lakos levelization, ArchLint heuristics, persistence per
+Li/Liang) — see the research doc. The niche of a config-free edge-level criterion in the literature/tools
+is not filled — potentially an original result + a candidate for the product rule DRIFT.4.
 
-**Блокер прогона:** критерию нужно состояние графа *до* коммита (FID/уровни/instability),
-а в `*_graph_drift.jsonl` только дельты.
+**Run blocker:** the criterion needs the state of the graph *before* the commit (FID/levels/instability),
+while `*_graph_drift.jsonl` only has the deltas.
 
-## План выполнения
+## Execution plan
 
-### Фаза 1 — исправление пайплайна
+### Phase 1 — pipeline fix
 
-- [ ] **Spike (полдня):** выяснить минимальный способ получить baseline-граф:
-  - умеет ли текущий `archcheck` дампить полный список рёбер include-графа
-    (json-reporter? скрытый флаг?); если нет — оценить новый флаг `--dump-edges`
-    (≤50 строк, см. code_quality);
-  - проверить **полноту** списков `added`/`removed` в jsonl (md-отчёт режет до 12 строк —
-    режет ли jsonl?). Если списки полны → состояние графа на любой коммит
-    восстанавливается **инкрементальным накатом** от одного baseline-снимка,
-    C++ трогать не надо.
-- [ ] **Fix A — состояние до коммита:** baseline-снимок на первом коммите окна +
-      инкрементальный replay дельт в python (предпочтительно), либо дамп модульной
-      сводки родителя из `generate_per_commit_graph_drift.py`.
-- [ ] **Fix B — renames:** проверить, как `archcheck --diff` трактует `git mv`
-      (переезд файла между модулями НЕ должен рождать ложную «новую пару» A→B);
-      задокументировать поведение, при необходимости — rename-фильтр в скане.
+- [ ] **Spike (half a day):** find the minimal way to obtain the baseline graph:
+  - can the current `archcheck` dump the full edge list of the include graph
+    (json-reporter? a hidden flag?); if not — estimate a new flag `--dump-edges`
+    (≤50 lines, see code_quality);
+  - check the **completeness** of the `added`/`removed` lists in jsonl (the md report cuts to 12 lines —
+    does it cut the jsonl?). If the lists are complete → the graph state at any commit
+    is reconstructible by **incremental replay** from a single baseline snapshot,
+    no need to touch C++.
+- [ ] **Fix A — state before the commit:** a baseline snapshot at the first commit of the window +
+      incremental replay of deltas in python (preferred), or a dump of the module
+      summary of the parent from `generate_per_commit_graph_drift.py`.
+- [ ] **Fix B — renames:** check how `archcheck --diff` treats `git mv`
+      (a file moving between modules must NOT spawn a false "new pair" A→B);
+      document the behavior, and add a rename filter in the scan if needed.
 
-### Фаза 2 — прототип критерия
+### Phase 2 — criterion prototype
 
 - [ ] `lateral_drift_scan.py`:
-  - автовыбор глубины модулей (самая мелкая с ≥3 сиблингами-исходниками,
-    пропуск каталогов-обёрток); vendor/test-фильтр как в `file_classification.h`;
-  - на состоянии «до коммита»: FID/FOD по прямым рёбрам, Lakos-level
-    (SCC-конденсация + longest path), Martin I = Ce/(Ca+Ce);
-  - shared-классификация: `FID(B) ≥ 0.5·max FID` ∧ `FOD(B) ≤ медиана` (high-in/low-out;
-    high-in/high-out = Hub, не легитимная цель);
-  - события: сиблинговость, не-shared цель, первая пара A→B, не mass-touch (≤150 рёбер),
-    персистентность до конца окна; грейс-период первых m коммитов нового модуля;
-  - грейды: LATERAL.CYCLE (встречное B→A было) > LATERAL.SDP (I(B) > I(A)+δ) >
+  - auto-select module depth (the shallowest with ≥3 sibling sources,
+    skipping wrapper directories); vendor/test filter as in `file_classification.h`;
+  - on the "before-commit" state: FID/FOD over direct edges, Lakos level
+    (SCC condensation + longest path), Martin I = Ce/(Ca+Ce);
+  - shared classification: `FID(B) ≥ 0.5·max FID` ∧ `FOD(B) ≤ median` (high-in/low-out;
+    high-in/high-out = Hub, not a legitimate target);
+  - events: siblinghood, non-shared target, the first A→B pair, not mass-touch (≤150 edges),
+    persistence to the end of the window; a grace period of the first m commits of a new module;
+  - grades: LATERAL.CYCLE (a reverse B→A existed) > LATERAL.SDP (I(B) > I(A)+δ) >
     LATERAL.NEW;
-  - выход CSV: repo, sha, date, author_kind, grade, moduleA, moduleB,
+  - CSV output: repo, sha, date, author_kind, grade, moduleA, moduleB,
     FID_B, level_A, level_B, I_A, I_B, example_edge.
 
-### Фаза 3 — прогон и оценка
+### Phase 3 — run and evaluation
 
-- [ ] Прогон по 481 репе; сводка: события по грейдам vs 21 736 сырых (ожидание: сотни).
-- [ ] Eyeball топ-30: доля TP ≥ 70% (планка как в #103), иначе крутить пороги
-      (δ, 0.5-порог shared, грейс-период).
-- [ ] Разрез agentic vs human внутри смешанных реп (repo fixed effects,
-      дизайн как у boolean-drift).
-- [ ] Перегенерить секцию A в `EXAMPLES_50.md` по новому критерию
-      (выкинуть одиночные рёбра в Log.hpp, показать LATERAL-события).
-- [ ] Результаты → `docs/research/lateral_module_drift_corpus_run.md`;
-      решение о продуктовом правиле DRIFT.4 (CYCLE — кандидат в gate, SDP/NEW — advisory).
+- [ ] Run over 481 repos; summary: events by grade vs 21,736 raw (expectation: hundreds).
+- [ ] Eyeball top-30: TP share ≥ 70% (the bar as in #103), otherwise tune the thresholds
+      (δ, the 0.5 shared threshold, the grace period).
+- [ ] Cut agentic vs human within mixed repos (repo fixed effects,
+      design like the boolean-drift one).
+- [ ] Regenerate section A in `EXAMPLES_50.md` per the new criterion
+      (drop single edges in Log.hpp, show LATERAL events).
+- [ ] Results → `docs/research/lateral_module_drift_corpus_run.md`;
+      decision on the product rule DRIFT.4 (CYCLE — gate candidate, SDP/NEW — advisory).
 
-## Сделано
+## Done
 
-- **Spike (2026-06-12), итоги:**
-  - jsonl: списки `added` **полные** (0 расхождений счётчик/список на всех 339 321 записях);
-    списки `removed` **отсутствуют** — `generate_per_commit_graph_drift.py` собирал только
-    секцию `added:`. Масштаб потери: removed = 5.6% рёбер, 1.1% коммитов → replay только
-    добавлений даёт ≤5.6% фантомных рёбер, приемлемо для прототипа.
-  - `archcheck --save-graph-baseline` пишет YAML `nodes[] + edges[[i,j]]` — парсится
-    регекспами, C++ трогать не надо. `--format json` граф не дампит (только violations).
-  - **Блокер обнаружен:** 297/481 корпусных реп удалены с диска (остались 184 в плоском
-    `~/oss/<owner>_<name>`; каталог `_aidev_dense/` упразднён). Прогон с
-    true-baseline возможен только на доступных; для остальных нужен переклон.
-  - `git archive` виснет на ассето-тяжёлых репах (Alchemy) → извлечение только C++
-    исходников через `git ls-tree -r` + `git cat-file --batch` (Alchemy: 2677 файлов, ок).
-- **`make_window_baselines.py`** — батч: на репу берёт `first_window_sha~1`, извлекает
-  исходники, гонит `--save-graph-baseline`, пишет `baselines/<name>_window_baseline.yml`
-  + `baselines/manifest.tsv`. Учтён старый git без `ls-tree --format`.
-- **`lateral_drift_scan.py`** — прототип критерия: автоглубина модулей, структурная
-  склейка параллельных деревьев (`include/X` + `src/X` → модуль `X`, детект по ≥2 общим
-  детям — без name-regex), FID/FOD/I/Lakos-level, грейды CYCLE/SDP/NEW, сидирование
-  baseline-графом (известные пары не «первый контакт», установленные модули без грейса).
+- **Spike (2026-06-12), results:**
+  - jsonl: the `added` lists are **complete** (0 discrepancies counter/list across all 339,321 records);
+    the `removed` lists are **absent** — `generate_per_commit_graph_drift.py` collected only
+    the `added:` section. Scale of the loss: removed = 5.6% of edges, 1.1% of commits → replay of additions
+    only yields ≤5.6% phantom edges, acceptable for a prototype.
+  - `archcheck --save-graph-baseline` writes YAML `nodes[] + edges[[i,j]]` — parsed
+    with regexes, no need to touch C++. `--format json` doesn't dump the graph (only violations).
+  - **Blocker found:** 297/481 corpus repos are deleted from disk (184 remain in the flat
+    `~/oss/<owner>_<name>`; the `_aidev_dense/` directory was retired). A run with
+    a true baseline is possible only on the available ones; for the rest a re-clone is needed.
+  - `git archive` hangs on asset-heavy repos (Alchemy) → extraction of only C++
+    sources via `git ls-tree -r` + `git cat-file --batch` (Alchemy: 2677 files, ok).
+- **`make_window_baselines.py`** — a batch: per repo takes `first_window_sha~1`, extracts
+  the sources, runs `--save-graph-baseline`, writes `baselines/<name>_window_baseline.yml`
+  + `baselines/manifest.tsv`. Accounts for old git without `ls-tree --format`.
+- **`lateral_drift_scan.py`** — the criterion prototype: auto-depth modules, structural
+  merging of parallel trees (`include/X` + `src/X` → module `X`, detected by ≥2 common
+  children — without name-regex), FID/FOD/I/Lakos-level, grades CYCLE/SDP/NEW, seeding with the
+  baseline graph (known pairs are not "first contact", established modules without a grace period).
 
-- **Манифест baselines (1-й проход):** 111 ok + 2 ok_empty; 297 repo_missing;
-  70 «no_parent» оказались **shallow-клонами** с границей ровно на первом оконном
-  коммите → добавлен off-by-one fallback (baseline = дерево первого коммита, его
-  собственные рёбра событий не дают — недодетекция, не FP). Батч по ним дозапущен.
-- **Fix B расширен:** переезд цели (`src/compat.h → src/compat/compat.h`,
-  Bitcoin-ABC core#25493 backport) ловится второй эвристикой — у from-файла уже было
-  ребро в файл с тем же basename. Подтверждено на реальном FP (38 → 35 событий).
-- **Грейдинг внутрикоммитных циклов:** пара A→B + B→A в одном коммите теперь оба
-  CYCLE (раньше второе направление получало NEW — рёбра коммита вливались в граф
-  после детекции).
-- **Per-commit авторство:** `author_kind` = agent/human по BOT_HINTS (реюз из
-  `agent_author_scan.py`) через git log по sha события; реп-уровневый флаг — отдельной
-  колонкой `repo_kind`.
-- **Промежуточный сигнал (91 репа с baseline):** 35 событий = CYCLE 14 / SDP 5 /
-  NEW 16. Качество eyeball высокое: netdata `libnetdata→daemon` (MCP-коммит!),
+- **Baselines manifest (1st pass):** 111 ok + 2 ok_empty; 297 repo_missing;
+  70 "no_parent" turned out to be **shallow clones** with the boundary exactly at the first window
+  commit → an off-by-one fallback added (baseline = the tree of the first commit, its
+  own event edges are not produced — under-detection, not FP). The batch over them was re-run.
+- **Fix B extended:** a target move (`src/compat.h → src/compat/compat.h`,
+  Bitcoin-ABC core#25493 backport) is caught by a second heuristic — the from-file already had
+  an edge to a file with the same basename. Confirmed on a real FP (38 → 35 events).
+- **Grading of intra-commit cycles:** a pair A→B + B→A in one commit are now both
+  CYCLE (previously the second direction got NEW — the commit's edges merged into the graph
+  after detection).
+- **Per-commit authorship:** `author_kind` = agent/human by BOT_HINTS (reused from
+  `agent_author_scan.py`) via git log by the event sha; the repo-level flag is a separate
+  column `repo_kind`.
+- **Interim signal (91 repos with a baseline):** 35 events = CYCLE 14 / SDP 5 /
+  NEW 16. Eyeball quality high: netdata `libnetdata→daemon` (an MCP commit!),
   domoticz `mcpserver→hardware`, Collabora `kit→windows`, KDE `libklookandfeel→kcms`
-  (незавершённый экстракт). NEW на новорождённых либах (KDE) — здоровая модуляризация,
-  FP по духу; CYCLE/SDP при этом чистые → подтверждает раскладку gate/advisory.
+  (an incomplete extract). NEW on newborn libs (KDE) — healthy modularization,
+  FP in spirit; CYCLE/SDP are clean here → confirms the gate/advisory split.
 
-- **Baselines готовы: 183** (114 точных + 68 off-by-one для shallow-клонов с границей
-  на первом оконном коммите + 1 пустой root-commit).
-- **Финальный прогон (2026-06-12): 98 событий** на 183 репах = CYCLE 43 / SDP 11 /
-  NEW 44; сырых `added_edges>0` на этом подмножестве — 10 617 → **подавление 108×**.
-  19 реп с событиями из 183.
-- **Eyeball топ-30: TP ≈ 87%** (26/30) — планка 70% взята. FP-классы: move с
-  переименованием (scylla), тест-код сквозь фильтр (impala `-test`/`testutil`),
-  2× здоровое потребление новой библиотеки (оба NEW; CYCLE/SDP чисты).
-- По дороге найдены и убиты 5 классов артефактов (mass-touch пары, Apache-баннер
-  → пустой baseline у VPP, склейка чужих деревьев xLights, переразрешение include,
-  системные basename) — задокументированы в отчёте §5.
-- **Отчёт: [docs/research/lateral_module_drift_corpus_run.md](../../docs/research/lateral_module_drift_corpus_run.md)** —
-  выводы для DRIFT.4: CYCLE → gate, SDP/NEW → advisory; в CI-режиме оба костыля
-  прогона (baseline-реконструкция, персистентность) не нужны.
-- Agentic-разрез: 12 agent / 86 human событий (сырые количества; нормировка и
-  fixed effects — следующий шаг, классификация консервативна).
+- **Baselines ready: 183** (114 exact + 68 off-by-one for shallow clones with the boundary
+  at the first window commit + 1 empty root commit).
+- **Final run (2026-06-12): 98 events** over 183 repos = CYCLE 43 / SDP 11 /
+  NEW 44; raw `added_edges>0` on this subset — 10,617 → **108× suppression**.
+  19 repos with events out of 183.
+- **Eyeball top-30: TP ≈ 87%** (26/30) — the 70% bar met. FP classes: move with
+  renaming (scylla), test code through the filter (impala `-test`/`testutil`),
+  2× healthy consumption of a new library (both NEW; CYCLE/SDP clean).
+- Along the way, 5 artifact classes were found and killed (mass-touch pairs, Apache banner
+  → empty baseline at VPP, merging of foreign trees in xLights, include re-resolution,
+  system basenames) — documented in the report §5.
+- **Report: [docs/research/lateral_module_drift_corpus_run.md](../../docs/research/lateral_module_drift_corpus_run.md)** —
+  conclusions for DRIFT.4: CYCLE → gate, SDP/NEW → advisory; in CI mode both run crutches
+  (baseline reconstruction, persistence) are not needed.
+- Agentic cut: 12 agent / 86 human events (raw counts; normalization and
+  fixed effects — the next step, the classification is conservative).
 
-## В работе
+## In progress
 
-- (пусто — основной цикл задачи пройден)
+- (empty — the main cycle of the task is done)
 
-## Следующие шаги
+## Next steps
 
-Все хвосты закрыты (2026-06-12):
+All loose ends closed (2026-06-12):
 
-1. ✅ **#112** — секция A в `EXAMPLES_50.md` (commit `a927f81`).
-2. ✅ **#115** — переклон 296 реп + 479 baseline + полный прогон + agentic-разрез
-   (`5989ede`); главный вывод: agentic-сигнал не переживает repo fixed effects.
-3. ✅ **#113** — Apache-баннер ≠ вендор (`68437c0`).
-4. ✅ **#114** — `-test`/`testutil` в тест-фильтр (`362ca60`).
-5. ⊘ Грейс-период time-based (30 дней) — не выделялся в задачу; #115 подтвердил,
-   что NEW-шум на advisory-грейде не блокирует gate → отложен в продуктовый DRIFT.4.
-6. ✅ **#117** (порождена из eyeball #115) — CYCLE-грейдер подтверждает back-edge;
-   корпус: CYCLE 153→146, 7 фантомов убрано.
+1. ✅ **#112** — section A in `EXAMPLES_50.md` (commit `a927f81`).
+2. ✅ **#115** — re-clone of 296 repos + 479 baselines + full run + agentic cut
+   (`5989ede`); the main conclusion: the agentic signal does not survive repo fixed effects.
+3. ✅ **#113** — Apache banner ≠ vendor (`68437c0`).
+4. ✅ **#114** — `-test`/`testutil` into the test filter (`362ca60`).
+5. ⊘ Time-based grace period (30 days) — wasn't split into a task; #115 confirmed
+   that NEW noise on the advisory grade doesn't block the gate → deferred into the product DRIFT.4.
+6. ✅ **#117** (spawned from the #115 eyeball) — the CYCLE grader confirms the back-edge;
+   corpus: CYCLE 153→146, 7 phantoms removed.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Инкрементальный replay вместо archcheck на каждый sha | 481 репа × тысячи коммитов; regen 43 реп занял ~2 суток — повторно непозволительно |
-| Replay только added (removed утерян) | Списков removed в jsonl нет; цена — ≤5.6% фантомных рёбер (доля removed по счётчикам) |
-| Baseline через ls-tree+cat-file, не git archive | archive виснет на ассето-тяжёлых репах; извлекаем только C++ исходники |
-| Склейка include/X+src/X структурная (≥2 общих ребёнка) | Без неё depth=1 даёт модули-обёртки include/src/tools и 0 событий; name-regex запрещён дизайном |
-| FID по прямым рёбрам, не транзитивным | Visibility MacCormack транзитивна → «заражение» через цепочки заголовков C++ (вывод литобзора) |
-| Относительный порог shared (50% max FID) | MacCormack; решает проблему монотонного роста FID |
-| Персистентность только в ретро-анализе | В CI-гейте продукта ребро проверяется до вливания — условие выпадает естественно |
-| TP-планка 70% на eyeball | Та же, что в #103 — единый стандарт волны drift-метрик |
+| Decision | Reason |
+|----------|--------|
+| Incremental replay instead of archcheck on each sha | 481 repos × thousands of commits; regen of 43 repos took ~2 days — re-doing is unaffordable |
+| Replay only added (removed lost) | There are no removed lists in jsonl; the cost — ≤5.6% phantom edges (the removed share by counters) |
+| Baseline via ls-tree+cat-file, not git archive | archive hangs on asset-heavy repos; we extract only C++ sources |
+| Merging include/X+src/X structurally (≥2 common children) | Without it depth=1 yields wrapper modules include/src/tools and 0 events; name-regex is forbidden by design |
+| FID over direct edges, not transitive | MacCormack visibility is transitive → "infection" through chains of C++ headers (a conclusion of the lit review) |
+| Relative shared threshold (50% of max FID) | MacCormack; solves the problem of monotone FID growth |
+| Persistence only in the retro analysis | In the product's CI gate the edge is checked before merging — the condition falls away naturally |
+| TP bar 70% on eyeball | The same as in #103 — a single standard for the drift-metrics wave |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `experiments/ai_repo_run/lateral_drift_scan.py` | Прототип критерия (gitignored) |
-| `experiments/ai_repo_run/make_window_baselines.py` | Сборка baseline-снимков (gitignored) |
-| `experiments/ai_repo_run/lateral_drift_new.csv` | Output, 495 событий (gitignored) |
-| `docs/research/lateral_module_drift_criterion.md` | Дизайн критерия |
-| `docs/research/lateral_module_drift_corpus_run.md` | Отчёт прогона + §8 (полный корпус) |
+| File | Change |
+|------|--------|
+| `experiments/ai_repo_run/lateral_drift_scan.py` | criterion prototype (gitignored) |
+| `experiments/ai_repo_run/make_window_baselines.py` | building baseline snapshots (gitignored) |
+| `experiments/ai_repo_run/lateral_drift_new.csv` | output, 495 events (gitignored) |
+| `docs/research/lateral_module_drift_criterion.md` | criterion design |
+| `docs/research/lateral_module_drift_corpus_run.md` | run report + §8 (full corpus) |
 
-## Как работает
+## How it works
 
-Критерий бокового дрейфа считается на per-commit graph-drift jsonl без перезапуска
-archcheck на каждый коммит: один baseline-снимок графа на старте окна
-(`make_window_baselines.py`) + forward-only replay дельт `added` в python
-(`lateral_drift_scan.py::IncrementalGraph`). На состоянии «до коммита» считаются
-FID/FOD, Martin-instability, Lakos-level и MacCormack shared-классификация; событие
-рождается на первой боковой связи peer-модулей, не прошедшей фильтры (vendor/test,
-mass-touch, rename, resolution-артефакт, system-basename, grace-period). Грейды:
-CYCLE (замкнут модульный цикл, back-edge подтверждается живыми исходниками — #117) >
-SDP (зависимость на менее стабильное) > NEW (первая связь). В CI-режиме DRIFT.4
-костыли прогона (baseline-реконструкция, персистентность) не нужны — граф родителя
-берётся из git, гейт стоит до вливания.
+The lateral drift criterion is computed over the per-commit graph-drift jsonl without re-running
+archcheck on each commit: one baseline snapshot of the graph at the start of the window
+(`make_window_baselines.py`) + forward-only replay of `added` deltas in python
+(`lateral_drift_scan.py::IncrementalGraph`). On the "before-commit" state we compute
+FID/FOD, Martin instability, Lakos level, and MacCormack shared classification; an event
+is born on the first lateral link between peer modules that passes none of the filters (vendor/test,
+mass-touch, rename, resolution artifact, system-basename, grace-period). Grades:
+CYCLE (a module cycle is closed, the back-edge is confirmed by live sources — #117) >
+SDP (a dependency on something less stable) > NEW (the first link). In CI mode for DRIFT.4
+the run crutches (baseline reconstruction, persistence) are not needed — the parent graph
+is taken from git, the gate stands before the merge.
 
-## Итог
+## Outcome
 
-**Статус:** completed
-**Дата завершения:** 2026-06-12
+**Status:** completed
+**Completed:** 2026-06-12
 
-Критерий спроектирован, обоснован литературой, реализован и провалидирован на полном
-корпусе (479/481 реп): **495 событий** против 21 736 сырых, eyeball TP 85 %,
-CYCLE-precision 92 % после #117. Главный научный результат (#115): агентское
-авторство **не** повышает боковой дрейф на per-commit уровне — сырое преобладание
-композиционное, не переживает repo fixed effects; чистый before/after-дизайн на
-этом корпусе невозможен (treatment×maturity антикоррелированы). Кандидат в
-продуктовое правило DRIFT.4: CYCLE → gate, SDP/NEW → advisory.
+The criterion is designed, grounded in the literature, implemented, and validated on the full
+corpus (479/481 repos): **495 events** against 21,736 raw, eyeball TP 85%,
+CYCLE precision 92% after #117. The main scientific result (#115): agentic
+authorship does **not** increase lateral drift at the per-commit level — the raw predominance is
+compositional, doesn't survive repo fixed effects; a clean before/after design on
+this corpus is impossible (treatment×maturity are anticorrelated). A candidate for the
+product rule DRIFT.4: CYCLE → gate, SDP/NEW → advisory.

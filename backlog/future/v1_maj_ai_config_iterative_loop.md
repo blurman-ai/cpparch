@@ -1,114 +1,114 @@
-# [AI][CONFIG][V1] Итеративный цикл синтеза конфига: прогон archcheck как обратная связь
+# [AI][CONFIG][V1] Iterative config synthesis loop: archcheck runs as feedback
 
-**Дата создания:** 2026-05-30
-**Дата старта:** —
-**Статус:** new
-**Модуль:** DOCS, CONFIG, AI
-**Приоритет:** major
-**Сложность:** M (контракт цикла + termination + anti-overfit guardrail)
-**Целевой релиз:** v1 phase 2 (после первого agent-authoring прохода)
-**Блокирует:** практичный «agent пишет конфиг» без ручной доводки до чистоты
-**Заблокирован:** future/v1_maj_agent_config_authoring_rules.md, future/v1_maj_config_format_minimal_contract.md
-**Related:** future/010_maj_ai_rule_synthesis_contract.md (single-shot контракт), future/v1_maj_ai_config_synthesis_eval_protocol.md (метрики), #053 / #056 (дубли — источник сигнала)
+**Created:** 2026-05-30
+**Started:** —
+**Status:** new
+**Module:** DOCS, CONFIG, AI
+**Priority:** major
+**Complexity:** M (loop contract + termination + anti-overfit guardrail)
+**Target release:** v1 phase 2 (after the first agent-authoring pass)
+**Blocks:** a practical "agent writes the config" without manual cleanup to a clean state
+**Blocked by:** future/v1_maj_agent_config_authoring_rules.md, future/v1_maj_config_format_minimal_contract.md
+**Related:** future/010_maj_ai_rule_synthesis_contract.md (single-shot contract), future/v1_maj_ai_config_synthesis_eval_protocol.md (metrics), #053 / #056 (duplicates — signal source)
 
-## Контекст
+## Context
 
-Три смежные задачи покрывают *один проход*:
+Three adjacent tasks cover *a single pass*:
 
-- **#010** — контракт перевода: граф-фичи на вход → YAML с цитатами на выход. Явно single-shot, «LLM-переводчик, не оракул».
-- **agent_config_authoring_rules** — статические правила заполнения `.draft` (allowed/forbidden, уровни уверенности, шум-файлы).
-- **eval_protocol** — precision/recall `.draft` против golden, one-shot генерация.
+- **#010** — the translation contract: graph features as input → YAML with citations as output. Explicitly single-shot, "an LLM translator, not an oracle".
+- **agent_config_authoring_rules** — static rules for filling in the `.draft` (allowed/forbidden, confidence levels, noise files).
+- **eval_protocol** — precision/recall of the `.draft` against golden, one-shot generation.
 
-Чего нет нигде: **петли сходимости**. На практике конфиг не пишется за один проход —
-агент (или человек) прогоняет archcheck, смотрит на срабатывания, отличает настоящие
-нарушения от ложных, правит конфиг/exclude и прогоняет снова, пока вывод не станет
-чистым/осмысленным. Эта задача фиксирует контракт такого цикла.
+What's nowhere: the **convergence loop**. In practice a config isn't written in one pass —
+the agent (or human) runs archcheck, looks at the firings, distinguishes real
+violations from false ones, edits the config/exclude and runs again, until the output becomes
+clean/meaningful. This task fixes the contract for such a loop.
 
-## Цель
+## Goal
 
-Описать итеративный процесс синтеза конфига, где **вывод самого archcheck —
-сигнал обратной связи**, и зафиксировать:
-- условие завершения (что считать «сошлось»),
-- развилку «настоящее нарушение vs ложное срабатывание»,
-- guardrail против overfitting конфига под глушение срабатываний.
+Describe the iterative config synthesis process, where **archcheck's own output is
+the feedback signal**, and pin down:
+- the termination condition (what counts as "converged"),
+- the "real violation vs false positive" fork,
+- a guardrail against overfitting the config to silence firings.
 
-## Цикл (черновой контракт)
+## Loop (draft contract)
 
-1. **Seed.** Агент генерирует первичный `.archcheck.yml.draft` из чистого репо
-   (по контракту #010 + правилам authoring-задачи): modules, layers/independence,
-   exclude по жёстким шум-классам.
-2. **Run.** Прогон archcheck на репо (агентом или человеком) → список violations
-   + метрики графа + дубли (#053/#056).
-3. **Triage.** По каждому срабатыванию — классификация:
-   - **real** → это реальный архитектурный долг; в конфиг НЕ трогаем, уезжает в
-     `--baseline` или в TODO для человека (чинится в коде, не в конфиге).
-   - **false-positive** → правило слишком широкое / задело вендор-генерат /
-     неверный порог → правка конфига оправдана.
-   - **noise** → шум-файл, не пойманный seed-exclude → дополняем `exclude:`.
-4. **Refine.** Минимальная правка конфига, адресующая только false-positive/noise.
-   Каждая правка — с комментарием-источником и причиной (почему это ложь, а не долг).
-5. **Re-run.** Повтор шага 2.
-6. **Stop.** Завершение по termination-условию (ниже).
+1. **Seed.** The agent generates an initial `.archcheck.yml.draft` from a clean repo
+   (per the #010 contract + the authoring-task rules): modules, layers/independence,
+   exclude for hard noise classes.
+2. **Run.** Run archcheck on the repo (by the agent or human) → a list of violations
+   + graph metrics + duplicates (#053/#056).
+3. **Triage.** For each firing — a classification:
+   - **real** → this is real architectural debt; do NOT touch the config, it goes into
+     `--baseline` or into a TODO for a human (fixed in code, not in the config).
+   - **false-positive** → the rule is too broad / caught vendor-generated code /
+     a wrong threshold → a config edit is justified.
+   - **noise** → a noise file not caught by the seed exclude → extend `exclude:`.
+4. **Refine.** A minimal config edit addressing only false-positive/noise.
+   Each edit — with a source comment and rationale (why this is false, not debt).
+5. **Re-run.** Repeat step 2.
+6. **Stop.** Termination by the termination condition (below).
 
-## Условие завершения (termination)
+## Termination condition
 
-Открытый вопрос — какой инвариант считать сходимостью. Кандидаты:
-- Нет срабатываний, классифицированных как **false-positive/noise** (real-нарушения
-  допустимы — они уезжают в baseline, это не повод править конфиг).
-- Δ между итерациями = 0 (конфиг стабилизировался, новые прогоны ничего не меняют).
-- Жёсткий лимит итераций (anti-runaway) + отчёт, если не сошлось.
+Open question — which invariant to treat as convergence. Candidates:
+- No firings classified as **false-positive/noise** (real violations are
+  allowed — they go into the baseline, not a reason to edit the config).
+- Δ between iterations = 0 (the config has stabilized, new runs change nothing).
+- A hard iteration limit (anti-runaway) + a report if it didn't converge.
 
-## Anti-overfit guardrail (ключевой риск этой задачи)
+## Anti-overfit guardrail (the key risk of this task)
 
-Главная опасность цикла, которой НЕТ в single-shot #010: агент «добивается чистоты»
-не тем, что нашёл архитектуру, а тем, что **глушит срабатывания** — пухнущий
-`exclude:`, выпиленные правила, задранные пороги, лишь бы вывод замолчал.
+The main danger of the loop, which is NOT present in single-shot #010: the agent "achieves cleanliness"
+not by finding the architecture, but by **silencing firings** — a swelling
+`exclude:`, removed rules, raised thresholds, just to make the output go quiet.
 
-- Конфиг, который ничего не запрещает / всё исключает — **провал**, а не успех.
-  Чистый вывод при пустом наборе правил — красный флаг.
-- Каждая правка-на-глушение обязана нести источник: *почему это ложное
-  срабатывание*, а не «уберём, чтоб не мешало».
-- `exclude:` растёт только жёсткими шум-классами (вендор/генерат/билд из
-  authoring-задачи) — не «папка, где много violations».
-- Снятие/ослабление правила между итерациями — отдельно логируется (diff правил),
-  чтобы человек видел, что агент именно ослабил, а не нашёл.
-- Real-нарушения НЕ глушатся правкой конфига — только baseline. Перекладывание
-  настоящего долга в `exclude` — запрещено.
+- A config that forbids nothing / excludes everything is a **failure**, not a success.
+  Clean output with an empty rule set is a red flag.
+- Every silencing edit must carry a source: *why this is a false
+  positive*, not "let's remove it so it doesn't bother us".
+- `exclude:` grows only with hard noise classes (vendor/generated/build from the
+  authoring task) — not "a folder with lots of violations".
+- Removing/weakening a rule between iterations is logged separately (rule diff),
+  so a human sees that the agent specifically weakened, rather than found.
+- Real violations are NOT silenced by a config edit — only the baseline. Shifting
+  real debt into `exclude` is forbidden.
 
-## Связь с eval (#protocol)
+## Connection to eval (#protocol)
 
-Метрика «сошлось за N итераций» и «насколько распух exclude/сколько правил снято
-к финалу» — кандидаты в eval_protocol как индикаторы overfitting. Цикл, дающий
-чистый вывод ценой пустого конфига, должен ловиться eval'ом как низкий recall.
+The metric "converged in N iterations" and "how much did the exclude swell / how many rules were removed
+by the end" are candidates for eval_protocol as overfitting indicators. A loop yielding
+clean output at the cost of an empty config should be caught by eval as low recall.
 
-## Открытые вопросы
+## Open questions
 
-- Кто крутит петлю: агент сам гоняет archcheck (нужен tool-call / CLI-доступ) или
-  человек прогоняет и отдаёт вывод обратно? MVP-вариант — human-in-the-loop.
-- Формат подачи violations обратно агенту (тот же JSON-срез, что вход в #010?).
-- Termination: какой из кандидатов-инвариантов берём за основной.
-- Где живёт triage-классификация (real/fp/noise) — в выводе archcheck её нет,
-  это решение агента; нужно ли её сериализовать для аудита.
-- Granularity правок: весь конфиг переписывается каждую итерацию или дельта.
+- Who turns the loop: does the agent run archcheck itself (needs a tool-call / CLI access) or
+  does a human run it and hand the output back? The MVP variant — human-in-the-loop.
+- The format for feeding violations back to the agent (the same JSON slice as the input to #010?).
+- Termination: which of the candidate invariants we take as the primary one.
+- Where the triage classification (real/fp/noise) lives — it's not in archcheck's output,
+  it's the agent's decision; whether it needs to be serialized for audit.
+- Granularity of edits: is the whole config rewritten each iteration or a delta.
 
-## План (research-only, без кода)
+## Plan (research-only, no code)
 
-- [ ] Описать цикл в docs/research/ (или дополнить ai_assisted_rule_synthesis.md разделом «iterative loop»)
-- [ ] Зафиксировать triage-контракт: real / false-positive / noise + что с каждым делать
-- [ ] Сформулировать termination-инвариант (выбрать из кандидатов)
-- [ ] Прописать anti-overfit guardrail как явный чек-лист (diff правил, рост exclude, пустой конфиг = провал)
-- [ ] Решить: human-in-the-loop vs агент с CLI-доступом для MVP
-- [ ] Связать с eval_protocol (метрики overfitting) и #010 (формат feedback = формат входа)
-- [ ] Прототип промпта итеративного режима (вне репо, в research-доке)
+- [ ] Describe the loop in docs/research/ (or extend ai_assisted_rule_synthesis.md with an "iterative loop" section)
+- [ ] Pin down the triage contract: real / false-positive / noise + what to do with each
+- [ ] Formulate the termination invariant (pick from the candidates)
+- [ ] Write the anti-overfit guardrail as an explicit checklist (rule diff, exclude growth, empty config = failure)
+- [ ] Decide: human-in-the-loop vs an agent with CLI access for the MVP
+- [ ] Link to eval_protocol (overfitting metrics) and #010 (feedback format = input format)
+- [ ] A prototype prompt for the iterative mode (outside the repo, in the research doc)
 
-## Сделано
+## Done
 
-- (пусто)
+- (empty)
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| docs/research/ai_assisted_rule_synthesis.md (или новый док) | раздел про итеративный цикл + anti-overfit guardrail |
-| future/010_maj_ai_rule_synthesis_contract.md | cross-ref: формат feedback = формат входа single-shot |
-| future/v1_maj_ai_config_synthesis_eval_protocol.md | cross-ref: метрики overfitting (рост exclude / снятие правил) |
+| File | Change |
+|------|--------|
+| docs/research/ai_assisted_rule_synthesis.md (or a new doc) | a section on the iterative loop + anti-overfit guardrail |
+| future/010_maj_ai_rule_synthesis_contract.md | cross-ref: feedback format = single-shot input format |
+| future/v1_maj_ai_config_synthesis_eval_protocol.md | cross-ref: overfitting metrics (exclude growth / rule removal) |

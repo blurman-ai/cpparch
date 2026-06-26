@@ -1,92 +1,92 @@
-# [SCAN][RULES] Conditional includes: не репортить циклы из #ifdef-охраняемых рёбер
+# [SCAN][RULES] Conditional includes: do not report cycles from #ifdef-guarded edges
 
-**Дата создания:** 2026-05-28
-**Дата старта:** 2026-05-28
-**Статус:** completed
-**Модуль:** SCAN / RULES
-**Приоритет:** major
-**Сложность:** M
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-05-28
+**Started:** 2026-05-28
+**Status:** completed
+**Module:** SCAN / RULES
+**Priority:** major
+**Difficulty:** M
+**Blocks:** —
+**Blocked by:** —
 **Related:** #028 (rules_engine_mvp), #031 (godheader_pch_exclusion)
 
-## Цель
+## Goal
 
-Сканер должен помечать `#include`-рёбра внутри `#ifdef`/`#if`-блоков как условные, чтобы SF.9 не репортил циклы, существующие только в одном из режимов сборки.
+The scanner must mark `#include` edges inside `#ifdef`/`#if` blocks as conditional, so that SF.9 does not report cycles that exist only in one of the build modes.
 
-## Контекст
+## Context
 
-Прогон на spdlog (commit `2e71fdf`) выдал 22 нарушения SF.9. Все 22 — пары `foo-inl.h ↔ foo.h`, охраняемые макросом `SPDLOG_HEADER_ONLY`:
+A run on spdlog (commit `2e71fdf`) produced 22 SF.9 violations. All 22 are `foo-inl.h ↔ foo.h` pairs, guarded by the macro `SPDLOG_HEADER_ONLY`:
 
 ```cpp
-// foo.h, последние строки:
+// foo.h, last lines:
 #ifdef SPDLOG_HEADER_ONLY
 #include "foo-inl.h"
 #endif
 ```
 
 ```cpp
-// foo-inl.h, первая строка:
+// foo-inl.h, first line:
 #include <spdlog/foo.h>
 ```
 
-В compiled-режиме (дефолт) этого include нет — цикла нет. В header-only режиме он есть намеренно: это классический dual-mode паттерн C++ библиотек (spdlog, Abseil, part of Boost).
+In compiled mode (the default) this include is absent — there is no cycle. In header-only mode it is present intentionally: this is the classic dual-mode pattern of C++ libraries (spdlog, Abseil, part of Boost).
 
-Текстовый сканер `#ifdef` не раскрывает → все 22 ребра попадают в граф как обычные → SF.9 репортит правомерно по букве, но ложно по смыслу.
+The text scanner does not expand `#ifdef` → all 22 edges enter the graph as ordinary ones → SF.9 reports legitimately by the letter, but falsely by the meaning.
 
-**Это типичный false positive на реальных OSS-проектах.** Без исправления tool будет встречать эти нарушения в spdlog, Abseil и других известных библиотеках, что подрывает доверие к результатам.
+**This is a typical false positive on real OSS projects.** Without a fix the tool will encounter these violations in spdlog, Abseil and other well-known libraries, which undermines trust in the results.
 
-## Решение (выбранный подход)
+## Solution (chosen approach)
 
-Пометить условные рёбра в графе флагом `conditional: true`.  
-SF.9 (и другие правила на циклах) игнорируют циклы, все рёбра которых условны.
+Mark conditional edges in the graph with a `conditional: true` flag.  
+SF.9 (and other cycle rules) ignore cycles all of whose edges are conditional.
 
-### Шаги реализации
+### Implementation steps
 
-- [ ] В `IncludeToken` / ребре графа добавить поле `conditional: bool`
-- [ ] В `include_scanner` отслеживать глубину `#ifdef`/`#if`/`#ifndef` — любой include внутри помечать `conditional = true`
-- [ ] В `DependencyGraph` хранить флаг на ребре (или отдельный `conditional_edges` set)
-- [ ] В SF.9 (`cycle_rule`): при обходе SCC пропускать циклы, где все рёбра `conditional`
-- [ ] Fixtures: `fixtures/sf9/pass_conditional_ifdef/` — пара `foo.h` + `foo-inl.h` через `#ifdef`
-- [ ] Тест: убедиться, что spdlog выдаёт 0 SF.9 нарушений после правки
+- [ ] In `IncludeToken` / the graph edge add a `conditional: bool` field
+- [ ] In `include_scanner` track `#ifdef`/`#if`/`#ifndef` depth — mark any include inside as `conditional = true`
+- [ ] In `DependencyGraph` store the flag on the edge (or a separate `conditional_edges` set)
+- [ ] In SF.9 (`cycle_rule`): when traversing the SCC, skip cycles where all edges are `conditional`
+- [ ] Fixtures: `fixtures/sf9/pass_conditional_ifdef/` — a `foo.h` + `foo-inl.h` pair via `#ifdef`
+- [ ] Test: confirm that spdlog produces 0 SF.9 violations after the fix
 
-## Альтернативы (отклонены)
+## Alternatives (rejected)
 
-**Вариант 1 — exclude-паттерн в конфиге** (`exclude_cycles: ["**/*-inl.h"]`):
-- Проще реализовать; пользователь управляет явно.
-- Минус: требует конфига — ломает zero-config; не защищает от тех же паттернов с другим именованием.
+**Option 1 — exclude pattern in config** (`exclude_cycles: ["**/*-inl.h"]`):
+- Simpler to implement; the user controls it explicitly.
+- Downside: requires config — breaks zero-config; does not protect against the same patterns with different naming.
 
-**Вариант 3 — built-in эвристика `-inl.h`**:
-- Если `foo.h` включает `foo-inl.h` и наоборот — считать known pattern и не репортить.
-- Минус: hardcoded эвристика, скрывает реальные случайные циклы с `-inl.h` в имени; хрупко.
+**Option 3 — built-in `-inl.h` heuristic**:
+- If `foo.h` includes `foo-inl.h` and vice versa — treat as a known pattern and do not report.
+- Downside: hardcoded heuristic, hides real accidental cycles with `-inl.h` in the name; fragile.
 
-## Сделано
+## Done
 
-- **2026-05-28** — Ручная верификация паттерна на spdlog commit `2e71fdf`. Проверены исходники: `logger.h:385`, `common.h:373`, `base_sink.h:50`, `registry.h:130` и др. Все 22 пары подтверждены — каждый `.h` включает `*-inl.h` строго внутри `#ifdef SPDLOG_HEADER_ONLY`. Ложные срабатывания воспроизводимы, механика понята.
-- **2026-05-28** — Реализация целиком: коммит `04b523b` «suppress SF.9 on all-conditional include cycles (#032)». Сканер трекает глубину `#if/#ifdef/#ifndef/#endif` (с распознаванием include-guard, чтобы не пометить весь файл условным); `IncludeDirective::conditional`; `DependencyGraph` хранит флаг на ребре (`unordered_set<uint64_t>`, повторное unconditional-ребро побеждает); SF.9 пропускает циклы, где все рёбра conditional (`allEdgesConditional`). Тесты 198/198. Файл задачи при этом не был обновлён и 2 недели лежал в `new/` — TASK_TRACKER числил его P0-блокером MVP.
+- **2026-05-28** — Manual verification of the pattern on spdlog commit `2e71fdf`. Sources checked: `logger.h:385`, `common.h:373`, `base_sink.h:50`, `registry.h:130`, etc. All 22 pairs confirmed — each `.h` includes `*-inl.h` strictly inside `#ifdef SPDLOG_HEADER_ONLY`. The false positives are reproducible, the mechanics understood.
+- **2026-05-28** — Full implementation: commit `04b523b` "suppress SF.9 on all-conditional include cycles (#032)". The scanner tracks `#if/#ifdef/#ifndef/#endif` depth (with include-guard recognition, so it does not mark the whole file conditional); `IncludeDirective::conditional`; `DependencyGraph` stores the flag on the edge (`unordered_set<uint64_t>`, a repeated unconditional edge wins); SF.9 skips cycles where all edges are conditional (`allEdgesConditional`). Tests 198/198. The task file meanwhile was not updated and sat in `new/` for 2 weeks — the TASK_TRACKER counted it as a P0 MVP blocker.
 
-## Как работает
+## How it works
 
-Include внутри любого незакрытого `#if`-блока (кроме include-guard самого файла) получает
-`conditional = true`; флаг доезжает до ребра графа. SF.9 при обходе SCC проверяет найденный цикл:
-если **все** его рёбра условные — цикл существует только в одном из режимов сборки (dual-mode
-паттерн spdlog/Abseil) и не репортится. Смешанный цикл (хоть одно безусловное ребро) репортится
-как раньше.
+An include inside any unclosed `#if` block (except the file's own include-guard) gets
+`conditional = true`; the flag carries through to the graph edge. SF.9, when traversing an SCC, checks the found cycle:
+if **all** its edges are conditional — the cycle exists only in one of the build modes (the dual-mode
+spdlog/Abseil pattern) and is not reported. A mixed cycle (at least one unconditional edge) is reported
+as before.
 
-## Итог
+## Outcome
 
-**Статус:** completed
-**Дата завершения:** 2026-05-28 (фактическая, коммит `04b523b`); файл закрыт 2026-06-11 по итогам бэклог-ревью.
-**Незакрытый хвост (передан в #088):** фикстура `fixtures/sf9/pass_conditional_ifdef/` не создана (покрытие — unit-тестами сканера и SF.9) и контрольный перепрогон spdlog не зафиксирован — добавлен к финальному пункту #088 «перепрогнать FP-репы».
-**Смежное:** `.inl`-идиома без `#ifdef` (legate/acts) — это отдельный механизм `isInlineSplitScc`, реализован в #088 №2.2 (`8c05878`); с conditional-фильтром не пересекается.
+**Status:** completed
+**Completed:** 2026-05-28 (actual, commit `04b523b`); the file was closed on 2026-06-11 following the backlog review.
+**Open tail (handed to #088):** the fixture `fixtures/sf9/pass_conditional_ifdef/` was not created (coverage — by unit tests of the scanner and SF.9) and the control re-run of spdlog was not recorded — added to the final item of #088 "re-run the FP repos".
+**Adjacent:** the `.inl` idiom without `#ifdef` (legate/acts) — this is a separate mechanism `isInlineSplitScc`, implemented in #088 §2.2 (`8c05878`); it does not overlap with the conditional filter.
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `include/archcheck/scan/include_token.h` | поле `conditional` |
-| `src/scan/include_scanner.cpp` | отслеживание `#ifdef`-глубины |
-| `include/archcheck/graph/dependency_graph.h` | conditional-флаг на ребре |
-| `src/rules/sf9_no_cycles.cpp` | пропуск all-conditional циклов |
-| `fixtures/sf9/pass_conditional_ifdef/` | новая фикстура |
-| `tests/unit/rules/sf9_test.cpp` | тест conditional-цикла |
+| File | Change |
+|------|--------|
+| `include/archcheck/scan/include_token.h` | `conditional` field |
+| `src/scan/include_scanner.cpp` | `#ifdef` depth tracking |
+| `include/archcheck/graph/dependency_graph.h` | conditional flag on the edge |
+| `src/rules/sf9_no_cycles.cpp` | skip all-conditional cycles |
+| `fixtures/sf9/pass_conditional_ifdef/` | new fixture |
+| `tests/unit/rules/sf9_test.cpp` | conditional-cycle test |

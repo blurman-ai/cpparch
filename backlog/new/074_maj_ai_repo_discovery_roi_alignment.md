@@ -1,130 +1,130 @@
-# [RESEARCH][DISCOVERY] Свести discovery-техдолг по ROI-фильтрам, giant-skip и resumable pipeline
+# [RESEARCH][DISCOVERY] Consolidate discovery tech debt across ROI filters, giant-skip, and the resumable pipeline
 
-**Дата создания:** 2026-06-02
-**Дата старта:** —
-**Статус:** new
-**Модуль:** RESEARCH / SCAN / DISCOVERY
-**Приоритет:** major
-**Сложность:** M
-**Блокирует:** быстрый добор AI-плотного корпуса без лишнего расхода сети/диска/времени
-**Заблокирован:** —
+**Created:** 2026-06-02
+**Started:** —
+**Status:** new
+**Module:** RESEARCH / SCAN / DISCOVERY
+**Priority:** major
+**Difficulty:** M
+**Blocks:** fast top-up of an AI-dense corpus without wasted network/disk/time
+**Blocked by:** —
 **Related:** #054 (ai_repo_duplication_run), #066 (airepo_remeasure_clonefail), #067 (overnight_eye_verification), #073 (tech_debt_alignment_cleanup)
-**Источник истины:** `experiments/ai_repo_run/measure_candidates.sh`, `experiments/ai_repo_run/remeasure_resumable.sh`, `experiments/ai_repo_run/clone_expand.sh`, `experiments/ai_repo_run/resume_all.sh`
+**Source of truth:** `experiments/ai_repo_run/measure_candidates.sh`, `experiments/ai_repo_run/remeasure_resumable.sh`, `experiments/ai_repo_run/clone_expand.sh`, `experiments/ai_repo_run/resume_all.sh`
 
-## Цель
+## Goal
 
-Убрать лишний расход времени на giant/established репозитории и свести к одному
-реальному контракту discovery/resume pipeline для AI-реп корпуса.
+Remove the wasted time on giant/established repositories and reduce the discovery/resume pipeline
+for the AI-repo corpus to a single real contract.
 
-Задача не про новые метрики, а про **ROI и честность пайплайна**:
+The task is not about new metrics, but about **ROI and the honesty of the pipeline**:
 
-- не качать заведомо бесполезные гиганты;
-- тянуть только ту историю, которую реально меряем;
-- различать `skip` и `CLONEFAIL`, а не смешивать их;
-- убрать расхождение между тем, что написано в `#066`, и тем, что реально в коде.
+- don't download knowingly useless giants;
+- pull only the history we actually measure;
+- distinguish `skip` from `CLONEFAIL` rather than mixing them;
+- remove the mismatch between what `#066` says and what's actually in the code.
 
-## Симптом
+## Symptom
 
-Сейчас discovery уже частично оптимизировался, но оптимизации размазаны и живут в
-разных ветках пайплайна:
+Right now discovery has already been partially optimized, but the optimizations are smeared and live in
+different branches of the pipeline:
 
-1. В `resume`/`remeasure` есть giant name-filter.
-2. В основном `measure`-пути giant-filter нет.
-3. В `clone_expand` есть size API precheck, но это уже поздняя стадия.
-4. `measure_candidates.sh` всё ещё делает обычный `git clone --filter=blob:none`
-   без `--shallow-since=2025-05-01`.
-5. При падении клона `measure_candidates.sh` сразу пишет `CLONEFAIL`, не пытаясь
-   отличить «репа не кандидат / нет свежей истории» от реального сетевого сбоя.
+1. `resume`/`remeasure` have a giant name-filter.
+2. The main `measure` path has no giant-filter.
+3. `clone_expand` has a size-API precheck, but that's already a late stage.
+4. `measure_candidates.sh` still does a plain `git clone --filter=blob:none`
+   without `--shallow-since=2025-05-01`.
+5. On a clone failure `measure_candidates.sh` immediately writes `CLONEFAIL`, without trying
+   to distinguish "repo is not a candidate / no fresh history" from a real network failure.
 
-Итог:
+Result:
 
-- тратим время на giant-репы типа `chromium`/`llvm`/`webkit`-класса;
-- часть `CLONEFAIL` шумовая и не несёт полезного сигнала;
-- resume-путь и основной путь ведут себя по-разному;
-- документация в `#066` уже обещает оптимизации, которых в коде нет.
+- we waste time on giant repos of the `chromium`/`llvm`/`webkit` class;
+- some `CLONEFAIL`s are noise and carry no useful signal;
+- the resume path and the main path behave differently;
+- the documentation in `#066` already promises optimizations that aren't in the code.
 
-## Подтверждённое расхождение
+## Confirmed mismatch
 
-Проверка состояния на 2026-06-02:
+State check as of 2026-06-02:
 
-- `resume_all.sh` действительно поднимает resumable-пайплайн после reboot.
-- giant name-filter реально есть только в `remeasure_resumable.sh`.
-- `measure_candidates.sh` **не** использует `--shallow-since=2025-05-01`.
-- `measure_candidates.sh` **не** делает API-fallback, чтобы развести `skip` и `CLONEFAIL`.
-- `clone_expand.sh` использует API только для precheck размера, не для measure-фазы.
-- При этом `backlog/wip/066_...` уже описывает `shallow-since` и API-fallback как внедрённые.
+- `resume_all.sh` does indeed bring up the resumable pipeline after a reboot.
+- the giant name-filter actually exists only in `remeasure_resumable.sh`.
+- `measure_candidates.sh` does **not** use `--shallow-since=2025-05-01`.
+- `measure_candidates.sh` does **not** do an API fallback to separate `skip` from `CLONEFAIL`.
+- `clone_expand.sh` uses the API only for a size precheck, not for the measure phase.
+- meanwhile `backlog/wip/066_...` already describes `shallow-since` and the API fallback as implemented.
 
-Это уже не просто perf TODO, а **research-methodology debt + backlog/code mismatch**.
+This is no longer just a perf TODO, but a **research-methodology debt + backlog/code mismatch**.
 
-## Почему это важно
+## Why it matters
 
-Для текущей фазы нам не нужен «репрезентативный срез всех больших C++-реп».
-Нам нужен корпус с максимальной вероятностью полезного сигнала на единицу времени.
+For the current phase we don't need a "representative slice of all large C++ repos".
+We need a corpus with the maximum probability of useful signal per unit of time.
 
-Giant established репы дают плохой ROI:
+Giant established repos give bad ROI:
 
-- дороги в скачивании и ретраях;
-- часто имеют низкую AI-концентрацию;
-- вероятно проходят через сильный review/process barrier;
-- дают меньше шансов на новый drift-signal, чем mid-size/high-velocity AI-плотные репы.
+- expensive to download and retry;
+- often have low AI concentration;
+- likely pass through a strong review/process barrier;
+- give fewer chances of new drift signal than mid-size/high-velocity AI-dense repos.
 
-Значит pipeline должен быть заточен под:
+So the pipeline should be tuned for:
 
 - **high velocity**;
 - **AI density**;
-- **умеренный размер**;
-- **ранний giant-skip**;
-- **минимум ложного CLONEFAIL**.
+- **moderate size**;
+- **early giant-skip**;
+- **minimal false CLONEFAIL**.
 
-## Что сделать
+## What to do
 
-### 1. Протянуть `--shallow-since=2025-05-01` в реальный measure-path
+### 1. Thread `--shallow-since=2025-05-01` into the real measure path
 
-- [ ] Добавить shallow-fetch/clone, ограниченный пост-май окном, в `measure_candidates.sh`.
-- [ ] Проверить, что измерение `git log --since=2025-05-01` остаётся корректным на shallow-истории.
-- [ ] Явно задокументировать fallback, если конкретная forge/репа не поддерживает нужный shallow-path.
+- [ ] Add a shallow-fetch/clone, limited to the post-May window, to `measure_candidates.sh`.
+- [ ] Verify that measuring `git log --since=2025-05-01` stays correct on shallow history.
+- [ ] Explicitly document the fallback if a specific forge/repo doesn't support the needed shallow path.
 
-### 2. Поднять giant denylist в основной funnel
+### 2. Raise the giant denylist into the main funnel
 
-- [ ] Вынести GIANT-regex в одно место.
-- [ ] Применять giant-skip не только в `remeasure_resumable.sh`, но и в основном `measure/discovery` пути.
-- [ ] Зафиксировать статус таких реп как `TOOBIG-skip`, а не как `CLONEFAIL`.
+- [ ] Move the GIANT regex into one place.
+- [ ] Apply giant-skip not only in `remeasure_resumable.sh`, but also in the main `measure/discovery` path.
+- [ ] Record the status of such repos as `TOOBIG-skip`, not as `CLONEFAIL`.
 
-### 3. Ввести API-fallback для различения `skip` vs `CLONEFAIL`
+### 3. Introduce an API fallback to distinguish `skip` vs `CLONEFAIL`
 
-- [ ] На падении shallow/clone делать один дешёвый API-check.
-- [ ] Если у репы нет нужной свежей истории/она не кандидат — писать `skip`, а не `CLONEFAIL`.
-- [ ] Только реальные сетевые/доступные сбои оставлять как `CLONEFAIL`.
+- [ ] On a shallow/clone failure do one cheap API check.
+- [ ] If the repo has no needed fresh history / is not a candidate — write `skip`, not `CLONEFAIL`.
+- [ ] Leave only real network/availability failures as `CLONEFAIL`.
 
-### 4. Свести основной и resumable пути к одному контракту
+### 4. Reduce the main and resumable paths to one contract
 
-- [ ] Убрать ситуацию, где resume-путь умнее основного.
-- [ ] Проверить `discover_finish*.sh`, `measure_candidates.sh`, `remeasure_resumable.sh`, `finish_resumable.sh` на единые правила отбора.
-- [ ] Сделать так, чтобы reboot/resume не менял semantics отбора, а только продолжал ту же работу.
+- [ ] Remove the situation where the resume path is smarter than the main one.
+- [ ] Check `discover_finish*.sh`, `measure_candidates.sh`, `remeasure_resumable.sh`, `finish_resumable.sh` for unified selection rules.
+- [ ] Make reboot/resume not change the selection semantics, only continue the same work.
 
-### 5. Привести backlog/doc state к реальности
+### 5. Bring the backlog/doc state in line with reality
 
-- [ ] Обновить `#066`: отделить «внедрено в коде» от «задумано / нужно внедрить».
-- [ ] Если часть оптимизаций остаётся только в resumable-ветке, это должно быть явно написано.
-- [ ] Убрать ложный контракт из task log, чтобы следующий запуск не исходил из неверных предпосылок.
+- [ ] Update `#066`: separate "implemented in code" from "intended / to be implemented".
+- [ ] If some optimizations remain only in the resumable branch, that must be written explicitly.
+- [ ] Remove the false contract from the task log, so the next run doesn't proceed from wrong premises.
 
-## Критерии приёмки
+## Acceptance criteria
 
-- [ ] `measure_candidates.sh` больше не тянет полную историю, если достаточно пост-май окна.
-- [ ] giant-репы отсекаются до тяжёлого клона как в обычном, так и в resumable режиме.
-- [ ] `CLONEFAIL` после прогона заметно чище: там остаются реальные сбои, а не «не кандидат».
-- [ ] В коде и backlog одинаково описано, какие оптимизации реально работают.
-- [ ] Есть один понятный pipeline discovery, а не два похожих, но неравных по логике.
+- [ ] `measure_candidates.sh` no longer pulls the full history when the post-May window is enough.
+- [ ] giant repos are cut off before the heavy clone in both the normal and the resumable mode.
+- [ ] `CLONEFAIL` after a run is noticeably cleaner: only real failures remain, not "not a candidate".
+- [ ] Code and backlog describe identically which optimizations actually work.
+- [ ] There is one clear discovery pipeline, not two similar but logically unequal ones.
 
-## Не делать в этой задаче
+## Don't do in this task
 
-- не менять сами drift-метрики;
-- не вводить ML/классификатор AI-реп;
-- не расширять product-scope `archcheck`;
-- не смешивать это с верификацией копипаст-precision.
+- don't change the drift metrics themselves;
+- don't introduce an ML/classifier for AI repos;
+- don't expand the product scope of `archcheck`;
+- don't mix this with verification of copy-paste precision.
 
-## Следующие шаги
+## Next steps
 
-1. Сначала исправить alignment между `#066` и кодом.
-2. Затем протащить `shallow-since` и giant-skip в основной `measure`-pipeline.
-3. После этого уже пересчитать ROI discovery и обновить methodology report.
+1. First fix the alignment between `#066` and the code.
+2. Then thread `shallow-since` and giant-skip into the main `measure` pipeline.
+3. After that, recompute discovery ROI and update the methodology report.

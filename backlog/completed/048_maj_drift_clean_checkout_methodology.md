@@ -1,51 +1,51 @@
-# [DRIFT/METHODOLOGY] DRIFT-прогоны на чужих репо требуют clean checkout, не partial
+# [DRIFT/METHODOLOGY] DRIFT runs on third-party repos require a clean checkout, not a partial one
 
-**Дата создания:** 2026-05-29
-**Дата старта:** — (staged для Haiku 2026-06-11, ждёт команды)
-**Статус:** wip (staged)
-**Исполнитель:** Haiku (только скрипт + методология; перепрогоны PR — отдельный research, НЕ Haiku)
-**Модуль:** RESEARCH/FIXTURES (методология #033)
-**Приоритет:** major (искажает результаты dogfood'а на чужих репо)
-**Сложность:** S (документация + helper-скрипт, ≤ 1 ч)
-**Целевой релиз:** v0.1
-**Блокирует:** надёжность выводов из любого drift-прогона на чужих репозиториях
+**Created:** 2026-05-29
+**Started:** — (staged for Haiku 2026-06-11, awaiting go)
+**Status:** wip (staged)
+**Assignee:** Haiku (script + methodology only; PR re-runs are separate research, NOT Haiku)
+**Module:** RESEARCH/FIXTURES (methodology #033)
+**Priority:** major (skews dogfooding results on third-party repos)
+**Difficulty:** S (documentation + helper script, ≤ 1 h)
+**Target release:** v0.1
+**Blocks:** the reliability of conclusions from any drift run on third-party repositories
 **Related:** #033 (ai_drift_dataset), #047 (BOM)
 
-## Симптом
+## Symptom
 
-При прогоне DRIFT.1 на серии PR из одного репо (последовательно в одном
-working tree) получаются ложные срабатывания.
+When running DRIFT.1 over a series of PRs from one repo (sequentially in a single
+working tree), false positives appear.
 
-Конкретный кейс: **EtherAura/Kartend PR #26** (refactor errorutils, 4 файла,
-+13/-5 строк, ни одного из них — `settingsdialogform.cpp`):
-- Сначала прогон с `git clean -fd src + git checkout $parent -- src + ... + git checkout $sha -- src`:
-  **26 DRIFT.1** в `ui/dialogs/settings/core/settingsdialogform.cpp`, все указывают
-  на файлы которые НЕ изменялись в PR.
-- Тот же PR с `git clean -fdx src + git checkout -f $parent -- src` (и так же для after):
+Concrete case: **EtherAura/Kartend PR #26** (refactor errorutils, 4 files,
++13/-5 lines, none of them — `settingsdialogform.cpp`):
+- First a run with `git clean -fd src + git checkout $parent -- src + ... + git checkout $sha -- src`:
+  **26 DRIFT.1** in `ui/dialogs/settings/core/settingsdialogform.cpp`, all pointing
+  to files that were NOT changed in the PR.
+- The same PR with `git clean -fdx src + git checkout -f $parent -- src` (and likewise for after):
   **0 DRIFT.1**.
 
-Аналогично OreStudio: dirty прогон 4 PR'ов давал **7 DRIFT.1**, clean — **0**.
+Similarly for OreStudio: a dirty run of 4 PRs gave **7 DRIFT.1**, clean — **0**.
 
-## Причина
+## Cause
 
-`git checkout <sha> -- <path>` обновляет только файлы, которые существуют в
-`<sha>`. Файлы, которые присутствуют в working tree (с прошлой итерации цикла
-или с master HEAD) но отсутствуют в `<sha>` — **остаются в working tree**.
+`git checkout <sha> -- <path>` updates only the files that exist in
+`<sha>`. Files that are present in the working tree (from a previous loop iteration
+or from master HEAD) but absent in `<sha>` — **stay in the working tree**.
 
-`git clean -fd` удаляет только untracked. Tracked файлы из других ревизий,
-которые числятся в индексе HEAD, не убираются.
+`git clean -fd` removes only untracked files. Tracked files from other revisions
+that are listed in the HEAD index are not removed.
 
-Итог: при scan'е `archcheck --save-graph-baseline` видит файлы, которых не
-должно быть в `parent` ревизии, и сохраняет их рёбра. Дальше при checkout'е
-`after` эти файлы могут пропасть (если `after` тоже не содержит их) или
-остаться (если содержит). Если меняется список файлов или их edge'и — DRIFT
-ложно срабатывает.
+Result: during the scan, `archcheck --save-graph-baseline` sees files that should
+not be in the `parent` revision, and saves their edges. Then, on checking out
+`after`, these files may disappear (if `after` also doesn't contain them) or
+stay (if it does). If the file list or their edges changes — DRIFT
+fires falsely.
 
-## Эмпирическое подтверждение
+## Empirical confirmation
 
-| Repo | PR | Dirty | Clean | Дельта |
-|------|----|-------|-------|--------|
-| Kartend | #26 errorutils refactor | 26 DRIFT.1 | 0 | -26 (все FP) |
+| Repo | PR | Dirty | Clean | Delta |
+|------|----|-------|-------|-------|
+| Kartend | #26 errorutils refactor | 26 DRIFT.1 | 0 | -26 (all FP) |
 | Kartend | #27 promote uiconstants | 5 DRIFT.1 | 5 DRIFT.1 | 0 (real) |
 | Kartend | #34 covers leaf-struct | 0 | 0 | 0 |
 | OreStudio | #547 service-to-service auth | 1 DRIFT.1 | 0 | -1 (FP) |
@@ -55,13 +55,13 @@ working tree) получаются ложные срабатывания.
 | IrredenEngine | #727 render LOD | 2 DRIFT.1 | 2 DRIFT.1 | 0 (real) |
 | vmecpp | #360, #340 | 0 | 0 | 0 |
 
-Все ложные срабатывания исчезают при использовании `git clean -fdx` + `git checkout -f $ref -- path`.
+All false positives disappear when using `git clean -fdx` + `git checkout -f $ref -- path`.
 
-## Фикс
+## Fix
 
-### Краткосрочный: helper-скрипт для безопасного прогона
+### Short-term: helper script for a safe run
 
-Положить в `scripts/drift_run.sh`:
+Put into `scripts/drift_run.sh`:
 
 ```bash
 #!/usr/bin/env bash
@@ -79,121 +79,121 @@ git -C "$repo" checkout -f "$after" -- "$sub"
 archcheck --drift-baseline "$graph" "$repo/$sub"
 ```
 
-Гарантирует чистое состояние перед каждой ревизией.
+Guarantees a clean state before each revision.
 
-### Долгосрочный: режим archcheck со встроенной git-логикой
+### Long-term: an archcheck mode with built-in git logic
 
-Уже есть `archcheck --diff <revspec>`. Расширить до режима, который
-сам делает clean checkout двух ревизий (или использует `git worktree`
-для полной изоляции), не требуя ручной работы с working tree.
+There's already `archcheck --diff <revspec>`. Extend it into a mode that
+itself does a clean checkout of two revisions (or uses `git worktree`
+for full isolation), without requiring manual work on the working tree.
 
-`git worktree add /tmp/before <sha>` создаёт чистый WT в отдельной папке.
-Это устранит весь класс проблем со стейтом working tree.
+`git worktree add /tmp/before <sha>` creates a clean WT in a separate folder.
+This eliminates the whole class of working-tree-state problems.
 
-## Влияние на milestones
+## Impact on milestones
 
-Все DRIFT-прогоны из раздела «Прогон 14 — DRIFT re-run после BOM-фикса»
-требуют пересмотра: использовался `git checkout -- src` без `-f` и без `-fdx clean`,
-кроме первого LibreSprite-кейса где делался полный `git checkout SHA`.
+All DRIFT runs from the section "Run 14 — DRIFT re-run after the BOM fix"
+need revisiting: `git checkout -- src` was used without `-f` and without `-fdx clean`,
+except for the first LibreSprite case where a full `git checkout SHA` was done.
 
-**Подтверждены чистыми re-run'ом:**
+**Confirmed by a clean re-run:**
 - LibreSprite #581 → 1 DRIFT.1 (full checkout)
 - BambuStudio #10794 → 2 DRIFT.1 (full checkout)
 - vmecpp #360, #340 → 0 (clean re-run)
 - IrredenEngine #727 → 2 DRIFT.1 (clean re-run)
 - Kartend #27 → 5 DRIFT.1 (clean re-run)
 
-**Сомнительные (нужен re-run):**
-- spectre 5 PR'ов (все были 0; нужна верификация что 0 — не FN)
-- GWToolboxpp 3 PR'ов
+**Doubtful (need a re-run):**
+- spectre 5 PRs (all were 0; need to verify that 0 is not an FN)
+- GWToolboxpp 3 PRs
 - IrredenEngine #798, #1200, #1207
-- moqx 3 PR'ов
-- AetherSDR 3 PR'ов
-- OreStudio: clean re-run уже сделан → все 0
-- Kartend #26, #34: clean re-run сделан → 0, 0
+- moqx 3 PRs
+- AetherSDR 3 PRs
+- OreStudio: clean re-run already done → all 0
+- Kartend #26, #34: clean re-run done → 0, 0
 
-## Сделано
+## Done
 
-- ✅ Шаг 1: dovesti `scripts/drift_run.sh` к контракту (2026-06-11)
-  - Изменена usage-строка на `drift_run.sh <repo-path> <subdir> <before-sha> <after-sha> <label>`
-  - Добавлена шапка-комментарий (3 строки) с объяснением причины clean checkout
-  - Изменён `set -e` на `set -euo pipefail`
-  - Скрипт теперь принимает `<before-sha>` и `<after-sha>` явно (не вычисляет parent)
-  - Последовательность: clean → checkout before → archcheck baseline → clean → checkout after → archcheck drift
-  - Абсолютный путь к бинарю: `~/projects/cpparch/build/debug/src/archcheck`
-- ✅ Шаг 2: дописана методология в `docs/research/ai_drift_runlog.md` (2026-06-11)
-  - Добавлена секция «Методология: clean checkout обязателен»
-  - Эмпирическая таблица Dirty/Clean скопирована целиком
-  - Правило: все DRIFT-прогоны на чужих репо — только через `scripts/drift_run.sh`
+- ✅ Step 1: bring `scripts/drift_run.sh` to the contract (2026-06-11)
+  - Changed the usage line to `drift_run.sh <repo-path> <subdir> <before-sha> <after-sha> <label>`
+  - Added a header comment (3 lines) explaining the reason for the clean checkout
+  - Changed `set -e` to `set -euo pipefail`
+  - The script now takes `<before-sha>` and `<after-sha>` explicitly (does not compute the parent)
+  - Sequence: clean → checkout before → archcheck baseline → clean → checkout after → archcheck drift
+  - Absolute path to the binary: `~/projects/cpparch/build/debug/src/archcheck`
+- ✅ Step 2: methodology added to `docs/research/ai_drift_runlog.md` (2026-06-11)
+  - Added the section "Methodology: clean checkout is mandatory"
+  - The empirical Dirty/Clean table copied in full
+  - Rule: all DRIFT runs on third-party repos — only via `scripts/drift_run.sh`
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. Перепрогнать сомнительные PR с full clean checkout — **research, вне Haiku-скоупа**, отдельный заход.
-2. ✅→⚠️ `scripts/drift_run.sh` **уже существует** (проверено 2026-06-11), но не соответствует контракту — довести (план ниже).
-3. Документировать методологию в `docs/research/ai_drift_runlog.md` (файл существует) — план ниже.
-4. `--git-worktree` режим для archcheck — **future, вне скоупа этой задачи**.
+1. Re-run the doubtful PRs with a full clean checkout — **research, outside the Haiku scope**, a separate pass.
+2. ✅→⚠️ `scripts/drift_run.sh` **already exists** (verified 2026-06-11), but doesn't match the contract — bring it up to spec (plan below).
+3. Document the methodology in `docs/research/ai_drift_runlog.md` (the file exists) — plan below.
+4. `--git-worktree` mode for archcheck — **future, outside the scope of this task**.
 
-## План для Haiku (2026-06-11)
+## Plan for Haiku (2026-06-11)
 
-Перед стартом ОБЯЗАН прочитать целиком: эту задачу, [docs/dev/haiku_task_guide.md](../../docs/dev/haiku_task_guide.md) §2.
+Before starting, MUST read in full: this task, [docs/dev/haiku_task_guide.md](../../docs/dev/haiku_task_guide.md) §2.
 
-### Разрешённые развилки (факты, проверены 2026-06-11)
+### Permitted forks (facts, verified 2026-06-11)
 
-- `scripts/drift_run.sh` существует, но: usage-строка врёт (`drift_one.sh`), принимает только `<after-sha>` и сам выводит parent, `set -e` вместо `set -euo pipefail`. Привести к контракту ниже — **редактировать существующий файл**, не создавать новый.
-- `docs/research/ai_drift_runlog.md` существует — методологию **дописать секцией**, файл не переписывать.
-- Флаги `--save-graph-baseline` / `--drift-baseline` существуют (`src/main.cpp:53-54`) — контракт скрипта на них корректен.
-- C++ код в этой задаче НЕ трогается вообще.
+- `scripts/drift_run.sh` exists, but: the usage line lies (`drift_one.sh`), it takes only `<after-sha>` and prints the parent itself, `set -e` instead of `set -euo pipefail`. Bring it to the contract below — **edit the existing file**, do not create a new one.
+- `docs/research/ai_drift_runlog.md` exists — **add the methodology as a section**, do not rewrite the file.
+- The flags `--save-graph-baseline` / `--drift-baseline` exist (`src/main.cpp:53-54`) — the script's contract on them is correct.
+- The C++ code in this task is NOT touched at all.
 
-### Шаг 1 — довести `scripts/drift_run.sh`
+### Step 1 — bring `scripts/drift_run.sh` up to spec
 
-Контракт: `drift_run.sh <repo-path> <subdir> <before-sha> <after-sha> <label>`. Обязательно:
+Contract: `drift_run.sh <repo-path> <subdir> <before-sha> <after-sha> <label>`. Mandatory:
 - `set -euo pipefail`;
-- шапка-комментарий (3–4 строки): зачем clean checkout — `git checkout <sha> -- <path>` НЕ удаляет файлы, отсутствующие в `<sha>`, а `git clean -fd` не трогает tracked; без `-fdx` + `checkout -f` DRIFT.1 даёт FP (см. backlog #048);
-- последовательность для каждой из двух ревизий сохранить как в текущем скрипте: `git clean -fdx "$sub"` → `git checkout -f "$ref" -- "$sub"` → archcheck;
-- бинарь — абсолютный путь `~/projects/cpparch/build/debug/src/archcheck` (как сейчас);
-- выводить `=== $label ===` + DRIFT-строки + строку `violation(s)` (как сейчас).
+- a header comment (3–4 lines): why a clean checkout — `git checkout <sha> -- <path>` does NOT remove files absent in `<sha>`, and `git clean -fd` doesn't touch tracked files; without `-fdx` + `checkout -f`, DRIFT.1 produces FP (see backlog #048);
+- keep the sequence for each of the two revisions as in the current script: `git clean -fdx "$sub"` → `git checkout -f "$ref" -- "$sub"` → archcheck;
+- the binary — the absolute path `~/projects/cpparch/build/debug/src/archcheck` (as now);
+- print `=== $label ===` + DRIFT lines + the `violation(s)` line (as now).
 
-### Шаг 2 — методология в `docs/research/ai_drift_runlog.md`
+### Step 2 — methodology in `docs/research/ai_drift_runlog.md`
 
-Дописать секцию `## Методология: clean checkout обязателен (2026-06-11)`:
-- причина (формулировка из секции «Причина» этой задачи, 1 абзац);
-- эмпирическая таблица Dirty/Clean из секции «Эмпирическое подтверждение» (скопировать как есть);
-- правило: любой DRIFT-прогон на чужом репо — только через `scripts/drift_run.sh`.
+Add the section `## Methodology: clean checkout is mandatory (2026-06-11)`:
+- the cause (the wording from the "Cause" section of this task, 1 paragraph);
+- the empirical Dirty/Clean table from the "Empirical confirmation" section (copy as is);
+- the rule: any DRIFT run on a third-party repo — only via `scripts/drift_run.sh`.
 
-### Контрольные кейсы / DoD
+### Control cases / DoD
 
-| Проверка | Ожидание |
-|----------|----------|
+| Check | Expectation |
+|-------|-------------|
 | `bash -n scripts/drift_run.sh` | exit 0 |
-| self-test (см. ниже) | exit 0, вывод содержит `=== selftest ===` и строку `violation(s)` или `(no violations)` |
+| self-test (see below) | exit 0, the output contains `=== selftest ===` and a `violation(s)` or `(no violations)` line |
 | `grep -c "drift_one" scripts/drift_run.sh` | 0 |
 
-Self-test — **ТОЛЬКО на одноразовом клоне**:
+Self-test — **ONLY on a throwaway clone**:
 ```bash
 git clone --quiet ~/projects/cpparch /tmp/drift_selftest
 scripts/drift_run.sh /tmp/drift_selftest src be56245 cb6e09d selftest
 rm -rf /tmp/drift_selftest
 ```
 
-**ЗАПРЕЩЕНО запускать скрипт на `~/projects/cpparch` напрямую**: `git clean -fdx` сотрёт незакоммиченные файлы, `checkout -f` собьёт `src/` на старую ревизию. Только клон в `/tmp`.
+**FORBIDDEN to run the script on `~/projects/cpparch` directly**: `git clean -fdx` will wipe uncommitted files, `checkout -f` will knock `src/` back to an old revision. Only a clone in `/tmp`.
 
-### Не делать
+### Do not do
 
-- НЕ перепрогонять «сомнительные PR» из секции «Влияние на milestones» — это research-шаг, отдельный заход.
-- НЕ трогать C++ код, CMake, тесты.
-- НЕ реализовывать `--git-worktree` режим.
-- НЕ коммитить без явной команды.
+- DO NOT re-run the "doubtful PRs" from the "Impact on milestones" section — that's a research step, a separate pass.
+- DO NOT touch C++ code, CMake, tests.
+- DO NOT implement the `--git-worktree` mode.
+- DO NOT commit without an explicit command.
 
-### Эскалация (когда остановиться и передать старшей модели)
+### Escalation (when to stop and hand off to a senior model)
 
-Остановись, запиши сюда «Заблокировано: <что/почему/что пробовал>» и доложи, если: self-test падает дважды по непонятной причине; контракт скрипта конфликтует с чем-то, чего нет в этой задаче; нужен файл вне `scripts/drift_run.sh` + `docs/research/ai_drift_runlog.md`. Дальше — Sonnet, затем Opus.
+Stop, write here "Blocked: <what/why/what you tried>" and report if: the self-test fails twice for an unclear reason; the script's contract conflicts with something not present in this task; you need a file outside `scripts/drift_run.sh` + `docs/research/ai_drift_runlog.md`. Next — Sonnet, then Opus.
 
-## Итог
-**Статус:** completed — оба шага выполнены (контракт `scripts/drift_run.sh`
-с clean-checkout последовательностью + методология в `docs/research/ai_drift_runlog.md`).
-**Изменённые файлы:** `scripts/drift_run.sh`, `docs/research/ai_drift_runlog.md` (commit 82f91ef)
-**Дата завершения:** 2026-06-11
+## Result
+**Status:** completed — both steps done (the `scripts/drift_run.sh` contract
+with the clean-checkout sequence + the methodology in `docs/research/ai_drift_runlog.md`).
+**Changed files:** `scripts/drift_run.sh`, `docs/research/ai_drift_runlog.md` (commit 82f91ef)
+**Completed:** 2026-06-11

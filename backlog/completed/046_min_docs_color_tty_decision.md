@@ -1,129 +1,129 @@
-# [DOCS][REPORT] Color TTY output: реализовать или убрать из роадмапа
+# [DOCS][REPORT] Color TTY output: implement or remove from roadmap
 
-**Дата создания:** 2026-05-29
-**Дата старта:** 2026-06-11 (Haiku)
-**Статус:** completed (Haiku 2026-06-11)
-**Исполнитель:** Haiku
-**Модуль:** DOCS / REPORT
-**Приоритет:** minor
-**Сложность:** XS (≤ 2 часа в любую сторону)
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #6 (gh — audit Issue 8), #045 (docs_sync_roadmap — сюда же логически попадает решение про роадмап)
+**Date created:** 2026-05-29
+**Date started:** 2026-06-11 (Haiku)
+**Status:** completed (Haiku 2026-06-11)
+**Assignee:** Haiku
+**Module:** DOCS / REPORT
+**Priority:** minor
+**Complexity:** XS (≤ 2 hours either way)
+**Blocks:** —
+**Blocked by:** —
+**Related:** #6 (gh — audit Issue 8), #045 (docs_sync_roadmap — the roadmap decision logically belongs here too)
 
-## Цель
+## Goal
 
-`docs/architecture-spec.md` v0.1 roadmap обещает «text report with color output in TTY», но `src/report/text_reporter.cpp` не делает `isatty`/ANSI-handling. Развилка: либо реализовать (isatty-gated ANSI + `NO_COLOR`), либо убрать обещание из роадмапа.
+`docs/architecture-spec.md` v0.1 roadmap promises "text report with color output in TTY", but `src/report/text_reporter.cpp` does no `isatty`/ANSI handling. The fork: either implement it (isatty-gated ANSI + `NO_COLOR`), or remove the promise from the roadmap.
 
-## Контекст
+## Context
 
-Минорное расхождение doc↔code. Цвета — приятно, но не критично, особенно в CI (где `isatty` = false и подсветка всё равно выключилась бы). Реализация — несколько строк. Удаление из спека — одна.
+A minor doc↔code discrepancy. Colors are nice, but not critical, especially in CI (where `isatty` = false and highlighting would be off anyway). The implementation is a few lines. Removing it from the spec is one line.
 
-## План выполнения
+## Execution plan
 
-Сначала решить, потом делать. Один из двух треков:
+Decide first, then act. One of two tracks:
 
-### Track A: реализовать
-- [ ] Проверить `isatty(fileno(stdout))`; если не TTY — без цвета
-- [ ] Респектить `NO_COLOR` env (https://no-color.org/) — если задана любая непустая, цвета нет
-- [ ] ANSI escape для severity (error=red, warning=yellow, note=cyan) — минимальный набор
-- [ ] Тест: сравнить stdout без TTY (PIPE) — должен быть чистый текст без escape-кодов
+### Track A: implement
+- [ ] Check `isatty(fileno(stdout))`; if not a TTY — no color
+- [ ] Respect the `NO_COLOR` env (https://no-color.org/) — if set to any non-empty value, no color
+- [ ] ANSI escape for severity (error=red, warning=yellow, note=cyan) — minimal set
+- [ ] Test: compare stdout without a TTY (PIPE) — must be clean text with no escape codes
 
-### Track B: убрать из роадмапа
-- [ ] Удалить строчку про цвет в TTY из v0.1 секции `docs/architecture-spec.md`
-- [ ] (опционально) Перенести в v0.3+ как nice-to-have
+### Track B: remove from roadmap
+- [ ] Delete the line about color in TTY from the v0.1 section of `docs/architecture-spec.md`
+- [ ] (optionally) Move it to v0.3+ as a nice-to-have
 
-## Критерий приёмки
+## Acceptance criterion
 
-Спек и поведение согласованы — либо цвет в TTY работает и тестируется, либо обещание из спека убрано.
+Spec and behavior agreed — either color in TTY works and is tested, or the promise is removed from the spec.
 
-## Сделано
+## Done
 
-- [x] Track A полностью реализована (2026-06-11)
-- [x] Добавлен параметр `bool useColor = false` к `writeTextReport()`
-- [x] Реализована ANSI-логика: красный для `[ruleId]` и summary, зелёный для успеха
-- [x] Интеграция в `main.cpp`: `isatty()` + `NO_COLOR` env check
-- [x] Полный набор unit-тестов (4 контрольных кейса) в `text_reporter_test.cpp`
-- [x] Все 415 тестов проходят без изменения ожиданий
-- [x] Live-пайп: 0 ANSI кодов (isatty=false в pipe → useColor=false)
-- [x] Lizard: 0 warnings на новом коде
-- [x] Dogfood: 0 нарушений собственных правил
-- [x] Дифф: 37 строк (< 50), 1 новый файл (< 2)
+- [x] Track A fully implemented (2026-06-11)
+- [x] Added parameter `bool useColor = false` to `writeTextReport()`
+- [x] Implemented ANSI logic: red for `[ruleId]` and summary, green for success
+- [x] Integration in `main.cpp`: `isatty()` + `NO_COLOR` env check
+- [x] Full set of unit tests (4 control cases) in `text_reporter_test.cpp`
+- [x] All 415 tests pass without changing expectations
+- [x] Live pipe: 0 ANSI codes (isatty=false in a pipe → useColor=false)
+- [x] Lizard: 0 warnings on the new code
+- [x] Dogfood: 0 violations of own rules
+- [x] Diff: 37 lines (< 50), 1 new file (< 2)
 
-## В работе
+## In progress
 
-- (пусто — задача завершена)
+- (empty — task complete)
 
-## Следующие шаги
+## Next steps
 
-1. ✅ Решено (2026-06-11): **Track A — реализовать**. Track B закрыт.
-2. ~~fmt~~ — НЕ применимо: fmt не входит в замороженный стек (C++20, ryml, Catch2 — только). ANSI-коды пишем руками.
+1. ✅ Decided (2026-06-11): **Track A — implement**. Track B closed.
+2. ~~fmt~~ — NOT applicable: fmt is not part of the frozen stack (C++20, ryml, Catch2 only). We write ANSI codes by hand.
 
-## План для Haiku (2026-06-11)
+## Plan for Haiku (2026-06-11)
 
-Перед стартом ОБЯЗАН прочитать целиком: эту задачу, [docs/dev/haiku_task_guide.md](../../docs/dev/haiku_task_guide.md) §2, [docs/code_style.md](../../docs/code_style.md), [docs/code_quality.md](../../docs/code_quality.md).
+Before starting, MUST read in full: this task, [docs/dev/haiku_task_guide.md](../../docs/dev/haiku_task_guide.md) §2, [docs/code_style.md](../../docs/code_style.md), [docs/code_quality.md](../../docs/code_quality.md).
 
-### Разрешённые развилки (факты, проверены 2026-06-11)
+### Allowed forks (facts, verified 2026-06-11)
 
-- Track = **A** (реализовать). Спек-строку `docs/architecture-spec.md:630` НЕ трогать — после реализации она станет правдой.
-- `rules::Violation` (include/archcheck/rules/violation.h) **не имеет поля severity** — только `ruleId/file/line/message`. Цветов «по severity» НЕ делать, поле НЕ добавлять. Красим: `[ruleId]` — красный, итоговую строку `N violation(s) (...)` — красный, `No violations found.` — зелёный.
-- В репо ДВЕ функции `writeTextReport`: наша — `src/report/text_reporter.cpp:31`; чужая — `archcheck::diff::writeTextReport` в `src/diff/regression_report.cpp:254`. Diff-репортер **НЕ трогать**.
-- Кодовая база уже POSIX-only (`src/git/git_exec.cpp` использует fork/exec) — `::isatty(fileno(stdout))` из `<unistd.h>` без Windows-гардов.
-- Тест-файла для text reporter НЕ существует (в `tests/unit/report/` только `json_escape_test.cpp` и `violation_baseline_test.cpp`) — создать `tests/unit/report/text_reporter_test.cpp` (1 новый файл, в лимите) и зарегистрировать в `tests/CMakeLists.txt`.
+- Track = **A** (implement). Do NOT touch the spec line `docs/architecture-spec.md:630` — after implementation it becomes true.
+- `rules::Violation` (include/archcheck/rules/violation.h) **has no severity field** — only `ruleId/file/line/message`. Do NOT do "by severity" colors, do NOT add the field. We color: `[ruleId]` — red, the summary line `N violation(s) (...)` — red, `No violations found.` — green.
+- The repo has TWO `writeTextReport` functions: ours — `src/report/text_reporter.cpp:31`; another — `archcheck::diff::writeTextReport` in `src/diff/regression_report.cpp:254`. Do **NOT touch** the diff reporter.
+- The codebase is already POSIX-only (`src/git/git_exec.cpp` uses fork/exec) — `::isatty(fileno(stdout))` from `<unistd.h>` without Windows guards.
+- There is NO test file for the text reporter (in `tests/unit/report/` only `json_escape_test.cpp` and `violation_baseline_test.cpp`) — create `tests/unit/report/text_reporter_test.cpp` (1 new file, within limit) and register it in `tests/CMakeLists.txt`.
 
-### Дизайн (обязателен именно такой)
+### Design (must be exactly this)
 
-1. Сигнатура: `writeTextReport(const rules::ViolationList&, std::ostream&, bool useColor = false)` — дефолт `false`, чтобы все существующие вызовы и тесты остались валидны без правок.
-2. ANSI: красный `\033[31m`, зелёный `\033[32m`, сброс `\033[0m`. Никаких других кодов, никакой палитры «на вырост».
-3. Решение о цвете — в `src/main.cpp:142` (единственный вызов нашего репортера): `useColor = ::isatty(fileno(stdout)) != 0 && !no_color_set`, где `no_color_set` = `std::getenv("NO_COLOR")` непустая строка (https://no-color.org: любое непустое значение выключает цвет).
+1. Signature: `writeTextReport(const rules::ViolationList&, std::ostream&, bool useColor = false)` — default `false`, so that all existing calls and tests stay valid without edits.
+2. ANSI: red `\033[31m`, green `\033[32m`, reset `\033[0m`. No other codes, no "growth" palette.
+3. The color decision — in `src/main.cpp:142` (the only call to our reporter): `useColor = ::isatty(fileno(stdout)) != 0 && !no_color_set`, where `no_color_set` = `std::getenv("NO_COLOR")` is a non-empty string (https://no-color.org: any non-empty value disables color).
 
-### Планируемые файлы (только эти)
+### Planned files (only these)
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `include/archcheck/report/text_reporter.h` | 3-й параметр `bool useColor = false` |
-| `src/report/text_reporter.cpp` | обёртки цвета вокруг `[ruleId]` / summary / «No violations found.» |
-| `src/main.cpp` | isatty + NO_COLOR → `useColor` в вызове строки 142 |
-| `tests/unit/report/text_reporter_test.cpp` | новый, 4 кейса (ниже) |
-| `tests/CMakeLists.txt` | регистрация нового теста |
+| `include/archcheck/report/text_reporter.h` | 3rd parameter `bool useColor = false` |
+| `src/report/text_reporter.cpp` | color wrappers around `[ruleId]` / summary / "No violations found." |
+| `src/main.cpp` | isatty + NO_COLOR → `useColor` in the call at line 142 |
+| `tests/unit/report/text_reporter_test.cpp` | new, 4 cases (below) |
+| `tests/CMakeLists.txt` | registration of the new test |
 
-### Контрольные кейсы (контракт)
+### Control cases (contract)
 
-| Кейс | Ожидание | Результат |
+| Case | Expectation | Result |
 |------|----------|-----------|
-| 1 violation, `useColor=false` | в выводе **0** вхождений `\033` | ✓ PASS (assert escapeCount == 0) |
-| 1 violation, `useColor=true` | вывод содержит `\033[31m[` и `\033[0m` | ✓ PASS (find() != npos) |
-| пустой список, `useColor=true` | вывод содержит `\033[32mNo violations found.\033[0m` | ✓ PASS (find() != npos) |
-| вызов старой 2-аргументной формой | компилируется, вывод побайтово как до правки | ✓ PASS (backward compat test) |
+| 1 violation, `useColor=false` | **0** occurrences of `\033` in the output | ✓ PASS (assert escapeCount == 0) |
+| 1 violation, `useColor=true` | output contains `\033[31m[` and `\033[0m` | ✓ PASS (find() != npos) |
+| empty list, `useColor=true` | output contains `\033[32mNo violations found.\033[0m` | ✓ PASS (find() != npos) |
+| call via the old 2-argument form | compiles, output byte-for-byte as before the change | ✓ PASS (backward compat test) |
 
 ### Definition of done
 
-- Все существующие тесты зелёные **без правок их ожиданий** (411+ на 2026-06-11).
-- 4 контрольных кейса зелёные.
-- Live-проверка пайпа: `~/projects/cpparch/build/debug/src/archcheck ~/projects/cpparch/src | grep -c $'\033'` → `0`.
-- lizard 0 warnings; dogfood 0 нарушений (`src/ include/ tests/`).
-- Уложиться в ≤50 строк диффа (без учёта теста), ≤2 новых файла.
+- All existing tests green **without editing their expectations** (411+ as of 2026-06-11).
+- 4 control cases green.
+- Live pipe check: `~/projects/cpparch/build/debug/src/archcheck ~/projects/cpparch/src | grep -c $'\033'` → `0`.
+- lizard 0 warnings; dogfood 0 violations (`src/ include/ tests/`).
+- Fit within ≤50 lines of diff (excluding the test), ≤2 new files.
 
-### Не делать
+### Do not do
 
-- НЕ трогать `diff::writeTextReport`, `json_reporter`, `rules::Violation`, спек, README.
-- НЕ добавлять флаг CLI `--color` — не просили (YAGNI).
-- НЕ коммитить без явной команды.
+- Do NOT touch `diff::writeTextReport`, `json_reporter`, `rules::Violation`, the spec, the README.
+- Do NOT add a `--color` CLI flag — not requested (YAGNI).
+- Do NOT commit without an explicit command.
 
-### Эскалация (когда остановиться и передать старшей модели)
+### Escalation (when to stop and hand off to a senior model)
 
-Остановись, запиши сюда «Заблокировано: <что/почему/что пробовал>» и доложи, если: нашёл противоречие задачи с кодом; тест падает после 2 честных попыток починить КОД (не тест); нужен файл вне таблицы выше; дифф не влезает в лимиты. Дальше задачу продолжает Sonnet, затем Opus. Тесты под себя НЕ подгонять.
+Stop, write "Blocked: <what/why/what you tried>" here, and report if: you find a contradiction between the task and the code; a test fails after 2 honest attempts to fix the CODE (not the test); you need a file outside the table above; the diff does not fit the limits. After that, the task continues with Sonnet, then Opus. Do NOT bend tests to fit. 
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Завести отдельный таск, не примешивать в #045 | разный тип работы: #045 — переписать тексты, тут — либо реализовать, либо удалить одну строку |
+| Create a separate task, do not mix into #045 | different kind of work: #045 — rewriting texts, here — either implement or delete one line |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
 | `src/report/text_reporter.cpp` | (Track A) isatty + ANSI |
-| `docs/architecture-spec.md` | (Track B) убрать TTY-color из v0.1 |
-| `tests/...` | (Track A) тест pipe → no ANSI |
+| `docs/architecture-spec.md` | (Track B) remove TTY-color from v0.1 |
+| `tests/...` | (Track A) test pipe → no ANSI |

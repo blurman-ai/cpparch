@@ -1,56 +1,56 @@
-# [CI][DOCS] --diff CI: shallow base-fetch вместо fetch-depth: 0
+# [CI][DOCS] --diff CI: shallow base-fetch instead of fetch-depth: 0
 
-**Дата создания:** 2026-06-25
-**Статус:** new
-**Модуль:** CI / DOCS
-**Приоритет:** major
-**Сложность:** S
-**Блокирует:** adoption на больших репозиториях (медленный checkout = первое плохое впечатление)
-**Заблокирован:** —
+**Created:** 2026-06-25
+**Status:** new
+**Module:** CI / DOCS
+**Priority:** major
+**Complexity:** S
+**Blocks:** adoption on large repositories (slow checkout = first bad impression)
+**Blocked by:** —
 **Related:** #142 (release binary), #144 (unresolved-baseline footgun), docs/ci_usage.md, docs/ci_integration.md
 
-## Цель
+## Goal
 
-Убрать `fetch-depth: 0` (полная история git) из рекомендуемого `--diff` CI-сниппета.
-На больших репозиториях полная история — это десятки секунд / сотни МБ на ровном
-месте, хотя `archcheck --diff` нужен **один срез base-дерева**, а не история.
+Remove `fetch-depth: 0` (full git history) from the recommended `--diff` CI snippet.
+On large repositories the full history is tens of seconds / hundreds of MB out of
+nowhere, even though `archcheck --diff` needs **one slice of the base tree**, not the history.
 
-## Контекст / находка
+## Context / finding
 
-`archcheck --diff origin/<base>..HEAD` делает только две git-операции
+`archcheck --diff origin/<base>..HEAD` performs only two git operations
 ([src/git/git_state.cpp](../../src/git/git_state.cpp)):
-- `git diff --name-only A B` — сравнение **двух деревьев**, не диапазона коммитов;
-- `git worktree add --detach <tmp> <ref>` — checkout **одного дерева**.
+- `git diff --name-only A B` — comparison of **two trees**, not a range of commits;
+- `git worktree add --detach <tmp> <ref>` — checkout of **one tree**.
 
-Ни `rev-list`, ни `merge-base`, ни обхода диапазона `A..B`. `parseRevspec` просто
-режет строку по `..`. Значит нужен **только base-снапшот** (один коммит + дерево),
-а `fetch-depth: 0` — тупой over-fetch.
+No `rev-list`, no `merge-base`, no traversal of the `A..B` range. `parseRevspec` just
+splits the string on `..`. So **only the base snapshot** is needed (one commit + tree),
+and `fetch-depth: 0` is a dumb over-fetch.
 
-Проверено локально (shallow clone depth=1 + `git fetch --depth=1 origin <base>`):
-в графе 2 коммита (не вся история), `merge-base` недоступен, а
-`archcheck --diff origin/<base>..HEAD .` строит реальный baseline-граф
+Verified locally (shallow clone depth=1 + `git fetch --depth=1 origin <base>`):
+the graph has 2 commits (not the whole history), `merge-base` is unavailable, and
+`archcheck --diff origin/<base>..HEAD .` builds a real baseline graph
 (`baseline_nodes: 284`), `gate: ok`, exit 0.
 
-## Что сделать
+## What to do
 
-- `.github/workflows/example_archcheck_pr.yml`: убрать `fetch-depth: 0`, добавить
-  шаг depth=1 дофетча base-рефа (`git fetch --no-tags --depth=1 origin
-  "+refs/heads/$BASE:refs/remotes/origin/$BASE"`), оставить revspec
-  `origin/<base>..HEAD`. Поддержать base из `github.base_ref` и
+- `.github/workflows/example_archcheck_pr.yml`: remove `fetch-depth: 0`, add
+  a depth=1 base-ref refetch step (`git fetch --no-tags --depth=1 origin
+  "+refs/heads/$BASE:refs/remotes/origin/$BASE"`), keep the revspec
+  `origin/<base>..HEAD`. Support base from `github.base_ref` and
   `github.event.merge_group.base_ref`.
-- `docs/ci_usage.md` (Сценарий 2): тот же сниппет; объяснить, почему истории не надо.
-- `docs/ci_integration.md`: сделать shallow base-fetch **дефолтом** (а не «для
-  очень больших монорепо»); `fetch-depth: 0` оставить как «самый простой, но
-  тяжёлый» fallback. Исправить неверную строку про «shallow без baseline → exit 2»
-  (фактически — warning + пустое дерево + возможный ложный gate, см. #144).
+- `docs/ci_usage.md` (Scenario 2): the same snippet; explain why the history isn't needed.
+- `docs/ci_integration.md`: make shallow base-fetch the **default** (not "for
+  very large monorepos"); keep `fetch-depth: 0` as the "simplest but
+  heavy" fallback. Fix the incorrect line about "shallow without baseline → exit 2"
+  (in fact — warning + empty tree + possible false gate, see #144).
 
 ## Acceptance
 
-- [ ] Рекомендуемый `--diff` сниппет не содержит `fetch-depth: 0`.
-- [ ] Есть шаг depth=1 дофетча base; revspec резолвится в CI.
-- [ ] Доки объясняют: нужен base-снапшот, не история; merge-base не требуется.
-- [ ] YAML валиден; проверено на shallow-песочнице (cpparch и/или leadline).
+- [ ] The recommended `--diff` snippet does not contain `fetch-depth: 0`.
+- [ ] There's a depth=1 base refetch step; the revspec resolves in CI.
+- [ ] The docs explain: a base snapshot is needed, not the history; merge-base is not required.
+- [ ] YAML is valid; verified on a shallow sandbox (cpparch and/or leadline).
 
-## Не делать
+## Do not do
 
-- Не менять C++ (поведение `--diff` уже корректно). Ужесточение нерезолва — #144.
+- Don't change C++ (the `--diff` behavior is already correct). Hardening the non-resolve is #144.

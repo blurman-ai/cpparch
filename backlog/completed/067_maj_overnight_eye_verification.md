@@ -1,67 +1,67 @@
-# [RESEARCH][SCAN] Ночная глазная верификация находок дрейфа (Workflow, 3:00)
+# [RESEARCH][SCAN] Overnight eyeball verification of drift findings (Workflow, 3:00)
 
-**Дата создания:** 2026-06-01
-**Дата старта:** 2026-06-02
-**Статус:** completed
-**Модуль:** RESEARCH / SCAN
-**Приоритет:** major
-**Related:** #060 (валидация), #056 (копипаст), #054 (корпус), CORPUS_CHECK_REPORT.md
+**Created:** 2026-06-01
+**Started:** 2026-06-02
+**Status:** completed
+**Module:** RESEARCH / SCAN
+**Priority:** major
+**Related:** #060 (validation), #056 (copy-paste), #054 (corpus), CORPUS_CHECK_REPORT.md
 
-## Цель
+## Goal
 
-Ночью (старт 03:00, cron) глазами (агентами) проверить МАКСИМУМ находок дрейфа из
-`corpus_check_summary.tsv` / `CORPUS_CHECK_DETAIL.md`. Превратить «кандидатов» в
-подтверждённые/FP с precision по классам.
+Overnight (start 03:00, cron) verify by eye (with agents) the MAXIMUM of drift findings from
+`corpus_check_summary.tsv` / `CORPUS_CHECK_DETAIL.md`. Turn "candidates" into
+confirmed/FP with per-class precision.
 
-## Требования пользователя (точно)
+## User requirements (exact)
 
-- **Широко по репам:** гарантированно зайти в КАЖДУЮ drift-репу (138 на весь корпус)
-  и проверить там **≥5 коммитов**.
-- **Если останется бюджет — вглубь:** добрать коммиты вдоль истории, начиная с
-  самых «жирных» реп (больше истории/находок).
-- **Особый интерес:** перенос КУСКОВ кода (не файла целиком) + **частичные
-  совпадения** (diverged/near within-file) + **циклы** (include-циклы archcheck).
+- **Broad across repos:** guaranteed to enter EVERY drift repo (138 across the corpus)
+  and verify **≥5 commits** there.
+- **If budget remains — go deep:** add commits along the history, starting with the
+  "fattest" repos (more history/findings).
+- **Special interest:** transfer of CHUNKS of code (not the whole file) + **partial
+  matches** (diverged/near within-file) + **cycles** (archcheck include cycles).
 
-## Архитектура (turnkey к 3:00)
+## Architecture (turnkey by 3:00)
 
-1. `build_findings_worklist.py` → `verify_worklist.json`: для каждой drift-репы
-   выбрать ≥5 коммитов (приоритет within-file diverged/near = chunk-transfer/partial),
-   + по 1 cycle-юниту на репу с sccs>0; depth-добор по жирным.
-2. Workflow `verify_findings.js`: pipeline по юнитам → агент читает ADDED@sha и
-   BASE код, выносит вердикт {real, class, evidence}; cycle-агент проверяет реальный
-   include-цикл. Бюджет — by agent-count (breadth ≤5/репа гарантирован, затем depth
-   до ~900 юнитов; cap 1000).
-3. Агрегат → `VERIFICATION_REPORT.md`: per-finding вердикты + precision по классам
-   (within-chunk / partial / cross / cycle), per-repo, подтверждённые примеры.
+1. `build_findings_worklist.py` → `verify_worklist.json`: for each drift repo
+   pick ≥5 commits (priority within-file diverged/near = chunk-transfer/partial),
+   + 1 cycle unit per repo with sccs>0; depth top-up by the fat ones.
+2. Workflow `verify_findings.js`: pipeline over units → the agent reads ADDED@sha and
+   BASE code, issues a verdict {real, class, evidence}; the cycle agent checks for a real
+   include cycle. Budget — by agent count (breadth ≤5/repo guaranteed, then depth
+   up to ~900 units; cap 1000).
+3. Aggregate → `VERIFICATION_REPORT.md`: per-finding verdicts + per-class precision
+   (within-chunk / partial / cross / cycle), per-repo, confirmed examples.
 
-## Критерий приёмки
+## Acceptance criteria
 
-- [ ] Каждая drift-репа: ≥5 коммитов проверены (или все, если меньше).
-- [ ] Циклы: каждая sccs>0 репа — цикл подтверждён/опровергнут.
-- [ ] precision по классам посчитана; список подтверждённых chunk-transfer/partial.
-- [ ] **Для КАЖДОГО false positive: описание «что обмануло детектор» + конкретное
-      предложение по фиксу #056/archcheck. FP без разбора+фикса не пишем.** Фиксы
-      кластеризуются по классам FP → готовый бэклог улучшений чекера.
-- [ ] Чекеру не доверяем: вердикт ставит агент по реальному коду, claims с file:line+SHA.
+- [ ] Every drift repo: ≥5 commits verified (or all, if fewer).
+- [ ] Cycles: every sccs>0 repo — cycle confirmed/refuted.
+- [ ] Per-class precision computed; list of confirmed chunk-transfer/partial.
+- [ ] **For EACH false positive: a description of "what fooled the detector" + a concrete
+      fix proposal for #056/archcheck. We don't write an FP without analysis+fix.** Fixes
+      cluster by FP class → a ready backlog of checker improvements.
+- [ ] We don't trust the checker: the verdict is issued by the agent based on real code, claims with file:line+SHA.
 
-## Запуск
-cron one-shot, durable, 02 июня ~03:0x. Промпт self-contained (см. cron).
+## Launch
+cron one-shot, durable, June 2 ~03:0x. The prompt is self-contained (see cron).
 
-## Итог
+## Outcome
 
-**Статус:** completed
-**Дата завершения:** 2026-06-02..06 (фактическая); файл закрыт 2026-06-11 по итогам бэклог-ревью.
+**Status:** completed
+**Completed:** 2026-06-02..06 (actual); the file was closed 2026-06-11 following a backlog review.
 
-Цель достигнута, но не той формой, что планировалась: вместо ночного cron one-shot массовая
-глазная верификация прошла дневными прогонами в рамках #060 (round 1: 135 реп, 87 TP + 406 FP,
-precision ≈32%; round 2: 66→135 реп, суммарно 338/603, precision ≈36%, 28 cycle-intro коммитов).
+The goal was achieved, but not in the planned form: instead of an overnight cron one-shot, mass
+eyeball verification ran in daytime runs as part of #060 (round 1: 135 repos, 87 TP + 406 FP,
+precision ≈32%; round 2: 66→135 repos, total 338/603, precision ≈36%, 28 cycle-intro commits).
 
-Критерии приёмки закрыты по существу:
-- precision по классам посчитана (см. `experiments/verification/fp_corpus_r2_summary.json`);
-- регресс-корпус собран: `experiments/verification/fp_corpus_r2.tsv` (143 TP + 197 FP),
-  per-finding вердикты в `experiments/verification/round2_verdicts/`;
-- «каждый FP с разбором + предложением фикса» → ~130 предложений агентов, систематизированы
-  и реализуются в **#070** (P0-гарды + P1-классификаторы уже в коде).
+Acceptance criteria closed in substance:
+- per-class precision computed (see `experiments/verification/fp_corpus_r2_summary.json`);
+- regression corpus assembled: `experiments/verification/fp_corpus_r2.tsv` (143 TP + 197 FP),
+  per-finding verdicts in `experiments/verification/round2_verdicts/`;
+- "each FP with analysis + fix proposal" → ~130 agent proposals, systematized
+  and being implemented in **#070** (P0 guards + P1 classifiers already in code).
 
-Задача висела в `new/` после фактического исполнения, потому что работа ушла по руслу #060/#070,
-а one-shot-файл никто не закрыл. Результаты давно потреблены — дальнейшая работа живёт в #070.
+The task hung in `new/` after de-facto execution, because the work flowed down the #060/#070 channel,
+and nobody closed the one-shot file. The results were consumed long ago — further work lives in #070.

@@ -1,69 +1,69 @@
 # [RULES][DRIFT] DRIFT.2 (cycle growth) → default blocking gate
 
-**Дата создания:** 2026-06-06
-**Дата старта:** 2026-06-06
-**Дата завершения:** 2026-06-06
-**Статус:** completed
-**Модуль:** RULES/DRIFT
-**Приоритет:** major
-**Сложность:** M
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #009 (DRIFT-правила), #082 (alignment umbrella), [docs/research/drift_signal_validation.md](../../docs/research/drift_signal_validation.md) (corpus-доказательство)
+**Created:** 2026-06-06
+**Started:** 2026-06-06
+**Completed:** 2026-06-06
+**Status:** completed
+**Module:** RULES/DRIFT
+**Priority:** major
+**Difficulty:** M
+**Blocks:** —
+**Blocked by:** —
+**Related:** #009 (DRIFT rules), #082 (alignment umbrella), [docs/research/drift_signal_validation.md](../../docs/research/drift_signal_validation.md) (corpus proof)
 
-## Цель
+## Goal
 
-Сделать DRIFT.2 (рост/появление циклов зависимостей) **default blocking gate**
-(exit `1`), а не просто репорт.
+Make DRIFT.2 (growth/appearance of dependency cycles) a **default blocking gate**
+(exit `1`), rather than just a report.
 
-## Обоснование (данными)
+## Justification (by data)
 
-Corpus-валидация ([drift_signal_validation.md](../../docs/research/drift_signal_validation.md)):
-DRIFT.2 срабатывает на **72 из 135 092 коммитов = 0.05%** по 310 репозиториям.
-Это исключительно низкий false-alarm rate, а новый цикл — объективная архитектурная
-регрессия (Lakos physical design). Сочетание «редко + объективно» = созрело для
-жёсткого гейта. Обычные линтеры этот класс не ловят.
+Corpus validation ([drift_signal_validation.md](../../docs/research/drift_signal_validation.md)):
+DRIFT.2 fires on **72 of 135,092 commits = 0.05%** across 310 repositories.
+This is an exceptionally low false-alarm rate, and a new cycle is an objective architectural
+regression (Lakos physical design). The combination "rare + objective" = ripe for a
+hard gate. Ordinary linters don't catch this class.
 
-## Что нужно
+## What's needed
 
-1. Подтвердить текущее поведение DRIFT.2 в `--drift-baseline` (сейчас репортит; какой
+1. Confirm the current DRIFT.2 behavior in `--drift-baseline` (it reports now; what
    exit code?).
-2. Сделать DRIFT.2 blocking по умолчанию в drift-режиме (exit `1` при росте циклов).
-3. Проверить, что pre-existing циклы (в baseline) НЕ ломают — гейтим только **новые/
-   выросшие** циклы, не legacy.
-4. Fixtures: `fixtures/drift_cycle_growth/` уже есть — дополнить pass/fail под gate-семантику.
-5. Документировать exit-контракт во всех слоях (help/docs/CHANGELOG).
+2. Make DRIFT.2 blocking by default in drift mode (exit `1` on cycle growth).
+3. Verify that pre-existing cycles (in the baseline) do NOT break things — we gate only **new/
+   grown** cycles, not legacy.
+4. Fixtures: `fixtures/drift_cycle_growth/` already exists — extend pass/fail for the gate semantics.
+5. Document the exit contract across all layers (help/docs/CHANGELOG).
 
 ## Acceptance criteria
 
-- [x] DRIFT.2 ломает сборку (exit 1) при появлении/росте цикла в drift-режиме.
-- [x] Pre-existing циклы из baseline не вызывают ложного fail.
-- [x] Fixtures pass/fail покрывают gate-поведение (`drift_cycle_growth` + live-верификация exit).
-- [x] Контракт отражён в help/docs/CHANGELOG.
+- [x] DRIFT.2 breaks the build (exit 1) on the appearance/growth of a cycle in drift mode.
+- [x] Pre-existing cycles from the baseline don't cause a false fail.
+- [x] Fixtures pass/fail cover the gate behavior (`drift_cycle_growth` + live exit verification).
+- [x] The contract is reflected in help/docs/CHANGELOG.
 
-## Как сделано (2026-06-06)
+## How it was done (2026-06-06)
 
-**Находка при старте:** `--drift-baseline` экзитил `all.empty() ? 0 : 1`, то есть падал
-на **любом** нарушении, включая legacy SF/Lakos. На LibreSprite это exit 1 из-за 259
-legacy, а не из-за дрейфа → как gate бесполезен. Это и было настоящей проблемой.
+**Finding at start:** `--drift-baseline` exited `all.empty() ? 0 : 1`, i.e. it failed
+on **any** violation, including legacy SF/Lakos. On LibreSprite that's exit 1 because of 259
+legacy, not because of drift → useless as a gate. That was the real problem.
 
-**Фикс** (`src/main.cpp` `applyBaselineAndReport`): в drift-режиме (`baseline.driftFile`)
-exit определяется **только** числом DRIFT.1/DRIFT.2 (регрессии). Legacy intrinsic
-(SF.*/Lakos.*) и advisory DRIFT.3 репортятся, но не гейтят. Печатается строка
-`drift gate: N gating regression(s) ...`.
+**Fix** (`src/main.cpp` `applyBaselineAndReport`): in drift mode (`baseline.driftFile`)
+the exit is determined **only** by the number of DRIFT.1/DRIFT.2 (regressions). Legacy intrinsic
+(SF.*/Lakos.*) and advisory DRIFT.3 are reported but don't gate. The line
+`drift gate: N gating regression(s) ...` is printed.
 
-**Политика (обоснована corpus-валидацией):**
-- **gating:** DRIFT.1 (new shortcut), DRIFT.2 (new/grown cycle) — точные, редкие, объективные.
-- **advisory:** DRIFT.3 (шумит на restructure — см. eyeball в `drift_signal_validation.md`),
-  pre-existing intrinsic (это долг, не регрессия диффа).
+**Policy (justified by corpus validation):**
+- **gating:** DRIFT.1 (new shortcut), DRIFT.2 (new/grown cycle) — precise, rare, objective.
+- **advisory:** DRIFT.3 (noisy on restructure — see eyeball in `drift_signal_validation.md`),
+  pre-existing intrinsic (that's debt, not a diff regression).
 
-**Live-верификация** (LibreSprite):
+**Live verification** (LibreSprite):
 - before `60eed0f` → after `276fdbd` (DRIFT.1=1): **exit 1** ✓
-- baseline == текущее состояние (259 legacy, 0 дрейфа): **exit 0** ✓ (раньше было 1)
+- baseline == current state (259 legacy, 0 drift): **exit 0** ✓ (used to be 1)
 
-Help + CHANGELOG обновлены. Gate: clang-format/cppcheck/lizard чисто, 347 тестов, coverage PASS.
+Help + CHANGELOG updated. Gate: clang-format/cppcheck/lizard clean, 347 tests, coverage PASS.
 
-## Заметки
+## Notes
 
-- Не трогать DRIFT.1 семантику в этой задаче (отдельный сигнал).
-- Cross-area raw НЕ гейтить (см. валидацию — ~50% FP).
+- Don't touch DRIFT.1 semantics in this task (a separate signal).
+- Don't gate cross-area raw (see validation — ~50% FP).

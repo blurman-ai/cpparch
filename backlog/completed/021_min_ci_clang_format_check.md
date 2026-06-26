@@ -1,59 +1,59 @@
-# [CI][DEVX] CI-шаг `clang-format --dry-run --Werror` для защиты стиля
+# [CI][DEVX] CI step `clang-format --dry-run --Werror` to protect style
 
-**Дата создания:** 2026-05-27
-**Дата старта:** 2026-05-27
-**Дата завершения:** 2026-05-27
-**Статус:** completed
-**Модуль:** CI, DEVX
-**Приоритет:** minor
-**Сложность:** XS (1-2 часа)
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #019 (cpp_style_realign — финальный шаг плана упоминал этот future-task), #002 (github_actions_ci)
+**Created:** 2026-05-27
+**Started:** 2026-05-27
+**Completed:** 2026-05-27
+**Status:** completed
+**Module:** CI, DEVX
+**Priority:** minor
+**Complexity:** XS (1-2 hours)
+**Blocks:** —
+**Blocked by:** —
+**Related:** #019 (cpp_style_realign — the plan's final step mentioned this future-task), #002 (github_actions_ci)
 
-## Цель
+## Goal
 
-Добавить в GitHub Actions workflow шаг `clang-format --dry-run --Werror`
-по всем `src/`, `include/`, `tests/`. Без CI-проверки `.clang-format` остаётся
-рекомендацией — со временем дрейфует. С dry-run-проверкой PR с
-несоответствием стилю не вмёрджится.
+Add a `clang-format --dry-run --Werror` step to the GitHub Actions workflow
+over all of `src/`, `include/`, `tests/`. Without a CI check, `.clang-format` stays
+a recommendation — and drifts over time. With the dry-run check, a PR with
+a style mismatch won't merge.
 
-## Контекст
+## Context
 
-В #019 переехали на LLVM-base + Allman + `IndentWidth: 2` + `ColumnLimit: 120`.
-Весь существующий код переформатирован (commit `7be32d1`). Чтобы guide не
-жил в вакууме, нужен CI-gate. Это явно отмечено в плане #019 как
+In #019 we moved to LLVM-base + Allman + `IndentWidth: 2` + `ColumnLimit: 120`.
+All existing code was reformatted (commit `7be32d1`). So the guide doesn't
+live in a vacuum, a CI gate is needed. This was explicitly flagged in the #019 plan as a
 future-task.
 
-Локально у мейнтейнера был `clang-format-11` (Astra default через unversioned
-`clang-format`). В Astra-репах доступны `clang-format-18` и `clang-format-19`.
-В CI matrix `build` уже стоят `clang-18` + `clang-tidy-18`. Решено пиннуть
-**clang-format-18**: matches CI clang-toolchain, нативен в ubuntu-24.04
-(не нужно подключать LLVM apt repo), доступен и в Astra.
+The maintainer had `clang-format-11` locally (Astra default via the unversioned
+`clang-format`). The Astra repos have `clang-format-18` and `clang-format-19`
+available. The CI `build` matrix already has `clang-18` + `clang-tidy-18`. Decided to pin
+**clang-format-18**: matches the CI clang-toolchain, native in ubuntu-24.04
+(no need to add the LLVM apt repo), and available in Astra too.
 
-## План выполнения
+## Execution plan
 
-- [x] Установить локально `clang-format-18` (apt-get из Astra-репов, версия `18.1.8 (9.astra6)`)
-- [x] Прогнать `clang-format-18 --dry-run --Werror` — 12 violations в 4 файлах (дрейф clang-format 11→18 + длиннее camelCase после #019 step 3/3)
-- [x] Применить `clang-format-18 -i` ко всем `src/`, `include/`, `tests/` — отдельный reformat-коммит `b5f9a1b` (no semantic changes); SHA в `.git-blame-ignore-revs`
-- [x] Добавить job `format-check` в `.github/workflows/ci.yml` — параллельно build / static-analysis, runs-on:ubuntu-24.04
-- [x] Обновить `docs/code_style.md` — версия `clang-format-18` пиннута явно + инструкция «как починить локально»
+- [x] Install `clang-format-18` locally (apt-get from the Astra repos, version `18.1.8 (9.astra6)`)
+- [x] Run `clang-format-18 --dry-run --Werror` — 12 violations in 4 files (drift clang-format 11→18 + longer camelCase after #019 step 3/3)
+- [x] Apply `clang-format-18 -i` to all of `src/`, `include/`, `tests/` — separate reformat commit `b5f9a1b` (no semantic changes); SHA in `.git-blame-ignore-revs`
+- [x] Add a `format-check` job to `.github/workflows/ci.yml` — parallel to build / static-analysis, runs-on:ubuntu-24.04
+- [x] Update `docs/code_style.md` — `clang-format-18` version pinned explicitly + "how to fix locally" instructions
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| `clang-format-18` (не 19, не 11, не unversioned) | Matches CI clang-toolchain (`clang-18` + `clang-tidy-18` в build matrix); ubuntu-24.04 native (не нужен LLVM apt repo); доступен и в Astra-репах для локалки |
-| Отдельный **job** `format-check`, не step в build | Падает быстро (~30 сек), не зависит от FetchContent/cache. Параллельный feedback: PR упадёт на формате не дожидаясь cppcheck / lizard / clang-tidy |
-| `--Werror`, не warning-only | Стиль либо enforced, либо нет. Warning-режим — это «дрейф разрешён» |
-| `find ... \| xargs`, не glob через shell | Robust к большому числу файлов и пробелам в путях |
-| Reformat — отдельным коммитом до CI step'а | Без него CI стал бы красным с момента merge; reformat-коммит дешевле split-коммита с CI и формат-фиксами |
+| `clang-format-18` (not 19, not 11, not unversioned) | Matches CI clang-toolchain (`clang-18` + `clang-tidy-18` in the build matrix); ubuntu-24.04 native (no LLVM apt repo needed); also available in the Astra repos for local use |
+| Separate **job** `format-check`, not a step in build | Fails fast (~30 sec), doesn't depend on FetchContent/cache. Parallel feedback: a PR fails on format without waiting for cppcheck / lizard / clang-tidy |
+| `--Werror`, not warning-only | Style is either enforced or it isn't. Warning mode means "drift allowed" |
+| `find ... \| xargs`, not a shell glob | Robust to a large number of files and spaces in paths |
+| Reformat as a separate commit before the CI step | Without it, CI would go red the moment the change merges; a reformat commit is cheaper than a split commit with CI and format fixes |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
 | `.github/workflows/ci.yml` | + job `format-check` (clang-format-18 --dry-run --Werror) |
-| `docs/code_style.md` | секция «Инструменты»: clang-format-18 пиннута явно + how-to-fix |
-| `.git-blame-ignore-revs` | + SHA reformat-коммита `b5f9a1b` |
-| `src/`, `include/`, `tests/` (5 файлов) | reformat-коммит `b5f9a1b` (выравнивание continuation-параметров + sort using-declarations) |
+| `docs/code_style.md` | "Tools" section: clang-format-18 pinned explicitly + how-to-fix |
+| `.git-blame-ignore-revs` | + SHA of the reformat commit `b5f9a1b` |
+| `src/`, `include/`, `tests/` (5 files) | reformat commit `b5f9a1b` (alignment of continuation parameters + sort using-declarations) |

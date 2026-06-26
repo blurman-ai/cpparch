@@ -1,84 +1,84 @@
-# [RULES] SF.21 — anonymous namespace в `.h` (перенос в v0.3)
+# [RULES] SF.21 — anonymous namespace in `.h` (moved to v0.3)
 
-**Дата создания:** 2026-05-29
-**Дата старта:** —
-**Статус:** new
-**Модуль:** RULES
-**Приоритет:** minor
-**Сложность:** S (через libclang) / M (надёжный text-scan)
-**Целевой релиз:** **v0.3** (см. обоснование)
-**Блокирует:** —
-**Заблокирован:** #042 (clang_semantic_backend) — если делать точно через AST
+**Date created:** 2026-05-29
+**Date started:** —
+**Status:** new
+**Module:** RULES
+**Priority:** minor
+**Difficulty:** S (via libclang) / M (reliable text-scan)
+**Target release:** **v0.3** (see rationale)
+**Blocks:** —
+**Blocked by:** #042 (clang_semantic_backend) — if done precisely via AST
 
-> **2026-05-29:** этап 1 (docs sync) сделан перед v0.1-релизом и закоммичен; этап 2 (реализация) отложен в `future/` вместе с #042 — оба отрабатываются в v0.2+. См. `## Сделано` ниже.
-**Related:** #028 (rules_engine_mvp, уже отложил SF.21 с пометкой «требует libclang»), #006 (spec_refactor), #042 (clang_semantic_backend)
+> **2026-05-29:** stage 1 (docs sync) was done before the v0.1 release and committed; stage 2 (implementation) is deferred to `future/` together with #042 — both are handled in v0.2+. See `## Done` below.
+**Related:** #028 (rules_engine_mvp, already deferred SF.21 with the note "requires libclang"), #006 (spec_refactor), #042 (clang_semantic_backend)
 
-## Что это
+## What this is
 
-Правило C++ Core Guidelines [SF.21](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rs-unnamed): «Don't use an unnamed (anonymous) namespace in a header».
+The C++ Core Guidelines rule [SF.21](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rs-unnamed): "Don't use an unnamed (anonymous) namespace in a header".
 
 ```cpp
-// foo.h — НАРУШЕНИЕ SF.21
-namespace {                // ← анонимный namespace на верхнем уровне header'а
+// foo.h — SF.21 VIOLATION
+namespace {                // ← anonymous namespace at the top level of a header
   int counter = 0;
   void helper() { ... }
 }
 ```
 
-Анонимный namespace даёт internal linkage. В `.h` это значит: каждый translation unit, включающий заголовок, получает **свою отдельную копию** объектов и функций. Не формальное ODR-violation, но бесполезный bloat бинаря и source surprises (`&helper` разный в разных TU, статические переменные дублируются).
+An anonymous namespace gives internal linkage. In a `.h` this means: every translation unit that includes the header gets **its own separate copy** of the objects and functions. Not a formal ODR violation, but useless binary bloat and source surprises (`&helper` differs across TUs, static variables are duplicated).
 
-## Почему перенос с v0.1/v0.2 в v0.3
+## Why moved from v0.1/v0.2 to v0.3
 
-**1. Это не про архитектурный дрифт.** Дрифт в archcheck — это изменение **формы графа зависимостей**: shortcut edges (DRIFT.1), растущие SCC (DRIFT.2), god-headers, удлиняющиеся chain'ы, нарушение модульных границ. Анонимный namespace в header'е граф не трогает — это ODR-pitfall и bloat бинаря, micro-level hygiene того же класса что SF.7 (`using namespace` в header). По смыслу ближе к clang-tidy, чем к physical-design в духе Lakos.
+**1. This isn't about architectural drift.** Drift in archcheck is a change in the **shape of the dependency graph**: shortcut edges (DRIFT.1), growing SCCs (DRIFT.2), god-headers, lengthening chains, breaking module boundaries. An anonymous namespace in a header doesn't touch the graph — it's an ODR pitfall and binary bloat, micro-level hygiene of the same class as SF.7 (`using namespace` in a header). Conceptually closer to clang-tidy than to physical design in the Lakos sense.
 
-**2. Это не самый частый AI-паттерн.** Типичный AI-агент, рефакторящий код, скорее напишет shortcut-import (DRIFT.1), создаст цикл при «вынес общее в helper» (DRIFT.2), забудет guard в новом header'е (SF.8) или скопирует `using namespace` (SF.7). Анонимный namespace в `.h` — контр-интуитивный паттерн, который чаще пишут junior'ы вручную, скопировав из `.cpp` без понимания. AI чаще выберет `static inline` или `inline` (что корректно) или вынесет в `.cpp`.
+**2. It's not the most common AI pattern.** A typical AI agent refactoring code is more likely to write a shortcut import (DRIFT.1), create a cycle when "extracting common code into a helper" (DRIFT.2), forget a guard in a new header (SF.8), or copy `using namespace` (SF.7). An anonymous namespace in a `.h` is a counter-intuitive pattern, more often written by juniors by hand, copied from a `.cpp` without understanding. An AI more often picks `static inline` or `inline` (which is correct) or moves it into a `.cpp`.
 
-**3. Точная версия не дорогая, но и не критичная.** Через libclang определение `clang::NamespaceDecl::isAnonymousNamespace()` тривиально — S. Тащить text-scan версию для v0.1 ради галочки в MVP-чеклисте — лишний код без продуктовой ценности. clang-tidy (`google-build-namespaces`) и cppcheck это правило уже покрывают; пользователи, которым оно нужно, его получат и так.
+**3. The precise version isn't expensive, but it isn't critical either.** Via libclang the definition `clang::NamespaceDecl::isAnonymousNamespace()` is trivial — S. Dragging in a text-scan version for v0.1 just to tick a box in the MVP checklist is extra code with no product value. clang-tidy (`google-build-namespaces`) and cppcheck already cover this rule; the users who need it will get it anyway.
 
-**4. v0.1 ценность — physical design + AI drift, не SF-hygiene.** Cover-story v0.1 в спеке: «module boundaries + cycles в CI». SF.7/8/9 включены потому что это hygiene-добивка для физического дизайна (`using namespace` ломает namespace-границы; missing guard ломает include-graph). SF.21 не вписывается даже в эту логику — анонимный namespace в `.h` не ломает ни границы, ни граф.
+**4. v0.1 value is physical design + AI drift, not SF hygiene.** The v0.1 cover story in the spec: "module boundaries + cycles in CI". SF.7/8/9 are included because they're hygiene add-ons for physical design (`using namespace` breaks namespace boundaries; a missing guard breaks the include graph). SF.21 doesn't fit even that logic — an anonymous namespace in a `.h` breaks neither boundaries nor the graph.
 
-**5. v0.3 лучше подходит чем v0.2.** v0.2 — это libclang backend + остальные SF (SF.2/5/10/11) + SARIF. Эти четыре SF — про корректность физического слоя (defs в headers, .cpp→.h pairing, no implicit includes, self-contained). SF.21 — отдельная hygiene-задача, она там «случайный гость». v0.3 — секции C/I/NL + BDE + AI-контур; туда SF.21 ложится логически: «остальные hygiene-правила из CCG, которые не критичны для physical design».
+**5. v0.3 fits better than v0.2.** v0.2 is the libclang backend + the remaining SF rules (SF.2/5/10/11) + SARIF. Those four SF rules are about correctness of the physical layer (defs in headers, .cpp→.h pairing, no implicit includes, self-contained). SF.21 is a separate hygiene task, it's an "accidental guest" there. v0.3 is the C/I/NL sections + BDE + the AI loop; SF.21 fits there logically: "the rest of the hygiene rules from CCG that aren't critical for physical design".
 
-## План
+## Plan
 
-### Этап 1 — синхронизация документов (можно делать без #042)
+### Stage 1 — document synchronization (can be done without #042)
 
-- [x] Обновить ROADMAP.md: убрать SF.21 из v0.1 blocker'ов, уточнить v0.2 (preview через `--with-clang`), добавить в v0.3 как default-ON.
-- [x] Обновить architecture-spec.md: таблица SF.* + раздел v0.3, пути на 050 (new → wip).
-- [x] Проверить MVP.md, CHANGELOG.md, README.md — упоминания SF.21 не противоречат решению.
+- [x] Update ROADMAP.md: remove SF.21 from v0.1 blockers, clarify v0.2 (preview via `--with-clang`), add to v0.3 as default-ON.
+- [x] Update architecture-spec.md: SF.* table + v0.3 section, paths to 050 (new → wip).
+- [x] Check MVP.md, CHANGELOG.md, README.md — SF.21 mentions don't contradict the decision.
 
-### Этап 2 — реализация (после #042 / clang_semantic_backend)
+### Stage 2 — implementation (after #042 / clang_semantic_backend)
 
-- [ ] Спека SF.21 правила: `Sf21NoAnonymousNamespace` в `src/rules/`, рядом с другими SF-классами. Использует libclang (#042) — `clang::NamespaceDecl::isAnonymous()` на translation unit'ах из `compile_commands.json`. Сводится к ~30 строк.
-- [ ] Регистрация в `makeDefaultRuleSet` через `rules.push_back(std::make_unique<Sf21NoAnonymousNamespace>())`. По умолчанию OFF до v0.3 (включается через `--with-clang` в v0.2 как preview, если #042 уже зарелизился).
-- [ ] Фикстуры `fixtures/sf21_anonymous_namespace/pass/` (named namespace + .cpp с anon) и `fixtures/sf21_anonymous_namespace/fail/` (anon в `.h`).
-- [ ] Unit-тест с моком libclang или живым `compile_commands.json` от фикстуры.
-- [ ] CHANGELOG (под v0.3).
+- [ ] Spec of the SF.21 rule: `Sf21NoAnonymousNamespace` in `src/rules/`, alongside the other SF classes. Uses libclang (#042) — `clang::NamespaceDecl::isAnonymous()` on translation units from `compile_commands.json`. Comes down to ~30 lines.
+- [ ] Registration in `makeDefaultRuleSet` via `rules.push_back(std::make_unique<Sf21NoAnonymousNamespace>())`. OFF by default until v0.3 (enabled via `--with-clang` in v0.2 as a preview, if #042 has already shipped).
+- [ ] Fixtures `fixtures/sf21_anonymous_namespace/pass/` (named namespace + .cpp with anon) and `fixtures/sf21_anonymous_namespace/fail/` (anon in `.h`).
+- [ ] Unit test with a libclang mock or a live `compile_commands.json` from the fixture.
+- [ ] CHANGELOG (under v0.3).
 
-## Изменённые файлы (план)
+## Changed files (plan)
 
-| Файл | Изменение |
-|------|-----------|
+| File | Change |
+|------|--------|
 | `include/archcheck/rules/sf21_anonymous_namespace.h` | new |
 | `src/rules/sf21_anonymous_namespace.cpp` | new |
-| `src/rules/rule_set.cpp` | регистрация |
+| `src/rules/rule_set.cpp` | registration |
 | `tests/unit/rules/sf21_anonymous_namespace_test.cpp` | new |
 | `fixtures/sf21_anonymous_namespace/` | new (pass + fail) |
-| `docs/architecture-spec.md` | таблица SF.* + roadmap v0.1/v0.2/v0.3 |
-| `docs/MVP.md` | (если упоминается) |
-| `docs/STATUS.md` | убрать SF.21 из «открыто до v0.1» |
+| `docs/architecture-spec.md` | SF.* table + roadmap v0.1/v0.2/v0.3 |
+| `docs/MVP.md` | (if mentioned) |
+| `docs/STATUS.md` | remove SF.21 from "open until v0.1" |
 
-## Сделано
+## Done
 
-**2026-05-29 — этап 1: синхронизация документов**
+**2026-05-29 — stage 1: document synchronization**
 
-- `docs/ROADMAP.md` — SF.21 убран из v0.1 blocker'ов (решение зафиксировано), уточнено в v0.2 как preview через `--with-clang`, добавлен пункт в v0.3 (default-ON).
-- `docs/architecture-spec.md` — таблица SF.*: фаза изменена с «v0.3» на «v0.2 (preview, `--with-clang`) / v0.3 default-ON»; пути на 050 переведены `new → wip`; раздел v0.3 уточнён.
-- `docs/MVP.md`, `CHANGELOG.md` — SF.21 не упомянут, правки не нужны.
-- `README.md:111` — уже корректен (SF.21 unlocks с `--with-clang` в v0.2), не правлю.
+- `docs/ROADMAP.md` — SF.21 removed from v0.1 blockers (decision recorded), clarified in v0.2 as a preview via `--with-clang`, item added to v0.3 (default-ON).
+- `docs/architecture-spec.md` — SF.* table: phase changed from "v0.3" to "v0.2 (preview, `--with-clang`) / v0.3 default-ON"; paths to 050 moved `new → wip`; v0.3 section clarified.
+- `docs/MVP.md`, `CHANGELOG.md` — SF.21 not mentioned, no edits needed.
+- `README.md:111` — already correct (SF.21 unlocks with `--with-clang` in v0.2), not editing.
 
-Этап 2 (реализация правила) ждёт #042 (clang_semantic_backend).
+Stage 2 (rule implementation) waits on #042 (clang_semantic_backend).
 
-## Принцип работы
+## How it works
 
-(заполнится при closing)
+(to be filled in at closing)

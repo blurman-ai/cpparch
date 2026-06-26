@@ -1,165 +1,165 @@
-# [SCAN] один проход по дереву + общий authored/vendored/generated view для всех правил
+# [SCAN] one pass over the tree + a shared authored/vendored/generated view for all rules
 
-**Дата создания:** 2026-06-18
-**Дата старта:** 2026-06-18
-**Статус:** wip — ядро (шаги 1–6) закоммичено; остаток = шаг 7
-**Модуль:** SCAN
-**Приоритет:** major
-**Сложность:** hard
-**Блокирует:** консистентность вердиктов правил; применимость отчёта (#124)
+**Created:** 2026-06-18
+**Started:** 2026-06-18
+**Status:** wip — core (steps 1–6) committed; remainder = step 7
+**Module:** SCAN
+**Priority:** major
+**Difficulty:** hard
+**Blocks:** consistency of rule verdicts; report applicability (#124)
 
-## Прогресс (на 2026-06-19)
+## Progress (as of 2026-06-19)
 
-Ядро плана уехало коммитами `ec5988b` (unify vendored/generated в read-once
-snapshot), `9cc349b` (check-mode читает дерево через SourceSnapshot), `b01707a`
-(один snapshot на ref для graph+advisories в `--diff`), + docs `83127ca`/`7e1de3c`.
-Остаток — **шаг 7**: финальный dogfood + пер-репо корпус vs golden + обновить
-`docs/research/agent_drift_within_repo.md` (числа сдвинулись от шагов 3–5: clone
-recall ↑, graph −generated). Файл лежал в `new/` ошибочно — перенесён в `wip/`.
-Perf-нит из ревью этой задачи вынесен в #130 (findFile-индекс там уже сделан).
-**Заблокирован (закрытие):** #131 — шаг 7 (финальный corpus golden) выполняется там.
-**Верификация:** #131 (Группа 1: clone recall ↑, graph −generated, complexity rmm fixed, foundationdb 0)
-**Related:** #127 (точность vendored/generated-предиката — вставляется сюда), #068 (graph vendor exclude), #069 (vendored file exclude), #081 (over-exclusion), #113 (apache-banner dominant-guard — переиспользовать), #124 (корпус-прогон, вскрывший расхождение)
+The core of the plan landed in commits `ec5988b` (unify vendored/generated into a read-once
+snapshot), `9cc349b` (check-mode reads the tree via SourceSnapshot), `b01707a`
+(one snapshot per ref for graph+advisories in `--diff`), + docs `83127ca`/`7e1de3c`.
+Remainder — **step 7**: final dogfood + per-repo corpus vs golden + update
+`docs/research/agent_drift_within_repo.md` (the numbers shifted from steps 3–5: clone
+recall ↑, graph −generated). The file was in `new/` by mistake — moved to `wip/`.
+A perf nit from this task's review was split out into #130 (the findFile index is already done there).
+**Blocked (closure):** #131 — step 7 (the final corpus golden) is executed there.
+**Verification:** #131 (Group 1: clone recall ↑, graph −generated, complexity rmm fixed, foundationdb 0)
+**Related:** #127 (precision of the vendored/generated predicate — slots in here), #068 (graph vendor exclude), #069 (vendored file exclude), #081 (over-exclusion), #113 (apache-banner dominant-guard — reuse), #124 (corpus run that surfaced the mismatch)
 
-## Цель
+## Goal
 
-Сканировать дерево исходников **один раз** на снапшот: прочитать+классифицировать
-файлы (authored / vendored / generated / test) в **общий view**, который потребляют
-все правила (clone, complexity, graph), вместо того чтобы каждое правило само
-обходило дерево и само фильтровало по своей копии логики.
+Scan the source tree **once** per snapshot: read+classify the
+files (authored / vendored / generated / test) into a **shared view** consumed by
+all rules (clone, complexity, graph), instead of each rule walking the tree
+itself and filtering by its own copy of the logic.
 
-## Контекст — три разошедшихся реализации одной идеи
+## Context — three diverged implementations of one idea
 
-Каждая проверка вендор-фильтрует **в своём методе**, разным подмножеством общих
-предикатов → **несогласованные вердикты на одном файле**:
+Each check vendor-filters **in its own method**, with a different subset of common
+predicates → **inconsistent verdicts on the same file**:
 
-| правило | метод | что использует |
+| rule | method | what it uses |
 |---|---|---|
 | clone | `collectNonVendoredSources` (project_files.cpp) | path + basename + license-header (`isVendoredFile`) |
-| graph | `filterVendored` (graph_builder.cpp) | path + basename + **license-header c dominant-banner guard** (#113) |
-| complexity | `collectFilePairs` (local_complexity_drift.cpp) | path + basename **БЕЗ license-header** (намеренно отключён) |
+| graph | `filterVendored` (graph_builder.cpp) | path + basename + **license-header with dominant-banner guard** (#113) |
+| complexity | `collectFilePairs` (local_complexity_drift.cpp) | path + basename **WITHOUT license-header** (deliberately disabled) |
 
-**Доказательства (корпусный FP-аудит #124, `docs/research/agent_drift_within_repo.md` §5):**
-- rmm `cpp/benchmarks/utilities/rapidcsv.h` (vendored single-header вне vendor-каталога):
-  «вендор» для clone/graph, но «авторский» для complexity → ложный **CCN 64**.
-- MS-Teams `objectmodel_wrap.cpp` (SWIG-генерёнка): generated вообще не исключается
-  ни одним правилом → ложный clone.
+**Evidence (corpus FP audit #124, `docs/research/agent_drift_within_repo.md` §5):**
+- rmm `cpp/benchmarks/utilities/rapidcsv.h` (vendored single-header outside a vendor dir):
+  "vendor" for clone/graph, but "authored" for complexity → a false **CCN 64**.
+- MS-Teams `objectmodel_wrap.cpp` (SWIG-generated): generated isn't excluded
+  by any rule → a false clone.
 
-**Дог-фуд-ирония (зафиксировать в питче):** `archcheck src/ include/` → `No violations`.
-Собственный клон-детектор **не видит** эту дупликацию — она **концептуальная**
-(три переписанных врозь реализации), а не token-clone. Честная граница token-detection:
-важнейшую дупликацию (расходящиеся реимплементации концепта) ловит архитектурный
-взгляд, не «найди одинаковые токены». Сильное признание для отчёта, не слабость.
+**Dogfood irony (to record in the pitch):** `archcheck src/ include/` → `No violations`.
+Our own clone detector **doesn't see** this duplication — it's **conceptual**
+(three reimplementations written apart), not a token clone. The honest boundary of token detection:
+the most important duplication (diverging reimplementations of a concept) is caught by the architectural
+view, not by "find identical tokens". A strong admission for the report, not a weakness.
 
-## Почему разошлись (не чистая лень — но и не оправдание)
+## Why they diverged (not pure laziness — but no excuse either)
 
-License-header сигнал требует **обзора всего дерева** (dominant-banner guard #113/#109
-foundationdb: если >50% файлов с баннером — это лицензия самого проекта, слой выключить).
-Этот guard есть **только в graph** (он сканит всё дерево). complexity **дифф-скоупный**
-(парсит только изменённые файлы) → не считает ratio по дереву → **отрубил license-header
-целиком** (тупо-безопасно, ценой rmm-FP). НО `FileSource` (memory `GitObjectFileSource` /
-disk worktree) умеет `list()`/`read()` по **всему** дереву — данные доступны, complexity
-их просто не читает. Значит ratio **вычислим**; нужен один общий проход, который его
-считает один раз и отдаёт всем.
+The license-header signal requires a **whole-tree review** (dominant-banner guard #113/#109
+foundationdb: if >50% of files carry the banner — it's the project's own license, turn the layer off).
+This guard exists **only in graph** (it scans the whole tree). complexity is **diff-scoped**
+(parses only changed files) → doesn't compute the tree ratio → **disabled license-header
+entirely** (dumb-safe, at the cost of the rmm FP). BUT `FileSource` (memory `GitObjectFileSource` /
+disk worktree) can `list()`/`read()` over the **whole** tree — the data is available, complexity
+just doesn't read it. So the ratio **is computable**; what's needed is one shared pass that computes it
+once and hands it to everyone.
 
-## Дизайн
+## Design
 
-- Общая scan-стадия: `AuthoredSourceView` (или расширить `project_files`), строится один
-  раз из `FileSource`: `list()` → `read()` каждого файла **однажды** → классификация
-  (предикат из #127: .gitmodules / path-токены / nested-LICENSE+код / copyright-mismatch /
-  generated-маркеры + dominant-banner guard #113).
-- Правила потребляют view: clone — по authored-файлам; graph — по authored; complexity
-  парсит изменённые **authored** файлы, но берёт классификацию и whole-tree banner-ratio
-  из общего view.
-- Это и есть `scan → rules` из спеки; убирает и тройной IO, и тройной фильтр, и
-  per-rule дрейф (одно место для generated-паттернов и порогов).
-- `#127` поставляет ТОЧНОСТЬ предиката; `#129` — то, что предикат считается ОДИН раз и
-  ШАРИТСЯ. Делать в связке (или #127 первым — предикат, затем #129 — единый проход).
+- A shared scan stage: `AuthoredSourceView` (or extend `project_files`), built once
+  from `FileSource`: `list()` → `read()` each file **once** → classification
+  (the predicate from #127: .gitmodules / path tokens / nested-LICENSE+code / copyright-mismatch /
+  generated markers + dominant-banner guard #113).
+- Rules consume the view: clone — over authored files; graph — over authored; complexity
+  parses changed **authored** files, but takes the classification and the whole-tree banner-ratio
+  from the shared view.
+- This is the `scan → rules` from the spec; it removes the triple IO, the triple filter, and the
+  per-rule drift (one place for generated patterns and thresholds).
+- `#127` supplies the PRECISION of the predicate; `#129` — the fact that the predicate is computed ONCE and
+  SHARED. Do them together (or #127 first — the predicate, then #129 — the single pass).
 
-## План выполнения
+## Plan
 
-- [ ] Вынести единый `classifySource()` / `AuthoredSourceView` с богатейшей логикой (из `filterVendored`)
-- [ ] Прокинуть whole-tree banner-ratio в diff-скоупный complexity
-- [ ] Перевести clone / graph / complexity на общий view (убрать 3 отдельных фильтра)
-- [ ] Добавить generated-паттерны в одном месте (`*_wrap.cpp`, `*.pb.{h,cc}`, `moc_`/`ui_`/`qrc_`, `*.tab.*`/`*.yy.*`, `@generated`/`DO NOT EDIT`)
-- [ ] Фикстуры (ниже) + дог-фуд `archcheck src/ include/ tests/` = 0 нарушений
-- [ ] Прозрачность: `excluded N files (vendored/generated, reason: ...)` (как в #127)
+- [ ] Extract a unified `classifySource()` / `AuthoredSourceView` with the richest logic (from `filterVendored`)
+- [ ] Thread the whole-tree banner-ratio into the diff-scoped complexity
+- [ ] Move clone / graph / complexity onto the shared view (remove the 3 separate filters)
+- [ ] Add generated patterns in one place (`*_wrap.cpp`, `*.pb.{h,cc}`, `moc_`/`ui_`/`qrc_`, `*.tab.*`/`*.yy.*`, `@generated`/`DO NOT EDIT`)
+- [ ] Fixtures (below) + dogfood `archcheck src/ include/ tests/` = 0 violations
+- [ ] Transparency: `excluded N files (vendored/generated, reason: ...)` (as in #127)
 
-## Сделано
+## Done
 
-- (пусто)
+- (empty)
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. Сначала закрыть/учесть #127 (предикат), затем единый проход здесь.
-2. Снять регресс на rmm (CCN 64 уходит) и MS-Teams (SWIG-clone уходит).
+1. First close/account for #127 (the predicate), then the single pass here.
+2. Remove the regression on rmm (CCN 64 goes away) and MS-Teams (the SWIG clone goes away).
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Один проход + общий view, не per-rule фильтр | три реализации уже разошлись по поведению (rmm/MS-Teams) — корень в раздельных обходах |
-| Базироваться на логике `filterVendored` (graph) | у неё единственной есть dominant-banner guard (#113), остальные — урезанные |
+| Decision | Reason |
+|----------|--------|
+| One pass + a shared view, not a per-rule filter | three implementations have already diverged in behavior (rmm/MS-Teams) — the root is in separate walks |
+| Base it on `filterVendored` logic (graph) | it's the only one with the dominant-banner guard (#113), the others are stripped down |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| src/scan/project_files.{h,cpp} | единый `AuthoredSourceView` / `classifySource` |
-| src/scan/new_clone_drift.cpp | потреблять общий view |
-| src/scan/local_complexity_drift.cpp | потреблять общий view + whole-tree banner-ratio |
-| src/graph/graph_builder.cpp | потреблять общий view (убрать `filterVendored`-дубль) |
+| File | Change |
+|------|--------|
+| src/scan/project_files.{h,cpp} | unified `AuthoredSourceView` / `classifySource` |
+| src/scan/new_clone_drift.cpp | consume the shared view |
+| src/scan/local_complexity_drift.cpp | consume the shared view + whole-tree banner-ratio |
+| src/graph/graph_builder.cpp | consume the shared view (remove the `filterVendored` duplicate) |
 
-## Fixtures (обязательны)
+## Fixtures (mandatory)
 
-- [ ] `fixtures/source_classification/pass_consistent/` — один и тот же vendored-файл даёт ОДИНАКОВЫЙ вердикт всем правилам
-- [ ] `fixtures/source_classification/fail_rmm_style/` — single-header либа вне vendor-каталога НЕ фалит complexity
-- [ ] `fixtures/source_classification/fail_generated_swig/` — `*_wrap.cpp` НЕ фалит clone
-- [ ] `fixtures/source_classification/pass_self_licensed/` — проект со своим баннером в каждом файле НЕ исключён целиком (anti-over-exclude, #113)
+- [ ] `fixtures/source_classification/pass_consistent/` — the same vendored file yields the SAME verdict to all rules
+- [ ] `fixtures/source_classification/fail_rmm_style/` — a single-header lib outside a vendor dir does NOT fail complexity
+- [ ] `fixtures/source_classification/fail_generated_swig/` — `*_wrap.cpp` does NOT fail clone
+- [ ] `fixtures/source_classification/pass_self_licensed/` — a project with its own banner in every file is NOT excluded entirely (anti-over-exclude, #113)
 
-## Самопроверка
+## Self-check
 
-Риск — OVER-exclude (съесть свой код) и регресс поведения правил. Проверять
-перечислением: один и тот же набор файлов → один и тот же вердикт у всех правил;
-сверить вывод clone/complexity/graph до и после на 2-3 реальных репах (rmm, foundationdb,
-MS-Teams). «Стало меньше нарушений» — повод проверить, не выкинули ли лишнего.
+The risk is OVER-exclusion (eating our own code) and a regression in rule behavior. Verify by
+enumeration: the same set of files → the same verdict from all rules; compare the
+clone/complexity/graph output before and after on 2-3 real repos (rmm, foundationdb,
+MS-Teams). "Fewer violations" — a reason to check whether we threw out too much.
 
-## Сошедшийся дизайн (design-workflow, 2026-06-18)
+## Converged design (design-workflow, 2026-06-18)
 
-5 линз Discover + 3 дизайна + судья. Выбран **Design 3 — `scan::AuthoredScope` + один
-source на ref**; полный TreeSnapshot (read/token-дедуп) отвергнут как раздувание скоупа
-(вынесен в отдельный follow-up). Корень шире, чем думали: AND-цепочка «код проекта?»
-открыто закодирована в **7 местах с 5 формулами** — `collectNonVendoredSources`
+5 Discover lenses + 3 designs + a judge. Chosen **Design 3 — `scan::AuthoredScope` + one
+source per ref**; a full TreeSnapshot (read/token dedup) rejected as scope bloat
+(split out into a separate follow-up). The root is wider than thought: the AND-chain "is this project code?"
+is openly hardcoded in **7 places with 5 formulas** — `collectNonVendoredSources`
 (unguarded banner), `filterVendored` (>50%-dominant-guarded banner), `collectFilePairs`
-(banner OFF, #109), `god_file_growth.cpp:36` (комментарий обещает generated-exclude,
-**код не делает**), `defect_attractor`/satd/test (path-only). Плюс per-diff дерево
-читается 2× на сторону тремя отдельными `cat-file`-детьми; в check хедеры до 3× с диска.
+(banner OFF, #109), `god_file_growth.cpp:36` (the comment promises generated-exclude,
+the **code doesn't do it**), `defect_attractor`/satd/test (path-only). Plus the per-diff tree is
+read 2× per side by three separate `cat-file` children; in check, headers up to 3× from disk.
 
-**API (чистый value-type на (path,content), backend-agnostic — two-backend split цел):**
-`AuthoredScope::fromFiles(files)` (считает dominant-banner ratio один раз) /
-`changedFilesMode()` (banner=no-op, сохраняет #109-safe поведение complexity) /
-`excluded(path,content)`; + `scan::isGeneratedPath()` (lift из `duplication_scanner.cpp:173`
-+ SWIG `_wrap.{cpp,cxx,c}`). НЕ мигрируют: god_file_growth/defect_attractor/satd/test —
-они классифицируют commit-пути без контента, остаются на path-трио (документированный gap).
+**API (a clean value-type over (path,content), backend-agnostic — the two-backend split stays intact):**
+`AuthoredScope::fromFiles(files)` (computes the dominant-banner ratio once) /
+`changedFilesMode()` (banner=no-op, preserves the #109-safe complexity behavior) /
+`excluded(path,content)`; + `scan::isGeneratedPath()` (lift from `duplication_scanner.cpp:173`
++ SWIG `_wrap.{cpp,cxx,c}`). NOT migrated: god_file_growth/defect_attractor/satd/test —
+they classify commit paths without content, they stay on the path trio (a documented gap).
 
-**Twist #109:** complexity до шага 6 — `changedFilesMode()` (rmm ещё палит CCN 64,
-foundationdb 0); шаг 6 даёт полное дерево → `fromFiles(fullList)` → rmm чинится через
-общий ratio БЕЗ регресса foundationdb. Наивно «включить баннер» — запрещено.
+**Twist #109:** complexity until step 6 — `changedFilesMode()` (rmm still fires CCN 64,
+foundationdb 0); step 6 gives the full tree → `fromFiles(fullList)` → rmm is fixed via the
+shared ratio WITHOUT a foundationdb regression. Naively "turning the banner on" — forbidden.
 
-**План (~120–160 LOC, каждый шаг сам собирается+тестируется, ревертится по 1 файлу):**
-0. Golden baseline (без кода): dogfood=0 + clone/complexity/graph на rmm/SWIG/foundationdb/Apache → сохранить пер-репо.
-1. `isGeneratedPath`+SWIG → repoint `phasePathBasedFpSuppress`, удалить приватную копию. Фикстура `fixtures/generated/swig_wrap/`.
-2. `AuthoredScope` (pure addition, 0 call-site) + equivalence-тест: `excluded()` == каждая из 5 формул. `tests/scan/authored_scope_test.cpp` + фикстуры.
-3. graph `filterVendored` → AuthoredScope (delta: graph теперь дропает generated).
-4. clone `collectNonVendoredSources` → AuthoredScope (delta: clone получает dominant-banner guard → recall ↑).
-5. complexity `collectFilePairs` → `changedFilesMode()` (rmm ещё НЕ чинится — by design; foundationdb остаётся 0).
-6. `diff_command` — один baseline+current source на ref, передать в graph+complexity+clone (borrow by ref, git-orphan hygiene); complexity → `fromFiles(fullList)` → **rmm fixed**.
-7. Финальный dogfood + корпус пер-репо vs golden + lizard.
+**Plan (~120–160 LOC, each step builds+tests on its own, reverts by 1 file):**
+0. Golden baseline (no code): dogfood=0 + clone/complexity/graph on rmm/SWIG/foundationdb/Apache → save per-repo.
+1. `isGeneratedPath`+SWIG → repoint `phasePathBasedFpSuppress`, delete the private copy. Fixture `fixtures/generated/swig_wrap/`.
+2. `AuthoredScope` (pure addition, 0 call-sites) + equivalence test: `excluded()` == each of the 5 formulas. `tests/scan/authored_scope_test.cpp` + fixtures.
+3. graph `filterVendored` → AuthoredScope (delta: graph now drops generated).
+4. clone `collectNonVendoredSources` → AuthoredScope (delta: clone gets the dominant-banner guard → recall ↑).
+5. complexity `collectFilePairs` → `changedFilesMode()` (rmm is NOT fixed yet — by design; foundationdb stays 0).
+6. `diff_command` — one baseline+current source per ref, passed into graph+complexity+clone (borrow by ref, git-orphan hygiene); complexity → `fromFiles(fullList)` → **rmm fixed**.
+7. Final dogfood + per-repo corpus vs golden + lizard.
 
-**Решения человека (флаг судьи):** (1) шаг 6 в скоупе — ДА (это и есть запрос «централизованный запуск»). (2) **шаги 3–5 сдвигают опубликованные числа отчёта** (clone recall ↑, graph −generated) → перегнать корпус + обновить `docs/research/agent_drift_within_repo.md`. (3) SWIG только точные суффиксы. (4) generated-removal глобально (меняет cycle/god/chain на репах с генерёнкой). (5) history-advisories остаются path-only.
+**Human decisions (judge flag):** (1) step 6 in scope — YES (this is exactly the "centralized run" request). (2) **steps 3–5 shift the published report numbers** (clone recall ↑, graph −generated) → re-run the corpus + update `docs/research/agent_drift_within_repo.md`. (3) SWIG only exact suffixes. (4) generated-removal globally (changes cycle/god/chain on repos with generated code). (5) history-advisories stay path-only.
 
-**Риск:** med. Главный — реинтродукция #109 (mitigated: banner no-op до шага 6); пер-репо golden (не агрегат — агрегат врёт); git-orphan hygiene в шаге 6. Out of scope (follow-up TreeSnapshot): comment/literal-стрипперы, brace-walkers, расходящиеся lex-варианты — там include_scanner нужен byte-offset, который token-stream теряет.
+**Risk:** med. The main one — reintroducing #109 (mitigated: banner no-op until step 6); per-repo golden (not an aggregate — the aggregate lies); git-orphan hygiene in step 6. Out of scope (follow-up TreeSnapshot): comment/literal strippers, brace-walkers, diverging lex variants — there include_scanner needs a byte-offset that the token-stream loses.

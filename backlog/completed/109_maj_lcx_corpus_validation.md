@@ -1,296 +1,296 @@
-# [RESEARCH][DRIFT] LCX корпусная валидация: топ-100 подозрительных реп, ≥10 коммитов с ростом сложности
+# [RESEARCH][DRIFT] LCX corpus validation: top-100 suspicious repos, ≥10 commits with complexity growth
 
-**Дата создания:** 2026-06-11
-**Дата старта:** 2026-06-11
-**Статус:** wip — скрипт запущен
-**Модуль:** EXPERIMENTS / SCAN / RESEARCH
-**Приоритет:** major
-**Сложность:** M
-**Related:** #101 (LCX сигнал — закрыта), #102 (корпусный прототип), #099 (ждёт вердикта по fallback)
+**Date created:** 2026-06-11
+**Date started:** 2026-06-11
+**Status:** wip — script running
+**Module:** EXPERIMENTS / SCAN / RESEARCH
+**Priority:** major
+**Complexity:** M
+**Related:** #101 (LCX signal — closed), #102 (corpus prototype), #099 (awaiting the verdict on fallback)
 
-## Цель
+## Goal
 
-Валидация продуктового LCX-сигнала (#101) на корпусе: топ-100 «подозрительных» реп
-(ai_pct ↓, prior findings ↓, commits ↓ из corpus_summary.tsv), по каждой найти ≥10
-коммитов с ростом локальной сложности через ПРОДУКТОВЫЙ бинарь `archcheck --diff`
-(догфуд, не питон-прототип #102). Затем глазной разбор всех находок (FP — отдельным
-списком на ручную проверку пользователем). Код не править, кроме явных багов (тогда
-сразу с тестом).
+Validate the product LCX signal (#101) on the corpus: top-100 "suspicious" repos
+(ai_pct ↓, prior findings ↓, commits ↓ from corpus_summary.tsv), for each find ≥10
+commits with growth in local complexity via the PRODUCT binary `archcheck --diff`
+(dogfood, not the Python prototype #102). Then an eyeball review of all findings (FP — a separate
+list for manual verification by the user). Do not touch the code, except for obvious bugs (then
+immediately with a test).
 
-## Механика
+## Mechanics
 
-- `experiments/lcx_corpus_run/run_lcx_scan.py`: выборка из corpus_summary.tsv
-  (LOC≥1000, commits≥8, клон в ~/oss), per-repo walk non-merge коммитов с C/C++
-  изменениями (новые→старые, cap 250), `archcheck --diff sha^..sha`, стоп на 12
-  находко-коммитах. Выход: findings.jsonl + selection.txt + progress.log.
-- Решение по #099 завязано на этот прогон: если function-discovery покрывает реальные
-  репы — #099 закрывается как absorbed (в dropped/).
+- `experiments/lcx_corpus_run/run_lcx_scan.py`: selection from corpus_summary.tsv
+  (LOC≥1000, commits≥8, clone in ~/oss), per-repo walk of non-merge commits with C/C++
+  changes (new→old, cap 250), `archcheck --diff sha^..sha`, stop at 12
+  finding-commits. Output: findings.jsonl + selection.txt + progress.log.
+- The decision on #099 is tied to this run: if function-discovery covers real
+  repos — #099 is closed as absorbed (into dropped/).
 
-## Журнал
+## Journal
 
-- 2026-06-11: смоук выявил баг ПАРСЕРА скрипта (искал «LCX.», продукт печатает
-  `DRIFT.LOCAL_COMPLEXITY`) — починен; сам сигнал на смоуке работал сразу
-  (fakelua: рост 11→16, 90→96 на реальных refactor-коммитах).
-- 2026-06-11: полный прогон запущен в фоне.
-- 2026-06-11/12: фоновый прогон остановлен на 82/100 реп (решение: не гнать все 100,
-  пока не подтверждено качество). 651 находко-коммит, глазной триаж 16 реп / 189
-  коммитов → `triage.tsv` (эталон): 167 TP, 15 MIXED, 7 FP. Precision 96%.
-- 2026-06-12: все FP воспроизведены на реальных коммитах, найдены 4 корневые причины
-  в сканере (не в глазах). По команде пользователя «починить все FP и сравнить с
-  эталонами» сделаны фиксы A–D (см. ниже) + точечная верификация каждого кейса +
-  полный переплён 188 эталонных коммитов (`rescan_triaged.py` → `rescan.jsonl`).
+- 2026-06-11: the smoke test revealed a bug in the script's PARSER (it looked for "LCX.", the product prints
+  `DRIFT.LOCAL_COMPLEXITY`) — fixed; the signal itself worked immediately on the smoke test
+  (fakelua: growth 11→16, 90→96 on real refactor commits).
+- 2026-06-11: full run launched in the background.
+- 2026-06-11/12: the background run stopped at 82/100 repos (decision: do not run all 100
+  until quality is confirmed). 651 finding-commits, eyeball triage of 16 repos / 189
+  commits → `triage.tsv` (reference): 167 TP, 15 MIXED, 7 FP. Precision 96%.
+- 2026-06-12: all FPs reproduced on real commits, 4 root causes found
+  in the scanner (not in the eyes). Per the user's command "fix all FPs and compare with
+  the references", fixes A–D were made (see below) + pointwise verification of each case +
+  a full re-scan of 188 reference commits (`rescan_triaged.py` → `rescan.jsonl`).
 
-## FP-классы и корневые причины (все воспроизведены)
+## FP classes and root causes (all reproduced)
 
 1. **overload-crossmatch** (parseText ×10 Serial-Studio, handleEvent ×309 Alchemy,
-   matchAndRewrite ×48 NVIDIA): inline-методы внутри классов получали голое имя —
-   discovery не знал охватывающий class/struct/namespace → тёзки разных классов
-   матчились между собой по близости строк.
-2. **deletion-shift** (Cytnx Trace_ «0→53»): перегрузки с одинаковой arity
-   (string,string) vs (int64,int64) различались только nearest-line tie-break'ом;
-   сдвиг ±45 строк переворачивал матч на стаб со score 0.
-3. **arity-change-new-func** (setManualImage +has_mips): смена сигнатуры → нет
-   (name,arity)-матча → весь унаследованный body всплывал как «new function N».
-4. **unparseable parent** (ArduPilot 924a3e3860^): родительский коммит реально не
-   компилировался (два незакрытых for в FuseVelPosNED) → функция не находилась в
-   родителе → фантомный «new function 257». Отягчающее: `#if/#else` с обеими
-   ветками в токен-потоке давал ложный дисбаланс скобок (Mudlet +2, Cytnx −1).
+   matchAndRewrite ×48 NVIDIA): inline methods inside classes got a bare name —
+   discovery did not know the enclosing class/struct/namespace → namesakes of different classes
+   matched against each other by line proximity.
+2. **deletion-shift** (Cytnx Trace_ "0→53"): overloads with the same arity
+   (string,string) vs (int64,int64) differed only by the nearest-line tie-break;
+   a shift of ±45 lines flipped the match to a stub with score 0.
+3. **arity-change-new-func** (setManualImage +has_mips): a signature change → no
+   (name,arity) match → the whole inherited body surfaced as "new function N".
+4. **unparseable parent** (ArduPilot 924a3e3860^): the parent commit genuinely did not
+   compile (two unclosed `for` in FuseVelPosNED) → the function was not found in the
+   parent → a phantom "new function 257". Aggravating: `#if/#else` with both
+   branches in the token stream gave a false brace imbalance (Mudlet +2, Cytnx −1).
 
-## Фиксы (продуктовый код, каждый с юнит-тестами)
+## Fixes (product code, each with unit tests)
 
-- **A. Scope-квалификация** (`function_body_scan.cpp`): ScopeTracker — стек
-  namespace/class/struct/union по brace-depth; inline-методы получают полное имя
-  (`Foo::parse`). Forward-decl/elaborated-type/template-параметры не пушатся.
-- **B. Param-fingerprint** (`function_body_scan.{h,cpp}`, `local_complexity_drift.cpp`):
-  FunctionSpan/FunctionComplexity несут конкатенацию токенов списка параметров;
-  findOldMatch предпочитает точный fingerprint, nearest-line остаётся только
-  fallback'ом при настоящей неоднозначности.
+- **A. Scope qualification** (`function_body_scan.cpp`): ScopeTracker — a stack of
+  namespace/class/struct/union by brace-depth; inline methods get the full name
+  (`Foo::parse`). Forward-decl/elaborated-type/template parameters are not pushed.
+- **B. Param fingerprint** (`function_body_scan.{h,cpp}`, `local_complexity_drift.cpp`):
+  FunctionSpan/FunctionComplexity carry a concatenation of the parameter-list tokens;
+  findOldMatch prefers an exact fingerprint, nearest-line stays only a
+  fallback in case of real ambiguity.
 - **C. Arity-change fallback + brace-guard** (`local_complexity_drift.cpp`):
-  при отсутствии (name,arity)-матча ищется same-name-any-arity (lowConfidence →
-  только мягкий Δ≥5); файл со НЕЗАКРЫТОЙ скобкой (depth>0) глушится целиком
-  (мега-спаны типа ROCm «1048»), лишняя `}` (depth<0) терпится — forward
-  discovery самовосстанавливается.
-- **D. Largest-branch для #if/#elif/#else** (`local_complexity_metrics.cpp`):
-  stripDirectiveTokens оставляет самую большую ветку цепочки (буферизация со
-  стеком chains). Покрывает и `#ifdef X #else <весь файл> #endif` (Cytnx), и
-  стаб-ветку `#ifdef Q_OS_WASM` поверх настоящего кода (wiRedPanda), и
-  несбалансированные двойные `if (..) {` (Mudlet).
+  in the absence of a (name,arity) match, same-name-any-arity is searched (lowConfidence →
+  only a soft Δ≥5); a file with an UNCLOSED brace (depth>0) is silenced entirely
+  (mega-spans like ROCm "1048"), an extra `}` (depth<0) is tolerated — forward
+  discovery self-recovers.
+- **D. Largest-branch for #if/#elif/#else** (`local_complexity_metrics.cpp`):
+  stripDirectiveTokens keeps the largest branch of the chain (buffering with a
+  stack of chains). Covers both `#ifdef X #else <whole file> #endif` (Cytnx) and
+  the stub branch `#ifdef Q_OS_WASM` over the real code (wiRedPanda) and
+  unbalanced double `if (..) {` (Mudlet).
 
-## Сравнение с эталоном (после фиксов)
+## Comparison with the reference (after fixes)
 
-- FP-коммиты: 5/6 замолчали; шестой (Alchemy 6e77969ee2) теперь репортит ДРУГОЙ,
-  настоящий рост (alloc_tex_image +10: добавлен if+while+2if в тело) — рост ранее
-  маскировался ложным «new function 54».
-- TP-коммиты: 163/167 сохранили сигнал. Все 4 «потери» при разборе оказались
-  ошибками эталона (глазной триаж принял кросс-матч за рост, т.к. коммиты содержали
-  реальные изменения в других местах): FastLED fefca7b8c1 (rfind: скоры идентичны
-  6/21/1/0 в обеих версиях), NVIDIA 23308b493d (matchAndRewrite: все скоры
-  идентичны, добавился один паттерн score 5<25), ROCm 572fbe20f6 (findLinkInfo:
-  стаб 0 + реал 26 в ОБЕИХ версиях), SenaxInc 977ca709f1 (get*Description: скоры
-  13/16 идентичны, функции просто сдвинулись на ~48 строк).
-- MIXED-коммиты сбросили артефактную часть, реальная осталась (NVIDIA bdae036928
+- FP commits: 5/6 went silent; the sixth (Alchemy 6e77969ee2) now reports a DIFFERENT,
+  real growth (alloc_tex_image +10: an if+while+2if added to the body) — the growth was previously
+  masked by the false "new function 54".
+- TP commits: 163/167 retained the signal. All 4 "losses" turned out, on review, to be
+  reference errors (the eyeball triage took a cross-match for growth, because the commits contained
+  real changes elsewhere): FastLED fefca7b8c1 (rfind: scores identical
+  6/21/1/0 in both versions), NVIDIA 23308b493d (matchAndRewrite: all scores
+  identical, one pattern score 5<25 added), ROCm 572fbe20f6 (findLinkInfo:
+  stub 0 + real 26 in BOTH versions), SenaxInc 977ca709f1 (get*Description: scores
+  13/16 identical, the functions simply shifted by ~48 lines).
+- MIXED commits dropped the artifact part, the real one stayed (NVIDIA bdae036928
   5→1, Serial-Studio 448a4cfe0e 6→3, Cytnx dc0b6b3dd0 4→1).
-- Суммарно по 188 эталонным коммитам: 429 → 372 сигналов.
-- Гейты: 1602 assertions / 480 кейсов зелёные; clang-format, cppcheck, lizard,
-  dogfood (src/include/tests: 0 нарушений) чисты.
+- Total over the 188 reference commits: 429 → 372 signals.
+- Gates: 1602 assertions / 480 cases green; clang-format, cppcheck, lizard,
+  dogfood (src/include/tests: 0 violations) clean.
 
-## Открытое
+## Open
 
-- Эталон triage.tsv содержит 4 документированные ошибки (выше) — строки помечать
-  при следующем проходе; пересчёт precision эталона: 7 настоящих FP из ручного
-  триажа + 4 скрытых FP, прошедших как TP.
-- Прогон оставшихся реп корпуса (83–100 + глазной разбор 13–58) — после решения
-  пользователя.
+- The reference triage.tsv contains 4 documented errors (above) — mark the lines
+  on the next pass; recompute reference precision: 7 real FPs from the manual
+  triage + 4 hidden FPs that passed as TP.
+- The run of the remaining corpus repos (83–100 + eyeball review of 13–58) — after the
+  user's decision.
 
-## Журнал ночной валидации (2026-06-12, автономно)
+## Nightly validation journal (2026-06-12, autonomous)
 
-Полный прогон №2 (100 реп, fixed binary A–D): 930 коммитов, 2071 нарушение,
-85 реп с находками. Выборочная глазная проверка по протоколу пользователя
-(«каждые ~10 находок») выявила ещё три источника шума → фиксы E–G:
+Full run #2 (100 repos, fixed binary A–D): 930 commits, 2071 violations,
+85 repos with findings. A selective eyeball check by the user's protocol
+("every ~10 findings") revealed three more sources of noise → fixes E–G:
 
-- **E. lambdaPending через `;`** (`local_complexity_metrics.cpp`): `char buf[N];`
-  взводил lambdaPending, и следующий голый блок `{...}` считался телом лямбды →
-  ложный +nesting всему содержимому. Найдено на sbbs 2a0ee8dd1a («hoist
-  declarations» дал +25 при идентичных decision-points; после фикса 76→76,
-  сигнал корректно исчез). Фикс: `;` на parenDepth 0 сбрасывает флаг.
-- **F. Версионные vendored-каталоги** (`file_classification.h`): `src/zlib-1.3.2/`
-  не матчился записью `zlib` (нормализация даёт `zlib1.3.2`). texstudio «update
-  to zlib 1.3.2» дал 32 шумовых находки. Фикс: точечный суффикс версии
-  (`цифры.цифры`) срезается и стем сверяется с kVendoredLibDirs. 32→0.
-- **G. Rescope-матч** (`local_complexity_drift.cpp`): gromacs «Move into gmx
-  namespace» дал 29 фантомных «new function» (после фикса A имена сменились
-  `foo`→`gmx::foo`). Fingerprint тут не работает — внутри namespace переписаны
-  квалификаторы параметров (`gmx::MDLogger&`→`MDLogger&`). Критерий: same short
-  name + arity И старая функция ИСЧЕЗЛА из нового файла → это переезд, не новая
-  функция (lowConfidence, только Δ≥5). 29→0.
+- **E. lambdaPending via `;`** (`local_complexity_metrics.cpp`): `char buf[N];`
+  armed lambdaPending, and the next bare block `{...}` was treated as a lambda body →
+  a false +nesting on all its contents. Found on sbbs 2a0ee8dd1a ("hoist
+  declarations" gave +25 with identical decision-points; after the fix 76→76,
+  the signal correctly disappeared). Fix: `;` at parenDepth 0 resets the flag.
+- **F. Versioned vendored directories** (`file_classification.h`): `src/zlib-1.3.2/`
+  did not match the `zlib` entry (normalization gives `zlib1.3.2`). texstudio "update
+  to zlib 1.3.2" gave 32 noise findings. Fix: the pointwise version suffix
+  (`digits.digits`) is trimmed and the stem is checked against kVendoredLibDirs. 32→0.
+- **G. Rescope match** (`local_complexity_drift.cpp`): gromacs "Move into gmx
+  namespace" gave 29 phantom "new function" (after fix A the names changed
+  `foo`→`gmx::foo`). The fingerprint does not work here — inside the namespace the
+  parameter qualifiers were rewritten (`gmx::MDLogger&`→`MDLogger&`). Criterion: same short
+  name + arity AND the old function DISAPPEARED from the new file → this is a move, not a new
+  function (lowConfidence, only Δ≥5). 29→0.
 
-Проверенные вручную «подозрительные» из прогона №2, оказавшиеся честными TP:
-MaximumTrainer Account::Account 0→6 (ctor получил вложенные if миграции токенов),
-Lightpad treeWidgetStyle 0→9 (тернарники isValid()?:), glasgow
-buildConstraintNoOverlap 0→5 (стаб получил реализацию, fingerprint сматчил точную
-перегрузку из четырёх), foundationdb LogSystemConsumer 0→92×5 (перенос реализации
-из LogSystem.cpp — механически честно, семантически move; известное ограничение
-per-file сравнения), intechstudio f3477654f5 (bulk-port 819 файлов — честные
+Manually checked "suspicious" cases from run #2 that turned out to be honest TPs:
+MaximumTrainer Account::Account 0→6 (the ctor got nested ifs of token migration),
+Lightpad treeWidgetStyle 0→9 (ternaries isValid()?:), glasgow
+buildConstraintNoOverlap 0→5 (the stub got an implementation, the fingerprint matched the exact
+overload out of four), foundationdb LogSystemConsumer 0→92×5 (a move of an implementation
+from LogSystem.cpp — mechanically honest, semantically a move; a known limitation
+of per-file comparison), intechstudio f3477654f5 (bulk-port of 819 files — honest
 new-file).
 
-Эталон после E–G: без регрессий (163/167 TP, 5/6 FP, 4 известные ошибки эталона).
-Прогон №3 запущен (все фиксы A–G).
+Reference after E–G: no regressions (163/167 TP, 5/6 FP, 4 known reference errors).
+Run #3 launched (all fixes A–G).
 
-## Дополнение (2026-06-12, утро): фиксы H–I по вопросу пользователя
+## Addendum (2026-06-12, morning): fixes H–I on the user's question
 
-Пользователь усомнился в двух «честных TP» из ночной сводки. Проверка глазами:
-- glasgow buildConstraintNoOverlap 0→5 — подтверждён чистый TP (тело было
-  одной строкой report_unsupported, коммит реализовал перегрузку).
-- foundationdb «перенос 861 строки» — подтверждён **скрытый FP-класс**:
+The user doubted two "honest TPs" from the nightly summary. Eyeball check:
+- glasgow buildConstraintNoOverlap 0→5 — confirmed a clean TP (the body was
+  a single line report_unsupported, the commit implemented the overload).
+- foundationdb "move of 861 lines" — confirmed a **hidden FP class**:
 
-- **H. Кросс-файловый move-детектор** (`local_complexity_drift.cpp`):
-  тело функции, исчезнувшее из одного файла диффа (или сжатое до стаба-делегата
-  score<5), гасит «grew 0→N» / «new function» той же функции (short name +
-  arity + скор ±max(2,10%)) в другом файле того же диффа. Pool consume-once.
-  foundationdb db0ccfc99a: 9 фантомов → 0, net delta стал честным +414/−414.
-- **I. Apache-баннер ≠ vendor для LCX** (`local_complexity_drift.cpp`):
-  hasVendorLicenseHeader (контентная эвристика дубликат-сканера) молча выкидывал
-  ВСЕ файлы Apache-лицензированных проектов из LCX-анализа — у foundationdb
-  бóльшая часть собственного кода не анализировалась вовсе (поэтому пропажа
-  LogSystem.cpp и не давала improvements). LCX теперь использует только
-  path/basename-слои vendor-фильтра. Тихая потеря покрытия устранена.
+- **H. Cross-file move detector** (`local_complexity_drift.cpp`):
+  the body of a function that disappeared from one file of the diff (or was compressed to a delegate stub
+  with score<5) silences the "grew 0→N" / "new function" of the same function (short name +
+  arity + score ±max(2,10%)) in another file of the same diff. Pool consume-once.
+  foundationdb db0ccfc99a: 9 phantoms → 0, net delta became an honest +414/−414.
+- **I. Apache banner ≠ vendor for LCX** (`local_complexity_drift.cpp`):
+  hasVendorLicenseHeader (the content heuristic of the duplicate scanner) silently threw out
+  ALL files of Apache-licensed projects from LCX analysis — for foundationdb
+  the larger part of its own code was not analyzed at all (which is why the absence of
+  LogSystem.cpp produced no improvements). LCX now uses only the
+  path/basename layers of the vendor filter. The silent loss of coverage is eliminated.
 
-Эффект на эталон: +3 «TP-LOST», все три проверены глазами и корректны:
-FlashCpp a0acb5538c и 12ea8147ab — чистые file-split'ы (перенос без роста),
-Cytnx 5e48a8c4a1 — пятая ошибка эталона («Rsvd grew 4→66» был кросс-матчем,
-в обеих версиях перегрузки Rsvd имеют скоры 45/4/4; реальный перенос
-Rsvd_notruncate_BlockUT_internal score 69 подавлен move-пулом верно).
+Effect on the reference: +3 "TP-LOST", all three checked by eye and correct:
+FlashCpp a0acb5538c and 12ea8147ab — clean file-splits (a move without growth),
+Cytnx 5e48a8c4a1 — the fifth reference error ("Rsvd grew 4→66" was a cross-match,
+in both versions the Rsvd overloads have scores 45/4/4; the real move of
+Rsvd_notruncate_BlockUT_internal score 69 is suppressed by the move pool correctly).
 
-Прогон №4 (фиксы A–I) запущен.
+Run #4 (fixes A–I) launched.
 
-## Чекпоинт-находка (2026-06-12, день): фикс J
+## Checkpoint finding (2026-06-12, day): fix J
 
-Выборочная проверка прогона №4 на 40 репах: skyrim-community-shaders
-2e57080e0a «rename weather editor to CS editor» дал 33 фантомных «new function».
+A selective check of run #4 across 40 repos: skyrim-community-shaders
+2e57080e0a "rename weather editor to CS editor" gave 33 phantom "new function".
 
-- **J. --no-renames в changedCppFiles** (`git_state.cpp`): git с rename-детекцией
-  отдаёт в --name-only только НОВЫЙ путь переименованного файла — старый путь
-  не попадал в changedFiles, move-пул (fix H) не видел исчезающую сторону.
-  Теперь rename приходит парой A+D. skyrim: 33→0. Интеграционный тест добавлен.
+- **J. --no-renames in changedCppFiles** (`git_state.cpp`): git with rename detection
+  gives in --name-only only the NEW path of a renamed file — the old path did
+  not get into changedFiles, the move pool (fix H) did not see the disappearing side.
+  Now a rename comes as a pair A+D. skyrim: 33→0. An integration test was added.
 
-Эффект на эталон: +2 reclassification (оба — file-rename, эталон сам помечал их
-как «порт»/«переименование файла»): Alchemy 56d8ece861 (llappviewerlinux→sdl),
-21cmFAST 6017a20997 (PerturbField.c→PerturbedField.c). Итого выключенных строк
-эталона: 9 (5 ошибок триажа + 4 move/rename-reclassification).
+Effect on the reference: +2 reclassification (both — file-rename, the reference itself marked them
+as "port"/"file rename"): Alchemy 56d8ece861 (llappviewerlinux→sdl),
+21cmFAST 6017a20997 (PerturbField.c→PerturbedField.c). Total disabled reference lines: 9
+(5 triage errors + 4 move/rename reclassification).
 
-Прогон №5 (фиксы A–J) запущен.
+Run #5 (fixes A–J) launched.
 
-## Чекпоинты прогона №5 (выборочная глазная проверка каждые ~20 реп)
+## Run #5 checkpoints (selective eyeball check every ~20 repos)
 
-- ~17/100: чисто. gauge f2d18665c0 (равномерный +13 ×3) — честно, dirty-tracking
-  вставлен в каждую display-функцию (98 новых ветвлений). alien loadSave ×2 —
-  разные перегрузки с реальной legacy-логикой, fingerprint их различил.
-- ~38/100: чисто. valentina InitScenes 0→21 (connect-лямбда rubber-band),
-  MAA navigate_to_stage 0→19 (retry-навигация), webf 13 находок (+1638 строк
-  реального селектор-матчинга) — все честные.
-- ~57/100: продуктовых багов нет; два наблюдения по МЕТОДОЛОГИИ корпуса:
-  (а) идентичные патчи на разных ветках дают дубль-находки (grid-fw SUKU ×2,
-  diff'ы буквально совпадают) — лечится дедупом по git patch-id в скрипте;
-  (б) snapshot-коммиты форков (nvdajp «Apply JP snapshot», 3.37M insertions,
-  57 находок) — механически честные new function, но не авторские изменения;
-  для корпусной статистики стоит отсекать мега-коммиты порогом insertions.
+- ~17/100: clean. gauge f2d18665c0 (uniform +13 ×3) — honest, dirty-tracking
+  inserted into every display function (98 new branches). alien loadSave ×2 —
+  different overloads with real legacy logic, the fingerprint distinguished them.
+- ~38/100: clean. valentina InitScenes 0→21 (connect-lambda rubber-band),
+  MAA navigate_to_stage 0→19 (retry navigation), webf 13 findings (+1638 lines
+  of real selector matching) — all honest.
+- ~57/100: no product bugs; two observations on corpus METHODOLOGY:
+  (a) identical patches on different branches give duplicate findings (grid-fw SUKU ×2,
+  the diffs literally coincide) — cured by dedup on git patch-id in the script;
+  (b) snapshot commits of forks (nvdajp "Apply JP snapshot", 3.37M insertions,
+  57 findings) — mechanically honest new functions, but not authored changes;
+  for corpus statistics it is worth cutting off mega-commits by an insertions threshold.
 
-## Инцидент выборки (2026-06-12, день)
+## Selection incident (2026-06-12, day)
 
-Прогон №6 внезапно сканировал ДРУГИЕ репы (cpu6502 с 12 коммитами и т.п.):
-grow-джоб (#115) на ходу клонит репы в ~/oss и обновил corpus_summary.tsv
-(04:39) — top-100 по ai_pct сместился к свежесклонированным мелким AI-репам.
-Прогон остановлен. Решение: выборка пинуется файлом `selection_pinned.txt`
-(run_lcx_scan.py читает его, если есть); восстановлены доказуемые 84 репы
-оригинальной выборки (точный порядок из progress-лога прогона №1 + 1 по рангу).
-Ранги 85–100 оригинала невосстановимы (selection.txt перезаписывался; среди
-кандидатов невозможно отличить «был на диске» от «переклонирован #115 сегодня»),
-в прогоне №2 они дали 0 находок — на отчёт не влияют. Прогон №7 (финальный,
-фиксы A–K, пин 84) запущен.
-- ~76/84 (v7): чисто. Кандидат в kVendoredLibDirs: `vsomeip` (EcuBus-Pro
-  заимпортил его деревом +21917 строк → 19 шумовых new-function; путь/базнейм
-  слои не ловят). siril 7a2ec4309f (12 находок) — настоящая фича на 21 файл.
+Run #6 suddenly scanned DIFFERENT repos (cpu6502 with 12 commits, etc.):
+the grow job (#115) is cloning repos into ~/oss on the fly and updated corpus_summary.tsv
+(04:39) — the top-100 by ai_pct shifted to freshly-cloned small AI repos.
+The run was stopped. Decision: the selection is pinned by the file `selection_pinned.txt`
+(run_lcx_scan.py reads it if present); the provable 84 repos of the original
+selection were restored (the exact order from the progress log of run #1 + 1 by rank).
+Ranks 85–100 of the original are unrecoverable (selection.txt was overwritten; among
+the candidates it is impossible to distinguish "was on disk" from "re-cloned by #115 today"),
+in run #2 they gave 0 findings — they do not affect the report. Run #7 (final,
+fixes A–K, pin 84) launched.
+- ~76/84 (v7): clean. A candidate for kVendoredLibDirs: `vsomeip` (EcuBus-Pro
+  imported it as a tree +21917 lines → 19 noise new-functions; the path/basename
+  layers do not catch it). siril 7a2ec4309f (12 findings) — a real feature spanning 21 files.
 
-## Итог финального прогона №7 (2026-06-12, вечер)
+## Result of the final run #7 (2026-06-12, evening)
 
-Пин 84 реп, бинарь с фиксами A–K, 11499s. Результат:
-- **945 находко-коммитов, 1813 нарушений, 82/84 реп с находками**
-- 76 реп набрали ≥10 коммитов, 73 — целевые 12 (остальные — мелкие репы,
-  у которых столько роста просто нет)
-- Состав: 1343 growth, 395 new function, 75 from-0 (стабы→реализации)
-- Отчёт со ссылками: `experiments/lcx_corpus_run/REPORT.md` (3008 строк,
-  per-repo заголовки-ссылки на GitHub + per-commit ссылки + нарушения)
-- Чекпоинт-проверки глазами по ходу прогона (каждые ~20 реп): новых классов
-  артефактов НЕ найдено; все выборочно проверенные «подозрительные» оказались
-  честными TP (gauge dirty-tracking, alien loadSave-перегрузки, valentina
-  connect-лямбда, MAA retry-навигация, autoware стаб→реализация, minsky
-  ICairoShim-серия, xLights merge-on-import).
+Pin of 84 repos, binary with fixes A–K, 11499s. Result:
+- **945 finding-commits, 1813 violations, 82/84 repos with findings**
+- 76 repos reached ≥10 commits, 73 — the target 12 (the rest — small repos
+  that simply do not have that much growth)
+- Composition: 1343 growth, 395 new function, 75 from-0 (stubs→implementations)
+- Report with links: `experiments/lcx_corpus_run/REPORT.md` (3008 lines,
+  per-repo heading links to GitHub + per-commit links + violations)
+- Eyeball checkpoint checks during the run (every ~20 repos): no new classes of
+  artifacts were found; all selectively checked "suspicious" cases turned out to be
+  honest TP (gauge dirty-tracking, alien loadSave overloads, valentina
+  connect-lambda, MAA retry navigation, autoware stub→implementation, minsky
+  ICairoShim series, xLights merge-on-import).
 
-Сравнение шума: прогон №2 (битый сканер) — 2071 нарушение на 100 репах;
-прогон №7 (фиксы A–K) — 1813 на 84 репах при ПОЛНОМ устранении известных
-FP-классов и +покрытие Apache-проектов (fix I).
+Noise comparison: run #2 (broken scanner) — 2071 violations on 100 repos;
+run #7 (fixes A–K) — 1813 on 84 repos with COMPLETE elimination of the known
+FP classes and +coverage of Apache projects (fix I).
 
-## Прогон №8 (2026-06-12, вечер): свежий топ-100 нового корпуса
+## Run #8 (2026-06-12, evening): fresh top-100 of the new corpus
 
-По команде пользователя: закоммичена вся волна фиксов (ee16c12, 563e9e4,
-c814998, 29a2339; file_classification и #116 ушли коммитами параллельной
-сессии 362ca60/84ca991), затем прогон по СВЕЖЕМУ топ-100 (без пина — новый
-corpus_summary + клоны #115). Артефакты v7 сохранены как *_v7_pinned84.*.
+Per the user's command: the entire wave of fixes was committed (ee16c12, 563e9e4,
+c814998, 29a2339; file_classification and #116 went as commits of a parallel
+session 362ca60/84ca991), then a run over the FRESH top-100 (without a pin — a new
+corpus_summary + clones from #115). The v7 artifacts were saved as *_v7_pinned84.*.
 
-Результат v8: 931 находко-коммит, 2623 нарушения, 100/100 реп (66 с ≥10).
-1341s — новые репы мелкие. Структурная особенность новой выборки: AI-slop
-репы с мега-дропами («extract sources» +419К строк → 241 находка; ohal 102;
-SpecusGL 87) — для статистики обязательна фильтрация мега-коммитов
-(порог insertions), см. методологические заметки выше. REPORT.md
-перегенерирован под v8.
+Result v8: 931 finding-commits, 2623 violations, 100/100 repos (66 with ≥10).
+1341s — the new repos are small. A structural feature of the new selection: AI-slop
+repos with mega-drops ("extract sources" +419K lines → 241 findings; ohal 102;
+SpecusGL 87) — for statistics, filtering mega-commits is mandatory
+(an insertions threshold), see the methodological notes above. REPORT.md
+was regenerated for v8.
 
-## Как работает (итог для будущего читателя)
+## How it works (summary for the future reader)
 
-Корпусная валидация LCX = замкнутая петля: прогон продуктового бинаря по
-топ-подозрительным репам корпуса (`run_lcx_scan.py`, per-commit `--diff`) →
-глазной триаж находок в `triage.tsv` (эталон: 189 коммитов, 16 реп) →
-воспроизведение каждого FP на реальном коммите → фикс в сканере с юнит-тестом →
-переплён эталона (`rescan_triaged.py`) с проверкой «FP ушли, TP остались» →
-новый полный прогон → выборочные глазные чекпоинты каждые ~20 реп. Цикл
-повторялся, пока чекпоинты не перестали находить новые классы артефактов.
+The LCX corpus validation = a closed loop: a run of the product binary over the
+top-suspicious corpus repos (`run_lcx_scan.py`, per-commit `--diff`) →
+eyeball triage of findings into `triage.tsv` (reference: 189 commits, 16 repos) →
+reproduction of each FP on a real commit → a fix in the scanner with a unit test →
+re-scan of the reference (`rescan_triaged.py`) with the check "FPs gone, TPs stayed" →
+a new full run → selective eyeball checkpoints every ~20 repos. The cycle
+repeated until the checkpoints stopped finding new classes of artifacts.
 
-## Ключевые решения
+## Key decisions
 
-- **Эталон прежде фиксов**: triage.tsv собран ДО правок кода — все фиксы
-  проверялись против него; 5 ошибок самого эталона найдены детектором и
-  подтверждены вручную (агрегат врёт — сверяй поштучно).
-- **Пин выборки** (`selection_pinned.txt`): corpus_summary и клоны — движущиеся
-  мишени (#115), без пина прогоны несопоставимы.
-- **Глазные чекпоинты по ходу прогона** (протокол пользователя «каждые ~10
-  находок»): именно они выловили lambdaPending-баг, vendored-версии, Apache-
-  баннер, rename-дыру и minsky-контрпример.
-- **Move ≠ рост**: перенос тела (между файлами/скоупами/сигнатурами) глушится,
-  дублирование — репортится; границу зафиксировал эксперимент-контрфакт.
+- **Reference before fixes**: triage.tsv was assembled BEFORE code edits — all fixes
+  were checked against it; 5 errors of the reference itself were found by the detector and
+  confirmed manually (the aggregate lies — verify case by case).
+- **Pin the selection** (`selection_pinned.txt`): corpus_summary and clones are moving
+  targets (#115), without a pin runs are incomparable.
+- **Eyeball checkpoints during the run** (the user's protocol "every ~10
+  findings"): they are exactly what caught the lambdaPending bug, the vendored versions, the Apache
+  banner, the rename hole and the minsky counter-example.
+- **Move ≠ growth**: a body move (between files/scopes/signatures) is silenced,
+  duplication is reported; the boundary was fixed by a counterfactual experiment.
 
-## Изменённые файлы
+## Changed files
 
 - `src/scan/function_body_scan.cpp`, `include/.../function_body_scan.h` —
   ScopeTracker, param fingerprint (ee16c12)
-- `src/scan/local_complexity_drift.cpp` — fingerprint-матч, arity/rescope/move
-  fallback'и, brace-guard, basename-only vendor (ee16c12, c814998)
+- `src/scan/local_complexity_drift.cpp` — fingerprint match, arity/rescope/move
+  fallbacks, brace-guard, basename-only vendor (ee16c12, c814998)
 - `src/scan/local_complexity_metrics.cpp` — largest-#if-branch, lambdaPending
   (563e9e4)
-- `include/archcheck/scan/file_classification.h` — версионные vendor-каталоги
-  (362ca60, параллельная сессия)
+- `include/archcheck/scan/file_classification.h` — versioned vendor directories
+  (362ca60, parallel session)
 - `src/git/git_state.cpp` — --no-renames (c814998)
 - `config/diff`: thresholds.diff_max_added_lines (#117, 6c0375a)
-- тесты: +9 файлов затронуто, 1784 assertions; журнал/доки: 29a2339
-- артефакты: experiments/lcx_corpus_run/{REPORT.md, REPORT_v7_pinned84.md,
+- tests: +9 files touched, 1784 assertions; journal/docs: 29a2339
+- artifacts: experiments/lcx_corpus_run/{REPORT.md, REPORT_v7_pinned84.md,
   findings*.jsonl, triage.tsv, selection_v7_pinned84.txt}
 
-## Итог
+## Outcome
 
-**Статус:** completed
-**Дата завершения:** 2026-06-12
+**Status:** completed
+**Date completed:** 2026-06-12
 
-Цель достигнута: LCX-сигнал валидирован на корпусе продуктовым бинарём
-(финальные прогоны: пин-84 → 945 находко-коммитов/1813 нарушений;
-свежий топ-100 → 931/2623). По пути найдено и закрыто 11 классов дефектов
-сканера (фиксы A–K) + порог bulk-импорта (#117). Эталон: все подтверждённые
-FP устранены, TP сохранены. #099 закрывается как absorbed: function-discovery
-доказанно покрывает реальные репы, text-proxy fallback не нужен.
+Goal achieved: the LCX signal was validated on the corpus with the product binary
+(final runs: pin-84 → 945 finding-commits/1813 violations;
+fresh top-100 → 931/2623). Along the way, 11 classes of scanner defects were found and closed
+(fixes A–K) + the bulk-import threshold (#117). Reference: all confirmed
+FPs eliminated, TPs preserved. #099 is closed as absorbed: function-discovery
+provably covers real repos, the text-proxy fallback is not needed.

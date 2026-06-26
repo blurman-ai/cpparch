@@ -1,43 +1,43 @@
 # [CONFIG] YAML loader for `.archcheck.yml` v1 (phase 1 schema)
 
-**Дата создания:** 2026-05-29
-**Дата старта:** 2026-05-29
-**Дата завершения:** 2026-05-29
-**Статус:** done
-**Модуль:** CONFIG
-**Приоритет:** major
-**Сложность:** M (один скоуп: YAML → Config struct + валидация + fixtures, без подключения к rule pipeline)
-**Целевой релиз:** v1 phase 1 (post-MVP)
-**Блокирует:** future/v1_maj_agent_config_authoring_rules.md, future/v1_maj_ai_config_synthesis_eval_protocol.md, future/v1_min_ai_config_synthesis_trial_spdlog.md (вся цепочка AI synthesis — без рабочего loader-а агенту некуда писать)
-**Заблокирован:** —
-**Related:** wip/v1_maj_config_format_minimal_contract.md (спека), docs/config_format.md (контракт), future/010_maj_ai_rule_synthesis_contract.md
+**Date created:** 2026-05-29
+**Date started:** 2026-05-29
+**Date completed:** 2026-05-29
+**Status:** done
+**Module:** CONFIG
+**Priority:** major
+**Difficulty:** M (single scope: YAML → Config struct + validation + fixtures, without wiring into the rule pipeline)
+**Target release:** v1 phase 1 (post-MVP)
+**Blocks:** future/v1_maj_agent_config_authoring_rules.md, future/v1_maj_ai_config_synthesis_eval_protocol.md, future/v1_min_ai_config_synthesis_trial_spdlog.md (the whole AI synthesis chain — without a working loader the agent has nowhere to write)
+**Blocked by:** —
+**Related:** wip/v1_maj_config_format_minimal_contract.md (spec), docs/config_format.md (contract), future/010_maj_ai_rule_synthesis_contract.md
 
-## Цель
+## Goal
 
-Реализовать `src/config/` — чтение `.archcheck.yml` v1 phase 1 в типизированный `Config`-struct по контракту [`docs/config_format.md`](../../docs/config_format.md). Loader-only: rule pipeline пока не трогаем, hooks-ов в `run_check` не добавляем. Закрытие задачи = "файл читается, валидируется, ошибки внятные, fixtures зелёные".
+Implement `src/config/` — reading `.archcheck.yml` v1 phase 1 into a typed `Config` struct per the contract [`docs/config_format.md`](../../docs/config_format.md). Loader-only: don't touch the rule pipeline yet, don't add hooks into `run_check`. Task closure = "the file is read, validated, errors are clear, fixtures green".
 
-## Контекст
+## Context
 
-Спека `docs/config_format.md` зафиксировала формат: `version: 1`, `modules:` (map → `paths: [glob]`), `rules:` (list, `type ∈ {layers, independence, forbidden}`, обязательное `name`). Стейк-холдеры спеки — AI synthesis pipeline (#10, v1 #2-#4): без работающего loader-а проверить вывод агента нечем, и вся цепочка AI-генерации конфига блокируется.
+The spec `docs/config_format.md` locked the format: `version: 1`, `modules:` (map → `paths: [glob]`), `rules:` (list, `type ∈ {layers, independence, forbidden}`, mandatory `name`). The spec's stakeholders are the AI synthesis pipeline (#10, v1 #2-#4): without a working loader there's nothing to validate the agent's output against, and the whole AI config-generation chain is blocked.
 
-Текущая кодовая база MVP читает только дефолтные правила, конфига нет. Эта задача добавляет subsystem `config/`, не подключая его к запуску — отдельная под-задача потом плумбит в `run_check`.
+The current MVP codebase reads only the default rules, there's no config. This task adds the `config/` subsystem without wiring it into the run — a separate sub-task will later plumb it into `run_check`.
 
-## Открытые вопросы (решить в фазе 1, до кода)
+## Open questions (resolve in phase 1, before code)
 
-1. ~~**YAML-парсер: `ryml` или `yaml-cpp`?**~~ — **решено 2026-05-29**: `ryml` v0.7.0 уже подключён через FetchContent в `CMakeLists.txt:55-65` (для других подсистем, archcheck_core линкуется к `ryml::ryml`). Используем его. Переход на `yaml-cpp` не рассматриваем без конкретного блокера от ryml.
+1. ~~**YAML parser: `ryml` or `yaml-cpp`?**~~ — **resolved 2026-05-29**: `ryml` v0.7.0 is already wired in via FetchContent in `CMakeLists.txt:55-65` (for other subsystems, archcheck_core links against `ryml::ryml`). We use it. We won't consider switching to `yaml-cpp` without a concrete blocker from ryml.
 
-2. **Glob-движок: своя реализация или встроенный?**
-   Глобы из `paths:` (`src/**`, `include/myproj/**`) нужны для membership-резолва (отдельная задача), но **проверка непустоты и валидность синтаксиса** делается уже в loader-е. Минимальная проверка: список непустой, каждая строка непустая, нет `*..` или `?:` (грубый sanity check). Полный glob-match — не в этой задаче.
+2. **Glob engine: own implementation or built-in?**
+   Globs from `paths:` (`src/**`, `include/myproj/**`) are needed for membership resolution (a separate task), but the **non-emptiness check and syntax validity** are done already in the loader. Minimal check: list non-empty, each string non-empty, no `*..` or `?:` (rough sanity check). Full glob matching — not in this task.
 
-3. **Что считается "config error" (exit 2) vs "validation warning"?**
-   Контракт: всё, что нарушает грамматику или семантические инварианты из `docs/config_format.md`, — exit 2 с line-numbered сообщением. Warnings не вводим в phase 1 (соблазн "soft validation" → не делаем, чтобы не размывать контракт).
+3. **What counts as a "config error" (exit 2) vs a "validation warning"?**
+   Contract: anything that violates the grammar or the semantic invariants from `docs/config_format.md` is exit 2 with a line-numbered message. We don't introduce warnings in phase 1 (the temptation of "soft validation" → we don't do it, to avoid blurring the contract).
 
-## План выполнения
+## Execution plan
 
-### Фаза 1 — скелет subsystem + `Config` struct
+### Phase 1 — subsystem skeleton + `Config` struct
 
-- [ ] Решить YAML-парсер (см. открытый вопрос 1); добавить FetchContent в `CMakeLists.txt` (offline-кеш в `build/_deps/`)
-- [ ] `include/archcheck/config/config.h` — публичные типы:
+- [ ] Decide the YAML parser (see open question 1); add FetchContent to `CMakeLists.txt` (offline cache in `build/_deps/`)
+- [ ] `include/archcheck/config/config.h` — public types:
   - `struct ModuleDef { std::string name; std::vector<std::string> paths; }`
   - `enum class RuleType { Layers, Independence, Forbidden }`
   - `struct LayersRule { std::string name; std::vector<std::string> layers; }`
@@ -45,104 +45,104 @@
   - `struct ForbiddenRule { std::string name; std::vector<std::string> from; std::vector<std::string> to; }`
   - `using Rule = std::variant<LayersRule, IndependenceRule, ForbiddenRule>;`
   - `struct Config { int version; std::vector<ModuleDef> modules; std::vector<Rule> rules; }`
-- [ ] `include/archcheck/config/config_loader.h` — точка входа:
-  - `Config load(const std::filesystem::path&)` — кидает `ConfigError` с line/col из YAML-парсера
-- [ ] `src/config/config_loader.cpp` — реализация
+- [ ] `include/archcheck/config/config_loader.h` — entry point:
+  - `Config load(const std::filesystem::path&)` — throws `ConfigError` with line/col from the YAML parser
+- [ ] `src/config/config_loader.cpp` — implementation
 
-### Фаза 2 — валидация (по контракту `docs/config_format.md`)
+### Phase 2 — validation (per the contract `docs/config_format.md`)
 
-- [x] **Top-level**: ровно три ключа `version`/`modules`/`rules`; неизвестный ключ → exit 2
-- [x] **`version`**: integer, ровно `1`; `version: 2` → exit 2 с сообщением "unsupported schema version, this binary supports v1"
-- [x] **`modules`**: непустой map; имена матчат `[a-z0-9_-]+`; уникальны; `paths:` непустой; глобы непусты
-- [~] **Не-overlap модулей** — duplicate name detection реализовано, "буквально идентичные globs" не реализованы (low value до wiring в pipeline; пометка как future micro-task)
-- [x] **`rules`**: каждый элемент имеет `type` и `name`; `name` уникальны; `type ∈ {layers, independence, forbidden}`
-- [x] **`layers`**: `layers:` непустой ordered list, элементы — существующие модули, без повторов
-- [x] **`independence`**: `modules:` непустой set, элементы — существующие модули, без повторов
-- [x] **`forbidden`**: `from:` и `to:` непустые списки; элементы — существующие модули; пересечение `from ∩ to` пусто
-- [x] **Diagnostic format**: `file:line:col: <message>` через ryml location API; работает для map/seq nodes, для scalar values ryml даёт 0:0 (acceptable limitation)
+- [x] **Top-level**: exactly three keys `version`/`modules`/`rules`; unknown key → exit 2
+- [x] **`version`**: integer, exactly `1`; `version: 2` → exit 2 with message "unsupported schema version, this binary supports v1"
+- [x] **`modules`**: non-empty map; names match `[a-z0-9_-]+`; unique; `paths:` non-empty; globs non-empty
+- [~] **Module non-overlap** — duplicate name detection implemented, "literally identical globs" not implemented (low value before wiring into the pipeline; marked as a future micro-task)
+- [x] **`rules`**: each element has `type` and `name`; `name` unique; `type ∈ {layers, independence, forbidden}`
+- [x] **`layers`**: `layers:` non-empty ordered list, elements are existing modules, no duplicates
+- [x] **`independence`**: `modules:` non-empty set, elements are existing modules, no duplicates
+- [x] **`forbidden`**: `from:` and `to:` non-empty lists; elements are existing modules; intersection `from ∩ to` empty
+- [x] **Diagnostic format**: `file:line:col: <message>` via ryml location API; works for map/seq nodes, for scalar values ryml gives 0:0 (acceptable limitation)
 
-### Фаза 3 — fixtures + tests
+### Phase 3 — fixtures + tests
 
-- [x] `fixtures/config/pass/` — четыре референс-примера из `docs/config_format.md` (tiny / layered / legacy / mixed), каждый — отдельная поддиректория с валидным `.archcheck.yml`
-- [x] `fixtures/config/fail/` — по одной поддиректории на каждую категорию валидационных ошибок:
-  - `fail_unknown_top_key/` — лишний `defaults:` (phase 2 feature)
+- [x] `fixtures/config/pass/` — four reference examples from `docs/config_format.md` (tiny / layered / legacy / mixed), each a separate subdirectory with a valid `.archcheck.yml`
+- [x] `fixtures/config/fail/` — one subdirectory per validation error category:
+  - `fail_unknown_top_key/` — extra `defaults:` (phase 2 feature)
   - `fail_wrong_version/` — `version: 2`
-  - `fail_duplicate_module/` — два модуля с одинаковым именем
-  - `fail_duplicate_rule_name/` — два правила с одинаковым `name`
+  - `fail_duplicate_module/` — two modules with the same name
+  - `fail_duplicate_rule_name/` — two rules with the same `name`
   - `fail_unknown_rule_type/` — `type: required` (phase 2+)
   - `fail_unknown_module_in_rule/` — `from: [ghost]`
   - `fail_from_to_overlap/` — `from: [a], to: [a, b]`
   - `fail_empty_layers/` — `layers: []`
-  - `fail_missing_name/` — правило без `name:`
-- [x] Catch2 тесты: `tests/unit/config/test_loader.cpp` — 4 pass-кейса + 9 fail-кейсов, 13/13 PASSED (слиты в один файл вместо изначально планируемых двух).
+  - `fail_missing_name/` — rule without `name:`
+- [x] Catch2 tests: `tests/unit/config/test_loader.cpp` — 4 pass cases + 9 fail cases, 13/13 PASSED (merged into a single file instead of the originally planned two).
 
-### Фаза 4 — диагностика и CLI плумбинг (минимум)
+### Phase 4 — diagnostics and CLI plumbing (minimum)
 
-- [x] CLI: флаг `--config <path>` (default auto-pickup в CWD намеренно не реализован — отложен как QoL после wiring)
-- [x] При `ConfigError` — print `file:line:col: <message>` на stderr, `exit 2`
-- [x] **Не подключать `Config` к rule pipeline** — выполнено: `dispatch_config` validates → discards → `run_check` с default rules
+- [x] CLI: `--config <path>` flag (default auto-pickup in CWD deliberately not implemented — deferred as QoL after wiring)
+- [x] On `ConfigError` — print `file:line:col: <message>` to stderr, `exit 2`
+- [x] **Don't wire `Config` into the rule pipeline** — done: `dispatch_config` validates → discards → `run_check` with default rules
 
-## Что **не** в этой задаче
+## What is **not** in this task
 
-- Glob-резолв файлов в модули (membership) — отдельная задача после loader-а
-- Подключение `Config` к rule pipeline / реальное применение `layers`/`independence`/`forbidden` правил — отдельная задача (это уже про rules/, не config/)
-- v1 phase 2 фичи: `defaults`, `thresholds`, `baseline`, `ignore`, `required`, `protected`, `severity` — отдельная спека потом
-- Pattern-rules (`forbidden_pattern`) — dropped из v1, не имплементируем
+- Glob-resolving files into modules (membership) — a separate task after the loader
+- Wiring `Config` into the rule pipeline / actually applying `layers`/`independence`/`forbidden` rules — a separate task (that's already about rules/, not config/)
+- v1 phase 2 features: `defaults`, `thresholds`, `baseline`, `ignore`, `required`, `protected`, `severity` — a separate spec later
+- Pattern rules (`forbidden_pattern`) — dropped from v1, not implemented
 
-## Альтернативы (отклонены / отложены)
+## Alternatives (rejected / deferred)
 
-- **Один файл `config.cpp` без public header** — отклонено: `Config` struct нужен публично для rules/ и тестов
-- **`std::variant<>` vs `IRule`-стиль наследования** — выбираем `variant`: правил всего три, типы фиксированы по контракту, добавление нового типа = breaking schema change (MAJOR bump), сравнимо по сложности с добавлением branch в visitor
-- **Без line numbers в ошибках, простой "wrong key X"** — отклонено: для AI-synthesis pipeline критично, чтобы агент видел *где* в его сгенерированном `.draft` ошибка
-- **Реализовать сразу с применением правил к pipeline** — отклонено: split scope, loader сам по себе закрываемый и проверяемый, пайплайн-интеграция — отдельная задача с другой acceptance criteria
+- **A single `config.cpp` file without a public header** — rejected: the `Config` struct needs to be public for rules/ and tests
+- **`std::variant<>` vs `IRule`-style inheritance** — we choose `variant`: there are only three rules, types are fixed by contract, adding a new type = breaking schema change (MAJOR bump), comparable in complexity to adding a branch to a visitor
+- **No line numbers in errors, just simple "wrong key X"** — rejected: for the AI-synthesis pipeline it's critical that the agent sees *where* in its generated `.draft` the error is
+- **Implement straight away with rules applied to the pipeline** — rejected: split scope, the loader is self-contained, closeable and verifiable; pipeline integration is a separate task with different acceptance criteria
 
-## Сделано
+## Done
 
-### 2026-05-29 — фаза 1 (skeleton) и фаза 2 (parsing + validation), без line numbers
+### 2026-05-29 — phase 1 (skeleton) and phase 2 (parsing + validation), without line numbers
 
-Public API + полный validation loop для v1 phase 1 schema. Loader не подключён к pipeline и не имеет caller'ов — `archcheck_core` собирается, тесты `235/235` зелёные на каждом шаге.
+Public API + full validation loop for the v1 phase 1 schema. Loader is not wired into the pipeline and has no callers — `archcheck_core` builds, tests `235/235` green at every step.
 
-**Реализовано в `src/config/config_loader.cpp`:**
+**Implemented in `src/config/config_loader.cpp`:**
 
-- `read_file()` — чтение YAML, ошибка "cannot open" если файл не открывается.
-- `parse_version()` — top-level map, `version: 1` обязателен; другие версии → "unsupported schema version".
-- `validate_top_keys()` — отвергает любые top-level ключи кроме `version` / `modules` / `rules`; обязательное присутствие `modules` и `rules`.
+- `read_file()` — reads YAML, "cannot open" error if the file won't open.
+- `parse_version()` — top-level map, `version: 1` mandatory; other versions → "unsupported schema version".
+- `validate_top_keys()` — rejects any top-level keys except `version` / `modules` / `rules`; mandatory presence of `modules` and `rules`.
 - `parse_modules()` + helpers (`is_valid_module_char`, `validate_module_name`, `parse_module_def`):
   - `modules:` — non-empty map.
-  - Имена матчат `[a-z0-9_-]+`, уникальны.
-  - `paths:` — non-empty list непустых строк.
-- `parse_rules()` + `parse_rule()` + три парсера типов:
-  - Каждый rule имеет `type` и `name`, name уникален.
-  - `type` диспатчится в `LayersRule` / `IndependenceRule` / `ForbiddenRule`, неизвестный type → ошибка.
+  - Names match `[a-z0-9_-]+`, unique.
+  - `paths:` — non-empty list of non-empty strings.
+- `parse_rules()` + `parse_rule()` + three type parsers:
+  - Each rule has `type` and `name`, name unique.
+  - `type` is dispatched to `LayersRule` / `IndependenceRule` / `ForbiddenRule`, unknown type → error.
 - `cross_validate()` + `RuleValidator` struct + helpers:
-  - Каждое имя модуля в `layers` / `independence.modules` / `forbidden.from` / `forbidden.to` существует в `modules:`.
-  - Без повторов внутри списка.
+  - Every module name in `layers` / `independence.modules` / `forbidden.from` / `forbidden.to` exists in `modules:`.
+  - No duplicates within a list.
   - `forbidden.from ∩ to = ∅`.
 
-**Все ошибки** идут через `ConfigError(file, line, col, msg)`. Line/col пока 0:0 (фаза 2.5 — ryml location API — не сделана).
+**All errors** go through `ConfigError(file, line, col, msg)`. Line/col is still 0:0 (phase 2.5 — ryml location API — not done yet).
 
-**Закрытые открытые вопросы:**
+**Closed open questions:**
 
-1. **YAML-парсер** — `ryml` v0.7.0 (уже в `CMakeLists.txt:55-65`, archcheck_core линкуется к `ryml::ryml`). `yaml-cpp` не рассматриваем.
-3. **Config error vs warning** — only errors (exit 2). Warnings соблазнительны, но размывают контракт.
+1. **YAML parser** — `ryml` v0.7.0 (already in `CMakeLists.txt:55-65`, archcheck_core links against `ryml::ryml`). We won't consider `yaml-cpp`.
+3. **Config error vs warning** — only errors (exit 2). Warnings are tempting, but they blur the contract.
 
-### 2026-05-29 — фазы 2.5 / 3 / 4 завершены, задача закрыта
+### 2026-05-29 — phases 2.5 / 3 / 4 completed, task closed
 
-- **Фаза 2.5** (`c2d5505`): `ConfigError` несёт настоящий line/col через ryml location API. Введён `LoaderCtx { parser, file }`, передаётся в каждую validate/parse-функцию; `throw_at(ctx, node, msg)` извлекает `parser.location(node)`. Ошибки без anchor-node (cross-rule, missing top key) используют `throw_top` с file:1:1 — детерминированно, не 0:0.
-  - **Известное ограничение**: для scalar value nodes (например, `version: 2`) ryml даёт line=0, col=0 — accelerator не строит location для скаляров без anchor. Для map/seq nodes (включая `defaults:`, `modules:` тех или иных правил) — корректно. На практике 80%+ ошибок получают полезный line.
-- **Фаза 3** (`7f4b3f4`): 4 pass + 9 fail fixtures в `fixtures/config/{pass,fail}/<name>/archcheck.yml`. Каждый pass-fixture — это reference example из `docs/config_format.md` (tiny / layered / legacy / mixed). Каждый fail-fixture — отдельная категория ошибки. Catch2-тест `tests/unit/config/test_loader.cpp` для каждого:
-  - pass: загрузка → REQUIRE на структуре (count модулей, типы правил, имена).
-  - fail: `REQUIRE_THROWS_WITH` с `ContainsSubstring` по ключевому слову (например, `"unknown top-level key"`).
-  - Все 13 новых тестов зелёные. Общая cuite: 248/248.
-- **Фаза 4** (`16f2bf8`): CLI флаг `--config <path>` — валидирует YAML, печатает `ConfigError` (`file:line:col: msg`) на stderr с exit 2, после успеха хэндит дальше в существующий `run_check`. `Config` пока discards — подключение к rule pipeline вынесено в отдельную задачу.
+- **Phase 2.5** (`c2d5505`): `ConfigError` carries a real line/col via the ryml location API. Introduced `LoaderCtx { parser, file }`, passed into each validate/parse function; `throw_at(ctx, node, msg)` extracts `parser.location(node)`. Errors without an anchor node (cross-rule, missing top key) use `throw_top` with file:1:1 — deterministic, not 0:0.
+  - **Known limitation**: for scalar value nodes (e.g. `version: 2`) ryml gives line=0, col=0 — the accelerator doesn't build a location for scalars without an anchor. For map/seq nodes (including `defaults:`, `modules:` of various rules) — correct. In practice 80%+ of errors get a useful line.
+- **Phase 3** (`7f4b3f4`): 4 pass + 9 fail fixtures in `fixtures/config/{pass,fail}/<name>/archcheck.yml`. Each pass fixture is a reference example from `docs/config_format.md` (tiny / layered / legacy / mixed). Each fail fixture is a separate error category. The Catch2 test `tests/unit/config/test_loader.cpp` for each:
+  - pass: load → REQUIRE on the structure (module count, rule types, names).
+  - fail: `REQUIRE_THROWS_WITH` with `ContainsSubstring` on the keyword (e.g. `"unknown top-level key"`).
+  - All 13 new tests green. Total suite: 248/248.
+- **Phase 4** (`16f2bf8`): CLI flag `--config <path>` — validates YAML, prints `ConfigError` (`file:line:col: msg`) to stderr with exit 2, on success hands off to the existing `run_check`. `Config` is discarded for now — wiring into the rule pipeline moved to a separate task.
 - **End-to-end smoke**: `archcheck --config fixtures/config/pass/tiny/archcheck.yml /tmp` → exit 0, "No violations". `archcheck --config fixtures/config/fail/fail_unknown_top_key/archcheck.yml /tmp` → `archcheck: file:8:0: unknown top-level key 'defaults' …` + exit 2.
 
-## Коммиты
+## Commits
 
-| SHA | Описание |
+| SHA | Description |
 |-----|----------|
 | `047fd0d` | `feat(config): add Config struct types for v1 phase 1 schema` |
-| `a1120b2` | `chore(tasks): add #052 cross-TU duplication detector…` — параллельная сессия захватила staged-файлы и закоммитила loader skeleton (config_loader.h/cpp + CMake wiring) под чужим subject. Атрибуция в коммите некорректна, но код мой. |
+| `a1120b2` | `chore(tasks): add #052 cross-TU duplication detector…` — a parallel session captured the staged files and committed the loader skeleton (config_loader.h/cpp + CMake wiring) under someone else's subject. Attribution in the commit is incorrect, but the code is mine. |
 | `3e046ef` | `feat(config): reject unknown top-level keys, require modules/rules` |
 | `4d9a172` | `feat(config): parse and validate modules block` |
 | `2893aed` | `feat(config): parse rules block — dispatcher + layers type` |
@@ -153,88 +153,88 @@ Public API + полный validation loop для v1 phase 1 schema. Loader не 
 | `7f4b3f4` | `test(config): add 4 pass + 9 fail fixtures and Catch2 loader tests` |
 | `16f2bf8` | `feat(cli): --config <path> validates .archcheck.yml v1` |
 
-## Как работает
+## How it works
 
-`archcheck::config::load(path)` — единственный публичный entry point:
+`archcheck::config::load(path)` — the single public entry point:
 
-1. Читает YAML с диска (`read_file`).
-2. Парсит ryml-ом в режиме `locations(true)` — `Parser` хранит accelerator для последующих `parser.location(node)` lookups; `Tree` хранит сами узлы.
-3. Прогоняет шесть validate/parse-стадий:
-   - `parse_version` — `version: 1`, иначе exit 2 со стабильным сообщением.
-   - `validate_top_keys` — отвергает любые ключи кроме `version` / `modules` / `rules`; обязательное присутствие `modules`/`rules`.
-   - `parse_modules` — `modules:` — map, имена матчат `[a-z0-9_-]+`, уникальны; `paths:` — non-empty list непустых строк.
-   - `parse_rules` — `rules:` — список, каждый rule имеет `type` и `name`, name уникален; `type` диспатчится в один из трёх типов.
-   - `parse_*_rule` (три штуки) — соответствующие поля (`layers` / `modules` / `from`+`to`).
-   - `cross_validate` через `RuleValidator` (visitor) — каждое имя модуля в rule-references существует в `modules:`, нет повторов внутри списка, `forbidden.from ∩ to = ∅`.
-4. Возвращает заполненную `Config { version, modules, rules: vector<variant<Layers, Independence, Forbidden>> }`.
-5. Любая ошибка → `ConfigError(file, line, col, msg)` (наследник `std::runtime_error`).
+1. Reads the YAML from disk (`read_file`).
+2. Parses it with ryml in `locations(true)` mode — `Parser` holds an accelerator for subsequent `parser.location(node)` lookups; `Tree` holds the nodes themselves.
+3. Runs six validate/parse stages:
+   - `parse_version` — `version: 1`, otherwise exit 2 with a stable message.
+   - `validate_top_keys` — rejects any keys except `version` / `modules` / `rules`; mandatory presence of `modules`/`rules`.
+   - `parse_modules` — `modules:` is a map, names match `[a-z0-9_-]+`, unique; `paths:` is a non-empty list of non-empty strings.
+   - `parse_rules` — `rules:` is a list, each rule has `type` and `name`, name unique; `type` is dispatched to one of three types.
+   - `parse_*_rule` (three of them) — the respective fields (`layers` / `modules` / `from`+`to`).
+   - `cross_validate` via `RuleValidator` (visitor) — every module name in rule-references exists in `modules:`, no duplicates within a list, `forbidden.from ∩ to = ∅`.
+4. Returns a filled `Config { version, modules, rules: vector<variant<Layers, Independence, Forbidden>> }`.
+5. Any error → `ConfigError(file, line, col, msg)` (subclass of `std::runtime_error`).
 
-Под капотом — три ключевые штуки:
+Under the hood — three key things:
 
-- **`std::variant<LayersRule, IndependenceRule, ForbiddenRule>`** для правил — расширение фиксировано контрактом схемы (MAJOR bump), variant читается чище ООП-наследования.
-- **`LoaderCtx { parser, file }`** прокидывается во все функции — единственный способ дать throw-сайту доступ к ryml location.
-- **`RuleValidator` struct + `std::visit`** для cross-validation — overload-based dispatch держит cross_validate < 30 строк (lizard).
+- **`std::variant<LayersRule, IndependenceRule, ForbiddenRule>`** for rules — extension is fixed by the schema contract (MAJOR bump), the variant reads cleaner than OOP inheritance.
+- **`LoaderCtx { parser, file }`** is threaded through all functions — the only way to give the throw site access to the ryml location.
+- **`RuleValidator` struct + `std::visit`** for cross-validation — overload-based dispatch keeps cross_validate < 30 lines (lizard).
 
-## Чем управляется
+## What governs it
 
-- **Авторитет схемы** — `docs/config_format.md`. Любое изменение поведения loader-а сверяется с этим документом. Если loader разъехался — править loader, не доку.
-- **Версионирование** — `version: 1` стабилен через все archcheck-1.x/2.x. Bump до `version: 2` — только при breaking-изменении контракта (см. SemVer таблицу в `docs/config_format.md`).
-- **Диагностика** — `[rule:<name>]` пока не используется в выводе loader (это для violation reporter после wiring). Текущий формат ошибки: `file:line:col: <message>`.
-- **Расширение phase 2** — `defaults`, `thresholds`, `baseline`, `ignore`, `required`, `protected`, `severity` — добавляются как новые ключи. Loader сейчас отвергает их (validate_top_keys), что **намеренно**: добавлять их раньше времени значит размыть контракт.
+- **Schema authority** — `docs/config_format.md`. Any change in loader behavior is checked against this document. If the loader drifts — fix the loader, not the doc.
+- **Versioning** — `version: 1` is stable across all archcheck-1.x/2.x. Bump to `version: 2` only on a breaking change to the contract (see the SemVer table in `docs/config_format.md`).
+- **Diagnostics** — `[rule:<name>]` is not yet used in the loader output (that's for the violation reporter after wiring). Current error format: `file:line:col: <message>`.
+- **Phase 2 extension** — `defaults`, `thresholds`, `baseline`, `ignore`, `required`, `protected`, `severity` — added as new keys. The loader currently rejects them (validate_top_keys), which is **deliberate**: adding them early means blurring the contract.
 
-## С чем связана
+## What it's connected to
 
-- **Производит:** `Config` struct, готовый к подключению в rule pipeline. Сама интеграция (paths→files, применение правил к графу) — **отдельная задача** (не в скоупе #051).
-- **Разблокирует:** [`future/v1_maj_agent_config_authoring_rules.md`](../future/v1_maj_agent_config_authoring_rules.md) — теперь у AI-агента есть рабочий loader, чьи ошибки можно скармливать обратно в prompt. Блокировка снимается после того, как config → pipeline-таска закрыта (агенту нужен не только validator, но и runnable end-to-end).
-- **Реализует:** [`completed/v1_maj_config_format_minimal_contract.md`](v1_maj_config_format_minimal_contract.md) — спека формата.
-- **Использует:** ryml v0.7.0 (FetchContent в `CMakeLists.txt:55-65`), Catch2 v3 (FetchContent в `tests/CMakeLists.txt`).
-- **Соседствует с:** [`future/010_maj_ai_rule_synthesis_contract.md`](../future/010_maj_ai_rule_synthesis_contract.md) — старый synthesize-контракт. После #051 + интеграции #010 становится формализуемым: synthesize-агент производит YAML по схеме phase 1, archcheck его валидирует тем же loader-ом.
+- **Produces:** a `Config` struct ready to be wired into the rule pipeline. The integration itself (paths→files, applying rules to the graph) is a **separate task** (not in scope of #051).
+- **Unblocks:** [`future/v1_maj_agent_config_authoring_rules.md`](../future/v1_maj_agent_config_authoring_rules.md) — the AI agent now has a working loader whose errors can be fed back into the prompt. The block is lifted once the config → pipeline task is closed (the agent needs not just a validator but a runnable end-to-end).
+- **Implements:** [`completed/v1_maj_config_format_minimal_contract.md`](v1_maj_config_format_minimal_contract.md) — the format spec.
+- **Uses:** ryml v0.7.0 (FetchContent in `CMakeLists.txt:55-65`), Catch2 v3 (FetchContent in `tests/CMakeLists.txt`).
+- **Adjacent to:** [`future/010_maj_ai_rule_synthesis_contract.md`](../future/010_maj_ai_rule_synthesis_contract.md) — the old synthesize contract. After #051 + integration of #010 it becomes formalizable: the synthesize agent produces YAML per the phase 1 schema, archcheck validates it with the same loader.
 
-## Диагностика
+## Diagnostics
 
-Симптомы и где смотреть:
+Symptoms and where to look:
 
-- **`No violations found`** на конфиге, который должен фейлиться — это пока ожидаемо: `Config` discards в `dispatch_config`, pipeline ещё не применяет правила. Задача "config → pipeline" не закрыта.
-- **`file:0:0: …`** в сообщении ошибки — ryml не построил location для конкретного scalar node (см. "Известное ограничение" в Сделано). Не баг loader-а — баг ryml location accelerator на скалярах без anchor. Будет фиксироваться когда/если ryml апдейтнем.
-- **Loader пропустил неизвестный ключ в `modules.*` или `rules[*]`** — посмотри: validate_top_keys работает только на root. Внутренние unknown keys (например, `modules.core.tags: [...]`) пока не отвергаются. Это TODO для отдельной микро-задачи если станет проблемой.
-- **`duplicate module name 'X'` не срабатывает на буквально одинаковых YAML-ключах** — ryml объединяет duplicate keys в map. Тест `fail_duplicate_module` использует `REQUIRE_THROWS_AS` (а не keyword match), потому что точная ошибка зависит от ryml. На практике YAML-парсеры с duplicate keys ведут себя по-разному; контракт `docs/config_format.md` это явно не специфицирует.
-- **Конфиг проходит valid через loader, но archcheck не применяет правила** — это by design phase 4: `dispatch_config` validates → discards → `run_check` с default rules. Wiring в pipeline — отдельная задача.
-- **Изменения в loader ломают существующие fixtures** — fixtures это reference; обновляются только если меняется `docs/config_format.md`. Спека > loader > fixtures.
+- **`No violations found`** on a config that should fail — this is expected for now: `Config` is discarded in `dispatch_config`, the pipeline doesn't apply rules yet. The "config → pipeline" task is not closed.
+- **`file:0:0: …`** in the error message — ryml didn't build a location for a specific scalar node (see "Known limitation" in Done). Not a loader bug — a bug in the ryml location accelerator on scalars without an anchor. Will be fixed when/if we update ryml.
+- **Loader missed an unknown key in `modules.*` or `rules[*]`** — look: validate_top_keys works only on root. Internal unknown keys (e.g. `modules.core.tags: [...]`) aren't rejected yet. This is a TODO for a separate micro-task if it becomes a problem.
+- **`duplicate module name 'X'` doesn't trigger on literally identical YAML keys** — ryml merges duplicate keys into a map. The `fail_duplicate_module` test uses `REQUIRE_THROWS_AS` (not a keyword match), because the exact error depends on ryml. In practice YAML parsers behave differently on duplicate keys; the contract `docs/config_format.md` doesn't explicitly specify this.
+- **Config passes valid through the loader but archcheck doesn't apply rules** — this is by design of phase 4: `dispatch_config` validates → discards → `run_check` with default rules. Wiring into the pipeline is a separate task.
+- **Changes to the loader break existing fixtures** — fixtures are the reference; they're updated only if `docs/config_format.md` changes. Spec > loader > fixtures.
 
-## Следующие шаги (post-#051)
+## Next steps (post-#051)
 
-1. **Отдельная задача "config → rule pipeline"** — резолв `paths:` в файлы (glob match по include graph nodes), применение `layers`/`independence`/`forbidden` к графу, генерация `Violation` с `[rule:<name>]` id. Разблокирует practical use конфига.
-2. **Auto-pickup `.archcheck.yml` в CWD** при запуске без аргументов — мелкая QoL после того, как pipeline-интеграция стабильна (иначе риск surprise behaviour на чужих репах).
-3. **v1 phase 2** (`defaults` / `thresholds` / `baseline` / `ignore`) — отдельная спека после первого практического прогона на реальном репо.
+1. **Separate task "config → rule pipeline"** — resolve `paths:` into files (glob match against include graph nodes), apply `layers`/`independence`/`forbidden` to the graph, generate `Violation` with `[rule:<name>]` id. Unblocks practical use of the config.
+2. **Auto-pickup `.archcheck.yml` in CWD** when run without arguments — a small QoL after pipeline integration is stable (otherwise risk of surprise behaviour on third-party repos).
+3. **v1 phase 2** (`defaults` / `thresholds` / `baseline` / `ignore`) — a separate spec after the first practical run on a real repo.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Loader без подключения к pipeline | Закрываемый скоуп, проверяется fixtures-ами без изменения rules/. Подключение — отдельная задача с другой acceptance criteria |
-| `std::variant<Rule>` вместо ООП | Правил три, типы фиксированы по контракту (расширение → MAJOR schema bump) — variant читается чище |
-| Line/col в каждой ошибке | AI-synthesis pipeline (#2-#4) зависит от того, что агент видит точку ошибки в своём `.draft` |
-| Warnings не вводим в phase 1 | Контракт `docs/config_format.md` чёрно-белый: либо валидно (exit 0), либо нет (exit 2). Soft-режим — путь к размыванию контракта |
+| Loader without wiring into the pipeline | A closeable scope, verified by fixtures without changing rules/. Wiring is a separate task with different acceptance criteria |
+| `std::variant<Rule>` instead of OOP | Three rules, types fixed by contract (extension → MAJOR schema bump) — the variant reads cleaner |
+| Line/col in every error | The AI-synthesis pipeline (#2-#4) depends on the agent seeing the error point in its `.draft` |
+| No warnings in phase 1 | The contract `docs/config_format.md` is black and white: either valid (exit 0) or not (exit 2). A soft mode is the road to blurring the contract |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение | Финальный коммит |
+| File | Change | Final commit |
 |------|-----------|-------------------|
 | `include/archcheck/config/config.h` | new — `Config`, `ModuleDef`, `Rule` variant | `047fd0d` |
 | `include/archcheck/config/config_loader.h` | new — `load()`, `ConfigError` | `a1120b2` |
-| `src/config/config_loader.cpp` | new — реализация всей валидации (фазы 1, 2.1-2.4, 2.5) | `c2d5505` |
-| `src/CMakeLists.txt` | `+ config/config_loader.cpp` в `archcheck_core` | `a1120b2` |
-| `src/main.cpp` | `+ dispatch_config`, флаг `--config`, exit 2 на `ConfigError` | `16f2bf8` |
-| `fixtures/config/pass/{tiny,layered,legacy,mixed}/archcheck.yml` | 4 reference fixtures из спеки | `7f4b3f4` |
+| `src/config/config_loader.cpp` | new — implementation of all validation (phases 1, 2.1-2.4, 2.5) | `c2d5505` |
+| `src/CMakeLists.txt` | `+ config/config_loader.cpp` into `archcheck_core` | `a1120b2` |
+| `src/main.cpp` | `+ dispatch_config`, `--config` flag, exit 2 on `ConfigError` | `16f2bf8` |
+| `fixtures/config/pass/{tiny,layered,legacy,mixed}/archcheck.yml` | 4 reference fixtures from the spec | `7f4b3f4` |
 | `fixtures/config/fail/<9 dirs>/archcheck.yml` | 9 negative fixtures | `7f4b3f4` |
 | `tests/unit/config/test_loader.cpp` | new — 13 Catch2 cases | `7f4b3f4` |
 | `tests/CMakeLists.txt` | `+ unit/config/test_loader.cpp` | `7f4b3f4` |
 
 ## Fixtures
 
-- [x] `fixtures/config/pass/tiny/` — 2 модуля + 1 forbidden
-- [x] `fixtures/config/pass/layered/` — 3 модуля + layers
-- [x] `fixtures/config/pass/legacy/` — 3 модуля + 2 forbidden
+- [x] `fixtures/config/pass/tiny/` — 2 modules + 1 forbidden
+- [x] `fixtures/config/pass/layered/` — 3 modules + layers
+- [x] `fixtures/config/pass/legacy/` — 3 modules + 2 forbidden
 - [x] `fixtures/config/pass/mixed/` — include/ + src/ + layers + independence + forbidden
 - [x] `fixtures/config/fail/fail_unknown_top_key/`
 - [x] `fixtures/config/fail/fail_wrong_version/`

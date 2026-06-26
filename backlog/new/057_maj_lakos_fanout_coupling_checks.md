@@ -1,138 +1,138 @@
-# [GRAPH][RULES] Дешёвые граф-чеки: fan-out god-component + связность/blast/scc-size в отчёт
+# [GRAPH][RULES] Cheap graph checks: fan-out god-component + coupling/blast/scc-size in the report
 
-**Дата создания:** 2026-05-31
-**Дата старта:** —
-**Статус:** new
-**Модуль:** GRAPH / RULES / REPORT
-**Приоритет:** major
-**Сложность:** S (по пунктам; каждый — отдельный маленький коммит)
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #029 (metric_regression_detection — diff-дельты этих же метрик), #037 (godheader_structural_threshold — порог fan-in 50), #028 (rules_engine_mvp), #054 (ai_repo_duplication_run — эмпирика, откуда взялись эти сигналы)
+**Created:** 2026-05-31
+**Start date:** —
+**Status:** new
+**Module:** GRAPH / RULES / REPORT
+**Priority:** major
+**Complexity:** S (per item; each — a separate small commit)
+**Blocks:** —
+**Blocked by:** —
+**Related:** #029 (metric_regression_detection — diff deltas of these same metrics), #037 (godheader_structural_threshold — fan-in threshold 50), #028 (rules_engine_mvp), #054 (ai_repo_duplication_run — the empirics where these signals came from)
 
-## Цель
+## Goal
 
-Добавить набор архитектурных проверок/метрик, которые **почти бесплатны** — число
-уже вычисляется граф-движком (или достаётся одной строкой из уже построенного
-графа), не хватает только «провода» до правила/отчёта. Никакого нового backend'а,
-никакого libclang, никакого git — всё на уже работающем fast-include-графе.
+Add a set of architectural checks/metrics that are **almost free** — the number
+is already computed by the graph engine (or obtained in one line from the already-built
+graph), all that is missing is the "wiring" to a rule/report. No new backend,
+no libclang, no git — everything on the already-working fast-include graph.
 
-## Контекст
+## Context
 
-Корпусный прогон #054 (85 реп, обе метрики по истории) показал, какие граф-сигналы
-реально различают дрейф — и **два из них archcheck считает, но не выставляет как
-чек/метрику**:
+The corpus run #054 (85 repos, both metrics over history) showed which graph signals
+actually distinguish drift — and **two of them archcheck computes but does not expose as
+a check/metric**:
 
-- **§7.3 «тихий дрейф» — связность `edges/nodes`.** stellar-core 1.9→6.3,
-  opentelemetry 2.1→5.7, FastLED 1.3→4.8 — **ноль циклов, низкий копипаст, но
-  средняя связность утроилась**. Сейчас этот сигнал нигде не виден: счётчик рёбер
-  есть (`GraphBuildResult.edges`, [graph_builder.cpp:27](../../src/graph/graph_builder.cpp#L27)),
-  но `edges/nodes` не печатается и не входит в `GraphMetrics`.
-- **§7.2 размер клубка.** acts `hpp↔ipp` — это 2-узловые циклы (косметика),
-  FastLED — один SCC из 47 компонент (настоящий клубок). `largest_scc` уже
-  считается (`compute_scc_stats`, [main.cpp:271](../../src/main.cpp#L271)) и
-  печатается в `--graph`, но SF.9 в обычном отчёте про размер молчит.
-- **§9 приёмы дедупа** — копипаст вдоль осей вариативности (платформы, бэкенды)
-  рождает компоненты, тянущие десятки сиблингов = **высокий fan-out**. Ловим
-  перегруз *входа* (god-header, fan-in), но не перегруз *выхода*.
+- **§7.3 "silent drift" — coupling `edges/nodes`.** stellar-core 1.9→6.3,
+  opentelemetry 2.1→5.7, FastLED 1.3→4.8 — **zero cycles, low copy-paste, but
+  average coupling tripled**. Right now this signal is nowhere visible: the edge counter
+  exists (`GraphBuildResult.edges`, [graph_builder.cpp:27](../../src/graph/graph_builder.cpp#L27)),
+  but `edges/nodes` is neither printed nor part of `GraphMetrics`.
+- **§7.2 tangle size.** acts `hpp↔ipp` — these are 2-node cycles (cosmetic),
+  FastLED — one SCC of 47 components (a real tangle). `largest_scc` is already
+  computed (`compute_scc_stats`, [main.cpp:271](../../src/main.cpp#L271)) and
+  printed in `--graph`, but SF.9 in the regular report says nothing about size.
+- **§9 dedup techniques** — copy-paste along axes of variation (platforms, backends)
+  spawns components that pull in dozens of siblings = **high fan-out**. We catch
+  overload of the *input* (god-header, fan-in), but not overload of the *output*.
 
-Что уже есть и **не дублируем**:
-- `largest_scc` **рост** между ревизиями → **DRIFT.2** (shipped, spec:332
-  «размер существующего SCC растёт»).
-- diff-дельты NCCD / chain length / новые god-headers → **#029**.
-- CCD/ACD/NCCD, god-header (fan-in, порог 50), chain length → shipped.
+What already exists and we **do not duplicate**:
+- `largest_scc` **growth** between revisions → **DRIFT.2** (shipped, spec:332
+  "the size of an existing SCC grows").
+- diff deltas NCCD / chain length / new god-headers → **#029**.
+- CCD/ACD/NCCD, god-header (fan-in, threshold 50), chain length → shipped.
 
-Spec уже цитирует Lakos «минимизация **fan-in/fan-out**» (spec:191) и
-«In-degree / **Out-degree** для каждого компонента» (spec:185) — то есть fan-out
-авторитетом покрыт, просто не реализован. Это снимает риск «правило-мнение»
+The spec already cites Lakos's "minimize **fan-in/fan-out**" (spec:191) and
+"In-degree / **Out-degree** for each component" (spec:185) — i.e., fan-out
+is covered by authority, just not implemented. This removes the "opinion rule" risk
 (CLAUDE.md: authority over opinion).
 
-## Скоуп
+## Scope
 
-### A. Новое правило (absolute, single-snapshot) — главный пункт
+### A. New rule (absolute, single-snapshot) — the main item
 
-- [ ] **`Lakos.GodComponentFanOut`** — компонент с out-degree (числом прямых
-      `#include` на компоненты проекта) выше порога. Зеркало `LakosGodHeaders`:
-      та же форма, `predecessors()` → `successors()`. Один файл-правило
-      (`src/rules/lakos_god_component.cpp` + хедер), регистрация в `rule_set.cpp`,
-      **не трогая существующие правила** (OCP).
-  - Атрибуция: Lakos, «minimize fan-out» (тот же источник, что god-header).
-  - Порог: НЕ копировать 50 вслепую — у fan-out другое распределение (`.cpp` с
-    30 инклюдами — норма). Откалибровать на корпусе `_aidev_run/` (он уже скачан,
-    см. #054). До калибровки — высокий дефолт / report-only, чтобы не дать «5000
-    нарушений на первом прогоне» (CLAUDE.md).
-  - Fixtures (обязательны): `fixtures/god_component_fanout/pass/` +
+- [ ] **`Lakos.GodComponentFanOut`** — a component with an out-degree (the number of direct
+      `#include`s to project components) above a threshold. A mirror of `LakosGodHeaders`:
+      the same shape, `predecessors()` → `successors()`. One rule file
+      (`src/rules/lakos_god_component.cpp` + header), registration in `rule_set.cpp`,
+      **without touching existing rules** (OCP).
+  - Attribution: Lakos, "minimize fan-out" (the same source as god-header).
+  - Threshold: do NOT copy 50 blindly — fan-out has a different distribution (a `.cpp` with
+    30 includes is normal). Calibrate on the corpus `_aidev_run/` (already downloaded,
+    see #054). Until calibration — a high default / report-only, so as not to give "5000
+    violations on the first run" (CLAUDE.md).
+  - Fixtures (mandatory): `fixtures/god_component_fanout/pass/` +
     `fixtures/god_component_fanout/fail_fanout/`.
 
-### B. Новые числа в отчёте (report-only, не pass/fail) — почти даром
+### B. New numbers in the report (report-only, not pass/fail) — almost free
 
-- [ ] **Средняя связность `edges/nodes`** — добавить `edgeCount` + `avgCoupling`
-      в `GraphMetrics` ([algorithms.h:25](../../include/archcheck/graph/algorithms.h#L25));
-      `edgeCount` уже посчитан при сборке графа. Печатать рядом с CCD/ACD/NCCD.
-- [ ] **Max blast radius** — `max_n |reachableFrom(n)|`. Уже вычисляется в
-      CCD-цикле ([algorithms.cpp:273](../../src/graph/algorithms.cpp#L273)) и
-      **выбрасывается** (суммируется в CCD). Удержать максимум — ~3 строки. Это
-      абсолютная версия планируемого DRIFT.6 (blast_radius_growth).
-- [ ] **SF.9: размер клубка в сообщении.** При репорте цикла дописать размер SCC
-      (сколько компонент в клубке). Делает находку actionable: «цикл из 2» vs
-      «клубок из 47». Правка только в формировании сообщения SF.9, не в логике.
+- [ ] **Average coupling `edges/nodes`** — add `edgeCount` + `avgCoupling`
+      to `GraphMetrics` ([algorithms.h:25](../../include/archcheck/graph/algorithms.h#L25));
+      `edgeCount` is already counted at graph build. Print next to CCD/ACD/NCCD.
+- [ ] **Max blast radius** — `max_n |reachableFrom(n)|`. Already computed in the
+      CCD loop ([algorithms.cpp:273](../../src/graph/algorithms.cpp#L273)) and
+      **thrown away** (summed into CCD). Keeping the maximum — ~3 lines. This is the
+      absolute version of the planned DRIFT.6 (blast_radius_growth).
+- [ ] **SF.9: tangle size in the message.** When reporting a cycle, append the SCC size
+      (how many components are in the tangle). Makes the finding actionable: "cycle of 2" vs
+      "tangle of 47". An edit only in the SF.9 message formation, not in the logic.
 
-### C. Drift-версии — НЕ здесь (вынесено осознанно)
+### C. Drift versions — NOT here (deliberately split out)
 
-Гейты «связность не должна расти» / «blast radius не должен расти» — это метрик-
-регрессия, территория **#029** (diff/baseline). После реализации B добавить
-`avgCoupling` и `maxBlastRadius` в `GraphMetrics`-дельту #029 одной строкой каждый
-(там уже есть nccdDelta). В этой задаче — только абсолютные числа.
+The gates "coupling must not grow" / "blast radius must not grow" — that is metric
+regression, the territory of **#029** (diff/baseline). After implementing B add
+`avgCoupling` and `maxBlastRadius` to the `GraphMetrics` delta of #029 with one line each
+(there is already nccdDelta there). In this task — only the absolute numbers.
 
-### D. Доки
+### D. Docs
 
-- [ ] **spec §Lakos**: дописать `edges/nodes` (avg coupling) и max blast radius в
-      список метрик; god-component (fan-out) — в список правил рядом с god-header.
-- [ ] **Решение по нормировке связности** зафиксировать в spec (см. Ключевые
-      решения): нормируем `edges/nodes` (структурно), НЕ per-KLOC. Это
-      единственное, чего в доках сейчас нет.
-- [ ] ROADMAP/CHANGELOG — по завершении (не на создании), как требует
+- [ ] **spec §Lakos**: add `edges/nodes` (avg coupling) and max blast radius to the
+      metrics list; god-component (fan-out) — to the rules list next to god-header.
+- [ ] **The coupling normalization decision** record in the spec (see Key
+      decisions): we normalize `edges/nodes` (structurally), NOT per-KLOC. This is the
+      only thing not in the docs right now.
+- [ ] ROADMAP/CHANGELOG — on completion (not at creation), as required by
       `backlog/README.md`.
 
-## План выполнения
+## Execution plan
 
-1. [ ] B-метрики (`edgeCount`/`avgCoupling`/`maxBlastRadius` в `GraphMetrics` +
-       печать) — самый дешёвый, разблокирует и отчёт, и будущий #029-гейт.
-2. [ ] SF.9 message enrichment (размер SCC).
-3. [ ] `Lakos.GodComponentFanOut` + fixtures + unit-тест + регистрация.
-4. [ ] Калибровка порога fan-out на `_aidev_run/`.
-5. [ ] spec-правки (A/B + решение по нормировке).
-6. [ ] (после) дописать `avgCoupling`/`maxBlastRadius` дельты в #029.
+1. [ ] B-metrics (`edgeCount`/`avgCoupling`/`maxBlastRadius` in `GraphMetrics` +
+       printing) — the cheapest, unblocks both the report and the future #029 gate.
+2. [ ] SF.9 message enrichment (SCC size).
+3. [ ] `Lakos.GodComponentFanOut` + fixtures + unit test + registration.
+4. [ ] Calibrate the fan-out threshold on `_aidev_run/`.
+5. [ ] spec edits (A/B + the normalization decision).
+6. [ ] (after) add `avgCoupling`/`maxBlastRadius` deltas to #029.
 
-## Критерий приёмки
+## Acceptance criteria
 
-- [ ] `Lakos.GodComponentFanOut` есть, проходит fixtures pass/fail, зарегистрирован,
-      существующие правила не тронуты (OCP).
-- [ ] `--graph` и обычный отчёт показывают `edges/nodes` и max blast radius.
-- [ ] SF.9 в сообщении указывает размер клубка.
-- [ ] Порог fan-out обоснован числами с корпуса, а не взят с потолка.
-- [ ] Dogfooding: archcheck на самом себе остаётся зелёным (CLAUDE.md).
-- [ ] Spec отражает новые метрики/правило + решение по per-KLOC.
-- [ ] Каждый пункт — отдельный коммит ≤50 строк, ≤2 новых файла (code_quality.md).
+- [ ] `Lakos.GodComponentFanOut` exists, passes fixtures pass/fail, is registered,
+      existing rules untouched (OCP).
+- [ ] `--graph` and the regular report show `edges/nodes` and max blast radius.
+- [ ] SF.9 in the message states the tangle size.
+- [ ] The fan-out threshold is justified by numbers from the corpus, not pulled from thin air.
+- [ ] Dogfooding: archcheck on itself stays green (CLAUDE.md).
+- [ ] The spec reflects the new metrics/rule + the per-KLOC decision.
+- [ ] Each item — a separate commit ≤50 lines, ≤2 new files (code_quality.md).
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Связность нормируем `edges/nodes`, НЕ per-KLOC | per-KLOC мешает объём кода в структурную метрику (раздул LOC без рёбер → «улучшил» per-KLOC). `edges/nodes` чисто структурна; именно она дала сигнал в #054 §7.3. per-KLOC потребовал бы счётчика LOC, которого в графе нет |
-| fan-out god-component — отдельное правило, не расширение god-header | OCP: одно правило = один класс = один файл; god-header (fan-in, бутылочное горло) и god-component (fan-out, переусложнённый потребитель) — разные дефекты |
-| Порог fan-out калибруем на корпусе, по умолчанию консервативный | Избегаем «5000 нарушений на первом прогоне»; `.cpp` с 30 инклюдами — норма |
-| blast radius / coupling — сначала report-only | абсолютные пороги требуют настройки; сперва показать число, гейт-версия (рост) — в #029/DRIFT |
-| largest_scc growth НЕ берём | уже DRIFT.2 (shipped) |
+| Normalize coupling as `edges/nodes`, NOT per-KLOC | per-KLOC mixes code volume into a structural metric (inflated LOC without edges → "improved" per-KLOC). `edges/nodes` is purely structural; it is exactly what gave the signal in #054 §7.3. per-KLOC would require a LOC counter, which the graph does not have |
+| fan-out god-component — a separate rule, not an extension of god-header | OCP: one rule = one class = one file; god-header (fan-in, bottleneck) and god-component (fan-out, over-complicated consumer) — different defects |
+| The fan-out threshold is calibrated on the corpus, conservative by default | We avoid "5000 violations on the first run"; a `.cpp` with 30 includes is normal |
+| blast radius / coupling — report-only first | absolute thresholds need tuning; first show the number, the gate version (growth) — in #029/DRIFT |
+| largest_scc growth NOT taken | already DRIFT.2 (shipped) |
 
-## Сделано
+## Done
 
-- (пусто)
+- (empty)
 
 ## Pointers
 
-- Эмпирика сигналов: [experiments/ai_repo_run/DRIFT_RUN_REPORT.md](../../experiments/ai_repo_run/DRIFT_RUN_REPORT.md) §7.2/7.3/9
-- Граф-метрики: [src/graph/algorithms.cpp](../../src/graph/algorithms.cpp) (`computeGraphMetrics`), [include/archcheck/graph/algorithms.h](../../include/archcheck/graph/algorithms.h)
-- God-header (образец для зеркала): [src/rules/lakos_god_headers.cpp](../../src/rules/lakos_god_headers.cpp)
-- `--graph` вывод (уже печатает largest_scc/edges): [src/main.cpp:258](../../src/main.cpp#L258)
-- Diff-дельты метрик (куда уйдут C-гейты): #029, [src/diff/regression_report.cpp](../../src/diff/regression_report.cpp)
+- Signal empirics: [experiments/ai_repo_run/DRIFT_RUN_REPORT.md](../../experiments/ai_repo_run/DRIFT_RUN_REPORT.md) §7.2/7.3/9
+- Graph metrics: [src/graph/algorithms.cpp](../../src/graph/algorithms.cpp) (`computeGraphMetrics`), [include/archcheck/graph/algorithms.h](../../include/archcheck/graph/algorithms.h)
+- God-header (the template for the mirror): [src/rules/lakos_god_headers.cpp](../../src/rules/lakos_god_headers.cpp)
+- `--graph` output (already prints largest_scc/edges): [src/main.cpp:258](../../src/main.cpp#L258)
+- Diff deltas of metrics (where the C gates will go): #029, [src/diff/regression_report.cpp](../../src/diff/regression_report.cpp)

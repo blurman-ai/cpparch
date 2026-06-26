@@ -1,18 +1,18 @@
 # [CHEAP-DRIFT][DIFF] SATD Delta
 
-**Дата создания:** 2026-06-10
-**Дата старта:** 2026-06-11
-**Статус:** wip
-**Модуль:** GIT / DIFF / REPORT
-**Приоритет:** major
-**Сложность:** small
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-06-10
+**Started:** 2026-06-11
+**Status:** wip
+**Module:** GIT / DIFF / REPORT
+**Priority:** major
+**Difficulty:** small
+**Blocks:** —
+**Blocked by:** —
 **Related:** #018 (git_diff_analysis), #024 (in_memory_fs_for_diff), #075 (trusted_diff_workflow), #093 (flag_argument)
 
-## Цель
+## Goal
 
-Предупреждать, что PR добавляет новые self-admitted technical debt markers:
+Warn that a PR adds new self-admitted technical debt markers:
 
 - `TODO`
 - `FIXME`
@@ -24,75 +24,75 @@
 - `quick fix`
 - `dirty`
 
-Это review-signal, а не архитектурное нарушение.
+This is a review signal, not an architectural violation.
 
-## Контекст
+## Context
 
-- Источник постановки: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 4.
-- Правило должно жить **только** в delta-контексте. Полный scan по legacy-дереву здесь почти бесполезен и конфликтует с принципом "gate only on new drift".
-- Текущий `archcheck --diff` уже умеет structural comparison между git refs. Эту задачу нужно вписать рядом с существующим diff pipeline, а не городить отдельный полу-инструмент.
-- По продуктовой рамке это не default architectural rule. Значит: advisory-first, opt-in gate максимум для узкого кейса `FIXME/HACK без issue id`.
+- Source of the task: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 4.
+- The rule must live **only** in a delta context. A full scan over the legacy tree is nearly useless here and conflicts with the "gate only on new drift" principle.
+- The current `archcheck --diff` already does structural comparison between git refs. This task should be fitted alongside the existing diff pipeline, not built up as a separate half-tool.
+- In the product framing this is not a default architectural rule. So: advisory-first, opt-in gate at most for the narrow case `FIXME/HACK without issue id`.
 
-## План выполнения
+## Execution plan
 
 ### Detection contract
 
 - `SATD.1.new_satd_marker`:
-  - любой новый marker на added line;
-  - advisory по умолчанию.
+  - any new marker on an added line;
+  - advisory by default.
 - `SATD.2.untracked_fixme_or_hack`:
-  - `FIXME` или `HACK` на added line без issue id;
-  - остаётся gate-candidate, но не включается default gate без явной конфигурации в будущем.
+  - `FIXME` or `HACK` on an added line without an issue id;
+  - remains a gate-candidate, but is not enabled in the default gate without explicit configuration in the future.
 
-### Алгоритм (тривиальный, фиксируем чтобы не разъехался)
+### Algorithm (trivial, pinned down so it doesn't drift)
 
-1. `collectAddedLines()` (см. «Конкретный план», п.2) → `{file, line, text}`.
-2. Маркер ищется **только в комментарной части** added line: после `//` или
-   внутри `/* */` (грубый детект: позиция `//` вне строковых литералов; строки
-   без комментария — скип). Иначе `dirty` в идентификаторе кода даст FP.
-3. `SATD.1` regex (case-insensitive, на границах слов):
+1. `collectAddedLines()` (see "Concrete plan", item 2) → `{file, line, text}`.
+2. The marker is searched for **only in the comment part** of the added line: after `//` or
+   inside `/* */` (rough detection: position of `//` outside string literals; lines
+   without a comment are skipped). Otherwise `dirty` inside a code identifier would give an FP.
+3. `SATD.1` regex (case-insensitive, on word boundaries):
    `\b(TODO|FIXME|HACK|XXX|TEMP)\b|\btemporary\b|\bworkaround\b|\bquick.?fix\b|\bdirty\b`.
-4. `SATD.2`: маркер `FIXME|HACK` и в той же строке НЕТ issue-id:
+4. `SATD.2`: marker `FIXME|HACK` and NO issue-id on the same line:
    `([A-Z][A-Z0-9]+-\d+)|(#\d+)|(\b(gh|issue)[-/]\d+)` (JIRA / GitHub / generic).
-5. Case-фиксация: `TODO/FIXME/HACK/XXX/TEMP` — только UPPERCASE (lowercase `todo`
-   в прозе комментария — не маркер); словесные (`workaround`, `temporary`,
+5. Case handling: `TODO/FIXME/HACK/XXX/TEMP` — UPPERCASE only (lowercase `todo`
+   in comment prose is not a marker); the word forms (`workaround`, `temporary`,
    `dirty`, `quick fix`) — case-insensitive.
-6. Один finding на строку (не на маркер); `Violation{ruleId, file, line, message=текст строки усечённый до 120}`.
+6. One finding per line (not per marker); `Violation{ruleId, file, line, message=line text truncated to 120}`.
 
 ### Runtime shape
 
-- Работать только по added lines из unified diff.
-- Full-tree scan вне scope.
-- Issue-pattern для первого прохода можно захардкодить, если отдельная config surface требует schema work.
-- Если line mapping уже даёт точный путь и номер строки, finding должен жить в текущем `Violation` contract.
+- Operate only on added lines from the unified diff.
+- Full-tree scan out of scope.
+- The issue-pattern for the first pass can be hardcoded if a separate config surface requires schema work.
+- If line mapping already gives an exact path and line number, the finding must live in the current `Violation` contract.
 
 ### Noise control
 
-- Не считать удалённые или контекстные строки.
-- Игнорировать marker inside removed code blocks.
-- Case sensitivity должна быть зафиксирована тестами, а не оставлена "как получится".
+- Do not count removed or context lines.
+- Ignore markers inside removed code blocks.
+- Case sensitivity must be pinned down by tests, not left "however it turns out".
 
-### Конкретный план в текущем коде
+### Concrete plan in the current code
 
-1. В текущем коде нет reusable git command helper:
-   `runGit()` живёт в anon namespace в [src/git/git_state.cpp](~/projects/cpparch/src/git/git_state.cpp).
-   Первый шаг этой задачи — вынести его в `include/archcheck/git/git_exec.h` + `src/git/git_exec.cpp`, иначе #096/#097/#098/#100 будут дублировать process-launch код.
-2. Добавить `include/archcheck/git/diff_query.h` + `src/git/diff_query.cpp` с двумя публичными примитивами:
-   `collectAddedLines(...)` для unified diff `--unified=0`;
-   `collectNumstat(...)` для `--numstat` (этот же API сразу переиспользует #097).
-3. `collectAddedLines(...)` должен поддерживать оба текущих diff-режима:
-   `a..b` и `a..WORKTREE`, с теми же WORKTREE semantics, что уже зафиксированы в `changedCppFiles()`.
-4. Сам SATD detector держать отдельным маленьким файлом (`src/scan/satd_scan.cpp` либо соседний flat helper), который принимает `AddedLine` записи и отдаёт `rules::ViolationList`.
-5. Интеграцию делать рядом с [src/main.cpp](~/projects/cpparch/src/main.cpp)::`run_diff()`:
-   не расширять `RegressionReport`,
-   не менять `archcheck::diff::writeTextReport(...)`,
-   а печатать SATD-блок после structural diff summary.
-6. Если в этой же задаче нужен machine-readable diff output, придётся сначала рефакторить `dispatch_format()` / `dispatch_diff()` в [src/main.cpp](~/projects/cpparch/src/main.cpp):
-   сейчас `--format` работает только для `run_check()`, а `--diff` JSON вообще не умеет.
-7. Тесты привязать к текущей структуре:
-   parser-уровень — новый `tests/unit/git/diff_query_test.cpp`;
-   marker logic — новый `tests/unit/scan/satd_scan_test.cpp`;
-   repo-level diff — расширение [tests/integration/diff/git_diff_test.cpp](~/projects/cpparch/tests/integration/diff/git_diff_test.cpp).
+1. The current code has no reusable git command helper:
+   `runGit()` lives in an anon namespace in [src/git/git_state.cpp](~/projects/cpparch/src/git/git_state.cpp).
+   The first step of this task is to extract it into `include/archcheck/git/git_exec.h` + `src/git/git_exec.cpp`, otherwise #096/#097/#098/#100 will duplicate process-launch code.
+2. Add `include/archcheck/git/diff_query.h` + `src/git/diff_query.cpp` with two public primitives:
+   `collectAddedLines(...)` for unified diff `--unified=0`;
+   `collectNumstat(...)` for `--numstat` (the same API is immediately reused by #097).
+3. `collectAddedLines(...)` must support both current diff modes:
+   `a..b` and `a..WORKTREE`, with the same WORKTREE semantics already pinned down in `changedCppFiles()`.
+4. Keep the SATD detector itself as a separate small file (`src/scan/satd_scan.cpp` or an adjacent flat helper) that takes `AddedLine` records and returns a `rules::ViolationList`.
+5. Do the integration alongside [src/main.cpp](~/projects/cpparch/src/main.cpp)::`run_diff()`:
+   do not extend `RegressionReport`,
+   do not change `archcheck::diff::writeTextReport(...)`,
+   but print the SATD block after the structural diff summary.
+6. If this same task needs machine-readable diff output, you will first have to refactor `dispatch_format()` / `dispatch_diff()` in [src/main.cpp](~/projects/cpparch/src/main.cpp):
+   right now `--format` works only for `run_check()`, and `--diff` JSON is not supported at all.
+7. Tie the tests to the current structure:
+   parser level — new `tests/unit/git/diff_query_test.cpp`;
+   marker logic — new `tests/unit/scan/satd_scan_test.cpp`;
+   repo-level diff — extension of [tests/integration/diff/git_diff_test.cpp](~/projects/cpparch/tests/integration/diff/git_diff_test.cpp).
 
 ## Fixtures & Tests
 
@@ -101,85 +101,85 @@
 - `fixtures/satd_delta/fail/fixme_without_issue.diff`
 - `fixtures/satd_delta/pass/context_only.diff`
 
-Обязательные проверки:
+Mandatory checks:
 
-- marker ловится только на added lines;
-- `HACK ABC-123: ...` не триггерит `SATD.2`;
-- `FIXME: ...` без issue id триггерит `SATD.2`;
-- text/json output остаётся совместимым с текущим contract;
-- правило не сканирует весь legacy tree.
+- the marker is caught only on added lines;
+- `HACK ABC-123: ...` does not trigger `SATD.2`;
+- `FIXME: ...` without an issue id triggers `SATD.2`;
+- text/json output stays compatible with the current contract;
+- the rule does not scan the whole legacy tree.
 
-## Критерии готовности
+## Acceptance criteria
 
 - Diff-only.
 - Advisory-first.
-- Без schema change.
-- Без нового отдельного CLI-инструмента вне `archcheck`.
+- No schema change.
+- No new separate CLI tool outside `archcheck`.
 
-## Не делать
+## Don't do
 
-- Full repository grep по SATD.
+- Full repository grep for SATD.
 - Ownership / blame analysis.
-- Автоматическое распознавание "правильных" issue tracker форматов beyond simple regex.
-- Gate by default для любого `TODO`.
+- Automatic recognition of "correct" issue tracker formats beyond simple regex.
+- Gate by default for any `TODO`.
 
-## Сделано
+## Done
 
-1. Вынести `runGit()` из anon namespace git_state.cpp в общий хелпер:
-   - `include/archcheck/git/git_exec.h` + `src/git/git_exec.cpp` (82 строк)
-   - Обновлена git_state.cpp, чтобы использовать общий хелпер
-2. Создать `include/archcheck/git/diff_query.h` + `src/git/diff_query.cpp`:
-   - `collectAddedLines()` — парсинг unified diff --unified=0
-   - `collectNumstat()` — парсинг git diff --numstat
-   - Поддержка обоих режимов: a..b и a..WORKTREE
-3. Создать SATD-детектор:
-   - `include/archcheck/scan/satd_scan.h` + `src/scan/satd_scan.cpp` (156 строк)
-   - `detectSatdMarkers()` реализует SATD.1 (любой маркер) и SATD.2 (FIXME/HACK без issue-id)
-   - Поддержка всех регулярных маркеров из спеки
-   - Маркер ловится только в комментариях (// или /* */)
-   - Один violation на строку, усечение до 120 символов
-4. Интеграция в src/main.cpp:
-   - Добавлено собирание added lines через `collectAddedLines()`
-   - Добавлен вызов `detectSatdMarkers()` в `runDiffFullPath()`
-   - SATD-блок печатается после structural report (advisory-only, не гейтит)
-5. Фикстуры в fixtures/satd_delta/:
+1. Extract `runGit()` from the anon namespace of git_state.cpp into a shared helper:
+   - `include/archcheck/git/git_exec.h` + `src/git/git_exec.cpp` (82 lines)
+   - Updated git_state.cpp to use the shared helper
+2. Create `include/archcheck/git/diff_query.h` + `src/git/diff_query.cpp`:
+   - `collectAddedLines()` — parsing unified diff --unified=0
+   - `collectNumstat()` — parsing git diff --numstat
+   - Support for both modes: a..b and a..WORKTREE
+3. Create the SATD detector:
+   - `include/archcheck/scan/satd_scan.h` + `src/scan/satd_scan.cpp` (156 lines)
+   - `detectSatdMarkers()` implements SATD.1 (any marker) and SATD.2 (FIXME/HACK without issue-id)
+   - Support for all regular markers from the spec
+   - The marker is caught only in comments (// or /* */)
+   - One violation per line, truncation to 120 characters
+4. Integration into src/main.cpp:
+   - Added collection of added lines via `collectAddedLines()`
+   - Added a call to `detectSatdMarkers()` in `runDiffFullPath()`
+   - The SATD block is printed after the structural report (advisory-only, does not gate)
+5. Fixtures in fixtures/satd_delta/:
    - pass/: hack_with_issue.diff, context_only.diff, dirty_in_code.diff
    - fail/: todo_added.diff, fixme_without_issue.diff, hack_without_issue.diff, temporary_marker.diff, workaround_marker.diff
-6. Тесты:
-   - tests/unit/git/diff_query_test.cpp (2 базовых теста, 21 строка)
-   - tests/unit/scan/satd_scan_test.cpp (22 теста, 184 строки)
-   - tests/integration/diff/git_diff_test.cpp (добавлен 1 интеграционный тест)
-   - Все 381 тест проходят
+6. Tests:
+   - tests/unit/git/diff_query_test.cpp (2 basic tests, 21 lines)
+   - tests/unit/scan/satd_scan_test.cpp (22 tests, 184 lines)
+   - tests/integration/diff/git_diff_test.cpp (1 integration test added)
+   - All 381 tests pass
 
-## В работе
+## In progress
 
-- (нет)
+- (none)
 
-## Следующие шаги
+## Next steps
 
-- Готово к ревью и мерджу
+- Ready for review and merge
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Только added lines | Это новый debt, а не перепись всего наследия |
-| `SATD.2` уже, чем `SATD.1` | Не всякий `TODO` должен даже теоретически ломать CI |
-| Hardcoded defaults acceptable in v1 | Текущий schema contract не готов к cheap-drift knobs |
-| Рядом с existing diff pipeline | Не плодить второй способ понимать git diff |
+| Added lines only | This is new debt, not a rewrite of all the legacy |
+| `SATD.2` narrower than `SATD.1` | Not every `TODO` should even theoretically break CI |
+| Hardcoded defaults acceptable in v1 | The current schema contract is not ready for cheap-drift knobs |
+| Alongside the existing diff pipeline | Don't proliferate a second way to understand git diff |
 
-## Планируемые файлы
+## Planned files
 
-| Область | Изменение |
+| Area | Change |
 |---------|-----------|
-| `src/git/` или diff orchestration | Доступ к added lines |
-| `src/main.cpp` / cheap-drift pass | Подключение SATD detector |
+| `src/git/` or diff orchestration | Access to added lines |
+| `src/main.cpp` / cheap-drift pass | Wiring up the SATD detector |
 | `tests/unit/` | Marker / regex logic |
 | `tests/integration/` | Diff fixtures |
-| `fixtures/satd_delta/` | `pass/` и `fail/` сценарии |
+| `fixtures/satd_delta/` | `pass/` and `fail/` scenarios |
 
-## Итог
-**Статус:** completed — SATD-маркеры (TODO/FIXME/HACK/XXX) на added-строках диффа,
-advisory в `--diff` (commit cb6e09d: `src/scan/satd_scan.cpp` + unit-тесты +
-`fixtures/satd_delta/`). Подробности механики — в теле задачи и CHANGELOG (f80a83c).
-**Дата завершения:** 2026-06-11
+## Summary
+**Status:** completed — SATD markers (TODO/FIXME/HACK/XXX) on added diff lines,
+advisory in `--diff` (commit cb6e09d: `src/scan/satd_scan.cpp` + unit tests +
+`fixtures/satd_delta/`). Mechanics details are in the task body and CHANGELOG (f80a83c).
+**Completion date:** 2026-06-11

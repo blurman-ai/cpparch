@@ -1,64 +1,64 @@
-# [SCAN] Тест-фильтр: дефисные суффиксы (-test) и каталоги testutil/
+# [SCAN] Test filter: hyphenated suffixes (-test) and testutil/ directories
 
-**Дата создания:** 2026-06-12
-**Дата старта:** 2026-06-12
-**Статус:** done
-**Модуль:** SCAN
-**Приоритет:** minor
-**Сложность:** small
-**Исполнитель:** Haiku
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #111 (находка §3.2 отчёта corpus run), #070 (исходное тест-исключение)
+**Created:** 2026-06-12
+**Start date:** 2026-06-12
+**Status:** done
+**Module:** SCAN
+**Priority:** minor
+**Complexity:** small
+**Assignee:** Haiku
+**Blocks:** —
+**Blocked by:** —
+**Related:** #111 (finding §3.2 of the corpus run report), #070 (original test exclusion)
 
-## Цель
+## Goal
 
-Закрыть две дыры тест-классификации, найденные корпусным прогоном #111
-(apache/impala): basename `otel-test.cc` (дефисный суффикс) и каталог
-`be/src/testutil/` проходят фильтр и попадают в граф/метрики как
-production-код.
+Close two holes in test classification found by the corpus run #111
+(apache/impala): basename `otel-test.cc` (hyphenated suffix) and the directory
+`be/src/testutil/` pass the filter and land in the graph/metrics as
+production code.
 
-## Контекст
+## Context
 
-Факты, проверенные живыми 2026-06-12 в
+Facts verified live 2026-06-12 in
 `include/archcheck/scan/file_classification.h`:
 
-- `kTestDirNames` (~строка 225): `{"test", "tests", "unittest", "unittests"}`;
-  сегменты нормализуются `normalizeDirSegment` (lowercase, `_`/`-`/пробел
-  вырезаются) — т.е. `unit_test/` уже ловится как `unittest`.
-- `isTestBasename` (~строка 243): stem начинается с `test_` ИЛИ кончается на
-  `_test` / `_tests` / `_spec` (массив `kTestStemSuffixes`).
-  **GCC8-COMPAT**: сравнение через `compare()`, не `ends_with` — сохранить стиль.
-- Потребители (поведение меняется у всех, это и есть цель): 
+- `kTestDirNames` (~line 225): `{"test", "tests", "unittest", "unittests"}`;
+  segments are normalized by `normalizeDirSegment` (lowercase, `_`/`-`/space
+  stripped) — i.e. `unit_test/` is already caught as `unittest`.
+- `isTestBasename` (~line 243): stem starts with `test_` OR ends with
+  `_test` / `_tests` / `_spec` (array `kTestStemSuffixes`).
+  **GCC8-COMPAT**: comparison via `compare()`, not `ends_with` — keep the style.
+- Consumers (behavior changes for all of them, that's the point):
   `src/graph/graph_builder.cpp:60`, `src/scan/project_files.cpp:157`,
   `src/scan/god_file_growth.cpp:36,170`, `src/scan/defect_attractor.cpp:29`,
   `src/scan/test_co_evolution.cpp:42`.
-- Тесты: `tests/unit/scan/file_classification_test.cpp` —
-  `pathHasTestDir` (строка 142) и соседний `isTestBasename` TEST_CASE.
+- Tests: `tests/unit/scan/file_classification_test.cpp` —
+  `pathHasTestDir` (line 142) and the neighboring `isTestBasename` TEST_CASE.
 
-## Решённый дизайн (развилок нет)
+## Settled design (no forks)
 
-1. `kTestDirNames` += `"testutil"`, `"testutils"` (нормализация сегмента
-   уже схлопнет `test_util/`, `test-utils/` в эти формы; ВАЖНО: текущая
-   нормализация также схлопывает `test-utils` → `testutils` — отдельных
-   написаний в массив не добавлять). Размер массива в объявлении
-   `std::array<std::string_view, N>` поднять соответственно.
-2. `isTestBasename`: к `kTestStemSuffixes` добавить `"-test"`, `"-tests"`,
-   `"-spec"`; к prefix-проверке `test_` добавить `test-`.
-   НЕ добавлять голый суффикс `test` без разделителя — `contest.cc`,
-   `attest.h`, `latest.h` обязаны остаться production.
+1. `kTestDirNames` += `"testutil"`, `"testutils"` (segment normalization
+   already collapses `test_util/`, `test-utils/` into these forms; IMPORTANT: the current
+   normalization also collapses `test-utils` → `testutils` — do not add separate
+   spellings to the array). Raise the array size in the declaration
+   `std::array<std::string_view, N>` accordingly.
+2. `isTestBasename`: to `kTestStemSuffixes` add `"-test"`, `"-tests"`,
+   `"-spec"`; to the `test_` prefix check add `test-`.
+   Do NOT add the bare suffix `test` without a separator — `contest.cc`,
+   `attest.h`, `latest.h` must remain production.
 
-## План выполнения
+## Execution plan
 
-- [ ] Правка `file_classification.h` по дизайну (оба пункта).
-- [ ] Дописать кейсы в `tests/unit/scan/file_classification_test.cpp`
-      (в существующие TEST_CASE для `pathHasTestDir` / `isTestBasename`),
-      существующие REQUIRE не менять.
-- [ ] Прогнать контрольные кейсы, build, tests, lizard, dogfood.
+- [ ] Edit `file_classification.h` per the design (both items).
+- [ ] Add cases to `tests/unit/scan/file_classification_test.cpp`
+      (into the existing TEST_CASEs for `pathHasTestDir` / `isTestBasename`),
+      do not change existing REQUIREs.
+- [ ] Run the control cases, build, tests, lizard, dogfood.
 
-## Контрольные кейсы (контракт)
+## Control cases (contract)
 
-| Вызов | Ожидание |
+| Call | Expectation |
 |---|---|
 | `isTestBasename("otel-test.cc")` | **true** |
 | `isTestBasename("unit-tests.cpp")` | **true** |
@@ -70,67 +70,67 @@ production-код.
 | `pathHasTestDir("be/src/testutil/scoped-flag-setter.h")` | **true** |
 | `pathHasTestDir("be/src/test_utils/foo.h")` | **true** |
 | `pathHasTestDir("be/src/observe/span-manager.cc")` | **false** |
-| `pathHasTestDir("src/testutility/foo.h")` | **false** (сегмент ≠ testutil/testutils) |
+| `pathHasTestDir("src/testutility/foo.h")` | **false** (segment ≠ testutil/testutils) |
 
-## Не делать
+## Do not do
 
-- НЕ менять существующие ожидания тестов — только добавлять новые REQUIRE.
-- НЕ трогать vendor-классификацию (`kVendoredDirNames` и т.д.) — это #113.
-- НЕ использовать `std::string_view::ends_with` — GCC8-COMPAT, см. комментарий
-  в самой функции.
-- НЕ коммитить без команды.
+- Do NOT change existing test expectations — only add new REQUIREs.
+- Do NOT touch vendor classification (`kVendoredDirNames` etc.) — that is #113.
+- Do NOT use `std::string_view::ends_with` — GCC8-COMPAT, see the comment
+  in the function itself.
+- Do NOT commit without a command.
 
 ## Definition of done
 
-- 11/11 контрольных кейсов зелёные.
-- `cmake --build build/debug` + `ctest --output-on-failure` — всё зелёное
-  (включая нетронутые старые кейсы classification-теста).
+- 11/11 control cases green.
+- `cmake --build build/debug` + `ctest --output-on-failure` — all green
+  (including the untouched old cases of the classification test).
 - `lizard --CCN 15 --length 30 --arguments 5 --warnings_only src/ include/ tests/` — 0 warnings.
-- Dogfood: `./build/debug/src/archcheck` из корня — 0 нарушений.
+- Dogfood: `./build/debug/src/archcheck` from the root — 0 violations.
 
-## Сделано
+## Done
 
-- `kTestDirNames`: расширен с 4 до 6 строк — добавлены `"testutil"`, `"testutils"`.
-  Нормализация `normalizeDirSegment` автоматически схлопывает `test_util/`, `test-utils/`
-  в эти формы, отдельных написаний не потребовалось.
-- `isTestBasename`: добавлен prefix `test-` (сразу за `test_`); `kTestStemSuffixes`
-  расширен с 3 до 6 — добавлены `"-test"`, `"-tests"`, `"-spec"`.
-- GCC8-COMPAT: суффиксное сравнение через `compare()`, `ends_with` не используется.
-- 11/11 контрольных кейсов зелёные, 31/31 assertions в тест-кейсах `[scan][test]`.
-- 506/506 тестов, lizard 0 warnings, dogfood 0 нарушений.
+- `kTestDirNames`: expanded from 4 to 6 entries — added `"testutil"`, `"testutils"`.
+  The `normalizeDirSegment` normalization automatically collapses `test_util/`, `test-utils/`
+  into these forms, no separate spellings were needed.
+- `isTestBasename`: added prefix `test-` (right after `test_`); `kTestStemSuffixes`
+  expanded from 3 to 6 — added `"-test"`, `"-tests"`, `"-spec"`.
+- GCC8-COMPAT: suffix comparison via `compare()`, `ends_with` not used.
+- 11/11 control cases green, 31/31 assertions in the `[scan][test]` test cases.
+- 506/506 tests, lizard 0 warnings, dogfood 0 violations.
 - Coverage: lines 91.5% / functions 96.5% / branches 57.6% — PASS.
-- Коммит: `362ca60` (`fix(scan): add hyphenated test suffixes and testutil dirs (#114)`)
+- Commit: `362ca60` (`fix(scan): add hyphenated test suffixes and testutil dirs (#114)`)
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-- (пусто)
+- (empty)
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Только разделённые суффиксы (`-test`, не `*test`) | contest/attest/latest — FP-класс; разделитель обязателен |
-| `testutil(s)` как dir-имя, не basename | impala-кейс — каталог; basename `testutil.cc` без суффикса остаётся production |
+| Only separated suffixes (`-test`, not `*test`) | contest/attest/latest — FP class; the separator is mandatory |
+| `testutil(s)` as a dir name, not a basename | the impala case — a directory; the basename `testutil.cc` without a suffix stays production |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
 | `include/archcheck/scan/file_classification.h` | `kTestDirNames` +2, `kTestStemSuffixes` +3, prefix `test-` (commit `362ca60`) |
-| `tests/unit/scan/file_classification_test.cpp` | +11 контрольных REQUIRE (commit `362ca60`) |
+| `tests/unit/scan/file_classification_test.cpp` | +11 control REQUIREs (commit `362ca60`) |
 
-## Как работает
+## How it works
 
-`normalizeDirSegment` (lowercase + strip `_/-/space`) уже схлопывает `test-utils/`
-и `test_util/` в `testutils` / `testutil` — поэтому в массив добавлены только
-нормализованные формы. Суффиксы `-test`/`-tests`/`-spec` ловятся тем же
-`compare()`-циклом, что и `_test`/`_tests`/`_spec` — GCC8-совместимость сохранена.
-Голый суффикс `test` намеренно не добавлен: он бы поймал `contest`, `attest`, `latest`.
+`normalizeDirSegment` (lowercase + strip `_/-/space`) already collapses `test-utils/`
+and `test_util/` into `testutils` / `testutil` — so only the normalized forms were
+added to the array. The suffixes `-test`/`-tests`/`-spec` are caught by the same
+`compare()` loop as `_test`/`_tests`/`_spec` — GCC8 compatibility preserved.
+The bare suffix `test` is deliberately not added: it would catch `contest`, `attest`, `latest`.
 
-## Дата завершения
+## Completion date
 
 2026-06-12

@@ -1,41 +1,41 @@
-# [SCAN] #056: precision против coincidental-FP (главный класс)
+# [SCAN] #056: precision against coincidental-FP (the main class)
 
-**Дата создания:** 2026-05-31
-**Статус:** completed (resolved — surface-путь невозможен, передано в #070)
-**Дата завершения:** 2026-06-05
-**Модуль:** SCAN
-**Приоритет:** critical
+**Created:** 2026-05-31
+**Status:** completed (resolved — the surface-level path is impossible, handed off to #070)
+**Completed:** 2026-06-05
+**Module:** SCAN
+**Priority:** critical
 **Related:** #060, #056, #070
 
-> **Итог (resolved):** не реализуем порогами/surface-метриками — доказано на
-> размеченных данных (iter3): все три гипотезы опровергнуты, coincidental по
-> любой surface-метрике «копийнее» настоящей renamed-копии («idiom-FP floor»).
-> Точность даёт только семантический confirm-слой — реализация переходит в **#070**.
-> Эта задача закрыта как negative result с доказательством, не как достижение.
+> **Outcome (resolved):** not solvable via thresholds/surface metrics — proven on
+> labeled data (iter3): all three hypotheses refuted, coincidental matches look
+> "more copy-like" than a genuine renamed copy by any surface metric ("idiom-FP floor").
+> Precision comes only from a semantic confirm layer — implementation moves to **#070**.
+> This task is closed as a negative result with proof, not as an achievement.
 
-## Цель
-Убрать FP-coincidental (~46% в iter1, ГЛАВНЫЙ класс): две РАЗНЫЕ функции матчатся,
-т.к. selective normalization схлопывает `id`/`lit` → разный код даёт похожий
-токен-поток, token-LCS добивает до weighted=1.0 при низком `line` (0.3–0.6).
+## Goal
+Eliminate coincidental FPs (~46% in iter1, the MAIN class): two DIFFERENT functions match
+because selective normalization collapses `id`/`lit` → different code yields a similar
+token stream, and token-LCS pushes it to weighted=1.0 at low `line` (0.3–0.6).
 
-## Гипотезы — ВСЕ ОПРОВЕРГНУТЫ на размеченных данных (iter3, VALIDATION_ITER3.md)
-1. ~~content-overlap (callee/type Jaccard)~~ — у same-file (66%) высок у обоих
-   (общий словарь класса). Не разделяет.
-2. ~~cross-file-only~~ — отвергнуто: within-file копии (скопировал функцию, правил
-   часть) В СКОУПЕ, их надо ловить.
-3. ~~raw-line floor~~ — метрика `line` нормализованная (обманута); на данных
-   распределения инвертированы: FP line 0.88 > TP 0.67. Порог роняет TP, держит FP.
+## Hypotheses — ALL REFUTED on labeled data (iter3, VALIDATION_ITER3.md)
+1. ~~content-overlap (callee/type Jaccard)~~ — for same-file (66%) it is high for both
+   (shared class vocabulary). Does not separate.
+2. ~~cross-file-only~~ — rejected: within-file copies (copied a function, edited
+   part) are IN SCOPE, they must be caught.
+3. ~~raw-line floor~~ — the `line` metric is normalized (deceived); on the data the
+   distributions are inverted: FP line 0.88 > TP 0.67. A threshold drops TPs, keeps FPs.
 
-**Корень:** все surface-метрики (token-LCS, norm-line, content) обмануты ОДНОЙ
-нормализацией — coincidental по ним «копийнее» настоящей renamed-копии. Сигнал
-семантический. Это «idiom-FP floor» из duplication_architecture.md §5/§9.
+**Root cause:** all surface metrics (token-LCS, norm-line, content) are deceived by the SAME
+normalization — coincidental matches look "more copy-like" than a genuine renamed copy by them. The signal
+is semantic. This is the "idiom-FP floor" from duplication_architecture.md §5/§9.
 
-## Правильная постановка (architecture-first)
-#056 surface = RECALL-стадия (16.5% precision). Precision даёт **семантический
-confirm-слой** (#070 final): агент читает оба фрагмента → REAL/coincidental, гейтит.
-Порогами #056 не точить — доказано. Следующий шаг: встроить confirm-слой в конвейер
-как гейт на кандидатах, прошедших дешёвые фильтры.
+## Correct framing (architecture-first)
+#056 surface = RECALL stage (16.5% precision). Precision comes from the **semantic
+confirm layer** (#070 final): an agent reads both fragments → REAL/coincidental, gates.
+Don't sharpen #056 with thresholds — proven. Next step: embed the confirm layer into the pipeline
+as a gate on candidates that have passed the cheap filters.
 
-## Статус
-Поверхностный #063 закрыт как тупик (с доказательством). Переходит в реализацию
-confirm-слоя (#070).
+## Status
+The surface-level #063 is closed as a dead end (with proof). Moves to implementing the
+confirm layer (#070).

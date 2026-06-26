@@ -1,140 +1,140 @@
-# [SCAN][RULES] SF.9 молчит на проектах с `#ifndef`-guard'ом: include внутри include-guard ложно conditional
+# [SCAN][RULES] SF.9 stays silent on projects with `#ifndef` guards: an include inside an include-guard is falsely conditional
 
-**Дата создания:** 2026-05-29
-**Дата старта:** 2026-05-29
-**Дата завершения:** 2026-05-29
-**Статус:** completed
-**Модуль:** SCAN / RULES
-**Приоритет:** critical
-**Сложность:** M
-**Блокирует:** v0.1 release
-**Заблокирован:** —
-**Related:** #032 (conditional cycles suppression — источник регрессии), #028 (rules_engine_mvp)
+**Created:** 2026-05-29
+**Started:** 2026-05-29
+**Completed:** 2026-05-29
+**Status:** completed
+**Module:** SCAN / RULES
+**Priority:** critical
+**Difficulty:** M
+**Blocks:** v0.1 release
+**Blocked by:** —
+**Related:** #032 (conditional cycles suppression — source of the regression), #028 (rules_engine_mvp)
 
-## Цель
+## Goal
 
-SF.9 должен репортить реальные циклы в проектах со стандартным include-guard `#ifndef X / #define X / ... / #endif`. Сейчас на любом таком проекте SF.9 даёт **0** даже при наличии цикла, потому что сканер считает include-guard условным контекстом и `allEdgesConditional` глушит SCC.
+SF.9 must report real cycles in projects with the standard include-guard `#ifndef X / #define X / ... / #endif`. Right now, on any such project SF.9 gives **0** even when a cycle is present, because the scanner treats the include-guard as a conditional context and `allEdgesConditional` mutes the SCC.
 
-## Контекст
+## Context
 
-Перепрогон dogfood-корпуса 2026-05-29 (см. милистоны):
+Re-run of the dogfood corpus on 2026-05-29 (see milestones):
 
-| Проект | Guard-стиль | `sccs_cyclic` (--graph) | SF.9 | Расхождение |
+| Project | Guard style | `sccs_cyclic` (--graph) | SF.9 | Discrepancy |
 |---|---|---|---|---|
 | fmt | `#pragma once` | 0 | 0 | — |
-| spdlog | `#pragma once` | 22 | 0 | подавлено #032 корректно (все циклы `foo.h ↔ foo-inl.h` под `#ifdef SPDLOG_HEADER_ONLY`) |
+| spdlog | `#pragma once` | 22 | 0 | suppressed by #032 correctly (all cycles `foo.h ↔ foo-inl.h` under `#ifdef SPDLOG_HEADER_ONLY`) |
 | Catch2 | `#pragma once` | 0 | 0 | — |
 | nlohmann/json | `#pragma once` | 0 | 0 | — |
 | abseil-cpp | `#pragma once` | 0 | 0 | — |
 | folly | `#pragma once` | 9 | 9 | — |
-| **grpc** | **`#ifndef`** | **4** | **0** | **критично** |
+| **grpc** | **`#ifndef`** | **4** | **0** | **critical** |
 
-В grpc 4 реальных SCC, среди них настоящий архитектурный цикл в самом grpc:
+In grpc there are 4 real SCCs, among them a genuine architectural cycle in grpc itself:
 
 ```
 src/core/tsi/alts/handshaker/alts_handshaker_client.h ↔ alts_tsi_handshaker.h
 ```
 
-Оба `#include` — на верхнем уровне файла, никакого `#ifdef` рядом нет, кроме включающего весь файл guard'а:
+Both `#include`s are at the top level of the file, with no `#ifdef` nearby other than the guard wrapping the whole file:
 
 ```cpp
 // alts_handshaker_client.h
 #ifndef GRPC_SRC_CORE_TSI_ALTS_HANDSHAKER_ALTS_HANDSHAKER_CLIENT_H
 #define GRPC_SRC_CORE_TSI_ALTS_HANDSHAKER_ALTS_HANDSHAKER_CLIENT_H
 ...
-#include "src/core/tsi/alts/handshaker/alts_tsi_handshaker.h"  // ← помечается conditional=YES
+#include "src/core/tsi/alts/handshaker/alts_tsi_handshaker.h"  // ← marked conditional=YES
 ...
 #endif
 ```
 
-Диагностика через `/tmp/scc_dump` (одноразовый отладочный бинарь, исходник
-`/tmp/scc_dump.cpp`) на grpc показала, что **все 4 SCC** содержат рёбра
-`conditional=YES`. После этого `Sf9NoCycles::check` отбрасывает их через
-`allEdgesConditional` и не репортит.
+Diagnostics via `/tmp/scc_dump` (a one-off debug binary, source
+`/tmp/scc_dump.cpp`) on grpc showed that **all 4 SCCs** contain edges with
+`conditional=YES`. After that, `Sf9NoCycles::check` discards them via
+`allEdgesConditional` and does not report.
 
-## Почему скрывалось
+## Why it was hidden
 
-Все остальные проекты в корпусе используют `#pragma once` — в них никакого `#ifndef`-блока не открывается, и сканер не маркирует includes как conditional. grpc — первый проект в выборке с классическим guard-стилем, поэтому баг проявился только сейчас.
+All the other projects in the corpus use `#pragma once` — in them no `#ifndef` block is opened, and the scanner doesn't mark includes as conditional. grpc is the first project in the sample with the classic guard style, so the bug only surfaced now.
 
-В существующих юнит-тестах SF.9 / scanner используются `#pragma once` либо упрощённые тестовые шапки → баг через них не отлавливается.
+In the existing SF.9 / scanner unit tests, `#pragma once` or simplified test headers are used → the bug isn't caught through them.
 
-## Масштаб
+## Scale
 
-Это **critical**: archcheck позиционируется как ловец циклов в CI. На любом проекте с `#ifndef`-guard'ом (большинство OSS C/C++ кода: grpc, LLVM, Linux-style, классические библиотеки) SF.9 сейчас бесполезен. До v0.1 release это надо закрыть.
+This is **critical**: archcheck is positioned as a cycle-catcher in CI. On any project with `#ifndef` guards (most OSS C/C++ code: grpc, LLVM, Linux-style, classic libraries) SF.9 is currently useless. This must be closed before the v0.1 release.
 
-## Решение
+## Solution
 
-В `include_scanner`-е распознавать стандартный паттерн include-guard:
-- первая не-комментарий / не-пустая директива в файле — `#ifndef X`
-- сразу за ней `#define X`
-- где X — un-shouty identifier (по соглашению `[A-Z_][A-Z0-9_]*`)
+In the `include_scanner`, recognize the standard include-guard pattern:
+- the first non-comment / non-empty directive in the file is `#ifndef X`
+- immediately followed by `#define X`
+- where X is an un-shouty identifier (by convention `[A-Z_][A-Z0-9_]*`)
 
-При обнаружении этого паттерна — не учитывать первый `#ifndef` в счётчике глубины `#if`, и зеркально игнорировать парный закрывающий `#endif` в конце файла. Тогда контент файла трактуется как «верхний уровень», и includes не помечаются conditional, кроме реально вложенных в `#ifdef`/`#if`.
+When this pattern is detected — don't count the first `#ifndef` in the `#if` depth counter, and mirror this by ignoring the matching closing `#endif` at the end of the file. Then the file content is treated as "top level", and includes are not marked conditional except those genuinely nested in `#ifdef`/`#if`.
 
-Альтернатива: ослабить #032 (например, считать цикл all-conditional только если ВСЕ его include-edges под директивами `#ifdef X` или `#if defined(X)` с одинаковым X) — сложнее, и не покрывает кейс когда guard окружает реальный условный include.
+Alternative: weaken #032 (e.g. consider a cycle all-conditional only if ALL its include edges are under `#ifdef X` or `#if defined(X)` directives with the same X) — more complex, and it doesn't cover the case where the guard surrounds a genuinely conditional include.
 
-## План
+## Plan
 
-- [ ] Фикстура `fixtures/sf9_no_cycles/ifndef_guard_real_cycle/` — два `.h` файла с классическим `#ifndef` guard'ом, образующих цикл. Ожидаемое поведение: SF.9 репортит.
-- [ ] Фикстура `fixtures/sf9_no_cycles/ifndef_guard_no_cycle/` — те же два файла, но циклического include нет. Ожидаемое поведение: SF.9 молчит, без false-positive.
-- [ ] Unit-тест на сканер: `IncludeScanner` для файла с include-guard — все top-level includes должны иметь `conditional=false`.
-- [ ] Реализовать распознавание include-guard в сканере (новая функция `detectIncludeGuard()` или подобная).
-- [ ] Перепрогнать на grpc — должны проявиться 4 SF.9 нарушения (или сколько действительно есть после фильтрации не-наших циклов).
-- [ ] Проверить регрессию на остальном корпусе (folly должен остаться 9, spdlog — 0, остальные — 0).
-- [ ] Обновить milestones (§«Прогон 9 — grpc»: убрать «требует расследования», добавить ссылку на эту задачу и итог фикса).
-- [ ] Обновить STATUS.md — убрать «один невыясненный mismatch» из шапки.
+- [ ] Fixture `fixtures/sf9_no_cycles/ifndef_guard_real_cycle/` — two `.h` files with a classic `#ifndef` guard forming a cycle. Expected behavior: SF.9 reports.
+- [ ] Fixture `fixtures/sf9_no_cycles/ifndef_guard_no_cycle/` — the same two files, but no cyclic include. Expected behavior: SF.9 stays silent, no false positive.
+- [ ] Unit test on the scanner: `IncludeScanner` for a file with an include-guard — all top-level includes must have `conditional=false`.
+- [ ] Implement include-guard recognition in the scanner (a new `detectIncludeGuard()` function or similar).
+- [ ] Re-run on grpc — 4 SF.9 violations should surface (or however many there really are after filtering out non-ours cycles).
+- [ ] Check for regressions on the rest of the corpus (folly should stay 9, spdlog — 0, the rest — 0).
+- [ ] Update milestones (§"Run 9 — grpc": remove "requires investigation", add a link to this task and the fix outcome).
+- [ ] Update STATUS.md — remove "one unresolved mismatch" from the header.
 
-## Изменённые файлы
+## Changed files
 
-Всё в коммите `595bdf2`:
+All in commit `595bdf2`:
 
-| Файл | Изменение |
-|------|-----------|
-| `src/scan/include_scanner.cpp` | `pp_argument()`, `is_shouty_ident()`, `is_blank_line()`, `next_significant_line()`, `detect_include_guard_offset()`; основной цикл скипает `++depth` для guard-открытия |
-| `tests/unit/scan/include_scanner_test.cpp` | +5 тестов с тегом `[guard]` |
-| `fixtures/sf9_no_cycles/fail_ifndef_guard_real_cycle/{alpha,beta}.h` | new — два `#ifndef`-guarded файла с циклом |
-| `fixtures/sf9_no_cycles/pass_ifndef_guard_no_cycle/{alpha,beta}.h` | new — два guarded файла без цикла |
-| `docs/milestones.md` | §«Прогон 9 — grpc»: помечен Resolved 2026-05-29 со сводкой |
-| `docs/STATUS.md` | убран mismatch из шапки и из «Открытых багов» |
+| File | Change |
+|------|--------|
+| `src/scan/include_scanner.cpp` | `pp_argument()`, `is_shouty_ident()`, `is_blank_line()`, `next_significant_line()`, `detect_include_guard_offset()`; the main loop skips `++depth` for the guard opening |
+| `tests/unit/scan/include_scanner_test.cpp` | +5 tests tagged `[guard]` |
+| `fixtures/sf9_no_cycles/fail_ifndef_guard_real_cycle/{alpha,beta}.h` | new — two `#ifndef`-guarded files with a cycle |
+| `fixtures/sf9_no_cycles/pass_ifndef_guard_no_cycle/{alpha,beta}.h` | new — two guarded files without a cycle |
+| `docs/milestones.md` | §"Run 9 — grpc": marked Resolved 2026-05-29 with a summary |
+| `docs/STATUS.md` | mismatch removed from the header and from "Open bugs" |
 
-Тест SF.9-уровня (`tests/unit/rules/sf9_no_cycles_test.cpp`) не добавлялся: правило работает на `DependencyGraph`-уровне и уже покрыто (включая `allEdgesConditional`-кейс). Регрессия защищена сканер-тестами и fixture-парой.
+An SF.9-level test (`tests/unit/rules/sf9_no_cycles_test.cpp`) was not added: the rule works at the `DependencyGraph` level and is already covered (including the `allEdgesConditional` case). The regression is guarded by the scanner tests and the fixture pair.
 
-## Сделано
+## Done
 
-- Фикстуры `fixtures/sf9_no_cycles/fail_ifndef_guard_real_cycle/` и `pass_ifndef_guard_no_cycle/`.
-- 5 unit-тестов в [tests/unit/scan/include_scanner_test.cpp](../../tests/unit/scan/include_scanner_test.cpp) с тегом `[guard]`: положительный кейс, кейс с лидирующими комментариями, вложенный `#ifdef` внутри guard'а, два негативных (нет `#define` / mismatched ident).
-- Реализованы `pp_argument()`, `is_shouty_ident()`, `detect_include_guard_offset()` в [src/scan/include_scanner.cpp](../../src/scan/include_scanner.cpp); основной цикл пропускает `++depth` на guard'овом `#ifndef`.
-- ctest: **235/235 passed**, lizard --warnings_only: чисто.
-- Перепрогон корпуса: **grpc SF.9 = 4** (включая реальный архитектурный цикл `alts_handshaker_client.h ↔ alts_tsi_handshaker.h`), folly = 9 (без изменений), spdlog = 0 (корректное подавление по #032), fmt/Catch2 = 0.
-- Обновлён `docs/milestones.md` §«Прогон 9 — grpc» (Resolved 2026-05-29) и `docs/STATUS.md` (убран mismatch из шапки и из «Открытых багов»).
+- Fixtures `fixtures/sf9_no_cycles/fail_ifndef_guard_real_cycle/` and `pass_ifndef_guard_no_cycle/`.
+- 5 unit tests in [tests/unit/scan/include_scanner_test.cpp](../../tests/unit/scan/include_scanner_test.cpp) tagged `[guard]`: the positive case, a case with leading comments, a nested `#ifdef` inside the guard, and two negative ones (no `#define` / mismatched ident).
+- Implemented `pp_argument()`, `is_shouty_ident()`, `detect_include_guard_offset()` in [src/scan/include_scanner.cpp](../../src/scan/include_scanner.cpp); the main loop skips `++depth` on the guard's `#ifndef`.
+- ctest: **235/235 passed**, lizard --warnings_only: clean.
+- Corpus re-run: **grpc SF.9 = 4** (including the real architectural cycle `alts_handshaker_client.h ↔ alts_tsi_handshaker.h`), folly = 9 (unchanged), spdlog = 0 (correct suppression per #032), fmt/Catch2 = 0.
+- Updated `docs/milestones.md` §"Run 9 — grpc" (Resolved 2026-05-29) and `docs/STATUS.md` (mismatch removed from the header and from "Open bugs").
 
-## Принцип работы
+## How it works (principle)
 
-**Проблема.** `include_scanner` помечал `IncludeDirective.conditional = true` для всех директив внутри любого открытого `#if`/`#ifdef`/`#ifndef`-блока — включая классический include-guard `#ifndef X / #define X / ... / #endif`, который оборачивает весь файл. После #032 правило SF.9 фильтровало SCC через `allEdgesConditional`, и подавляло реальные циклы в любых проектах с такими guard'ами.
+**Problem.** `include_scanner` marked `IncludeDirective.conditional = true` for all directives inside any open `#if`/`#ifdef`/`#ifndef` block — including the classic include-guard `#ifndef X / #define X / ... / #endif`, which wraps the whole file. After #032, the SF.9 rule filtered SCCs via `allEdgesConditional` and suppressed real cycles in any project with such guards.
 
-**Решение.** Перед основным проходом сканер один раз ищет «шапку файла»:
+**Solution.** Before the main pass, the scanner searches once for the "file header":
 
-1. Первая не-пустая строка — `#ifndef X`, где `X` — ALL_CAPS identifier (`[A-Z_][A-Z0-9_]*`).
-2. Сразу следующая не-пустая строка — `#define X` с тем же `X`.
+1. The first non-empty line is `#ifndef X`, where `X` is an ALL_CAPS identifier (`[A-Z_][A-Z0-9_]*`).
+2. The immediately following non-empty line is `#define X` with the same `X`.
 
-Если шапка распознана, сохраняется offset строки с `#ifndef`. В основном цикле эта одна строка не инкрементирует `depth`. Парный закрывающий `#endif` тогда оказывается в позиции `depth == 0`, и существующая защита `depth > 0` его молча игнорирует — никакой отдельной логики на закрытие не требуется.
+If the header is recognized, the offset of the `#ifndef` line is saved. In the main loop this one line does not increment `depth`. The matching closing `#endif` then ends up at position `depth == 0`, and the existing `depth > 0` guard silently ignores it — no separate close-handling logic is required.
 
-**Что не сломалось.** Comments и blank lines уже превращаются в whitespace в `preprocess()`, поэтому детекция «первая non-blank строка» автоматически пропускает лицензионные шапки. Вложенные `#ifdef OPT` внутри guard'а работают как раньше — депт там стартует с 0, инкрементируется на `#ifdef`, includes внутри получают `conditional=true`. `#pragma once`-файлы детектор отвергает на первом же шаге (первая директива не `#ifndef`), и поведение для них не меняется.
+**What didn't break.** Comments and blank lines are already turned into whitespace in `preprocess()`, so the "first non-blank line" detection automatically skips license headers. Nested `#ifdef OPT` inside the guard works as before — depth there starts at 0, increments on `#ifdef`, and includes inside get `conditional=true`. `#pragma once` files are rejected by the detector at the very first step (the first directive isn't `#ifndef`), and their behavior is unchanged.
 
-**Граница приложения.** Эвристика консервативна — требует ALL_CAPS ident и сразу следующий `#define`. Это сознательно: ловим стандартный паттерн (LLVM, grpc, Boost, классические библиотеки) и не пытаемся объять нестандартные guards с `#if !defined()` / lowercase / отложенным `#define`. Такие проекты можно добавлять в эвристику отдельно при необходимости.
+**Application boundary.** The heuristic is conservative — it requires an ALL_CAPS ident and an immediately following `#define`. This is deliberate: we catch the standard pattern (LLVM, grpc, Boost, classic libraries) and don't try to embrace nonstandard guards with `#if !defined()` / lowercase / a deferred `#define`. Such projects can be added to the heuristic separately if needed.
 
-## Как работает
+## How it works
 
-<!-- TODO: канонизировать раздел из «Принцип работы» выше -->
+<!-- TODO: canonicalize the section from "How it works (principle)" above -->
 
-## Чем управляется
-
-<!-- TODO -->
-
-## С чем связана
+## What controls it
 
 <!-- TODO -->
 
-## Диагностика
+## What it relates to
+
+<!-- TODO -->
+
+## Diagnostics
 
 <!-- TODO -->

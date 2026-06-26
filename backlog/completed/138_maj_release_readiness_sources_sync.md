@@ -1,76 +1,76 @@
-# [DOCS][PROCESS] Свести release-readiness статус между README/MVP/TASK_TRACKER/backlog
+# [DOCS][PROCESS] Reconcile release-readiness status across README/MVP/TASK_TRACKER/backlog
 
-**Дата создания:** 2026-06-23
-**Дата старта:** 2026-06-23
-**Статус:** completed
-**Модуль:** DOCS / PROCESS
-**Приоритет:** major
-**Сложность:** S
-**Блокирует:** внятный ответ на вопрос «что реально осталось до публичного v0.1»
-**Заблокирован:** —
+**Created:** 2026-06-23
+**Started:** 2026-06-23
+**Status:** completed
+**Module:** DOCS / PROCESS
+**Priority:** major
+**Difficulty:** S
+**Blocks:** a clear answer to the question "what is really left before a public v0.1"
+**Blocked by:** —
 
-> **Порядок:** ПОСЛЕДНЯЯ в волне #136–#141. Формулировка release-readiness зависит от итогового позиционирования и CLI-контракта, поэтому садится после #139 → #137 → #136. Запускать раньше — риск синхронизировать статусы на ещё не устаканенной картине.
+> **Order:** LAST in the #136–#141 wave. The release-readiness wording depends on the final positioning and CLI contract, so it sits after #139 → #137 → #136. Running it earlier risks synchronizing statuses onto a picture that has not yet settled.
 **Related:** #045 (docs_sync_roadmap_mvp_spec), #103 (copypaste_per_commit_drift), #123 (diff_new_clone_gate), #127 (vendor_generated_exclusion), #131 (fresh_corpus_remeasure)
 
-## Цель
+## Goal
 
-Сделать один непротиворечивый статус релизной готовности: одинаковый в README, MVP, task tracker и самих задачах backlog.
+Produce one consistent release-readiness status: identical in README, MVP, the task tracker and the backlog tasks themselves.
 
-## Контекст
+## Context
 
-Сейчас на один и тот же вопрос разные документы отвечают по-разному.
+Right now different documents answer the same question differently.
 
-- README пишет, что единственный открытый релизный item — `#105`, хотя он уже закрыт:
+- The README says the only open release item is `#105`, although it is already closed:
   [README.md#L149-L152](../../README.md#L149-L152).
-- `docs/MVP.md` внутри себя тоже расходится: критерий 8 ещё называет `#105` blocker,
-  а ниже файл уже пишет, что `#105` закрыт и открыты `#123/#103`:
+- `docs/MVP.md` is internally inconsistent too: criterion 8 still calls `#105` a blocker,
+  while further down the file already says that `#105` is closed and `#123/#103` are open:
   [docs/MVP.md#L78-L92](../../docs/MVP.md#L78-L92).
-- `backlog/TASK_TRACKER.md` идёт ещё дальше: там `#123` уже почти закрыта, а `#103`
-  описана как фактически выполненная research-цель, ожидающая формального закрытия:
+- `backlog/TASK_TRACKER.md` goes even further: there `#123` is already almost closed, and `#103`
+  is described as effectively a completed research goal awaiting formal closure:
   [backlog/TASK_TRACKER.md#L52-L67](../TASK_TRACKER.md#L52-L67).
-- При этом в changelog `#123` уже отмечена как shipped capability, а сами backlog-файлы
-  `#103/#123` всё ещё лежат в `wip/`.
+- Meanwhile in the changelog `#123` is already marked as a shipped capability, while the backlog files
+  `#103/#123` themselves still sit in `wip/`.
 
-Это делает release-talk ненадёжным: нельзя открыть один документ и понять, где на самом деле финишная прямая.
+This makes release talk unreliable: you cannot open a single document and understand where the home stretch actually is.
 
-## План выполнения
+## Execution plan
 
-- [ ] Назначить один авторитетный источник release-readiness для v0.1 (скорее всего `TASK_TRACKER.md`), остальные документы должны на него ссылаться, а не пересказывать вручную.
-- [ ] Переаудировать `#103`, `#123`, `#127`, `#131`: что уже shipped, что осталось, что лишь ждёт move/status cleanup.
-- [ ] Обновить `README.md` и `docs/MVP.md`, чтобы они не называли закрытые задачи открытыми.
-- [ ] Если задача фактически завершена, но файл висит в `wip/`, зафиксировать move-plan или остаток одной строкой без тумана.
-- [ ] Добавить короткое правило процесса: после landing shipped-feature обновляется не только changelog, но и release-status SSOT.
+- [ ] Designate one authoritative source of release-readiness for v0.1 (most likely `TASK_TRACKER.md`); the other documents should reference it rather than restate it by hand.
+- [ ] Re-audit `#103`, `#123`, `#127`, `#131`: what is already shipped, what remains, what is merely awaiting a move/status cleanup.
+- [ ] Update `README.md` and `docs/MVP.md` so they do not call closed tasks open.
+- [ ] If a task is effectively done but the file hangs in `wip/`, record the move plan or the remainder in one line without fog.
+- [ ] Add a short process rule: after landing a shipped feature, update not only the changelog but also the release-status SSOT.
 
-## Сделано
+## Done
 
-- `backlog/TASK_TRACKER.md` назначен SSOT по release-readiness v0.1.
-- README и MVP больше не называют #105 открытым release item.
-- MVP фиксирует: #105 закрыт; #103 precision получена; #123 product path shipped/advisory; GitHub test repo остаётся outward-facing validation.
-- WIP-задачи #103 и #123 получили статусные note-ы, отделяющие product completion от board/demo cleanup.
-- Release-readiness разделяет core MVP, board hygiene и public-readiness (#127/#131 applicability sign-off).
+- `backlog/TASK_TRACKER.md` designated as the SSOT for v0.1 release-readiness.
+- README and MVP no longer call #105 an open release item.
+- MVP records: #105 closed; #103 precision obtained; #123 product path shipped/advisory; the GitHub test repo remains outward-facing validation.
+- The WIP tasks #103 and #123 received status notes separating product completion from board/demo cleanup.
+- Release-readiness separates core MVP, board hygiene and public readiness (#127/#131 applicability sign-off).
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-- Board hygiene: решить, переносить #103 в `completed/` отдельным cleanup-коммитом, и выделять ли #123 GitHub demo в follow-up.
+- Board hygiene: decide whether to move #103 into `completed/` as a separate cleanup commit, and whether to split out the #123 GitHub demo into a follow-up.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Делать один SSOT для release-readiness | параллельные ручные статусы в 3-4 документах неизбежно протухают |
-| Сначала аудит факта, потом редактура статусов | иначе можно синхронно переписать документы на неверную картину |
-| Развести `shipped` и `task file still open` | это разные состояния, сейчас они смешаны и путают чтение |
+| Have one SSOT for release-readiness | parallel manual statuses across 3-4 documents inevitably go stale |
+| Audit the facts first, then edit the statuses | otherwise you can synchronously rewrite the documents onto the wrong picture |
+| Separate `shipped` from `task file still open` | these are different states, currently mixed and confusing to read |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `backlog/TASK_TRACKER.md` | при необходимости уточнить SSOT по текущему релизному хвосту |
-| `docs/MVP.md` | убрать устаревшие blocker-формулировки |
-| `README.md` | синхронизировать status section |
-| `backlog/wip/103_maj_copypaste_per_commit_drift.md` | уточнить фактический остаток или закрытие |
-| `backlog/wip/123_maj_diff_new_clone_gate.md` | уточнить фактический остаток или закрытие |
+| File | Change |
+|------|--------|
+| `backlog/TASK_TRACKER.md` | clarify the SSOT on the current release tail if needed |
+| `docs/MVP.md` | remove stale blocker wording |
+| `README.md` | synchronize the status section |
+| `backlog/wip/103_maj_copypaste_per_commit_drift.md` | clarify the actual remainder or closure |
+| `backlog/wip/123_maj_diff_new_clone_gate.md` | clarify the actual remainder or closure |

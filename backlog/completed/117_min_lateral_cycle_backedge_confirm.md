@@ -1,139 +1,139 @@
-# [SCAN][GRAPH] Lateral CYCLE-грейдер: подтверждать back-edge B→A на пред-состоянии
+# [SCAN][GRAPH] Lateral CYCLE grader: confirm back-edge B→A on the prior state
 
-**Дата создания:** 2026-06-12
-**Дата старта:** 2026-06-12
-**Статус:** done
-**Модуль:** SCAN][GRAPH
-**Приоритет:** minor
-**Сложность:** small
-**Исполнитель:** —
-**Блокирует:** — (мягко: будущее правило DRIFT.4)
-**Заблокирован:** —
-**Related:** #115 (находка §8.3 отчёта corpus run), #111 (критерий)
+**Created:** 2026-06-12
+**Started:** 2026-06-12
+**Status:** done
+**Module:** SCAN][GRAPH
+**Priority:** minor
+**Difficulty:** small
+**Executor:** —
+**Blocks:** — (soft: a future DRIFT.4 rule)
+**Blocked by:** —
+**Related:** #115 (finding §8.3 of the corpus-run report), #111 (criterion)
 
-## Цель
+## Goal
 
-Грейд `LATERAL.CYCLE` должен выдаваться только при реально существующей обратной
-дуге B→A на состоянии графа *до* события. Сейчас прототип помечает CYCLE без её
-подтверждения → leaf-цель (`engine/assets`, `include/common`) ложно даёт цикл.
+The `LATERAL.CYCLE` grade should be issued only when a back-edge B→A actually exists
+on the graph state *before* the event. Right now the prototype marks CYCLE without
+confirming it → a leaf target (`engine/assets`, `include/common`) falsely yields a cycle.
 
-## Контекст
+## Context
 
-Eyeball #115 (топ-20 из новых реп, верификация на коммите события) дал TP 85 %,
-CYCLE precision 84.6 % (11/13). Оба FP среди CYCLE — один класс:
+Eyeball #115 (top-20 from new repos, verification on the event commit) gave TP 85%,
+CYCLE precision 84.6% (11/13). Both CYCLE FPs are one class:
 
-- **AndreasNilsson123/Astraeus**: `engine/renderer→engine/assets` помечено CYCLE,
-  но ни один файл `engine/assets` не включает `engine/renderer` ни на `base~1`,
-  ни на коммите. `assets` — leaf, цикла нет.
-- **Tsoympet/PantheonChain**: `layer1→include/common/monetary/units.h` помечено
-  CYCLE, но `include/` — только leaf-заголовки common; обратной дуги `include→layer1`
-  нет. (Дополнительно: модуль `layer1` позже переименован в `layer1-talanton`,
-  поэтому HEAD-grep ненадёжен — проверять только на SHA события.)
+- **AndreasNilsson123/Astraeus**: `engine/renderer→engine/assets` marked CYCLE,
+  but no file in `engine/assets` includes `engine/renderer` either at `base~1`
+  or at the commit. `assets` is a leaf, there is no cycle.
+- **Tsoympet/PantheonChain**: `layer1→include/common/monetary/units.h` marked
+  CYCLE, but `include/` holds only leaf common headers; there is no back-edge `include→layer1`.
+  (Additionally: the `layer1` module was later renamed to `layer1-talanton`,
+  so a HEAD grep is unreliable — check only at the event SHA.)
 
-По определению критерия CYCLE = новое ребро A→B, замыкающее модульный цикл, т.е.
-модуль B уже имел ребро в модуль A. Раз грейдер выдаёт CYCLE без этого — баг точности.
+By definition of the criterion, CYCLE = a new edge A→B that closes a module cycle, i.e.
+module B already had an edge into module A. Since the grader issues CYCLE without this — a precision bug.
 
-Гипотезы о причине (проверить которая):
-1. **Фантомное ребро** из утерянного `removed`-списка (известные ≤5.6 %, см. отчёт §5.1):
-   B→A было удалено раньше, forward-only replay его не убрал → ложный back-edge.
-2. **Мис-атрибуция модуля**: файл приписан не тому модулю (склейка параллельных
-   деревьев `include/X`+`src/X`?), создавая спурный B→A.
+Hypotheses about the cause (which one to check):
+1. **Phantom edge** from a lost `removed` list (known ≤5.6%, see report §5.1):
+   B→A was removed earlier, forward-only replay didn't drop it → a false back-edge.
+2. **Module misattribution**: a file assigned to the wrong module (gluing parallel
+   trees `include/X`+`src/X`?), creating a spurious B→A.
 
-## План выполнения
+## Plan
 
-- [ ] В `lateral_drift_scan.py` найти место грейдинга CYCLE (где решается
-      CYCLE vs SDP vs NEW — рядом с `mod_pair_first` / `mod_edges`).
-- [ ] Добавить явную проверку: на состоянии графа ДО события существует хотя бы
-      одно файловое ребро из модуля B в модуль A. Нет → грейд понижается
-      (CYCLE → SDP/NEW по обычным правилам).
-- [ ] Если причина — фантомные рёбра: рассмотреть, не нужно ли при добавлении
-      ребра в `mod_edges` хранить кратность (refcount файловых рёбер), чтобы
-      «модульное ребро исчезает, когда исчезло последнее файловое». Но removed
-      утерян → полноценно не выйдет; тогда проверка back-edge по факту наличия
-      файлового ребра на момент события — достаточный консервативный фикс.
-- [ ] Перепрогнать на двух known-FP репах (Astraeus, PantheonChain) — оба должны
-      перестать давать CYCLE. Перепрогнать корпус, сверить, что `exists`-подмножество
-      (183 репы) не потеряло CYCLE-события (детерминизм #115 §8.2).
+- [ ] In `lateral_drift_scan.py` find the CYCLE grading site (where
+      CYCLE vs SDP vs NEW is decided — near `mod_pair_first` / `mod_edges`).
+- [ ] Add an explicit check: on the graph state BEFORE the event there exists at least
+      one file edge from module B into module A. None → the grade is downgraded
+      (CYCLE → SDP/NEW by the usual rules).
+- [ ] If the cause is phantom edges: consider whether, when adding an
+      edge to `mod_edges`, we need to store multiplicity (a refcount of file edges), so that
+      "a module edge disappears when the last file edge is gone". But `removed`
+      is lost → it can't be done fully; then a back-edge check by the actual presence of a
+      file edge at the event moment is a sufficient conservative fix.
+- [ ] Re-run on the two known-FP repos (Astraeus, PantheonChain) — both should
+      stop producing CYCLE. Re-run the corpus, verify that the `exists` subset
+      (183 repos) didn't lose CYCLE events (determinism #115 §8.2).
 
-## Не делать
+## Don't do
 
-- НЕ трогать продуктовый код archcheck — это прототип в `experiments/` (gitignored).
-  Урок переносится в спеку DRIFT.4 при имплементации правила.
-- НЕ ослаблять детект ради этих двух кейсов: фикс — подтверждение факта, не эвристика.
+- Do NOT touch archcheck product code — this is a prototype in `experiments/` (gitignored).
+  The lesson carries into the DRIFT.4 spec when the rule is implemented.
+- Do NOT weaken detection for these two cases: the fix is fact confirmation, not a heuristic.
 
 ## Definition of done
 
-- Astraeus и PantheonChain больше не дают CYCLE (даунгрейд или отсев).
-- `exists`-подмножество (183 репы) сохраняет свои 43 CYCLE (или объяснено, какие
-  из них были тем же FP-классом и почему ушли).
-- Находка отражена в `docs/research/lateral_module_drift_corpus_run.md` §8.3/8.5.
+- Astraeus and PantheonChain no longer yield CYCLE (downgrade or filter-out).
+- The `exists` subset (183 repos) keeps its 43 CYCLE (or it is explained which
+  of them were the same FP class and why they went away).
+- The finding is reflected in `docs/research/lateral_module_drift_corpus_run.md` §8.3/8.5.
 
-## Сделано
+## Done
 
-- **`confirm_backedge()`** в `lateral_drift_scan.py`: для CYCLE-кандидата с
-  pre-existing back-edge (ветка `rev_pair in graph.mod_edges`) подтверждает на
-  `<sha>~1`, что какой-то файл модуля B реально `#include`-ит файл модуля A.
-  Резолв includes как в archcheck (три пути):
-  - относительный `../x.h`/`./x.h` → `os.path.normpath` от каталога включающего
-    файла, exact-match по нормализованным путям модуля A;
-  - root-relative `engine/x.h` → суффикс-match (`endswith('/'+inc)`);
+- **`confirm_backedge()`** in `lateral_drift_scan.py`: for a CYCLE candidate with a
+  pre-existing back-edge (the `rev_pair in graph.mod_edges` branch) it confirms at
+  `<sha>~1` that some file of module B actually `#include`s a file of module A.
+  Include resolution as in archcheck (three paths):
+  - relative `../x.h`/`./x.h` → `os.path.normpath` from the including file's
+    directory, exact-match against normalized module-A paths;
+  - root-relative `engine/x.h` → suffix-match (`endswith('/'+inc)`);
   - bare `x.h` → basename-match.
-  Same-commit двунаправленные циклы (`rev_pair in commit_pairs`) подтверждения
-  не требуют. `None` (репа/sha недоступны) → сохраняем replay-вердикт.
-- **Корпусный эффект:** CYCLE 153 → **146**, понижены ровно **7 фантомных
-  back-edge** (Astraeus, 3× Aztec, GBAStation, ThemisDB, UE5), 0 потерянных
-  событий (495 всего), 0 неожиданных апгрейдов.
-- **Каждый из 7 проверен независимо** (git-grep по дереву `<sha>~1`, отдельно от
-  confirm) — back-edge B→A отсутствует у всех.
-- **Две ловушки recall по дороге, обе закрыты:**
-  1. первая версия требовала сегмент модуля в тексте include → теряла OpenADS/
-     DIYComfort (root-relative includes без префикса) → суффикс-резолв;
-  2. суффикс не ловил `../`-includes → терял 15 НАСТОЯЩИХ циклов (NeoCalculator,
-     Avalon, GameRewritten, Lightpad×6, abra×2) → добавлена нормализация `../`.
-- **Побочный вывод:** PantheonChain (FP №2 из eyeball #115) — на деле настоящий
-  *same-commit* цикл (`include↔layer1` обе дуги в одном коммите); eyeball
-  пропустил встречное ребро. Истинная CYCLE-precision eyeball'а — 12/13 ≈ 92 %.
-- Отчёт обновлён: `docs/research/lateral_module_drift_corpus_run.md` §8.3/§8.6.
+  Same-commit bidirectional cycles (`rev_pair in commit_pairs`) don't require
+  confirmation. `None` (repo/sha unavailable) → keep the replay verdict.
+- **Corpus effect:** CYCLE 153 → **146**, downgraded exactly **7 phantom
+  back-edges** (Astraeus, 3× Aztec, GBAStation, ThemisDB, UE5), 0 lost
+  events (495 total), 0 unexpected upgrades.
+- **Each of the 7 verified independently** (git-grep over the `<sha>~1` tree, separate from
+  confirm) — the back-edge B→A is absent in all of them.
+- **Two recall traps along the way, both closed:**
+  1. the first version required the module segment in the include text → it lost OpenADS/
+     DIYComfort (root-relative includes without a prefix) → suffix resolution;
+  2. the suffix didn't catch `../` includes → it lost 15 REAL cycles (NeoCalculator,
+     Avalon, GameRewritten, Lightpad×6, abra×2) → `../` normalization added.
+- **Side conclusion:** PantheonChain (FP #2 from eyeball #115) — actually a real
+  *same-commit* cycle (`include↔layer1`, both edges in one commit); the eyeball
+  missed the counter-edge. The eyeball's true CYCLE precision — 12/13 ≈ 92%.
+- Report updated: `docs/research/lateral_module_drift_corpus_run.md` §8.3/§8.6.
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-- (пусто)
+- (empty)
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Подтверждать факт ребра, не чинить removed | removed утерян безвозвратно; проверка наличия на момент события — консервативно и достаточно |
-| Фикс в прототипе, не в продукте | DRIFT.4 ещё не имплементирован; урок идёт в спеку |
+| Decision | Reason |
+|----------|--------|
+| Confirm the edge fact, don't fix removed | removed is lost irretrievably; checking presence at the event moment is conservative and sufficient |
+| Fix in the prototype, not the product | DRIFT.4 isn't implemented yet; the lesson goes into the spec |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `experiments/ai_repo_run/lateral_drift_scan.py` | `confirm_backedge()` + интеграция в грейдер (gitignored) |
-| `experiments/ai_repo_run/lateral_drift_new.csv` | перепрогон, CYCLE 146 (gitignored) |
-| `docs/research/lateral_module_drift_corpus_run.md` | §8.3 (фикс + урок), §8.6 (закрыто) |
+| File | Change |
+|------|--------|
+| `experiments/ai_repo_run/lateral_drift_scan.py` | `confirm_backedge()` + integration into the grader (gitignored) |
+| `experiments/ai_repo_run/lateral_drift_new.csv` | re-run, CYCLE 146 (gitignored) |
+| `docs/research/lateral_module_drift_corpus_run.md` | §8.3 (fix + lesson), §8.6 (closed) |
 
-## Как работает
+## How it works
 
-CYCLE-грейд = новое ребро A→B при существующей обратной дуге B→A. Replay-граф
-(`mod_edges`) форвард-онли и хранит фантомы (removed-списки утеряны + bare-name
-резолв archcheck). Поэтому перед грейдом CYCLE по pre-existing back-edge скан идёт
-в git на родителя коммита и подтверждает дугу реальными `#include`-ами модуля B,
-резолвя пути тремя способами (relative/suffix/bare). Не подтвердилось → грейд
-падает в SDP/NEW по обычным правилам. Same-commit циклы и unverifiable (нет клона)
-не трогаются. Урок для DRIFT.4: относительные `../`-includes обязательны к резолву,
-наивный суффикс теряет реальные циклы.
+CYCLE grade = a new edge A→B given an existing back-edge B→A. The replay graph
+(`mod_edges`) is forward-only and holds phantoms (removed-lists lost + archcheck's bare-name
+resolution). So before grading CYCLE on a pre-existing back-edge, the scan goes
+into git for the commit's parent and confirms the edge via real `#include`s of module B,
+resolving paths three ways (relative/suffix/bare). Not confirmed → the grade
+falls to SDP/NEW by the usual rules. Same-commit cycles and unverifiable cases (no clone)
+are left alone. Lesson for DRIFT.4: relative `../` includes must be resolved;
+a naive suffix loses real cycles.
 
-## Дата завершения
+## Completion date
 
 2026-06-12
 
-## Примечание о коммите
+## Note on the commit
 
-Код скана в gitignored `experiments/` — в репозиторий уезжают только отчёт и файл
-задачи.
+The scan code is in gitignored `experiments/` — only the report and the task
+file go into the repository.

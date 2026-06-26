@@ -1,81 +1,81 @@
-# [RULES] GodHeader: структурные заголовки библиотек не должны репортиться как нарушения
+# [RULES] GodHeader: structural library headers must not be reported as violations
 
-**Дата создания:** 2026-05-28
-**Дата старта:** 2026-05-29
-**Дата завершения:** 2026-05-29
-**Статус:** completed
-**Модуль:** RULES
-**Приоритет:** minor
-**Сложность:** S
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-05-28
+**Started:** 2026-05-29
+**Completed:** 2026-05-29
+**Status:** completed
+**Module:** RULES
+**Priority:** minor
+**Complexity:** S
+**Blocks:** —
+**Blocked by:** —
 **Related:** #028 (rules_engine_mvp), #031 (godheader_pch_exclusion)
 
-## Цель
+## Goal
 
-Уменьшить шум от GodHeader на крупных библиотеках где высокий fan-in — архитектурная норма, а не дефект.
+Reduce GodHeader noise on large libraries where high fan-in is an architectural norm, not a defect.
 
-## Контекст
+## Context
 
-Прогоны на OSS-проектах выявили категорию "структурных god-headers":
+Runs on OSS projects revealed a category of "structural god-headers":
 
-| Файл | Fan-in | Характер |
-|------|--------|----------|
-| `absl/base/config.h` | **507** | Фундаментальный конфиг всей Abseil. 508 прямых include. По смыслу — `<stddef.h>` |
-| `absl/base/attributes.h` | 191 | Compiler attribute macros — нужны везде |
-| `catch_test_macros.hpp` | 108 | Главный макро-заголовок тест-фреймворка — обязан быть в каждом тесте |
-| `doctest_compatibility.h` | 77 | Тест-compat shim — аналогично |
-| `spdlog/common.h` | 38 | Базовые типы spdlog — возможный реальный кандидат |
+| File | Fan-in | Nature |
+|------|--------|--------|
+| `absl/base/config.h` | **507** | Fundamental config for all of Abseil. 508 direct includes. Effectively `<stddef.h>` |
+| `absl/base/attributes.h` | 191 | Compiler attribute macros — needed everywhere |
+| `catch_test_macros.hpp` | 108 | Main macro header of the test framework — must be in every test |
+| `doctest_compatibility.h` | 77 | Test-compat shim — same idea |
+| `spdlog/common.h` | 38 | Base spdlog types — a possible real candidate |
 
-Порог 30 правильный для пользовательского кода, но слишком мал для "platform headers" и "test macro headers" в библиотеках.
+The threshold 30 is right for user code, but too small for "platform headers" and "test macro headers" in libraries.
 
-## Решение
+## Solution
 
-**Вариант А — поднять дефолтный порог 30 → 50.**
+**Option A — raise the default threshold 30 → 50.**
 
-Простейший фикс, не требует конфига. Убирает шум на abseil (большая часть god-headers
-имеет fan-in 50+, оставшиеся — реально интересные). Не глушит `spdlog/common.h` (fan-in 38 < 50)
-— останется в отчёте как реальный кандидат на расщепление.
+The simplest fix, requires no config. Removes noise on abseil (most god-headers
+have fan-in 50+, the remaining ones are genuinely interesting). Does not silence `spdlog/common.h` (fan-in 38 < 50)
+— it stays in the report as a real candidate for splitting.
 
-Варианты Б (настройка в конфиге) и В (exclude-паттерны) откладываются до появления
-YAML-конфига (post-v0.1).
+Options B (config setting) and C (exclude patterns) are deferred until the
+YAML config appears (post-v0.1).
 
-## Сделано
+## Done
 
 - [x] `include/archcheck/rules/lakos_god_headers.h`: `kDefaultThreshold = 50`.
-- [x] `tests/unit/rules/lakos_god_headers_test.cpp`: тест дефолта обновлён под 50.
-- [x] `docs/architecture-spec.md`: правки в §«Lakos. Правила» и §«MVP v0.1».
-- [x] `docs/STATUS.md`: обновлена строка чек-листа God-headers + закрыто из списка кандидатов.
+- [x] `tests/unit/rules/lakos_god_headers_test.cpp`: default test updated to 50.
+- [x] `docs/architecture-spec.md`: edits in §"Lakos. Rules" and §"MVP v0.1".
+- [x] `docs/STATUS.md`: God-headers checklist line updated + removed from the candidate list.
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
+| File | Change |
+|------|--------|
 | `include/archcheck/rules/lakos_god_headers.h` | `kDefaultThreshold` 30 → 50 |
-| `tests/unit/rules/lakos_god_headers_test.cpp` | проверка дефолта 50 вместо 30 |
-| `docs/architecture-spec.md` | два упоминания «default 30» → «default 50» |
-| `docs/STATUS.md` | чек-лист + кандидаты |
+| `tests/unit/rules/lakos_god_headers_test.cpp` | default check 50 instead of 30 |
+| `docs/architecture-spec.md` | two mentions of "default 30" → "default 50" |
+| `docs/STATUS.md` | checklist + candidates |
 
-## Принцип работы
+## How it works
 
-GodHeader-правило (`LakosGodHeaders`) считает in-degree каждого заголовка
-(сколько других файлов его `#include`-ят) и репортит нарушение если значение
-превышает `threshold_`. Конструктор принимает порог опциональным параметром
-(`LakosGodHeaders rule(my_threshold)`), а `kDefaultThreshold` задаёт значение
-при `LakosGodHeaders rule;` — этот же конструктор вызывается из
-`rule_set.cpp:20` для дефолтного набора.
+The GodHeader rule (`LakosGodHeaders`) counts the in-degree of each header
+(how many other files `#include` it) and reports a violation if the value
+exceeds `threshold_`. The constructor accepts the threshold as an optional parameter
+(`LakosGodHeaders rule(my_threshold)`), while `kDefaultThreshold` sets the value
+for `LakosGodHeaders rule;` — this same constructor is called from
+`rule_set.cpp:20` for the default set.
 
-Замена 30 → 50:
-- Калибровка по реальным библиотекам: на abseil фундаментальные заголовки
-  (`absl/base/config.h` fan-in 507, `attributes.h` 191) очевидно выше любого
-  разумного порога — они шумят при любом значении ≤ ~150. Но 30 дополнительно
-  ловил «средние» утилитные заголовки (~30-50 fan-in) которые в библиотечном
-  коде нормальны.
-- 50 — компромисс: режет шум на `catch_test_macros.hpp` (108) — он останется,
-  но и `spdlog/common.h` (38) перестанет быть god-header'ом, что осознанная
-  потеря (его в milestones и так помечали «возможный кандидат», не уверенный).
-- Когда появится конфиг, порог станет настраиваемым через
-  `rules.lakos_god_header.threshold` (Вариант Б в исходном плане).
+Replacing 30 → 50:
+- Calibration against real libraries: on abseil the fundamental headers
+  (`absl/base/config.h` fan-in 507, `attributes.h` 191) are obviously above any
+  reasonable threshold — they are noise at any value ≤ ~150. But 30 additionally
+  caught "medium" utility headers (~30-50 fan-in) which are normal in library
+  code.
+- 50 is a compromise: it cuts noise on `catch_test_macros.hpp` (108) — that one stays,
+  but `spdlog/common.h` (38) also stops being a god-header, which is a deliberate
+  loss (it was already marked in milestones as a "possible candidate", not a sure one).
+- When config arrives, the threshold will become configurable via
+  `rules.lakos_god_header.threshold` (Option B in the original plan).
 
-Тесты `lakos_god_headers_test.cpp` все используют явный порог (`LakosGodHeaders(5)`),
-кроме одного case'а который проверяет именно дефолт — он и обновлён.
+The tests in `lakos_god_headers_test.cpp` all use an explicit threshold (`LakosGodHeaders(5)`),
+except one case that checks exactly the default — that one was updated.

@@ -1,67 +1,67 @@
-# [SCAN] Include scanner — игнор комментариев
+# [SCAN] Include scanner — ignore comments
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** SCAN
-**Приоритет:** blocker
-**Сложность:** S (< 1 дня)
-**Блокирует:** #008d (include_scanner_skip_string_literals)
-**Заблокирован:** #008b (include_scanner_naive_extraction)
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** SCAN
+**Priority:** blocker
+**Difficulty:** S (< 1 day)
+**Blocks:** #008d (include_scanner_skip_string_literals)
+**Blocked by:** #008b (include_scanner_naive_extraction)
 **Related:** #008 (dependency_graph_foundation)
 
-## Цель
+## Goal
 
-`#include` внутри `//`-комментариев и `/* … */`-блоков не должен распознаваться
-как директива.
+An `#include` inside `//` comments and `/* … */` blocks must not be recognized
+as a directive.
 
-## Сделано
+## Done
 
-- **2026-05-26** — добавлен pre-pass `preprocess(source)`, который заменяет содержимое комментариев пробелами с сохранением `\n`.
-- **2026-05-26** — helpers `consume_line_comment` и `consume_block_comment` для двух типов комментариев.
-- **2026-05-26** — `scan_includes` теперь сначала вызывает `preprocess`, потом идёт по очищенному буферу.
-- **2026-05-26** — 5 новых unit-тестов: `//` перед `#include`, `//` после `#include`, single-line `/* */`, multi-line block, незакрытый `/*`. 14/14 зелёные.
+- **2026-05-26** — added a pre-pass `preprocess(source)` that replaces comment contents with spaces while preserving `\n`.
+- **2026-05-26** — helpers `consume_line_comment` and `consume_block_comment` for the two kinds of comments.
+- **2026-05-26** — `scan_includes` now first calls `preprocess`, then walks the cleaned buffer.
+- **2026-05-26** — 5 new unit tests: `//` before `#include`, `//` after `#include`, single-line `/* */`, multi-line block, unclosed `/*`. 14/14 green.
 
-## Как работает
+## How it works
 
-`preprocess` — однопроходный сканер без состояния-флага: он ищет двухсимвольные триггеры `//` и `/*` и делегирует разбор helper-ам.
+`preprocess` is a single-pass, stateless-flag scanner: it looks for the two-character triggers `//` and `/*` and delegates parsing to the helpers.
 
-- `consume_line_comment` бежит до `\n`, выписывая пробелы вместо символов комментария.
-- `consume_block_comment` бежит до `*/`, заменяя символы пробелами; **`\n` внутри блока сохраняется** — это то, что удерживает line numbers корректными во внешнем `scan_includes`.
-- Незакрытый `/*` означает, что весь хвост источника становится пробелами (соответствует поведению препроцессора).
+- `consume_line_comment` runs to `\n`, writing spaces in place of comment characters.
+- `consume_block_comment` runs to `*/`, replacing characters with spaces; **`\n` inside the block is preserved** — this is what keeps line numbers correct in the outer `scan_includes`.
+- An unclosed `/*` means the entire remaining tail of the source becomes spaces (matching preprocessor behavior).
 
-После `preprocess` основной цикл `scan_includes` не меняется: он по-прежнему режет на logical lines и зовёт `try_extract`.
+After `preprocess` the main `scan_includes` loop is unchanged: it still splits into logical lines and calls `try_extract`.
 
-Output-буфер имеет ту же длину, что и input — это сделано намеренно. Так line numbers и offsets в исходнике совпадают с координатами в очищенном буфере, и не нужен дополнительный mapping.
+The output buffer has the same length as the input — this is intentional. That way line numbers and offsets in the source match the coordinates in the cleaned buffer, and no extra mapping is needed.
 
-## Чем управляется
+## Controlled by
 
-- Никаких флагов. Поведение целиком детерминировано входом.
+- No flags. Behavior is entirely determined by the input.
 
-## С чем связана
+## Related to
 
-- Тот же файл `src/scan/include_scanner.cpp`. Public API не изменился.
-- Pre-pass `preprocess` станет точкой расширения для 008d (строки), 008e (line continuation) и 008f (first-significant-char).
+- The same file `src/scan/include_scanner.cpp`. The public API did not change.
+- The `preprocess` pre-pass will become the extension point for 008d (strings), 008e (line continuation), and 008f (first-significant-char).
 
-## Диагностика
+## Diagnostics
 
-- Если директива не должна была распознаваться, но распознана — проверить, что комментарий правильно открыт/закрыт (`*/` обязательно как два символа).
-- Если строка «съедена» неожиданно — скорее всего незакрытый `/*` выше по файлу.
-- На текущий момент `preprocess` **не различает строки** — `"// fake"` и `"/* fake */"` внутри string literal сейчас обрабатываются как комментарии. Это известная дыра, закрываемая в 008d.
+- If a directive should not have been recognized but was — check that the comment is correctly opened/closed (`*/` must be two characters).
+- If a line was "eaten" unexpectedly — most likely an unclosed `/*` earlier in the file.
+- At present `preprocess` **does not distinguish strings** — `"// fake"` and `"/* fake */"` inside a string literal are currently treated as comments. This is a known hole, closed in 008d.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Pre-pass с output той же длины | Сохраняет offsets/line numbers, не нужен mapping |
-| Helpers `consume_*` | Удерживают nesting ≤ 3 уровней в основном цикле |
-| Без поддержки вложенных `/* /* */ */` | C++ их не поддерживает |
-| Незакрытый `/*` глотает хвост файла | Соответствует поведению препроцессора |
+| Decision | Reason |
+|----------|--------|
+| Pre-pass with output of the same length | Preserves offsets/line numbers, no mapping needed |
+| `consume_*` helpers | Keep nesting ≤ 3 levels in the main loop |
+| No support for nested `/* /* */ */` | C++ doesn't support them |
+| Unclosed `/*` swallows the file tail | Matches preprocessor behavior |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `src/scan/include_scanner.cpp` | `preprocess` + helpers, `scan_includes` использует cleaned буфер |
-| `tests/unit/scan/include_scanner_test.cpp` | 5 кейсов с комментариями |
+| File | Change |
+|------|--------|
+| `src/scan/include_scanner.cpp` | `preprocess` + helpers, `scan_includes` uses the cleaned buffer |
+| `tests/unit/scan/include_scanner_test.cpp` | 5 cases with comments |

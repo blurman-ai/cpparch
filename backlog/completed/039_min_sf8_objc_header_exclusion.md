@@ -1,23 +1,23 @@
-# [RULES] SF.8: Objective-C заголовки пропускаются (не проверяются на C++ include guard)
+# [RULES] SF.8: Objective-C headers are skipped (not checked for a C++ include guard)
 
-**Дата создания:** 2026-05-28
-**Дата старта:** 2026-05-28 (de-facto — пришло как побочка #034)
-**Дата завершения:** 2026-05-29
-**Статус:** done
-**Модуль:** RULES
-**Приоритет:** minor
-**Сложность:** XS (по факту: ~30 строк + 2 теста)
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #034 (sf8_scan_limit_and_inc_files — реализация ObjC-skip приехала рядом с .inc-skip), #028 (rules_engine_mvp)
+**Date created:** 2026-05-28
+**Date started:** 2026-05-28 (de facto — came in as a side effect of #034)
+**Date completed:** 2026-05-29
+**Status:** done
+**Module:** RULES
+**Priority:** minor
+**Difficulty:** XS (in fact: ~30 lines + 2 tests)
+**Blocks:** —
+**Blocked by:** —
+**Related:** #034 (sf8_scan_limit_and_inc_files — the ObjC-skip implementation landed alongside the .inc-skip), #028 (rules_engine_mvp)
 
-## Цель
+## Goal
 
-SF.8 не должен проверять Objective-C заголовки — у них другой механизм включения (`#import`, автоматически дедуплицирует) и другой синтаксис (`@interface` / `@implementation`). Без отдельного skip-а правило репортит ложные нарушения на ObjC-файлах в C++/ObjC mixed-проектах (grpc `examples/objective-c/`, любое iOS+C++).
+SF.8 must not check Objective-C headers — they have a different inclusion mechanism (`#import`, automatically deduplicates) and a different syntax (`@interface` / `@implementation`). Without a separate skip the rule reports false violations on ObjC files in C++/ObjC mixed projects (grpc `examples/objective-c/`, any iOS+C++).
 
-## Контекст
+## Context
 
-Прогон на grpc (commit `05ffa92`) показал ложные SF.8 в `examples/objective-c/`:
+A run on grpc (commit `05ffa92`) showed false SF.8 in `examples/objective-c/`:
 
 ```objc
 // examples/objective-c/helloworld/HelloWorld/AppDelegate.h
@@ -28,55 +28,55 @@ SF.8 не должен проверять Objective-C заголовки — у 
 @end
 ```
 
-Изначально задача была заведена как `[OUT-OF-SCOPE]` — "archcheck = C++ only, документируем как known limitation". Решение пересмотрено: skip ObjC дешевле, чем объяснять в FAQ, и сразу убирает шум для mixed-проектов, которых на практике много.
+Initially the task was filed as `[OUT-OF-SCOPE]` — "archcheck = C++ only, we document it as a known limitation". The decision was reconsidered: skipping ObjC is cheaper than explaining it in a FAQ, and it immediately removes noise for mixed projects, of which there are many in practice.
 
-## Сделано
+## Done
 
-- **2026-05-28**, коммит `4bb56f9` (refactor: extract helpers): `isObjcFile()` добавлен в namespace-anon того же `sf8_include_guard.cpp`, заодно с разбиением `check()` под порог lizard (длина функции). ObjC-skip приехал тихо вместе с .inc-skip из #034.
-- **2026-05-29**, коммит `a5ec300` (test(rules/sf8)): добавлены два регрессионных теста под `@interface` и `#import` маркеры. До этого функционал работал, но не был покрыт — рефакторинг `isObjcFile()` мог тихо сломаться.
+- **2026-05-28**, commit `4bb56f9` (refactor: extract helpers): `isObjcFile()` added to the anon namespace of the same `sf8_include_guard.cpp`, together with splitting `check()` under the lizard threshold (function length). The ObjC-skip arrived quietly together with the .inc-skip from #034.
+- **2026-05-29**, commit `a5ec300` (test(rules/sf8)): added two regression tests for the `@interface` and `#import` markers. Before that the functionality worked but wasn't covered — the `isObjcFile()` refactor could have silently broken.
 
-## Как работает
+## How it works
 
-SF.8 проходит по узлам графа, для каждого заголовка читает исходник и решает, репортить ли отсутствие include guard. Перед проверкой есть три early-exit:
+SF.8 walks the graph nodes, for each header reads the source and decides whether to report a missing include guard. Before the check there are three early-exits:
 
-1. **Не заголовок** — `isHeaderFile()` по расширению из `scan/project_files.h`.
-2. **`.inc` фрагмент** — `isIncFile()` по расширению (см. #034). Эти файлы намеренно включаются один раз через `#if`, guard был бы вреден.
-3. **ObjC-файл** — `isObjcFile()` сканирует первые 60 непустых строк исходника, ищет один из трёх маркеров:
+1. **Not a header** — `isHeaderFile()` by extension from `scan/project_files.h`.
+2. **`.inc` fragment** — `isIncFile()` by extension (see #034). These files are deliberately included once via `#if`, a guard would be harmful.
+3. **ObjC file** — `isObjcFile()` scans the first 60 non-empty lines of the source, looking for one of three markers:
    - `@interface`
    - `@implementation`
    - `#import`
 
-   Первое попадание → файл считается ObjC, пропускаем. См. [src/rules/sf8_include_guard.cpp:27-48](src/rules/sf8_include_guard.cpp#L27-L48).
+   First hit → the file is considered ObjC, we skip it. See [src/rules/sf8_include_guard.cpp:27-48](src/rules/sf8_include_guard.cpp#L27-L48).
 
-Если файл прошёл все три фильтра — запускается `hasIncludeGuard()` (поиск `#pragma once` или `#ifndef` в тех же 60 строках). Нет guard → violation.
+If a file passed all three filters — `hasIncludeGuard()` runs (looking for `#pragma once` or `#ifndef` in the same 60 lines). No guard → violation.
 
-**Почему 60 строк, а не 50:** покрывает Apache 2.0 boilerplate (~47 строк), типичный для ObjC-runtime файлов. Лимит задан общей константой `kScanLines` — тем же, что использует `hasIncludeGuard`, чтобы поведение «насколько глубоко смотрим» было консистентным.
+**Why 60 lines and not 50:** covers the Apache 2.0 boilerplate (~47 lines), typical of ObjC-runtime files. The limit is set by the shared constant `kScanLines` — the same one `hasIncludeGuard` uses, so that the "how deep do we look" behavior is consistent.
 
-**Почему любой из маркеров достаточно:**
-- `@interface` / `@implementation` — однозначные ObjC-токены, в чистом C++ их не бывает.
-- `#import` — формально GCC-расширение для C++ тоже умеет, но в чистом C++ практически не встречается (deprecated с 90-х); риск ложного skip ничтожен против выигрыша на ObjC-файлах с Apache copyright + `#import` в первой содержательной строке.
+**Why any one of the markers is enough:**
+- `@interface` / `@implementation` — unambiguous ObjC tokens, they don't occur in pure C++.
+- `#import` — formally GCC also has an extension for C++, but in pure C++ it's practically never seen (deprecated since the 90s); the risk of a false skip is negligible against the gain on ObjC files with an Apache copyright + `#import` in the first meaningful line.
 
-## Чем управляется
+## What governs it
 
-Ничем — реализация полностью встроена, нет ни CLI-флага, ни YAML-настройки. Это сознательно: «zero-config first» (см. CLAUDE.md). Если кому-то понадобится принудительно проверять ObjC-файл — можно будет добавить `--force-sf8-on-objc` или эквивалент, но пока запросов нет.
+Nothing — the implementation is fully built in, there's no CLI flag, no YAML setting. This is deliberate: "zero-config first" (see CLAUDE.md). If someone needs to force-check an ObjC file — a `--force-sf8-on-objc` or equivalent could be added, but there are no requests yet.
 
-`kScanLines = 60` — единственный «магический» порог, общий с `hasIncludeGuard`. Кандидат на переезд в `Config` struct по задаче #041 (audit hardcoded strings).
+`kScanLines = 60` is the only "magic" threshold, shared with `hasIncludeGuard`. A candidate to move into the `Config` struct under task #041 (audit hardcoded strings).
 
-## С чем связана
+## What it's connected to
 
-- **#034** — приёмная задача рядом с `.inc`-skip. ObjC-skip приехал той же логикой «не C++ заголовок → не проверяем», в том же коммите-рефакторинге.
-- **#028** — rules engine MVP, в котором SF.8 регистрируется как intrinsic правило v0.1.
-- **#041** — потенциально вынесет `kScanLines` в `Config`.
+- **#034** — the host task alongside the `.inc`-skip. The ObjC-skip arrived by the same "not a C++ header → don't check it" logic, in the same refactoring commit.
+- **#028** — rules engine MVP, in which SF.8 is registered as an intrinsic v0.1 rule.
+- **#041** — may move `kScanLines` into `Config`.
 
-## Диагностика
+## Diagnostics
 
-- Тесты: `tests/unit/rules/sf8_include_guard_test.cpp:89-114` — два кейса (`@interface` и `#import`).
-- Прогон на grpc/iOS-mixed проекте: 0 ложных SF.8 на `examples/objective-c/` после фикса (проверка ручная, грпц не закоммичен в fixtures).
-- Если правило начинает репортить ObjC-файлы — первое подозрение: маркер сдвинулся за пределы `kScanLines` (например, длинный лицензионный блок > 60 строк). Поднять порог в `sf8_include_guard.cpp:16`.
+- Tests: `tests/unit/rules/sf8_include_guard_test.cpp:89-114` — two cases (`@interface` and `#import`).
+- Run on a grpc/iOS-mixed project: 0 false SF.8 on `examples/objective-c/` after the fix (manual check, grpc not committed into fixtures).
+- If the rule starts reporting ObjC files — first suspicion: the marker moved past `kScanLines` (e.g. a long license block > 60 lines). Raise the threshold in `sf8_include_guard.cpp:16`.
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение | Коммит |
+| File | Change | Commit |
 |------|-----------|--------|
-| `src/rules/sf8_include_guard.cpp` | `isObjcFile()` + ранний skip в `check()` | `4bb56f9` |
-| `tests/unit/rules/sf8_include_guard_test.cpp` | +2 регрессионных теста (`@interface`, `#import`) | `a5ec300` |
+| `src/rules/sf8_include_guard.cpp` | `isObjcFile()` + early skip in `check()` | `4bb56f9` |
+| `tests/unit/rules/sf8_include_guard_test.cpp` | +2 regression tests (`@interface`, `#import`) | `a5ec300` |

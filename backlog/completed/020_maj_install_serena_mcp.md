@@ -1,107 +1,105 @@
-# [DEVX][TOOLING] Установить и интегрировать Serena MCP для semantic-операций над C++ кодом
+# [DEVX][TOOLING] Install and integrate Serena MCP for semantic operations on C++ code
 
-**Дата создания:** 2026-05-27
-**Дата старта:** 2026-05-27
-**Дата завершения:** 2026-05-27
-**Статус:** completed
-**Модуль:** DEVX, TOOLING
-**Приоритет:** major
-**Сложность:** S (0.5 дня)
-**Блокирует:** #019 (step 3/3 — переименования методов lower_snake_case → lowerCamelCase)
-**Заблокирован:** —
-**Related:** #019 (cpp_style_realign), все будущие задачи требующие AST-rename / semantic refactor
+**Created:** 2026-05-27
+**Started:** 2026-05-27
+**Completion date:** 2026-05-27
+**Status:** completed
+**Module:** DEVX, TOOLING
+**Priority:** major
+**Difficulty:** S (0.5 day)
+**Blocks:** #019 (step 3/3 — method renames lower_snake_case → lowerCamelCase)
+**Blocked by:** —
+**Related:** #019 (cpp_style_realign), all future tasks requiring AST-rename / semantic refactor
 
-## Цель
+## Goal
 
-Установить и подключить **Serena MCP-сервер** к Claude Code, чтобы агенту
-были доступны AST-aware операции над C++ кодом (rename symbol в первую
-очередь). Это разблокирует #019 step 3/3 (массовые переименования
-методов/функций) и всю последующую работу, требующую безопасных
-именованных рефакторингов на уровне AST, а не текста.
+Install and connect the **Serena MCP server** to Claude Code so that the agent
+has access to AST-aware operations on C++ code (rename symbol first and foremost).
+This unblocks #019 step 3/3 (mass method/function renames) and all subsequent work
+requiring safe named refactorings at the AST level rather than text.
 
-## Контекст
+## Context
 
-При попытке доделать #019 step 3/3 (rename methods/functions
-`lower_snake_case` → `lowerCamelCase`) выяснилось:
+While trying to finish #019 step 3/3 (rename methods/functions
+`lower_snake_case` → `lowerCamelCase`) it turned out:
 
-1. `clang-rename` (родной LLVM tool для AST-rename) **не пакуется** в
-   AstraLinux/Debian репах. В пакете `clang-tools` его нет.
-2. LLVM-prebuilt tarball с `clang-rename` весит **1.94 GB** — несоразмерно
-   ради одного бинаря.
-3. `clang-tidy 11` имеет `readability-identifier-naming --fix`, но это
-   массовый rewrite по правилам стиля, а не точечный rename — риск
-   задеть больше чем нужно.
-4. **`clangd`** (LSP-сервер) есть в репах (clangd-11/13/15/19) и умеет
-   AST-aware rename через `textDocument/rename`. Это правильный backend.
+1. `clang-rename` (the native LLVM tool for AST-rename) is **not packaged** in
+   the AstraLinux/Debian repos. It's not in the `clang-tools` package.
+2. The LLVM-prebuilt tarball with `clang-rename` weighs **1.94 GB** —
+   disproportionate for a single binary.
+3. `clang-tidy 11` has `readability-identifier-naming --fix`, but that is a
+   mass rewrite by style rules, not a pinpoint rename — risk of
+   touching more than needed.
+4. **`clangd`** (the LSP server) is in the repos (clangd-11/13/15/19) and can do
+   AST-aware rename via `textDocument/rename`. That is the right backend.
 
-**Serena (oraios/serena)** — MCP-сервер, который оборачивает LSP в
-agent-friendly tools. Поддерживает clangd для C++. Даёт агенту команды
-`rename_symbol`, `find_references`, `goto_definition`, и т.п. на основе
-LSP, без необходимости агенту самому говорить LSP-JSON-RPC.
+**Serena (oraios/serena)** is an MCP server that wraps LSP into
+agent-friendly tools. It supports clangd for C++. It gives the agent the commands
+`rename_symbol`, `find_references`, `goto_definition`, etc. based on
+LSP, without the agent having to speak LSP-JSON-RPC itself.
 
-Альтернативы рассматривались (Python-скрипт-обёртка над clangd, generic
-lsp-mcp, clang-tidy identifier-naming auto-fix) и отвергнуты в пользу
-Serena: меньше home-grown кода, переиспользуется на будущих задачах,
-mainstream-выбор в MCP-экосистеме на момент написания.
+Alternatives were considered (a Python wrapper script over clangd, a generic
+lsp-mcp, clang-tidy identifier-naming auto-fix) and rejected in favor of
+Serena: less home-grown code, reused across future tasks,
+the mainstream choice in the MCP ecosystem at the time of writing.
 
-## План выполнения
+## Execution plan
 
-- [x] Установить **clangd-19** через apt (`sudo apt install clangd-19`). Сделать `update-alternatives` симлинк `clangd -> clangd-19`, чтобы CLI вызовы работали без версии
-- [x] Сгенерировать `build/debug/compile_commands.json` (флаг `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON` в cmake; уже включён в текущем checkout-е) — clangd его прочитает
-- [x] **Добавлено сверх плана:** симлинк `compile_commands.json` → `build/debug/compile_commands.json` в корне репо. Без него clangd не находит флаги компиляции, references/rename не работают
-- [x] Установить Serena через **uvx** (PyPI `serena` — не тот пакет; правильно через `uvx --from git+https://github.com/oraios/serena serena ...`)
-- [x] Прописать Serena в MCP config Claude Code. Использован новый формат: `claude mcp add-json -s user serena '{...}'` → запись в `~/.claude.json`. Старого `~/.claude/mcp_servers.json` в текущей версии Claude Code больше нет
-- [x] Перезапускать Claude Code не пришлось — Serena подцепилась в текущей сессии
-- [x] **Добавлено сверх плана:** перерегистрировать с `--context ide-assistant` (вместо дефолтного `desktop-app`) и `--enable-web-dashboard false --enable-gui-log-window false` — оптимизация под CLI-агента
-- [x] **Добавлено сверх плана:** `.serena/` в `.gitignore` — Serena сама создаёт `.serena/project.yml` при первой активации, версионировать не нужно
-- [x] Smoke-test: rename одного identifier в `tests/`. **Частично:** rename переименовал только определение, не use-site. Откатил через Edit, файл чистый (`git diff` пуст). Не баг setup-а — это засада с clangd background-index, **зафиксирована в `docs/dev/serena_setup.md` → "Засады"**. Полный smoke-rename отложен до прогрева индекса (см. ниже)
-- [x] Документировать в `docs/dev/serena_setup.md` — что поставлено, как настроено, ограничения, деинсталляция
-- [x] **Smoke-test reroll (новая сессия 2026-05-27):** `rename_symbol DependencyGraph/successors → successorsSmoke` через Serena → 12 changes (declaration + definition + 10 use-sites в `src/graph/algorithms.cpp`, `baseline.cpp`, `diff.cpp`, `tests/unit/graph/dependency_graph_test.cpp`). Grep подтвердил: единственные оставшиеся `successors` — в строковых литералах `TEST_CASE("successors ...")`, что корректно (AST строк не трогает). **Revert** через обратный rename сломался (1 change — только в .h, clangd закэшировал старую карту location-ов после первого rename) — это **новая разновидность Засады 1**: повторный rename подряд в одной сессии до переиндексации. Откатил `git checkout -- src/ include/ tests/`, рабочая копия чистая. Дополнено в `docs/dev/serena_setup.md` — Засада 1, пункт 5 + рекомендация добивать недодеп через `replace_content` regex
-- [x] **Permission:** добавлен `"mcp__serena__*"` в `~/.claude/settings.json` → `permissions.allow`, чтобы вызовы Serena не требовали подтверждения (user request 2026-05-27)
+- [x] Install **clangd-19** via apt (`sudo apt install clangd-19`). Make an `update-alternatives` symlink `clangd -> clangd-19` so CLI calls work without the version
+- [x] Generate `build/debug/compile_commands.json` (the `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON` flag in cmake; already enabled in the current checkout) — clangd reads it
+- [x] **Added beyond plan:** symlink `compile_commands.json` → `build/debug/compile_commands.json` at the repo root. Without it clangd can't find the compile flags, references/rename don't work
+- [x] Install Serena via **uvx** (the PyPI `serena` is the wrong package; the right way is via `uvx --from git+https://github.com/oraios/serena serena ...`)
+- [x] Register Serena in the Claude Code MCP config. Used the new format: `claude mcp add-json -s user serena '{...}'` → entry in `~/.claude.json`. The old `~/.claude/mcp_servers.json` no longer exists in the current Claude Code version
+- [x] No need to restart Claude Code — Serena was picked up in the current session
+- [x] **Added beyond plan:** re-register with `--context ide-assistant` (instead of the default `desktop-app`) and `--enable-web-dashboard false --enable-gui-log-window false` — optimization for a CLI agent
+- [x] **Added beyond plan:** `.serena/` in `.gitignore` — Serena itself creates `.serena/project.yml` on first activation, no need to version it
+- [x] Smoke test: rename of one identifier in `tests/`. **Partial:** the rename renamed only the definition, not the use-site. Reverted via Edit, the file is clean (`git diff` empty). Not a setup bug — it's a gotcha with the clangd background-index, **recorded in `docs/dev/serena_setup.md` → "Gotchas"**. The full smoke-rename is deferred until the index warms up (see below)
+- [x] Document in `docs/dev/serena_setup.md` — what was installed, how it's configured, limitations, uninstall
+- [x] **Smoke-test reroll (new session 2026-05-27):** `rename_symbol DependencyGraph/successors → successorsSmoke` via Serena → 12 changes (declaration + definition + 10 use-sites in `src/graph/algorithms.cpp`, `baseline.cpp`, `diff.cpp`, `tests/unit/graph/dependency_graph_test.cpp`). Grep confirmed: the only remaining `successors` are in string literals `TEST_CASE("successors ...")`, which is correct (AST doesn't touch strings). **Revert** via reverse rename broke (1 change — only in the .h, clangd cached the old location map after the first rename) — this is a **new variant of Gotcha 1**: a repeated rename in a row within one session before reindexing. Reverted via `git checkout -- src/ include/ tests/`, working copy clean. Documented in `docs/dev/serena_setup.md` — Gotcha 1, point 5 + recommendation to finish the incomplete dep via `replace_content` regex
+- [x] **Permission:** added `"mcp__serena__*"` to `~/.claude/settings.json` → `permissions.allow` so Serena calls don't require confirmation (user request 2026-05-27)
 
-## Сделано
+## Done
 
-- clangd-19 19.1.7 (1.astra2) установлен из Astra-репов, симлинк через `update-alternatives` (priority 190)
-- Symlink `compile_commands.json` → `build/debug/compile_commands.json` в корне репо (требование clangd для cross-file references; не очевидно из README Serena)
-- Serena MCP зарегистрирована в `~/.claude.json` (user scope) с флагами `--project-from-cwd --context ide-assistant --enable-web-dashboard false --enable-gui-log-window false`
-- Serena подцепилась в текущей сессии без рестарта Claude Code, `Status: ✓ Connected`
-- В текущей сессии Serena уже работает: `get_symbols_overview`, `find_symbol`, `get_diagnostics_for_file` возвращают корректные данные; clang-tidy warnings проходят через LSP
-- `.serena/` добавлена в `.gitignore`
-- `docs/dev/serena_setup.md` — полная инструкция (установка с нуля, флаги, две засады, использование, деинсталляция)
+- clangd-19 19.1.7 (1.astra2) installed from the Astra repos, symlink via `update-alternatives` (priority 190)
+- Symlink `compile_commands.json` → `build/debug/compile_commands.json` at the repo root (clangd requirement for cross-file references; not obvious from the Serena README)
+- Serena MCP registered in `~/.claude.json` (user scope) with the flags `--project-from-cwd --context ide-assistant --enable-web-dashboard false --enable-gui-log-window false`
+- Serena was picked up in the current session without restarting Claude Code, `Status: ✓ Connected`
+- In the current session Serena already works: `get_symbols_overview`, `find_symbol`, `get_diagnostics_for_file` return correct data; clang-tidy warnings come through via LSP
+- `.serena/` added to `.gitignore`
+- `docs/dev/serena_setup.md` — full instructions (install from scratch, flags, two gotchas, usage, uninstall)
 
-## В работе
+## In progress
 
-- (пусто; задача закрыта)
+- (empty; task closed)
 
-## Следующие шаги
+## Next steps
 
-1. Возврат к **#019 step 3/3** — массовый rename `lower_snake_case` → `lowerCamelCase` через Serena. Workflow на каждый rename: `find_symbol` → (опционально `find_referencing_symbols` для прогрева) → `rename_symbol` → `grep`-валидация → если недодеп, `replace_content` regex `\bold\b → new` → build + ctest + lizard. Каждая логическая группа (scan-функции / graph-функции / DependencyGraph-методы / struct-поля) — один коммит, SHA в `.git-blame-ignore-revs`
+1. Return to **#019 step 3/3** — mass rename `lower_snake_case` → `lowerCamelCase` via Serena. Workflow per rename: `find_symbol` → (optionally `find_referencing_symbols` to warm up) → `rename_symbol` → `grep` validation → if an incomplete dep remains, `replace_content` regex `\bold\b → new` → build + ctest + lizard. Each logical group (scan functions / graph functions / DependencyGraph methods / struct fields) — one commit, SHA in `.git-blame-ignore-revs`
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Использовать Serena, не свой Python LSP-driver | Меньше home-grown кода; переиспользуется на будущих semantic-refactor задачах; mainstream-выбор в MCP-экосистеме |
-| clangd-19, не более старые версии | Чем новее — тем лучше rename работает на C++20 templates / concepts. 19 — последняя из доступных в Astra-репах |
-| Не качать LLVM-prebuilt-tarball (2 ГБ) | Несоразмерно ради одного бинаря; clangd-19 deb-пакет на порядок легче |
-| Не использовать clang-tidy identifier-naming --fix | Это массовый rewrite по правилам, не точечный rename — риск задеть больше чем нужно |
-| Smoke-test в `tests/` перед боевым прогоном | Дёшево проверить что Serena действительно понимает scope/AST, а не делает text-based replace |
-| Symlink `compile_commands.json` в корне (не сторонний симлинк в `build/`) | clangd ищет в `<project>/` и `<project>/build/`. В нашей раскладке файл живёт в `build/debug/` — нужен мост. Симлинк в корне — минимум магии, понятно любому разработчику |
-| Scope MCP-регистрации = `user`, не `project` | Чтобы не плодить `.mcp.json` в репо. `--project-from-cwd` снимает проблему "Serena не знает про какой проект речь" — она находит его по CWD текущей сессии Claude Code |
-| `--context ide-assistant` вместо дефолтного `desktop-app` | desktop-app подразумевает GUI-чат и расширенное summarization. `ide-assistant` — корректный context для CLI-агентов (Claude Code, Codex, Gemini) согласно докам Serena |
-| `--enable-web-dashboard false` | Claude Code — CLI; браузерный дашборд только пытался бы открыться в фоне и захламлять процесс |
-| Smoke-test провален как rename, но засчитан как diagnostic-валидация | clangd-warnings проходят через Serena → инструмент работает. Полный rename — после прогрева индекса, не блокер для setup-задачи |
+| Use Serena, not our own Python LSP driver | Less home-grown code; reused across future semantic-refactor tasks; mainstream choice in the MCP ecosystem |
+| clangd-19, not older versions | The newer the better rename works on C++20 templates / concepts. 19 is the latest available in the Astra repos |
+| Don't download the LLVM-prebuilt tarball (2 GB) | Disproportionate for a single binary; the clangd-19 deb package is an order of magnitude lighter |
+| Don't use clang-tidy identifier-naming --fix | It's a mass rewrite by rules, not a pinpoint rename — risk of touching more than needed |
+| Smoke test in `tests/` before the live run | Cheap to check that Serena actually understands scope/AST and isn't doing a text-based replace |
+| Symlink `compile_commands.json` at the root (not a third-party symlink in `build/`) | clangd looks in `<project>/` and `<project>/build/`. In our layout the file lives in `build/debug/` — a bridge is needed. A symlink at the root is the least magic, clear to any developer |
+| MCP registration scope = `user`, not `project` | To avoid spawning `.mcp.json` in the repo. `--project-from-cwd` removes the "Serena doesn't know which project we mean" problem — it finds it by the CWD of the current Claude Code session |
+| `--context ide-assistant` instead of the default `desktop-app` | desktop-app implies a GUI chat and extended summarization. `ide-assistant` is the correct context for CLI agents (Claude Code, Codex, Gemini) per the Serena docs |
+| `--enable-web-dashboard false` | Claude Code is a CLI; the browser dashboard would only try to open in the background and clutter the process |
+| Smoke test failed as a rename but counted as diagnostic validation | clangd warnings come through Serena → the tool works. The full rename — after index warm-up, not a blocker for the setup task |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
 | `~/.claude.json` | new entry — Serena MCP (user scope) |
-| `docs/dev/serena_setup.md` | new — полная инструкция |
+| `docs/dev/serena_setup.md` | new — full instructions |
 | `.gitignore` | + `.serena/` |
-| `compile_commands.json` (корень репо) | new симлинк → `build/debug/compile_commands.json` (в gitignore) |
-| `.serena/` (автогенерирована Serena) | new локально, не коммитится |
-| (системные) `clangd-19` через apt | new |
-| (системные) Serena кэш в `~/.cache/uv/` | new |
-| (системные) `/etc/alternatives/clangd` → `clangd-19` | new (update-alternatives priority 190) |
-
+| `compile_commands.json` (repo root) | new symlink → `build/debug/compile_commands.json` (in gitignore) |
+| `.serena/` (auto-generated by Serena) | new locally, not committed |
+| (system) `clangd-19` via apt | new |
+| (system) Serena cache in `~/.cache/uv/` | new |
+| (system) `/etc/alternatives/clangd` → `clangd-19` | new (update-alternatives priority 190) |

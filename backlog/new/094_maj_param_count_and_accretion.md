@@ -1,98 +1,98 @@
 # [CHEAP-DRIFT][SCAN] Parameter Count and Accretion
 
-**Дата создания:** 2026-06-10
-**Дата старта:** —
-**Статус:** new
-**Модуль:** SCAN / DIFF / REPORT
-**Приоритет:** major
-**Сложность:** medium
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #018 (git_diff_analysis), #030 (baseline_file_flag), #051 (config_loader_v1), #075 (trusted_diff_workflow), #089 (boolean_state_drift), #090 (bool_field_accretion — образец delta-first advisory), #093 (flag_argument)
+**Date created:** 2026-06-10
+**Date started:** —
+**Status:** new
+**Module:** SCAN / DIFF / REPORT
+**Priority:** major
+**Complexity:** medium
+**Blocks:** —
+**Blocked by:** —
+**Related:** #018 (git_diff_analysis), #030 (baseline_file_flag), #051 (config_loader_v1), #075 (trusted_diff_workflow), #089 (boolean_state_drift), #090 (bool_field_accretion — a delta-first advisory exemplar), #093 (flag_argument)
 
-## Цель
+## Goal
 
-Поймать два дешёвых сигнала деградации интерфейса:
+Catch two cheap signals of interface degradation:
 
-- слишком широкие сигнатуры;
-- рост числа параметров у уже существующей функции.
+- overly wide signatures;
+- growth in the number of parameters of an already-existing function.
 
-Это proxy на "вместо нового типа/модели продолжаем дописывать аргументы".
+This is a proxy for "instead of a new type/model we keep appending arguments".
 
-## Контекст
+## Context
 
-- Источник постановки: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 2.
-- Внутри самого репозитория уже есть жёсткий лимит на число аргументов через `lizard` в dogfood/static-analysis, но это **не** означает, что продукту нужен ещё один глобальный lint-style gate. Здесь речь про cheap drift heuristic для пользовательских репозиториев и прежде всего про delta/accretion.
-- Absolute parameter count без delta-контекста быстро превращается в "ещё один style checker", что конфликтует с позиционированием archcheck. Поэтому gate по полному снимку по умолчанию исключён.
-- Для accretion-сигнала текущий violation baseline недостаточен как единственный механизм: нужно видеть "было N, стало M". Значит, первый практически полезный режим — сравнение с git ref / diff, а не попытка насильно уложить всё в существующий baseline violations list.
+- Source of the assignment: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 2.
+- Inside the repo itself there is already a hard limit on the argument count via `lizard` in dogfood/static-analysis, but this does **not** mean the product needs yet another global lint-style gate. Here we are talking about a cheap drift heuristic for user repositories, and above all about delta/accretion.
+- Absolute parameter count without delta context quickly turns into "yet another style checker", which conflicts with archcheck's positioning. So a gate on the full snapshot is excluded by default.
+- For the accretion signal the current violation baseline is insufficient as the sole mechanism: we need to see "was N, became M". So the first practically useful mode is a comparison with a git ref / diff, not an attempt to forcibly cram everything into the existing baseline violations list.
 
-## План выполнения
+## Execution plan
 
 ### Detection contract
 
 - `ARG.3.long_parameter_list`:
-  - finding на новых/изменённых сигнатурах с числом параметров выше порога;
-  - дефолтный порог ориентировочно `> 4`, но check остаётся advisory-first.
+  - finding on new/changed signatures with a parameter count above the threshold;
+  - default threshold roughly `> 4`, but the check stays advisory-first.
 - `ARG.4.parameter_accretion`:
-  - finding, если существующая функция прибавила `>= 2` параметра относительно базовой ревизии;
-  - для gate-кандидата интересен именно рост на changed symbol, а не любой "давно плохой" long list.
+  - finding if an existing function gained `>= 2` parameters relative to the base revision;
+  - for a gate candidate, what matters is precisely growth on a changed symbol, not any "long-bad" long list.
 
 ### Matching strategy
 
-- Переиспользовать token scan substrate из #093, если он уже есть.
-- Для каждой вероятной function declaration/definition собрать приближённый key:
-  - путь;
-  - имя функции;
-  - enclosing class/namespace, если дёшево извлекается;
+- Reuse the token scan substrate from #093, if it already exists.
+- For each likely function declaration/definition, assemble an approximate key:
+  - path;
+  - function name;
+  - enclosing class/namespace, if cheaply extractable;
   - line anchor.
-- Если точное соответствие между old/new не найдено, ambiguous match понижается до advisory или пропускается. Нельзя gate-ить на хрупком сопоставлении.
+- If an exact correspondence between old/new is not found, an ambiguous match is downgraded to advisory or skipped. One must not gate on a fragile match.
 
-### Алгоритм
+### Algorithm
 
-1. `SignatureInfo` собирает `paramCount` тем же разбором top-level запятых, что
-   ARG.1 в #093 (одна функция-парсер на оба правила): глубина `()`/`<>`/`[]` = 0;
-   `()` и `(void)` → 0; `...` (variadic) считать одним параметром.
-2. `ARG.3.long_parameter_list`: full scan → findings на `paramCount > 4`
-   (Core Guidelines I.23 «fewer than four»); advisory. В diff-режиме — фильтр
-   по added lines (как в #093), это gate-кандидат.
-3. `ARG.4.parameter_accretion`: old/new `SignatureInfo` по changed files
-   (`GitObjectFileSource` vs `DiskFileSource`); матчинг по ключу
-   `file + qualifiedName` c **fallback по убыванию строгости**:
-   exact (имя+arity старого == нового → дельты нет, скип) → имя совпало,
-   arity вырос (кандидат accretion) → несколько одноимённых: nearest startLine,
-   confidence=low. Finding при `newArity - oldArity >= 2` и confidence != low.
-4. Перегрузки: если в old есть ровно одна функция с именем N и в new ровно одна
-   с именем N — матч уверенный даже при разном arity (это и есть accretion);
-   если кандидатов несколько с обеих сторон — все пары low → пропуск.
-5. Тест-кейсы матчинга: добавление перегрузки (НЕ accretion — old 1, new 2,
-   совпадающая arity-пара существует → скип); рост 3→5 (finding); rename (скип).
+1. `SignatureInfo` collects `paramCount` with the same top-level-comma parsing that
+   ARG.1 uses in #093 (one parser function for both rules): depth of `()`/`<>`/`[]` = 0;
+   `()` and `(void)` → 0; `...` (variadic) counts as one parameter.
+2. `ARG.3.long_parameter_list`: full scan → findings on `paramCount > 4`
+   (Core Guidelines I.23 "fewer than four"); advisory. In diff mode — a filter
+   by added lines (as in #093), this is a gate candidate.
+3. `ARG.4.parameter_accretion`: old/new `SignatureInfo` over changed files
+   (`GitObjectFileSource` vs `DiskFileSource`); matching by the key
+   `file + qualifiedName` with a **fallback by decreasing strictness**:
+   exact (old name+arity == new → no delta, skip) → name matched,
+   arity grew (accretion candidate) → several same-name: nearest startLine,
+   confidence=low. Finding when `newArity - oldArity >= 2` and confidence != low.
+4. Overloads: if old has exactly one function named N and new has exactly one
+   named N — a confident match even with a different arity (this is accretion);
+   if there are several candidates on both sides — all pairs low → skip.
+5. Matching test cases: adding an overload (NOT accretion — old 1, new 2,
+   a matching arity pair exists → skip); growth 3→5 (finding); rename (skip).
 
 ### Scope discipline
 
-- `void` не считать параметром.
-- Default arguments учитывать приблизительно, но не строить полноценный declarator parser.
-- Function pointers, lambdas в параметрах и macro-generated signatures допустимо частично игнорировать, если это резко упрощает реализацию и явно задокументировано.
-- Первый проход ориентировать на `--diff` / base-ref comparison. Отдельный saved snapshot для symbol metadata — только если без него невозможно сделать полезный сигнал.
+- Do not count `void` as a parameter.
+- Account for default arguments approximately, but do not build a full declarator parser.
+- Function pointers, lambdas in parameters and macro-generated signatures may be partially ignored if this sharply simplifies the implementation and is explicitly documented.
+- Aim the first pass at `--diff` / base-ref comparison. A separate saved snapshot for symbol metadata — only if without it a useful signal is impossible.
 
-### Конкретный план в текущем коде
+### Concrete plan in the current code
 
-1. Не делать второй scanner: расширить shared `function_signature_scan` из #093, а не писать ещё один parser под `param_count`.
-2. В `SignatureInfo` сразу предусмотреть поля, нужные именно для этой задачи:
+1. Do not make a second scanner: extend the shared `function_signature_scan` from #093, rather than writing yet another parser for `param_count`.
+2. In `SignatureInfo` immediately provide the fields needed specifically for this task:
    `qualifiedName`/`owner`, `line`, `paramCount`, `hasVoidParameterList`, `hasDefaultArgs`.
-3. `ARG.3.long_parameter_list` считать на full scan через `collectNonVendoredSources()` и текущий `DiskFileSource`, без graph path и без `IRule`.
-4. `ARG.4.parameter_accretion` строить через compare двух снимков по changed files:
-   список файлов брать из `git::changedCppFiles()`;
-   baseline side читать через `GitObjectFileSource` из [src/git/git_object_file_source.cpp](~/projects/cpparch/src/git/git_object_file_source.cpp);
-   current side читать через `GitObjectFileSource` или `DiskFileSource` в зависимости от `WORKTREE`.
-5. Matching не класть в baseline JSON v1:
-   в текущем коде baseline хранит только `(ruleId, file, line)`, этого недостаточно для symbol accretion.
-   Сопоставление делать локально в diff path: `file + function name + nearest old line`.
-6. Если в одном файле несколько одноимённых overload-ов и match неоднозначен, не gate-ить:
-   либо advisory finding, либо пропуск. Это надо зафиксировать прямо в реализации.
-7. Тесты привязать к уже существующим entry points:
-   parsing/counting — новый `tests/unit/scan/function_signature_scan_test.cpp`;
-   accretion matching — новый `tests/unit/scan/parameter_accretion_test.cpp`;
-   git/ref scenarios — расширение [tests/integration/diff/git_diff_test.cpp](~/projects/cpparch/tests/integration/diff/git_diff_test.cpp).
+3. Compute `ARG.3.long_parameter_list` on a full scan via `collectNonVendoredSources()` and the current `DiskFileSource`, without a graph path and without `IRule`.
+4. Build `ARG.4.parameter_accretion` by comparing two snapshots over changed files:
+   take the file list from `git::changedCppFiles()`;
+   read the baseline side via `GitObjectFileSource` from [src/git/git_object_file_source.cpp](~/projects/cpparch/src/git/git_object_file_source.cpp);
+   read the current side via `GitObjectFileSource` or `DiskFileSource` depending on `WORKTREE`.
+5. Do not put matching into baseline JSON v1:
+   in the current code the baseline stores only `(ruleId, file, line)`, which is insufficient for symbol accretion.
+   Do the matching locally in the diff path: `file + function name + nearest old line`.
+6. If a single file has several same-name overloads and the match is ambiguous, do not gate:
+   either an advisory finding, or a skip. This must be fixed directly in the implementation.
+7. Tie the tests to already-existing entry points:
+   parsing/counting — new `tests/unit/scan/function_signature_scan_test.cpp`;
+   accretion matching — new `tests/unit/scan/parameter_accretion_test.cpp`;
+   git/ref scenarios — extension of [tests/integration/diff/git_diff_test.cpp](~/projects/cpparch/tests/integration/diff/git_diff_test.cpp).
 
 ## Fixtures & Tests
 
@@ -104,61 +104,61 @@
 - `fixtures/param_count/fail_accretion/baseline.cpp`
 - `fixtures/param_count/fail_accretion/current.cpp`
 
-Обязательные проверки:
+Mandatory checks:
 
-- long parameter list детектится стабильно;
-- `void` не считается отдельным аргументом;
-- рост параметров между old/new фиксируется;
-- ambiguous matching не становится gate;
-- JSON/text output не ломает существующий contract;
-- dogfood-прогон не даёт взрыва ложных срабатываний на текущем коде `archcheck`.
+- the long parameter list is detected stably;
+- `void` is not counted as a separate argument;
+- parameter growth between old/new is recorded;
+- ambiguous matching does not become a gate;
+- JSON/text output does not break the existing contract;
+- the dogfood run does not produce an explosion of false positives on the current `archcheck` code.
 
-## Критерии готовности
+## Readiness criteria
 
-- Absolute count остаётся advisory по умолчанию.
-- Value check — в delta/accretion, не в наказании legacy whole tree.
-- Никакого libclang.
-- Никакого нового config top-level key.
-- Описан trade-off между точностью сопоставления и простотой реализации.
+- Absolute count stays advisory by default.
+- The value check is in delta/accretion, not in punishing the legacy whole tree.
+- No libclang.
+- No new config top-level key.
+- The trade-off between matching precision and implementation simplicity is described.
 
-## Не делать
+## Do not do
 
-- AST-level identity matching функций.
-- Полный pretty-printer типов.
-- Историческую аналитику по `git log` в рамках этой задачи.
-- Универсальную symbol database "на будущее".
+- AST-level identity matching of functions.
+- A full type pretty-printer.
+- Historical analytics over `git log` within this task.
+- A universal symbol database "for the future".
 
-## Сделано
+## Done
 
-- (пусто)
+- (empty)
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. Переиспользовать или выделить минимальный function-signature scanner.
-2. Зафиксировать matching strategy old/new.
-3. Реализовать long-count и accretion detectors.
-4. Прогнать diff fixtures и dogfood.
-5. Решить, нужен ли отдельный symbol snapshot, или хватает сравнения с git ref.
+1. Reuse or extract a minimal function-signature scanner.
+2. Fix the old/new matching strategy.
+3. Implement the long-count and accretion detectors.
+4. Run the diff fixtures and dogfood.
+5. Decide whether a separate symbol snapshot is needed, or whether comparison with a git ref is enough.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| В центре задачи `parameter accretion`, а не просто `max_params` | Это ближе к drift-модели и меньше конфликтует с "не линтер" |
-| Ambiguous match не может gate-ить | Нельзя строить CI-fail на хрупком эвристическом сопоставлении |
-| Reuse scanner из #093, если он уже существует | Минимум дублирования без новой абстракции |
-| Saved baseline metadata не обязательна в v1 | У проекта уже есть полезный `--diff`, а schema baseline для symbol metrics пока нет |
+| The task centers on `parameter accretion`, not just `max_params` | It is closer to the drift model and conflicts less with "not a linter" |
+| An ambiguous match must not gate | One cannot build a CI fail on a fragile heuristic match |
+| Reuse the scanner from #093, if it already exists | Minimum duplication without a new abstraction |
+| Saved baseline metadata is not mandatory in v1 | The project already has a useful `--diff`, and there is no baseline schema for symbol metrics yet |
 
-## Планируемые файлы
+## Planned files
 
-| Область | Изменение |
+| Area | Change |
 |---------|-----------|
-| `src/scan/` или `src/cheap_drift/` | Переиспользуемый signature scanner |
-| `src/main.cpp` / orchestration | Сравнение current vs base ref |
-| `tests/unit/` | Счётчик параметров и matching logic |
-| `tests/integration/` | Diff/accretion сценарии |
+| `src/scan/` or `src/cheap_drift/` | Reusable signature scanner |
+| `src/main.cpp` / orchestration | Comparison of current vs base ref |
+| `tests/unit/` | Parameter counter and matching logic |
+| `tests/integration/` | Diff/accretion scenarios |
 | `fixtures/param_count/` | `pass/`, `fail_long/`, `fail_accretion/` |

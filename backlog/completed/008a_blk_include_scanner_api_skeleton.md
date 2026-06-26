@@ -1,71 +1,71 @@
 # [SCAN] Include scanner — API skeleton
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** SCAN
-**Приоритет:** blocker
-**Сложность:** S (< 1 дня)
-**Блокирует:** #008b (include_scanner_naive_extraction)
-**Заблокирован:** —
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** SCAN
+**Priority:** blocker
+**Complexity:** S (< 1 day)
+**Blocks:** #008b (include_scanner_naive_extraction)
+**Blocked by:** —
 **Related:** #008 (dependency_graph_foundation)
 
-## Цель
+## Goal
 
-Зафиксировать публичную форму textual include scanner: типы данных и сигнатуру
-функции, без реализации логики разбора.
+Fix the public shape of the textual include scanner: data types and the function
+signature, without implementing parsing logic.
 
-## Сделано
+## Done
 
-- **2026-05-26** — создан `include/archcheck/scan/include_directive.h` (`IncludeKind`, `IncludeDirective`).
-- **2026-05-26** — создан `include/archcheck/scan/include_scanner.h` (объявление `scan_includes`).
-- **2026-05-26** — `src/scan/include_scanner.cpp` со заглушкой, возвращающей пустой вектор.
-- **2026-05-26** — `archcheck_core` переведена из INTERFACE в STATIC, добавлен `scan/include_scanner.cpp`.
-- **2026-05-26** — smoke-тест `tests/unit/scan/include_scanner_test.cpp`, подключён в `tests/CMakeLists.txt`.
-- **2026-05-26** — Debug-сборка зелёная, `ctest` 3/3 (включая новый кейс).
+- **2026-05-26** — created `include/archcheck/scan/include_directive.h` (`IncludeKind`, `IncludeDirective`).
+- **2026-05-26** — created `include/archcheck/scan/include_scanner.h` (declaration of `scan_includes`).
+- **2026-05-26** — `src/scan/include_scanner.cpp` with a stub returning an empty vector.
+- **2026-05-26** — `archcheck_core` switched from INTERFACE to STATIC, added `scan/include_scanner.cpp`.
+- **2026-05-26** — smoke test `tests/unit/scan/include_scanner_test.cpp`, wired into `tests/CMakeLists.txt`.
+- **2026-05-26** — Debug build green, `ctest` 3/3 (including the new case).
 
-## Как работает
+## How it works
 
-Public API сидит в `include/archcheck/scan/`:
-- `IncludeKind` — `Quote` / `Angle`, отличает форму директивы.
-- `IncludeDirective` — `{ kind, token, line }`; `token` без обрамляющих кавычек / угловых скобок.
-- `scan_includes(std::string_view source) -> std::vector<IncludeDirective>` — единственная точка входа.
+The public API sits in `include/archcheck/scan/`:
+- `IncludeKind` — `Quote` / `Angle`, distinguishes the directive form.
+- `IncludeDirective` — `{ kind, token, line }`; `token` without the surrounding quotes / angle brackets.
+- `scan_includes(std::string_view source) -> std::vector<IncludeDirective>` — the single entry point.
 
-Реализация на этом этапе — заглушка: вход проглатывается, возвращается пустой вектор. Семантика разбора наращивается в 008b…008g без изменения сигнатуры.
+The implementation at this stage is a stub: the input is swallowed, an empty vector is returned. Parsing semantics grow in 008b…008g without changing the signature.
 
-## Чем управляется
+## What controls it
 
-- Никаких флагов / переменных среды на этом этапе.
-- Подключение через `archcheck::core` (CMake target).
+- No flags / environment variables at this stage.
+- Wired in through `archcheck::core` (CMake target).
 
-## С чем связана
+## What it relates to
 
-- Подсистема `scan/` — первый файл в `src/scan/`.
-- Зависимость только на STL.
-- Test target `archcheck_tests` теперь линкуется с `archcheck::core` и видит публичные заголовки `scan/`.
+- The `scan/` subsystem — the first file in `src/scan/`.
+- Depends only on the STL.
+- The `archcheck_tests` test target now links against `archcheck::core` and sees the public `scan/` headers.
 
-## Диагностика
+## Diagnostics
 
-- Если линкер не находит `scan_includes` — проверить, что `src/scan/include_scanner.cpp` в списке source files `archcheck_core` в `src/CMakeLists.txt`.
-- Если тест не находит хедер — проверить, что путь репо-корень/include добавлен в `target_include_directories(archcheck_core PUBLIC …)`.
+- If the linker can't find `scan_includes` — check that `src/scan/include_scanner.cpp` is in the list of source files of `archcheck_core` in `src/CMakeLists.txt`.
+- If the test can't find the header — check that the repo-root/include path is added to `target_include_directories(archcheck_core PUBLIC …)`.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Scanner возвращает только «сырые» директивы | Resolution — отдельная стадия pipeline, см. §4 mini-design в #008 |
-| `int line` (не `line+column`) | column в v0.1 не используется ни одним правилом, добавим позже при необходимости |
-| `archcheck_core` STATIC, а не INTERFACE | Появилась реальная реализация, INTERFACE-target её не вмещает |
-| `target_include_directories` через `PUBLIC` | Тесты должны видеть публичные заголовки без явного дублирования путей |
+| Decision | Rationale |
+|---------|-----------|
+| The scanner returns only "raw" directives | Resolution is a separate pipeline stage, see §4 mini-design in #008 |
+| `int line` (not `line+column`) | column isn't used by any rule in v0.1, add it later if needed |
+| `archcheck_core` STATIC, not INTERFACE | A real implementation appeared, an INTERFACE target can't hold it |
+| `target_include_directories` via `PUBLIC` | Tests should see the public headers without explicitly duplicating paths |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
+| File | Change |
+|------|--------|
 | `include/archcheck/scan/include_directive.h` | new |
 | `include/archcheck/scan/include_scanner.h` | new |
-| `src/scan/include_scanner.cpp` | new (заглушка) |
-| `src/CMakeLists.txt` | INTERFACE → STATIC, добавлен `scan/include_scanner.cpp` |
+| `src/scan/include_scanner.cpp` | new (stub) |
+| `src/CMakeLists.txt` | INTERFACE → STATIC, added `scan/include_scanner.cpp` |
 | `tests/unit/scan/include_scanner_test.cpp` | new (smoke) |
-| `tests/CMakeLists.txt` | подключён новый test source |
+| `tests/CMakeLists.txt` | wired in the new test source |

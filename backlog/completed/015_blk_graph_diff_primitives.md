@@ -1,104 +1,104 @@
 # [GRAPH] Graph diff primitives — new/removed edges, grown SCC
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** GRAPH
-**Приоритет:** blocker
-**Сложность:** S (< 1 дня)
-**Блокирует:** #016 (graph_baseline_contract)
-**Заблокирован:** #014 (graph_algorithms), #012 (include_resolver)
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** GRAPH
+**Priority:** blocker
+**Complexity:** S (< 1 day)
+**Blocks:** #016 (graph_baseline_contract)
+**Blocked by:** #014 (graph_algorithms), #012 (include_resolver)
 **Related:** #008 (dependency_graph_foundation), #009 (ai_drift_regression_rules)
 
-## Цель
+## Goal
 
-Реализовать примитивы сравнения двух графов: новые рёбра, удалённые рёбра,
-вырос ли SCC относительно baseline.
+Implement primitives for comparing two graphs: new edges, removed edges,
+whether an SCC grew relative to the baseline.
 
-## Контекст
+## Context
 
-См. план #008: «diff-примитивы для первого прототипа: new edges, removed
-edges, grown SCC». Это та основа, без которой нельзя будет сделать первый
-прототип `DRIFT.1` / `DRIFT.2` в #009.
+See the #008 plan: "diff primitives for the first prototype: new edges, removed
+edges, grown SCC". This is the foundation without which the first
+prototype of `DRIFT.1` / `DRIFT.2` in #009 can't be built.
 
-«Grown SCC» = появилось SCC размера ≥ 2 там, где в baseline его не было, или
-размер существующего SCC увеличился.
+"Grown SCC" = an SCC of size ≥ 2 appeared where the baseline had none, or
+the size of an existing SCC increased.
 
-## Сделано
+## Done
 
-- **2026-05-26** — `include/archcheck/graph/diff.h`: `EdgeRef`, `GrownScc`, три свободные функции в `archcheck::graph`.
-- **2026-05-26** — `src/graph/diff.cpp`: реализация `added_edges`, `removed_edges`, `grown_sccs` через сравнение по `path_of(...)`.
-- **2026-05-26** — `tests/unit/graph/diff_test.cpp`: 11 кейсов — новое ребро, shortcut, новые узлы, удалённое ребро, исчезнувший конец, no-op, brand-new cycle, grown cycle, unchanged cycle.
-- **2026-05-26** — `src/CMakeLists.txt` и `tests/CMakeLists.txt`: подключены новые source-файлы.
-- **2026-05-26** — Debug-сборка зелёная, `ctest` 98/98, `lizard --CCN 15 --length 30 --arguments 5` — без замечаний.
+- **2026-05-26** — `include/archcheck/graph/diff.h`: `EdgeRef`, `GrownScc`, three free functions in `archcheck::graph`.
+- **2026-05-26** — `src/graph/diff.cpp`: implementation of `added_edges`, `removed_edges`, `grown_sccs` via comparison by `path_of(...)`.
+- **2026-05-26** — `tests/unit/graph/diff_test.cpp`: 11 cases — new edge, shortcut, new nodes, removed edge, vanished endpoint, no-op, brand-new cycle, grown cycle, unchanged cycle.
+- **2026-05-26** — `src/CMakeLists.txt` and `tests/CMakeLists.txt`: new source files wired in.
+- **2026-05-26** — Debug build green, `ctest` 98/98, `lizard --CCN 15 --length 30 --arguments 5` — no remarks.
 
-## Как работает
+## How it works
 
-Все три функции — pure: на вход два `const DependencyGraph&`, на выходе вектор.
-Сравнение **по строке `path_of(...)`**, потому что `NodeId` — счётчик insertion
-order и меняется от прогона к прогону.
+All three functions are pure: input is two `const DependencyGraph&`, output is a vector.
+Comparison is **by the `path_of(...)` string**, because `NodeId` is an insertion-order
+counter and changes from run to run.
 
-- `added_edges` строит индекс `path → NodeId` по baseline, проходит по всем рёбрам
-  current; ребро добавлено, если хотя бы один из его концов отсутствует в baseline
-  по пути, либо если оба пути есть, но ребра нет (`baseline.has_edge(...)` == false).
-- `removed_edges` симметрично: индекс по current, обход рёбер baseline. Рёбра, чьи
-  концы исчезли из current, **пропускаются** — для drift-репорта они избыточны
-  (узел уже удалён, отдельная сигнатура события).
-- `grown_sccs` зовёт `compute_scc` на обоих графах, строит для каждого нетривиального
-  (`size >= 2`) SCC множество путей, и сопоставляет current-SCC с тем baseline-SCC, с
-  которым у него максимальное пересечение по путям (singleton-SCCs baseline игнорируются —
-  они «не цикл»). Если matched baseline-SCC меньше current (или совсем не нашёлся),
-  current-SCC попадает в результат с соответствующим `baseline_size`.
+- `added_edges` builds a `path → NodeId` index over the baseline, walks all edges of
+  current; an edge is added if at least one of its endpoints is absent in the baseline
+  by path, or if both paths exist but the edge doesn't (`baseline.has_edge(...)` == false).
+- `removed_edges` symmetrically: index over current, traversal of baseline edges. Edges whose
+  endpoints have vanished from current are **skipped** — they're redundant for the drift report
+  (the node is already removed, a separate event signature).
+- `grown_sccs` calls `compute_scc` on both graphs, builds for each non-trivial
+  (`size >= 2`) SCC the set of paths, and matches a current-SCC against the baseline-SCC
+  with which it has the maximum path overlap (singleton baseline SCCs are ignored —
+  they're "not a cycle"). If the matched baseline-SCC is smaller than current (or not found
+  at all), the current-SCC ends up in the result with the corresponding `baseline_size`.
 
-Возвращаемые `EdgeRef` всегда используют NodeIds **из `current`** — это нужно для
-последующего репорта поверх свежего графа.
+The returned `EdgeRef`s always use NodeIds **from `current`** — this is needed for
+the subsequent report on top of the fresh graph.
 
-Итоговые векторы детерминированно отсортированы (`added_edges`/`removed_edges` — по
-`(from.value, to.value)`), `grown_sccs` идёт в порядке, в котором их вернул `compute_scc`,
-который уже сам стабилен.
+The resulting vectors are deterministically sorted (`added_edges`/`removed_edges` — by
+`(from.value, to.value)`), `grown_sccs` follows the order in which `compute_scc` returned them,
+which is itself already stable.
 
-## Чем управляется
+## What controls it
 
-- Никаких флагов / переменных среды.
-- API целиком header-only по форме — три свободные функции, два POD-`struct`'а.
-- Доступ через `archcheck::core` (CMake target).
+- No flags / environment variables.
+- The API is entirely header-only in form — three free functions, two POD `struct`s.
+- Access via `archcheck::core` (CMake target).
 
-## С чем связана
+## What it relates to
 
-- **Внутри `graph/`:** опирается на `DependencyGraph::path_of/has_edge/successors/node_count` и `compute_scc` из #014.
-- **Дальше по pipeline:** #016 (graph_baseline_contract) — сериализация baseline; #009 (`DRIFT.1`/`DRIFT.2`) — превратит результат diff'а в violation-report.
-- **Не трогает:** `scan/`, `config/`, `report/`, libclang — это чисто графовая алгоритмика.
+- **Inside `graph/`:** relies on `DependencyGraph::path_of/has_edge/successors/node_count` and `compute_scc` from #014.
+- **Further down the pipeline:** #016 (graph_baseline_contract) — baseline serialization; #009 (`DRIFT.1`/`DRIFT.2`) — turns the diff result into a violation report.
+- **Doesn't touch:** `scan/`, `config/`, `report/`, libclang — this is pure graph algorithmics.
 
-## Диагностика
+## Diagnostics
 
-- Если линкер не находит `added_edges/removed_edges/grown_sccs` — проверить, что
-  `graph/diff.cpp` в списке source files `archcheck_core` в `src/CMakeLists.txt`.
-- Если `grown_sccs` возвращает «лишние» grown — посмотреть, не подсунули ли в
-  baseline ту же версию графа, что и current (например, для unit-теста — сравнить
-  `compute_scc(baseline)` и `compute_scc(current)`).
-- Если `removed_edges` возвращает пусто там, где ожидаешь ребро — проверить, не
-  переименовался ли путь концов (узлы есть, но под другим path → diff считает их
-  «новыми + удалёнными», ребро не матчится).
-- Тестовый файл `tests/unit/graph/diff_test.cpp` покрывает все ключевые сценарии —
-  при изменении семантики diff'а **обновлять его в первую очередь**.
+- If the linker can't find `added_edges/removed_edges/grown_sccs` — check that
+  `graph/diff.cpp` is in the source files list of `archcheck_core` in `src/CMakeLists.txt`.
+- If `grown_sccs` returns "extra" grown ones — check whether the
+  baseline was handed the same graph version as current (e.g. for a unit test — compare
+  `compute_scc(baseline)` and `compute_scc(current)`).
+- If `removed_edges` returns empty where you expect an edge — check whether
+  an endpoint path was renamed (the nodes exist, but under a different path → the diff treats them
+  as "new + removed", the edge doesn't match).
+- The test file `tests/unit/graph/diff_test.cpp` covers all the key scenarios —
+  when changing the diff semantics, **update it first**.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Сопоставление SCC по membership, не по ID | NodeId стабилен только внутри одного запуска, baseline → current не гарантирует совпадения |
-| Singleton-SCC в baseline не считаются «matched» | Singleton — это не цикл; иначе brand-new цикл `{a,b,c}` матчился бы singleton-ом `{a}` и не давал `baseline_size=0` |
-| `removed_edges` пропускает рёбра, чей конец исчез из current | Drift-репортер обрабатывает «удалённый узел» отдельным сигналом; здесь — только рёбра между ещё живыми узлами |
-| `EdgeRef`'ы использует NodeIds `current` графа | Diff потребляется отчётом, который строится поверх current; baseline-NodeIds бесполезны вне baseline'а |
-| API DependencyGraph **не расширялся** | Дополнительный аксессор не нужен: NodeIds плотные `[0, n)`, итерация через `for i in [0, n)` + `path_of(NodeId{i})` достаточна, нет смысла протекать private-контейнер |
+| Decision | Rationale |
+|---------|-----------|
+| SCC matching by membership, not by ID | NodeId is stable only within one run, baseline → current doesn't guarantee a match |
+| Singleton SCCs in baseline don't count as "matched" | A singleton is not a cycle; otherwise a brand-new cycle `{a,b,c}` would match the singleton `{a}` and not produce `baseline_size=0` |
+| `removed_edges` skips edges whose endpoint vanished from current | The drift reporter handles a "removed node" as a separate signal; here — only edges between still-alive nodes |
+| `EdgeRef`s use NodeIds of the `current` graph | The diff is consumed by the report built on top of current; baseline NodeIds are useless outside the baseline |
+| DependencyGraph API was **not extended** | An extra accessor isn't needed: NodeIds are dense `[0, n)`, iteration via `for i in [0, n)` + `path_of(NodeId{i})` is enough, no point leaking the private container |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
+| File | Change |
+|------|--------|
 | `include/archcheck/graph/diff.h` | new |
 | `src/graph/diff.cpp` | new |
 | `tests/unit/graph/diff_test.cpp` | new |
-| `src/CMakeLists.txt` | добавлен `graph/diff.cpp` в `archcheck_core` |
-| `tests/CMakeLists.txt` | добавлен `unit/graph/diff_test.cpp` в `archcheck_tests` |
+| `src/CMakeLists.txt` | added `graph/diff.cpp` to `archcheck_core` |
+| `tests/CMakeLists.txt` | added `unit/graph/diff_test.cpp` to `archcheck_tests` |

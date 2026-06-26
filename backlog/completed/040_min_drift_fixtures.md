@@ -1,67 +1,67 @@
 # [FIXTURES/DRIFT] Integration fixtures for DRIFT.1 and DRIFT.2
 
-**Дата создания:** 2026-05-28
-**Дата старта:** 2026-05-28
-**Статус:** completed
-**Модуль:** FIXTURES/DRIFT
-**Приоритет:** minor
-**Сложность:** S (полдня)
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-05-28
+**Started:** 2026-05-28
+**Status:** completed
+**Module:** FIXTURES/DRIFT
+**Priority:** minor
+**Complexity:** S (half a day)
+**Blocks:** —
+**Blocked by:** —
 **Related:** #009 (ai_drift_regression_rules)
 
-## Цель
+## Goal
 
-Добавить фикстуры и интеграционный тест для `--drift-baseline`, чтобы проверить CLI-пайплайн DRIFT-правил end-to-end (загрузка граф-baseline с диска, сканирование, вывод нарушений).
+Add fixtures and an integration test for `--drift-baseline` to verify the CLI pipeline of DRIFT rules end-to-end (loading the graph baseline from disk, scanning, reporting violations).
 
-## Контекст
+## Context
 
-Unit-тесты DRIFT.1/DRIFT.2 покрывают логику правил. Фикстуры нужны для проверки полного пайплайна: реальные `.h`-файлы + сохранённый `baseline.graph.yml` + запуск `archcheck --drift-baseline`. Особенность DRIFT-фикстур: каждая содержит не только исходники, но и pre-saved `baseline.graph.yml` (срез графа "до").
+Unit tests for DRIFT.1/DRIFT.2 cover the rule logic. Fixtures are needed to verify the full pipeline: real `.h` files + a saved `baseline.graph.yml` + running `archcheck --drift-baseline`. The peculiarity of DRIFT fixtures: each contains not only sources, but also a pre-saved `baseline.graph.yml` (the "before" graph slice).
 
-## План выполнения
+## Execution plan
 
-- [x] Создать `fixtures/drift_shortcut_edge/pass/` — файлы идентичны baseline, нарушений нет
-- [x] Создать `fixtures/drift_shortcut_edge/fail_new_coupling/` — `a.h` добавляет shortcut a→c поверх a→b→c
-- [x] Создать `fixtures/drift_cycle_growth/pass/` — цикл не изменился относительно baseline
-- [x] Создать `fixtures/drift_cycle_growth/fail_new_cycle/` — новый цикл `a.h ↔ b.h`
-- [x] Написать интеграционный тест в `tests/integration/rules/drift_fixtures_test.cpp`
-- [x] Зарегистрировать в `tests/CMakeLists.txt`
+- [x] Create `fixtures/drift_shortcut_edge/pass/` — files identical to baseline, no violations
+- [x] Create `fixtures/drift_shortcut_edge/fail_new_coupling/` — `a.h` adds shortcut a→c on top of a→b→c
+- [x] Create `fixtures/drift_cycle_growth/pass/` — cycle unchanged relative to baseline
+- [x] Create `fixtures/drift_cycle_growth/fail_new_cycle/` — new cycle `a.h ↔ b.h`
+- [x] Write integration test in `tests/integration/rules/drift_fixtures_test.cpp`
+- [x] Register in `tests/CMakeLists.txt`
 
-## Сделано
+## Done
 
-- Все 4 фикстуры созданы с ручными `baseline.graph.yml` (формат v1)
-- `tests/integration/rules/drift_fixtures_test.cpp` — 4 теста, все зелёные
-- Добавлен в `tests/CMakeLists.txt`
-- Полный suite: 213 test cases / 726 assertions — OK
-- lizard чист
+- All 4 fixtures created with hand-written `baseline.graph.yml` (format v1)
+- `tests/integration/rules/drift_fixtures_test.cpp` — 4 tests, all green
+- Added to `tests/CMakeLists.txt`
+- Full suite: 213 test cases / 726 assertions — OK
+- lizard clean
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. Коммит и перенос в `completed/`
+1. Commit and move to `completed/`
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| baseline.graph.yml хранится прямо в папке фикстуры | Фикстура самодостаточна, тест не генерирует baseline на лету |
-| pass/ = файлы совпадают с baseline | Нет изменений → нет нарушений DRIFT |
-| fail_new_cycle триггерит и DRIFT.1 и DRIFT.2 | b.h→a.h — новое ребро между двумя узлами baseline → оба правила срабатывают; тест фильтрует по ruleId |
-| `build_graph_from_dir` вынесен в отдельный хелпер | lizard --length 30; run_drift_check оставался бы 36 строк |
+| baseline.graph.yml stored directly in the fixture folder | Fixture is self-contained, test does not generate baseline on the fly |
+| pass/ = files match baseline | No changes → no DRIFT violations |
+| fail_new_cycle triggers both DRIFT.1 and DRIFT.2 | b.h→a.h — new edge between two baseline nodes → both rules fire; test filters by ruleId |
+| `build_graph_from_dir` extracted into a separate helper | lizard --length 30; run_drift_check would otherwise be 36 lines |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `fixtures/drift_shortcut_edge/pass/` | новый (a.h, b.h, c.h, baseline.graph.yml) |
-| `fixtures/drift_shortcut_edge/fail_new_coupling/` | новый (a.h adds a→c shortcut) |
-| `fixtures/drift_cycle_growth/pass/` | новый (a↔b cycle, baseline совпадает) |
-| `fixtures/drift_cycle_growth/fail_new_cycle/` | новый (baseline a→b only; current a↔b) |
-| `tests/integration/rules/drift_fixtures_test.cpp` | новый — 4 интеграционных теста |
-| `tests/CMakeLists.txt` | добавлен новый тест |
+| `fixtures/drift_shortcut_edge/pass/` | new (a.h, b.h, c.h, baseline.graph.yml) |
+| `fixtures/drift_shortcut_edge/fail_new_coupling/` | new (a.h adds a→c shortcut) |
+| `fixtures/drift_cycle_growth/pass/` | new (a↔b cycle, baseline matches) |
+| `fixtures/drift_cycle_growth/fail_new_cycle/` | new (baseline a→b only; current a↔b) |
+| `tests/integration/rules/drift_fixtures_test.cpp` | new — 4 integration tests |
+| `tests/CMakeLists.txt` | added new test |
 
 ## Fixtures
 

@@ -1,161 +1,161 @@
-# [SCAN][GRAPH] Лицензионный баннер проекта ≠ вендор: убрать over-exclusion в графе
+# [SCAN][GRAPH] A project's license banner ≠ vendor: remove the over-exclusion in the graph
 
-**Дата создания:** 2026-06-12
-**Дата старта:** 2026-06-12
-**Статус:** done
-**Модуль:** SCAN][GRAPH
-**Приоритет:** major
-**Сложность:** small
-**Исполнитель:** Haiku
-**Блокирует:** — (мягко: будущее правило DRIFT.4)
-**Заблокирован:** —
-**Related:** #111 (находка §5.2 отчёта corpus run), #081 (прошлый over-exclusion: SPDX)
+**Created:** 2026-06-12
+**Started:** 2026-06-12
+**Status:** done
+**Module:** SCAN][GRAPH
+**Priority:** major
+**Complexity:** small
+**Assignee:** Haiku
+**Blocks:** — (softly: the future rule DRIFT.4)
+**Blocked by:** —
+**Related:** #111 (the §5.2 finding of the corpus run report), #081 (a previous over-exclusion: SPDX)
 
-## Цель
+## Goal
 
-Граф не должен терять собственные файлы проекта из-за того, что проект честно
-ставит полный лицензионный баннер (Apache/MIT/BSD) в каждый свой файл.
-Сейчас FDio/vpp (Apache-2.0, полный баннер в каждом файле до SPDX-миграции)
-даёт граф **267 узлов из 2621 файла** — 90% проекта выкинуто как «вендор».
+The graph must not lose a project's own files just because the project honestly
+puts a full license banner (Apache/MIT/BSD) in each of its files.
+Right now FDio/vpp (Apache-2.0, full banner in every file before the SPDX migration)
+yields a graph of **267 nodes out of 2621 files** — 90% of the project thrown out as "vendor".
 
-## Контекст
+## Context
 
-Корпусный прогон #111 (см.
+The #111 corpus run (see
 [docs/research/lateral_module_drift_corpus_run.md](../../docs/research/lateral_module_drift_corpus_run.md) §5.2)
-вскрыл: `hasVendorLicenseHeader()` считает полный текст Apache-баннера
-(маркер `"licensed under the apache"`) сигналом вендорённого файла. Эвристика
-писалась для кейса «чужой файл с чужой лицензией среди наших», но у
-Apache-лицензированных проектов баннер стоит в КАЖДОМ собственном файле.
+uncovered: `hasVendorLicenseHeader()` treats the full text of the Apache banner
+(marker `"licensed under the apache"`) as a signal of a vendored file. The heuristic
+was written for the case "a foreign file with a foreign license among ours", but for
+Apache-licensed projects the banner sits in EVERY one of their own files.
 
-Факты, проверенные живыми 2026-06-12:
+Facts verified live on 2026-06-12:
 
 - `include/archcheck/scan/file_classification.h` — `hasVendorLicenseHeader()`
-  (~строка 190, массив `kLicenseMarkers` из 6 маркеров),
-  `isVendoredFile()` (~строка 215) = name-layer ∨ license-layer.
-- `src/graph/graph_builder.cpp` — `filterVendored()` (строки 55–74):
-  единственное место, где license-layer влияет на **граф** (через
-  `isVendoredFile(baseName, src)` на строке 66). Уже читает контент всех
-  файлов в `FilteredFiles::contents`.
-- Другие потребители `isVendoredFile`: `src/scan/project_files.cpp:162`
-  (duplication-конвейер), `src/scan/test_co_evolution.cpp:38` (передаёт `""` —
-  license-layer фактически выключен). Их поведение НЕ менять — вне скоупа.
-- Тесты per-file функции: `tests/unit/scan/file_classification_test.cpp:53–78` —
-  остаются зелёными без правок (саму функцию не меняем).
-- Тестов на `graph_builder.cpp` нет; in-memory `FileSource`-стаб для образца:
-  `FakeSource` в `tests/unit/scan/project_files_test.cpp:256`,
-  `MapFileSource` в `tests/unit/scan/local_complexity_drift_test.cpp:13`.
+  (~line 190, the array `kLicenseMarkers` of 6 markers),
+  `isVendoredFile()` (~line 215) = name-layer ∨ license-layer.
+- `src/graph/graph_builder.cpp` — `filterVendored()` (lines 55–74):
+  the single place where the license layer affects the **graph** (via
+  `isVendoredFile(baseName, src)` on line 66). It already reads the content of all
+  files into `FilteredFiles::contents`.
+- Other consumers of `isVendoredFile`: `src/scan/project_files.cpp:162`
+  (the duplication pipeline), `src/scan/test_co_evolution.cpp:38` (passes `""` —
+  the license layer is effectively off). Their behavior is NOT to change — out of scope.
+- Tests for the per-file function: `tests/unit/scan/file_classification_test.cpp:53–78` —
+  stay green without edits (we don't change the function itself).
+- There are no tests for `graph_builder.cpp`; in-memory `FileSource` stubs as samples:
+  `FakeSource` in `tests/unit/scan/project_files_test.cpp:256`,
+  `MapFileSource` in `tests/unit/scan/local_complexity_drift_test.cpp:13`.
 
-## Решённый дизайн (развилок нет)
+## Decided design (no forks)
 
-Чинить в `filterVendored()` (graph_builder.cpp), НЕ в `file_classification.h`:
+Fix in `filterVendored()` (graph_builder.cpp), NOT in `file_classification.h`:
 
-1. Первый проход: для каждого файла, прошедшего dir/name-фильтры
+1. First pass: for each file that passed the dir/name filters
    (`pathHasVendoredDir` / `pathHasTestDir` / `isTestBasename` /
-   `isVendoredBasename` — name-layer оставить как есть), прочитать контент и
-   посчитать `hasVendorLicenseHeader(src)`.
-2. Если баннер у **> 50%** таких файлов — это лицензия проекта: license-layer
-   на этом прогоне **отключается** (никого не выкидывать по баннеру).
-   Иначе — текущее поведение (файлы с баннером выкидываются).
-3. `isVendoredBasename` (qcustomplot/stb_/imgui и т.д.) действует всегда,
-   независимо от доли — это name-layer.
+   `isVendoredBasename` — leave the name layer as is), read the content and
+   compute `hasVendorLicenseHeader(src)`.
+2. If the banner is on **> 50%** of such files — it's the project's license: the license layer
+   is **disabled** for this run (don't throw out anyone by the banner).
+   Otherwise — the current behavior (files with the banner are thrown out).
+3. `isVendoredBasename` (qcustomplot/stb_/imgui etc.) applies always,
+   regardless of the share — it's the name layer.
 
-Замечание по реализации: `filterVendored()` уже читает все контенты — собрать
-тройки (file, content, banner-флаг) в один вектор первым проходом, решить по
-доле, вторым проходом отфильтровать. Новых чтений с диска не добавлять.
+Implementation note: `filterVendored()` already reads all contents — collect
+triples (file, content, banner-flag) into a single vector in the first pass, decide by
+the share, filter out in a second pass. Don't add new disk reads.
 
-## План выполнения
+## Execution plan
 
-- [ ] Перестроить `filterVendored()` по дизайну выше (двухпроходный, та же
-      сигнатура, ≤ 30 строк на функцию — при необходимости выделить helper
-      в том же файле).
-- [ ] Новый тест-файл `tests/unit/graph/graph_builder_test.cpp` (+ строка в
-      `tests/CMakeLists.txt` — посмотреть, как подключены соседние
-      `tests/unit/graph/*.cpp`). Стаб-FileSource скопировать по образцу
-      `FakeSource` (project_files_test.cpp:256).
-- [ ] Прогнать контрольные кейсы, build, tests, lizard, dogfood.
+- [ ] Rebuild `filterVendored()` per the design above (two-pass, same
+      signature, ≤ 30 lines per function — extract a helper into the same file
+      if needed).
+- [ ] A new test file `tests/unit/graph/graph_builder_test.cpp` (+ a line in
+      `tests/CMakeLists.txt` — look at how the neighboring
+      `tests/unit/graph/*.cpp` are wired). Copy the stub FileSource following the
+      `FakeSource` sample (project_files_test.cpp:256).
+- [ ] Run the control cases, build, tests, lizard, dogfood.
 
-## Контрольные кейсы (контракт)
+## Control cases (the contract)
 
-Все контенты в тестах начинать с баннера ПЕРВЫМИ байтами (функция смотрит
-первые 2000 байт).
+Start all contents in the tests with the banner as the FIRST bytes (the function looks at
+the first 2000 bytes).
 
-| Кейс | Вход | Ожидание |
+| Case | Input | Expectation |
 |---|---|---|
-| 1. Проектная лицензия | 4 файла `a.h b.h c.cpp d.cpp`, ВСЕ с `// Licensed under the Apache License, Version 2.0`, `d.cpp` включает `"a.h"` | nodes = **4**, edges = **1** |
-| 2. Настоящий вендор | 5 файлов: 4 без баннера, 1 (`mini_lib.h`) с `/* Permission is hereby granted, free of charge */`; один из чистых включает `"mini_lib.h"` | nodes = **4**, edges = **0**, external+unresolved = 1 |
-| 3. Ровно 50% | 4 файла, баннер у 2 | доля НЕ > 0.5 → баннерные выкинуты: nodes = **2** |
-| 4. Name-layer при доминировании | 4 файла с Apache-баннером, один из них `qcustomplot.cpp` | nodes = **3** (qcustomplot выкинут именем, баннер-слой выключен) |
+| 1. Project license | 4 files `a.h b.h c.cpp d.cpp`, ALL with `// Licensed under the Apache License, Version 2.0`, `d.cpp` includes `"a.h"` | nodes = **4**, edges = **1** |
+| 2. Real vendor | 5 files: 4 without a banner, 1 (`mini_lib.h`) with `/* Permission is hereby granted, free of charge */`; one of the clean ones includes `"mini_lib.h"` | nodes = **4**, edges = **0**, external+unresolved = 1 |
+| 3. Exactly 50% | 4 files, banner on 2 | share NOT > 0.5 → banner ones thrown out: nodes = **2** |
+| 4. Name-layer under dominance | 4 files with an Apache banner, one of them `qcustomplot.cpp` | nodes = **3** (qcustomplot thrown out by name, the banner layer is off) |
 
-## Не делать
+## Do not do
 
-- НЕ менять `hasVendorLicenseHeader` / `isVendoredFile` / `kLicenseMarkers`
-  в `file_classification.h` — per-file семантика остаётся.
-- НЕ менять существующие ожидания в `file_classification_test.cpp`.
-- НЕ трогать `project_files.cpp` / `test_co_evolution.cpp` (duplication-путь
-  сознательно оставлен со старым поведением — отдельное решение, не гэп).
-- НЕ добавлять конфиг-ручку/флаг для порога 50% — захардкоженная константа
-  с комментарием-причиной.
-- НЕ коммитить без команды.
+- Do NOT change `hasVendorLicenseHeader` / `isVendoredFile` / `kLicenseMarkers`
+  in `file_classification.h` — the per-file semantics stays.
+- Do NOT change the existing expectations in `file_classification_test.cpp`.
+- Do NOT touch `project_files.cpp` / `test_co_evolution.cpp` (the duplication path
+  is deliberately left with the old behavior — a separate decision, not a gap).
+- Do NOT add a config knob/flag for the 50% threshold — a hardcoded constant
+  with a comment explaining the reason.
+- Do NOT commit without a command.
 
 ## Definition of done
 
-- 4/4 контрольных кейса зелёные с точными числами из таблицы.
-- `cmake --build build/debug` + `ctest --output-on-failure` — всё зелёное.
+- 4/4 control cases green with the exact numbers from the table.
+- `cmake --build build/debug` + `ctest --output-on-failure` — all green.
 - `lizard --CCN 15 --length 30 --arguments 5 --warnings_only src/ include/ tests/` — 0 warnings.
-- Dogfood: `./build/debug/src/archcheck` из корня — 0 нарушений на src/include/tests.
+- Dogfood: `./build/debug/src/archcheck` from the root — 0 violations on src/include/tests.
 
-## Сделано
+## Done
 
-- `filterVendored()` переписан как двухпроходный. Добавлен `struct FilterEntry`
-  (file, content, hasBanner) в анонимном namespace; `std::count_if` через
-  `<algorithm>` (добавлен include).
-- Первый проход: исключает по dir/test/basename-фильтрам, для остальных читает
-  контент и фиксирует баннер-флаг в вектор кандидатов.
-- Домиирование: `nBanner * 2 > candidates.size()` — строго > 50%.
-- Второй проход: при доминировании все кандидаты проходят; иначе баннерные
-  файлы исключаются (старое поведение). `isVendoredBasename` (name-layer)
-  работает всегда, независимо от доли.
-- Новый файл `tests/unit/graph/graph_builder_test.cpp`: 4 контрольных кейса,
-  17 assertions; зарегистрирован в `tests/CMakeLists.txt`.
-- 4/4 контрольных кейса из таблицы зелёные (nodeCount и edges точно).
-- 506/506 тестов, lizard 0 warnings, dogfood 0 нарушений.
+- `filterVendored()` rewritten as two-pass. Added `struct FilterEntry`
+  (file, content, hasBanner) in an anonymous namespace; `std::count_if` via
+  `<algorithm>` (include added).
+- First pass: excludes by the dir/test/basename filters, for the rest reads
+  the content and records the banner flag into the candidates vector.
+- Dominance: `nBanner * 2 > candidates.size()` — strictly > 50%.
+- Second pass: under dominance all candidates pass; otherwise the banner
+  files are excluded (old behavior). `isVendoredBasename` (name layer)
+  works always, regardless of the share.
+- New file `tests/unit/graph/graph_builder_test.cpp`: 4 control cases,
+  17 assertions; registered in `tests/CMakeLists.txt`.
+- 4/4 control cases from the table green (nodeCount and edges exactly).
+- 506/506 tests, lizard 0 warnings, dogfood 0 violations.
 - Coverage: lines 91.5% / functions 96.5% / branches 57.6% — PASS.
-- Коммит: `68437c0` (`fix(graph): project Apache banner ≠ vendor; two-pass filterVendored (#113)`)
+- Commit: `68437c0` (`fix(graph): project Apache banner ≠ vendor; two-pass filterVendored (#113)`)
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-- (пусто)
+- (empty)
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Доминирование баннера (>50%) = лицензия проекта | Конфиг-фри, ловит VPP-класс целиком; точечные маркеры не масштабируются |
-| Фикс в graph_builder, не в file_classification | Per-file функция корректна для своего вопроса; ошибочна только интерпретация на уровне всего проекта |
-| Duplication-путь не трогаем | Калибровался отдельно (#053–#059); смешивать семантики в одном изменении нельзя |
+| Decision | Rationale |
+|---------|-----------|
+| Banner dominance (>50%) = the project's license | Config-free, catches the whole VPP class; pinpoint markers don't scale |
+| Fix in graph_builder, not in file_classification | The per-file function is correct for its own question; only the project-wide interpretation is wrong |
+| Don't touch the duplication path | It was calibrated separately (#053–#059); mixing semantics in one change is not allowed |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `src/graph/graph_builder.cpp` | `filterVendored()` → двухпроходный с порогом доминирования (commit `68437c0`) |
-| `tests/unit/graph/graph_builder_test.cpp` | новый: 4 контрольных кейса (commit `68437c0`) |
-| `tests/CMakeLists.txt` | + новый тест-файл (commit `68437c0`) |
+| File | Change |
+|------|--------|
+| `src/graph/graph_builder.cpp` | `filterVendored()` → two-pass with a dominance threshold (commit `68437c0`) |
+| `tests/unit/graph/graph_builder_test.cpp` | new: 4 control cases (commit `68437c0`) |
+| `tests/CMakeLists.txt` | + the new test file (commit `68437c0`) |
 
-## Как работает
+## How it works
 
-Первый проход собирает вектор `FilterEntry{file, content, hasBanner}` для всех файлов,
-прошедших dir/test/basename-фильтры. Затем считается доля: если `nBanner * 2 >
-candidates.size()` (строго > 50%) — баннер — это лицензия самого проекта, banner-layer
-выключается. Иначе — старое поведение (баннерные файлы = вендор). `isVendoredBasename`
-(qcustomplot, stb_, imgui и т.д.) применяется до подсчёта баннеров и не зависит от доли.
-`hasVendorLicenseHeader` / `isVendoredFile` в `file_classification.h` не тронуты —
-per-file семантика корректна, ошибочна была только интерпретация на уровне всего проекта.
+The first pass collects a vector `FilterEntry{file, content, hasBanner}` for all files
+that passed the dir/test/basename filters. Then the share is computed: if `nBanner * 2 >
+candidates.size()` (strictly > 50%) — the banner is the project's own license, the banner layer
+is turned off. Otherwise — the old behavior (banner files = vendor). `isVendoredBasename`
+(qcustomplot, stb_, imgui, etc.) is applied before counting banners and doesn't depend on the share.
+`hasVendorLicenseHeader` / `isVendoredFile` in `file_classification.h` are untouched —
+the per-file semantics is correct, only the project-wide interpretation was wrong.
 
-## Дата завершения
+## Completion date
 
 2026-06-12

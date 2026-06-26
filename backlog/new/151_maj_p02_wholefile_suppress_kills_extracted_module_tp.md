@@ -1,26 +1,26 @@
-# [BUG][DUPLICATION] P0.2 whole-file suppress глушит TP «вынес код в модуль, оставил оригинал»
+# [BUG][DUPLICATION] P0.2 whole-file suppress silences the TP "extracted code into a module, kept the original"
 
-**Дата создания:** 2026-06-26
-**Статус:** new
-**Модуль:** SCAN / DUPLICATION
-**Приоритет:** major
+**Created:** 2026-06-26
+**Status:** new
+**Module:** SCAN / DUPLICATION
+**Priority:** major
 **Related:** #052/#056 (clone detector), #127 (vendored/generated exclusion), #147 (dup OOM),
-P0.4-removal precedent (docs/duplication_architecture.md «History of P0.4»)
+P0.4-removal precedent (docs/duplication_architecture.md "History of P0.4")
 
-## Симптом (дофуд на реальном рефакторе, репа leadline)
+## Symptom (dogfood on a real refactor, repo leadline)
 
-В стороннем проекте (`leadline`) пользователь вынес классификатор в новый модуль
-`src/geomorph/feature_support.cpp` (функции `classifyAll`, `Support`, `makeSupport`,
+In a third-party project (`leadline`) the user extracted the classifier into a new module
+`src/geomorph/feature_support.cpp` (functions `classifyAll`, `Support`, `makeSupport`,
 `featureSupported`, `bracketGap`, `medianSoundingSpacingGrid`, `soundingSupported`,
-`quantile`, `faceDepthMean`, `triMinAngleDeg`, …), **но оставил почти идентичные копии
-в `tools/inspect_at.cpp`** (точечный дедуп отложили). Это ровно «missing reuse edge» —
-основной целевой TP-класс детектора (§1 `duplication_architecture.md`).
+`quantile`, `faceDepthMean`, `triMinAngleDeg`, …), **but left near-identical copies
+in `tools/inspect_at.cpp`** (the pointwise dedup was deferred). This is exactly the "missing reuse edge" —
+the detector's main target TP class (§1 `duplication_architecture.md`).
 
-`archcheck --duplication .` по дереву leadline: **59 пар выше порога, НИ ОДНОЙ с участием
-`feature_support.cpp`.** Всплыл только мелкий boilerplate `makeDirs`
-(`gallery_export.cpp ↔ inspect_at.cpp`, STRUCTURAL 0.996).
+`archcheck --duplication .` over the leadline tree: **59 pairs above threshold, NONE involving
+`feature_support.cpp`.** Only the small boilerplate `makeDirs`
+(`gallery_export.cpp ↔ inspect_at.cpp`, STRUCTURAL 0.996) surfaced.
 
-Изоляция до двух файлов (только `feature_support.cpp` + `inspect_at.cpp`) подтверждает:
+Isolating down to two files (only `feature_support.cpp` + `inspect_at.cpp`) confirms it:
 
 ```
 $ archcheck --duplication <2 files>
@@ -28,69 +28,69 @@ scanned 3 files, 82 fragments, 1521 candidate pairs
 reported 0 pairs above threshold (1 whole-file clone group(s) suppressed)
 ```
 
-**0 пар**, хотя тела функций почти посимвольно совпадают (у `bracketGap` разница — только
-комментарий). Подавляет именно P0.2 whole-file guard (счётчик `1 ... suppressed`).
+**0 pairs**, even though the function bodies match almost character-for-character (for `bracketGap` the only
+difference is a comment). It is precisely the P0.2 whole-file guard that suppresses it (counter `1 ... suppressed`).
 
-## Корневая причина (точная)
+## Root cause (exact)
 
-`wholeFileClonePairs` (`src/scan/duplication/duplication_scanner.cpp:281`), вызывается из
-`phase9WholeFileSuppress` (там же `:316`), гейт `opts.enableWholeFileGuard`:
+`wholeFileClonePairs` (`src/scan/duplication/duplication_scanner.cpp:281`), called from
+`phase9WholeFileSuppress` (same file, `:316`), gated by `opts.enableWholeFileGuard`:
 
 ```cpp
-const int minFrags = std::min(fragsPerFile[fileA], fragsPerFile[fileB]); // фрагменты МЕНЬШЕГО файла
-if (minFrags >= 2 && n * 5 >= minFrags * 4)   // n матчей >= 80% фрагментов МЕНЬШЕГО файла
-  result.insert(k);                            // -> вся пара файлов исключается из actionable
+const int minFrags = std::min(fragsPerFile[fileA], fragsPerFile[fileB]); // fragments of the SMALLER file
+if (minFrags >= 2 && n * 5 >= minFrags * 4)   // n matches >= 80% of fragments of the SMALLER file
+  result.insert(k);                            // -> the whole file pair is excluded from actionable
 ```
 
-Условие одностороннее: «совпало ≥80% фрагментов **меньшего** файла». Для нашего кейса:
+The condition is one-sided: "≥80% of the fragments of the **smaller** file matched". For our case:
 
-- `feature_support.cpp` (меньший) ≈ 10 фрагментов-функций, ~8+ матчат `inspect_at.cpp`
-  → `n ≥ 0.8·minFrags` → срабатывает → **глушатся ВСЕ пары** между файлами.
-- `inspect_at.cpp` (бо́льший) ≈ 80 фрагментов; эти ~8 матчей покрывают ~10% его объёма.
+- `feature_support.cpp` (smaller) ≈ 10 function-fragments, ~8+ match `inspect_at.cpp`
+  → `n ≥ 0.8·minFrags` → triggers → **ALL pairs** between the files are silenced.
+- `inspect_at.cpp` (larger) ≈ 80 fragments; these ~8 matches cover ~10% of its volume.
 
-То есть «меньший файл ⊂ большего» детектор трактует как move/copy/vendored-twin. Но это
-НЕ перенос файла: оба файла живут, оригинал не исчез (rename), а overlap — малая доля
-бо́льшего файла. P0.2 **смешивает два разных класса**:
+That is, the detector treats "smaller file ⊂ larger" as move/copy/vendored-twin. But this is
+NOT a file move: both files are alive, the original did not disappear (rename), and the overlap is a small share
+of the larger file. P0.2 **conflates two different classes**:
 
-| класс | A vs B | overlap | это | P0.2 сейчас |
+| class | A vs B | overlap | what it is | P0.2 now |
 |---|---|---|---|---|
-| move / vendored twin (целевой FP) | ~равны по размеру | ~весь A И ~весь B | FP, глушить верно | глушит ✅ |
-| **extract-в-модуль, оригинал жив** (наш TP) | B мал, A велик | весь B, но малая доля A | **TP, репортить** | глушит ❌ |
+| move / vendored twin (target FP) | ~equal in size | ~all of A AND ~all of B | FP, silence correctly | silences ✅ |
+| **extract-into-module, original alive** (our TP) | B small, A large | all of B, but a small share of A | **TP, report** | silences ❌ |
 
-Дискриминатор, которого не хватает: настоящий twin покрывает **обе** стороны
-(`n ≥ 0.8·maxFrags` тоже), а экстракция — только меньшую. Сейчас проверяется лишь
-меньшая сторона → ложное подавление TP.
+The discriminator that is missing: a true twin covers **both** sides
+(`n ≥ 0.8·maxFrags` too), whereas an extraction covers only the smaller one. Currently only the
+smaller side is checked → false suppression of a TP.
 
-## Почему это значимо
+## Why this matters
 
-1. Подавляется **самый ценный** dup-класс — «вынесли общий код, но забыли удалить
-   оригинал» (extract-leave-original) — это и есть «missing reuse edge», ради чего §1
-   детектор существует. Чем ЧИЩЕ экстракция, тем вернее P0.2 её скроет (иронично).
-2. Молча: только строка `N whole-file clone group(s) suppressed`, без перечня что именно.
-3. Двойной промах для CI: `--duplication` advisory и не входит в дефолтный scan/diff-гейт,
-   так что и напоминания не будет. Рефактор «оставил дубль» проходит незамеченным.
-4. Совпадает с уже зафиксированным проектом принципом (removal P0.4/P0.7/P0.8,
-   `duplication_architecture.md`): *«guard, который глушит реальный TP ради FP-класса,
-   плохо отделённого текущим фрагментером, — чистый налог на recall»*. P0.2 в текущем виде
-   ровно такой: чтобы поймать file-move, душит extract-leave-original.
+1. It suppresses the **most valuable** dup class — "extracted shared code but forgot to delete the
+   original" (extract-leave-original) — which is exactly the "missing reuse edge" the §1
+   detector exists for. The CLEANER the extraction, the more reliably P0.2 hides it (ironically).
+2. Silently: only the line `N whole-file clone group(s) suppressed`, without listing what exactly.
+3. Double miss for CI: `--duplication` is advisory and not part of the default scan/diff gate,
+   so there will not even be a reminder. A refactor that "left a duplicate" passes unnoticed.
+4. Matches a principle already established by the project (removal of P0.4/P0.7/P0.8,
+   `duplication_architecture.md`): *"a guard that silences a real TP for the sake of an FP class
+   poorly separated by the current fragmenter is pure recall tax"*. P0.2 in its current form is
+   exactly that: to catch a file-move, it strangles extract-leave-original.
 
-## Repro (фикстура приложена + проверено)
+## Repro (fixture attached + verified)
 
-Синтетическая фикстура (свой код, без внешних исходников):
+Synthetic fixture (our own code, no external sources):
 `fixtures/duplication/wholefile_extract_fp/`
-- `extracted_geom.cpp` — модуль из 3 хелперов (`triMinAngleDeg`/`quantileSorted`/`bracketGap`);
-- `original_geom.cpp` — большой оригинал: те же 3 хелпера verbatim + 4 несвязанные функции.
-B ⊂ A (экстракция, оригинал жив).
+- `extracted_geom.cpp` — module of 3 helpers (`triMinAngleDeg`/`quantileSorted`/`bracketGap`);
+- `original_geom.cpp` — large original: the same 3 helpers verbatim + 4 unrelated functions.
+B ⊂ A (extraction, original alive).
 
-**Баг (текущее):**
+**Bug (current):**
 ```
 $ archcheck --duplication fixtures/duplication/wholefile_extract_fp
 scanned 2 files, 10 fragments, 14 candidate pairs
 reported 0 pairs above threshold (1 whole-file clone group(s) suppressed)
 ```
 
-**Контраст (доказывает, что глушит именно subset-форма, а не порог).** Если в меньший файл
-добавить 4 СВОИ полноразмерные функции (оба файла ~по 7 фрагментов, 3 общих, ни один не ⊂):
+**Contrast (proves it is the subset form being silenced, not the threshold).** If you add 4 OWN
+full-size functions to the smaller file (both files ~7 fragments each, 3 shared, none ⊂):
 ```
 scanned 2 files, 14 fragments, 36 candidate pairs
 reported 3 pairs above threshold (0 whole-file clone group(s) suppressed)
@@ -98,40 +98,40 @@ reported 3 pairs above threshold (0 whole-file clone group(s) suppressed)
   a.cpp:25-28  <->  b.cpp:23-26  (EXACT, weighted=1, line=1)
   a.cpp:33-38  <->  b.cpp:31-36  (EXACT, weighted=1, line=1)
 ```
-→ те же 3 клона детектятся EXACT/weighted=1; единственная разница — форма «B ⊂ A» против
-«A≈B». Подтверждает односторонний `minFrags` как причину.
+→ the same 3 clones are detected EXACT/weighted=1; the only difference is the form "B ⊂ A" vs
+"A≈B". Confirms the one-sided `minFrags` as the cause.
 
-Реальный источник кейса — `leadline:src/geomorph/feature_support.cpp` ↔
-`leadline:tools/inspect_at.cpp` (тот же результат: 0 пар, 1 suppressed).
+The real source of the case is `leadline:src/geomorph/feature_support.cpp` ↔
+`leadline:tools/inspect_at.cpp` (same result: 0 pairs, 1 suppressed).
 
-## Предлагаемое направление (не предписание реализации)
+## Proposed direction (not a prescription for implementation)
 
-Любой из вариантов (или комбо), плюс регресс-фикстура:
+Any of the options (or a combo), plus a regression fixture:
 
-- **Двусторонняя покрываемость:** считать whole-file clone только когда overlap покрывает
-  высокую долю **обоих** файлов: `n ≥ 0.8·minFrags && n ≥ 0.8·maxFrags`. Тогда move/twin
-  (A≈B, оба покрыты) глушится, а extraction (B⊂A, A покрыт слабо) — репортится.
-- **Сверка с git-rename:** P0.2 в доке мотивирован «git rename/move/vendored». Гейтить его
-  фактическим rename-similarity из git (переименование/перенос), а не эвристикой overlap по
-  фрагментам — у move оригинал ИСЧЕЗАЕТ из старого места, у extraction оригинал на месте.
-- Минимум — сделать подавление **видимым/опциональным** (`--show-suppressed` или список
-  заглушённых пар в отчёте), чтобы немой промах перестал быть немым.
+- **Two-sided coverage:** count a whole-file clone only when the overlap covers
+  a high share of **both** files: `n ≥ 0.8·minFrags && n ≥ 0.8·maxFrags`. Then a move/twin
+  (A≈B, both covered) is silenced, while an extraction (B⊂A, A weakly covered) is reported.
+- **Cross-check with git-rename:** P0.2 is motivated in the docs by "git rename/move/vendored". Gate it
+  by actual rename-similarity from git (rename/move), rather than an overlap heuristic over
+  fragments — in a move the original DISAPPEARS from the old place, in an extraction the original stays put.
+- At minimum — make the suppression **visible/optional** (`--show-suppressed` or a list of
+  suppressed pairs in the report), so the silent miss stops being silent.
 
 ## Acceptance (DoD)
 
-- Регресс-фикстура `duplication_fp_guards_test.cpp`: «extract-в-модуль с живым оригиналом
-  (B мал, B⊂A, A велик) → пара РЕПОРТИТСЯ, не whole-file-suppressed». Готовый вход и оба
-  замера — в `fixtures/duplication/wholefile_extract_fp/` (subset → 0 пар; контраст-вариант
-  «A≈B» → 3 пары). Inline-стиль теста — как в существующих P0.x кейсах.
-- Существующие move/vendored-twin FP-фикстуры (A≈B, оба покрыты) по-прежнему глушатся.
-- Self-scan archcheck и корпус — без новых FP (как при removal P0.4: проверить дельту пар).
-- Если выбран git-rename-гейт — задокументировать в `duplication_architecture.md` (P0.2).
+- Regression fixture `duplication_fp_guards_test.cpp`: "extract-into-module with a live original
+  (B small, B⊂A, A large) → the pair is REPORTED, not whole-file-suppressed". The ready input and both
+  measurements are in `fixtures/duplication/wholefile_extract_fp/` (subset → 0 pairs; contrast variant
+  "A≈B" → 3 pairs). Inline test style — as in the existing P0.x cases.
+- Existing move/vendored-twin FP fixtures (A≈B, both covered) are still silenced.
+- archcheck self-scan and corpus — no new FP (as with removal of P0.4: check the delta of pairs).
+- If the git-rename gate is chosen — document it in `duplication_architecture.md` (P0.2).
 
-## Места в коде (для исполнителя)
+## Code locations (for the implementer)
 
-- `src/scan/duplication/duplication_scanner.cpp:281` — `wholeFileClonePairs` (правило
-  `n*5 >= minFrags*4`, односторонний `minFrags`).
+- `src/scan/duplication/duplication_scanner.cpp:281` — `wholeFileClonePairs` (rule
+  `n*5 >= minFrags*4`, one-sided `minFrags`).
 - `src/scan/duplication/duplication_scanner.cpp:316` — `phase9WholeFileSuppress`
-  (опц. `opts.enableWholeFileGuard`).
-- `src/cli/preview_commands.cpp:139` — строка отчёта `... whole-file clone group(s) suppressed`.
-- `docs/duplication_architecture.md:241` — описание P0.2 (обновить при правке).
+  (opt. `opts.enableWholeFileGuard`).
+- `src/cli/preview_commands.cpp:139` — report line `... whole-file clone group(s) suppressed`.
+- `docs/duplication_architecture.md:241` — description of P0.2 (update when fixing).

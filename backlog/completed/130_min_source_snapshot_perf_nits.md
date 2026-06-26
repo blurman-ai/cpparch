@@ -1,94 +1,94 @@
 # [SCAN] SourceSnapshot perf nits: transient 2× memory in read(), O(n) findFile
 
-**Дата создания:** 2026-06-19
-**Дата старта:** 2026-06-19
-**Дата завершения:** 2026-06-19
-**Статус:** done (nit 2). nit 1 + замер вынесены в #131
-**Модуль:** SCAN
-**Приоритет:** minor
-**Сложность:** low
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #129 (read-once snapshot — этот код), b01707a (hoist)
+**Created:** 2026-06-19
+**Started:** 2026-06-19
+**Completed:** 2026-06-19
+**Status:** done (nit 2). nit 1 + measurement moved out to #131
+**Module:** SCAN
+**Priority:** minor
+**Difficulty:** low
+**Blocks:** —
+**Blocked by:** —
+**Related:** #129 (read-once snapshot — this code), b01707a (hoist)
 
-## Цель
+## Goal
 
-Убрать две поведенчески нейтральные неэффективности в `scan::SourceSnapshot`,
-найденные состязательным ревью архитектуры #129. **Оба — про скорость/память, не
-про корректность**; результаты сканера не меняются. Отдельная задача намеренно:
-требует пересборки release, делать не «по ходу», а с замером.
+Remove two behaviorally neutral inefficiencies in `scan::SourceSnapshot`,
+found in the adversarial architecture review of #129. **Both are about speed/memory, not
+about correctness**; scanner results don't change. A separate task on purpose:
+requires a release rebuild, to be done not "along the way" but with a measurement.
 
-## Контекст (находки ревью #129, 2026-06-19)
+## Context (review findings #129, 2026-06-19)
 
-1. **Транзитивный 2× пик памяти в `SourceSnapshot::read`.**
-   `read()` копирует контент каждого файла дважды на время классификации —
-   один раз в вектор для `AuthoredScope::fromFiles` (которому нужен весь набор
-   `(path, content)`), второй раз в `files()` (`SnapshotFile.content`). Пик
-   ограничен и короткоживущий, но на крупнейших репах корпуса под ≤8 параллельными
-   воркерами это лишняя потеря headroom. Чинить: строить `fromFiles`-вход из
-   `string_view` на уже прочитанный контент (или классифицировать на лету при
-   заполнении `files()`), чтобы контент жил в одном месте.
+1. **Transient 2× memory peak in `SourceSnapshot::read`.**
+   `read()` copies the content of each file twice for the duration of classification —
+   once into a vector for `AuthoredScope::fromFiles` (which needs the full set of
+   `(path, content)`), a second time into `files()` (`SnapshotFile.content`). The peak is
+   bounded and short-lived, but on the largest repos in the corpus under ≤8 parallel
+   workers this is wasted headroom. Fix: build the `fromFiles` input from
+   `string_view` over the already-read content (or classify on the fly while
+   filling `files()`), so the content lives in a single place.
 
-2. **`findFile` — O(n) линейный поиск (O(n·m) на m запросов).**
-   `SourceSnapshot::findFile(path)` сканирует вектор. На diff-пути complexity
-   делает лукап на каждый изменённый файл. Сейчас не горячо — bulk-гейт (#117,
-   `diff_max_added_lines`) ограничивает m на non-bulk коммитах, — но это засада на
-   будущее. Чинить: `unordered_map<string_view→index>` рядом с вектором.
+2. **`findFile` — O(n) linear search (O(n·m) for m queries).**
+   `SourceSnapshot::findFile(path)` scans the vector. On the diff path, complexity
+   does a lookup for each changed file. Not hot right now — the bulk gate (#117,
+   `diff_max_added_lines`) limits m on non-bulk commits — but it's a trap for
+   the future. Fix: `unordered_map<string_view→index>` alongside the vector.
 
-### (смежная, опционально) empty-content в `authoredSources()`
-Ревью-нит: старый `collectNonVendoredSources` (clone) дропал пустые файлы;
-`authoredSources()` — нет. Output-нейтрально (пустой файл → 0 токенов → 0 клонов),
-но `fileCount`/`totalLoc` advisory-счётчики получают +0-записи. Если трогаем этот
-файл — добавить `&& !sf.content.empty()` в `authoredSources()` для паритета. Не
-обязательно.
+### (adjacent, optional) empty-content in `authoredSources()`
+Review nit: the old `collectNonVendoredSources` (clone) dropped empty files;
+`authoredSources()` does not. Output-neutral (empty file → 0 tokens → 0 clones),
+but the `fileCount`/`totalLoc` advisory counters get +0 records. If we touch this
+file — add `&& !sf.content.empty()` in `authoredSources()` for parity. Not
+mandatory.
 
-## План выполнения
+## Execution plan
 
-- [ ] Замерить текущий пик RSS на 2-3 крупных репах корпуса (baseline)
-- [ ] Нит 1: убрать двойную копию контента в `read()` (string_view / on-the-fly)
-- [x] Нит 2: индекс `findFile` через `unordered_map` — сделано 2026-06-19
-- [ ] (опц.) empty-guard в `authoredSources()` — НЕ делал: меняет advisory-счётчики
-      (`fileCount`/`totalLoc`), а это требует того же golden-сравнения, что и nit 1
-- [x] Перепроверить идентичность выхода: 540/540 тестов (включая complexity-drift и
-      new-clone-drift, которые дёргают `findFile`) + dogfood 0 — bit-identical на этом уровне
-- [ ] Пересобрать release, замерить пик RSS после — подтвердить выигрыш (для nit 1)
+- [ ] Measure the current peak RSS on 2-3 large corpus repos (baseline)
+- [ ] Nit 1: remove the double content copy in `read()` (string_view / on-the-fly)
+- [x] Nit 2: index `findFile` via `unordered_map` — done 2026-06-19
+- [ ] (opt.) empty-guard in `authoredSources()` — NOT done: changes the advisory counters
+      (`fileCount`/`totalLoc`), and that requires the same golden comparison as nit 1
+- [x] Re-verify output identity: 540/540 tests (including complexity-drift and
+      new-clone-drift, which exercise `findFile`) + dogfood 0 — bit-identical at this level
+- [ ] Rebuild release, measure peak RSS after — confirm the gain (for nit 1)
 
-## Сделано (2026-06-19) — nit 2
+## Done (2026-06-19) — nit 2
 
-`SourceSnapshot::findFile` был O(n) линейным поиском по вектору; complexity на
-diff-пути делает лукап на каждый изменённый файл. Добавлен
-`unordered_map<string_view→index>`, ключи смотрят в буферы `files_[i].path`.
-Снапшот сделан **non-copyable** (copy переаллоцировал бы пути и оставил
-висячие view; move безопасен — элементы вектора живут на куче и не переезжают).
-Все консьюмеры берут снапшот по `const&` или через `optional<SourceSnapshot>`
-(move), поэтому запрет копии ничего не сломал. Поведение `findFile` идентично
-(тот же first-match через `emplace`).
+`SourceSnapshot::findFile` was an O(n) linear search over the vector; complexity on
+the diff path does a lookup for each changed file. Added an
+`unordered_map<string_view→index>`, keys point into the `files_[i].path` buffers.
+The snapshot was made **non-copyable** (a copy would reallocate the paths and leave
+dangling views; move is safe — vector elements live on the heap and don't move).
+All consumers take the snapshot by `const&` or via `optional<SourceSnapshot>`
+(move), so banning copy didn't break anything. `findFile` behavior is identical
+(the same first-match via `emplace`).
 
-## Почему nit 1 отложен
+## Why nit 1 was deferred
 
-Чистый фикс двойной копии требует, чтобы `AuthoredScope::fromFiles` принимал
-`(string_view, string_view)` — это перегрузка в `authored_scope.h` (выход за
-рамки «менять только source_snapshot.h»), а сам тикет требует замера RSS
-до/после на release-сборке и крупных репах корпуса (golden-сравнение выхода
-обязательно). Это не «по ходу»-правка — оставлено на отдельный заход с замером.
+A clean fix of the double copy requires `AuthoredScope::fromFiles` to accept
+`(string_view, string_view)` — that's an overload in `authored_scope.h` (going beyond
+"change only source_snapshot.h"), and the ticket itself requires an RSS measurement
+before/after on a release build and large corpus repos (golden output comparison
+mandatory). This is not an "along the way" edit — left for a separate pass with a measurement.
 
-## Самопроверка
+## Self-check
 
-Главный риск — случайно изменить ПОВЕДЕНИЕ при «оптимизации» (порядок файлов,
-обработка пустых, классификация). Это рефактор под инвариант «выход не меняется»:
-golden-сравнение обязателено, не на глаз. «Стало быстрее» без доказательства
-идентичности выхода — недостаточно.
+The main risk is accidentally changing BEHAVIOR while "optimizing" (file order,
+handling of empties, classification). This is a refactor under the invariant "output doesn't change":
+golden comparison mandatory, not by eye. "Got faster" without proof of output
+identity is insufficient.
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение | Commit |
-|------|-----------|--------|
-| include/archcheck/scan/source_snapshot.h | индекс `findFile` через `unordered_map`; снапшот non-copyable | `29dab88` |
+| File | Change | Commit |
+|------|--------|--------|
+| include/archcheck/scan/source_snapshot.h | index `findFile` via `unordered_map`; snapshot non-copyable | `29dab88` |
 
-(nit 1 — read() без двойной копии — НЕ сделан, см. #131.)
+(nit 1 — read() without the double copy — NOT done, see #131.)
 
-## Итог
+## Outcome
 
-**Статус:** completed по nit 2 (findFile O(n)→O(1), поведенчески идентично).
-nit 1 (двойная копия контента в read) и его замер RSS требуют release-сборки +
-крупных реп корпуса + golden — вынесены в #131 (свежий golden-замер), пункт C.
+**Status:** completed for nit 2 (findFile O(n)→O(1), behaviorally identical).
+nit 1 (double content copy in read) and its RSS measurement require a release build +
+large corpus repos + golden — moved out to #131 (fresh golden measurement), item C.

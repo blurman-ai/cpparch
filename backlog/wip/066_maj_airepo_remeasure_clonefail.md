@@ -1,141 +1,170 @@
-# [RESEARCH][SCAN] Докачка part 2: перемер CLONEFAIL + расширение корпуса ≥300
+# [RESEARCH][SCAN] Re-download part 2: re-measuring CLONEFAIL + expanding the corpus ≥300
 
-**Дата создания:** 2026-06-01
-**Дата старта:** 2026-06-01
-**Статус:** wip
-**Модуль:** RESEARCH / SCAN
-**Приоритет:** major
-**Related:** #060 (валидация чекера), #054 (dense-корпус), #065 (generated-skip)
+**Created:** 2026-06-01
+**Started:** 2026-06-01
+**Status:** wip
+**Module:** RESEARCH / SCAN
+**Priority:** major
+**Related:** #060 (checker validation), #054 (dense corpus), #065 (generated-skip)
 
-## Цель
+## Goal
 
-Починить массовый CLONEFAIL в measure-фазе и перемерить упавших кандидатов, чтобы
-найти ИСТИННОЕ число AI-плотных реп с ≥300 коммитов/год (сейчас занижено ~в 3 раза)
-и доклонировать недостающие в `~/oss/_aidev_dense`.
+Fix the mass CLONEFAIL in the measure phase and re-measure the failed candidates, in order to
+find the TRUE number of AI-dense repos with ≥300 commits/year (currently undercounted ~3×)
+and finish cloning the missing ones into `~/oss/_aidev_dense`.
 
-## Контекст — найденный баг (2026-06-01)
+## Context — the bug found (2026-06-01)
 
-`measure_candidates.sh` гонялся с P=14–16 параллельных blobless-клонов. GitHub начал
-отбивать соединения → **CLONEFAIL = 16399 из 24642 (66%!)**. Реально измерено лишь
-8247. Из них ≥300 коммитов/год = 794, AI-плотных (conc≥5) = 81.
+`measure_candidates.sh` was run with P=14–16 parallel blobless clones. GitHub started
+refusing connections → **CLONEFAIL = 16399 of 24642 (66%!)**. Only 8247 were actually measured.
+Of those, ≥300 commits/year = 794, AI-dense (conc≥5) = 81.
 
-**Следствие:** крупные активные репы клонируются дольше → чаще падали → именно
-commit-dense репы систематически терялись. Истинное число ≥300 оценочно ~2400
-(794 / 0.33), AI-плотных ≥300 — кратно больше 81.
+**Consequence:** large active repos clone longer → failed more often → it's precisely the
+commit-dense repos that were systematically lost. The true number of ≥300 is estimated at ~2400
+(794 / 0.33), AI-dense ≥300 — many times more than 81.
 
-**Подтверждение (с поправкой):** переклон 20 CLONEFAIL с P=1, timeout 120с → оживают
-**6 из 20** (str1ker и др.). Значит CLONEFAIL — СМЕСЬ причин: часть concurrency/rate-limit,
-часть таймаут на крупных репах (120с мало для blobless большой истории — напр. FlexEngine),
-часть реально мёртвые/private. Undercount-фактор поэтому <3× (TBD при правильном перемере
-P=2 + timeout 300 + ретраи). Главное — он значимый, ≥300 занижено.
+**Confirmation (with correction):** re-cloning 20 CLONEFAILs with P=1, timeout 120s → revives
+**6 of 20** (str1ker etc.). So CLONEFAIL is a MIX of causes: part concurrency/rate-limit,
+part timeout on large repos (120s too little for a blobless large history — e.g. FlexEngine),
+part genuinely dead/private. The undercount factor is therefore <3× (TBD with a proper re-measure
+P=2 + timeout 300 + retries). The key point — it's significant, ≥300 is undercounted.
 
-## План выполнения
+## Execution plan
 
-- [x] Починить `measure_candidates.sh`: дефолт P=6→3, ретрай-обёртка вокруг clone
-      (RETRIES=3 = ретрай ≥2) с нарастающим пейсингом. Источники бага P=16 в
-      `keep_downloading.sh` и `discover_finish4.sh` снижены до P=3 (домер) / P=2 (ретрай).
-- [~] Перемерить CLONEFAIL с P=2–3. **Сначала сэмпл 2000** (решение пользователя) для
-      оценки undercount-фактора без 45ч полного прогона → `sample_estimate.sh` (durable,
-      detached), пишет `sample2000_measured.tsv` + funnel в `sample_estimate.log`.
-      Sanity 12 репо: ожило 4/12 (~33%), все <300 (skip). Полный перемер — после сэмпла.
-- [x] Size-cap при клоне в `_aidev_dense`: 1.5ГБ → **500 МБ** (решение пользователя,
-      отсекает 10 тяжёлых реп из 81 dense, ~9.4ГБ). Добавлен API-precheck размера в
-      `clone_expand.sh` (не качать заведомо крупные). Потолок диска `_aidev_dense` = 45 ГБ.
-- [ ] Пересобрать пул ≥300 и clonelist (conc≥5) по обновлённым данным.
-- [ ] Доклонировать новые AI-плотные ≥300 в `_aidev_dense` (per-repo cap 500 МБ, диск 45 ГБ).
-- [ ] harvest2 (новая ось: `sort=stars`, окно pushed назад). C-проход НЕ включать.
-- [ ] Обновить EXPANSION_REPORT + METHODOLOGY с честным funnel (с поправкой на баг).
+- [x] Fix `measure_candidates.sh`: default P=6→3, a retry wrapper around clone
+      (RETRIES=3 = retry ≥2) with escalating pacing. The P=16 bug sources in
+      `keep_downloading.sh` and `discover_finish4.sh` lowered to P=3 (re-measure) / P=2 (retry).
+- [~] Re-measure CLONEFAIL with P=2–3. **First a sample of 2000** (user's decision) to
+      estimate the undercount factor without a 45h full run → `sample_estimate.sh` (durable,
+      detached), writes `sample2000_measured.tsv` + a funnel in `sample_estimate.log`.
+      Sanity 12 repos: 4/12 revived (~33%), all <300 (skip). The full re-measure — after the sample.
+- [x] Size-cap on clone into `_aidev_dense`: 1.5GB → **500 MB** (user's decision,
+      cuts 10 heavy repos out of the 81 dense, ~9.4GB). Added an API size precheck in
+      `clone_expand.sh` (don't download the knowingly large). The `_aidev_dense` disk ceiling = 45 GB.
+- [ ] Rebuild the ≥300 pool and the clonelist (conc≥5) from the updated data.
+- [ ] Finish cloning the new AI-dense ≥300 into `_aidev_dense` (per-repo cap 500 MB, disk 45 GB).
+- [ ] harvest2 (a new axis: `sort=stars`, the pushed window going back). Do NOT include the C pass.
+- [ ] Update EXPANSION_REPORT + METHODOLOGY with an honest funnel (corrected for the bug).
 
-### Замер dense-корпуса (2026-06-01, агент через `gh api`)
-81 AI-плотных ≥300 (conc≥5), все живые, все C++, ни одной archived. Суммарно ~16.5 ГБ.
-Тяжёлых >500 МБ — 10 (HyperXTalk 2.6ГБ, arduino-esp32 2.1ГБ, UE5-MCP 1.4ГБ, Fincept 769,
+### Measuring the dense corpus (2026-06-01, agent via `gh api`)
+81 AI-dense ≥300 (conc≥5), all alive, all C++, none archived. ~16.5 GB total.
+Heavy >500 MB — 10 (HyperXTalk 2.6GB, arduino-esp32 2.1GB, UE5-MCP 1.4GB, Fincept 769,
 Exasim 767, piper-plus 728, NAAb 716, LogViewer 617, gse_fork 583, wiRedPanda 565) =
-~9.4 ГБ / 56% бюджета. Без них 71 репо ≈ 7.5 ГБ. Топ по коммитам/год: deltahdl (9911),
+~9.4 GB / 56% of the budget. Without them 71 repos ≈ 7.5 GB. Top by commits/year: deltahdl (9911),
 kiln (4444), PlasmaZones (3757), komai (3419), NereusSDR (2788).
 
-## Результат оценки (сэмпл 410 случайных CLONEFAIL, 2026-06-01)
+## Estimation result (a sample of 410 random CLONEFAIL, 2026-06-01)
 
-Баг подтверждён, занижение **~2.5–3×**:
+The bug is confirmed, undercount **~2.5–3×**:
 
-| метрика | было | +из перемера (экстрап.) | истинное |
+| metric | was | +from re-measure (extrap.) | true |
 |---|---:|---:|---:|
-| revival CLONEFAIL | — | **89%** клонируются | баг = почти весь rate-limit |
-| ≥300 коммитов/год | 794 | +~1670 | **~2460** (×3.1) |
-| AI-плотных conc≥5 ≥300 | 81 | +~120 | **~200** (×2.5) |
+| revival of CLONEFAIL | — | **89%** clone | bug = nearly all rate-limit |
+| ≥300 commits/year | 794 | +~1670 | **~2460** (×3.1) |
+| AI-dense conc≥5 ≥300 | 81 | +~120 | **~200** (×2.5) |
 
-Сэмпл влит в MEAS → CLONEFAIL 16399 → **16028**. Найденные dense в перемере: Banana (conc 81),
-QCView-Player (13), esphome/esphome (6639 комм/год, conc 9).
+The sample was merged into MEAS → CLONEFAIL 16399 → **16028**. Dense found in the re-measure: Banana (conc 81),
+QCView-Player (13), esphome/esphome (6639 commits/year, conc 9).
 
-## Reboot-safety (2026-06-02): возобновление после перезагрузки в Windows
+## Reboot-safety (2026-06-02): resuming after a reboot into Windows
 
-Всё состояние вынесено из `/tmp` (очищается при reboot) в постоянный
-`~/oss/_aidev_state/` (на ext4, переживает reboot в Windows).
-Скрипты сделаны resumable (пропускают сделанное), автозапуск через `@reboot`.
+All state was moved out of `/tmp` (cleared on reboot) into the persistent
+`~/oss/_aidev_state/` (on ext4, survives a reboot into Windows).
+The scripts are made resumable (they skip what's done), with autostart via `@reboot`.
 
-| Процесс | Resumable-механизм | Файл |
+| Process | Resumable mechanism | File |
 |---|---|---|
-| Перемер CLONEFAIL | OUT `_aidev_state/clonefail_remeasured.tsv`, skip по repo, merge+флаг `remeasure.done` | `remeasure_resumable.sh` |
-| Докачка dense | ждёт `remeasure.done`, `clone_expand` идемпотентен, флаг `finish.done` | `finish_resumable.sh` |
-| round2 верификация | пропуск реп с готовым `verify_results2/<repo>.json`, exclude из стейта | `verify_findings_round2.js` (resume-фильтр) |
-| Автозапуск @reboot | `/etc/cron.d/airepo_resume` → master, идемпотентен (флаги+pgrep) | `resume_all.sh`, `round2_headless.sh` |
+| CLONEFAIL re-measure | OUT `_aidev_state/clonefail_remeasured.tsv`, skip by repo, merge+flag `remeasure.done` | `remeasure_resumable.sh` |
+| Dense download | waits for `remeasure.done`, `clone_expand` idempotent, flag `finish.done` | `finish_resumable.sh` |
+| round2 verification | skip of repos with a ready `verify_results2/<repo>.json`, exclude from state | `verify_findings_round2.js` (resume filter) |
+| Autostart @reboot | `/etc/cron.d/airepo_resume` → master, idempotent (flags+pgrep) | `resume_all.sh`, `round2_headless.sh` |
 
-При следующей загрузке Linux cron сам поднимет `resume_all.sh` → перемер+финишер
-(shell) + round2 (headless claude) продолжатся с точки останова. Ручной запуск:
+On the next boot into Linux, cron itself will bring up `resume_all.sh` → re-measure+finisher
+(shell) + round2 (headless claude) will continue from the stop point. Manual launch:
 `bash experiments/ai_repo_run/resume_all.sh`.
 
-## Стратегия «не качать лишнего» (2026-06-02)
+## "Don't download extra" strategy (2026-06-02)
 
-Корень неэффективности: клон тянул весь граф истории, а меряем только пост-май.
-+ непойманные гиганты (chromium, o3de) застревали на таймаут-ретраях.
+The root of the inefficiency: clone pulled the whole history graph, while we measure only the
+post-May part. + uncaught giants (chromium, o3de) got stuck on timeout retries.
 
-| Лекало | Реализация |
+| Template | Implementation |
 |---|---|
-| **shallow-since=2025-05-01** (главный) | `measure_candidates.sh`: тянем только пост-май историю → cut в разы; общий предохранитель против любых гигантов |
-| name-фильтр зеркал | `remeasure_resumable.sh` GIANT-regex: chromium/llvm/aosp/webkit/gecko/o3de/unreal/tensorflow/src-leak → TOOBIG-skip без клона |
-| API-фолбэк на падении shallow | 1 вызов `commits?since` различает «нет свежих» (skip) vs CLONEFAIL |
+| **shallow-since=2025-05-01** (the main one) | `measure_candidates.sh`: pull only the post-May history → cut by several times; a general safeguard against any giants |
+| name filter of mirrors | `remeasure_resumable.sh` GIANT regex: chromium/llvm/aosp/webkit/gecko/o3de/unreal/tensorflow/src-leak → TOOBIG-skip without cloning |
+| API fallback on shallow failure | 1 call `commits?since` distinguishes "no fresh" (skip) vs CLONEFAIL |
 
-Граница: conc нельзя узнать без измерения → 16k всё равно проходим, но дёшево.
+Boundary: conc can't be known without measuring → we still go through 16k, but cheaply.
 
-## В работе (durable, resumable — снапшот 2026-06-02 ~14:4x)
+## In progress (durable, resumable — snapshot 2026-06-02 ~14:4x)
 
-- **Перемер 16028** (resumable, пишет в стейт): OUT **7616**, новых dense **62**, TOOBIG-skip 10.
-  Процессы вычищены вручную (зомби-`xargs` залипали на o3de; kill из sandbox не доходит —
-  пользователь бил из терминала). На resume поднимется один чистый инстанс с shallow-since.
-- **round2 верификация**: **66/135** реп.
-- **Финишер dense** ждёт `remeasure.done`. Корпус **29 ГБ / 367 дир**. Scratch-мусор ~3.7ГБ (чистится).
+- **Re-measure of 16028** (resumable, writes to state): OUT **7616**, new dense **62**, TOOBIG-skip 10.
+  Processes cleaned up by hand (zombie `xargs` got stuck on o3de; kill from sandbox doesn't reach them —
+  the user struck from the terminal). On resume one clean instance with shallow-since will come up.
+- **round2 verification**: **66/135** repos.
+- **Dense finisher** waits for `remeasure.done`. Corpus **29 GB / 367 dirs**. Scratch junk ~3.7GB (being cleaned).
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| P=2–3 вместо 14–16 | P=16 → GitHub rate-limit → 66% CLONEFAIL |
-| ретрай + пейсинг | разовый клон ненадёжен под нагрузкой |
-| size-cap 500 МБ (было 1.5ГБ) | 10/81 тяжёлых = 56% диск-бюджета; широта важнее |
-| API-precheck `.size` перед клоном | не качать заведомо крупные репы (а потом удалять) |
-| сорт клонлиста по коммитам/год | максимум авторского сигнала; `commits/МБ` — вторичная метрика плотности |
-| `language:c` убран | это чистый C, не C++ — мусор для исследования |
+| Decision | Reason |
+|----------|--------|
+| P=2–3 instead of 14–16 | P=16 → GitHub rate-limit → 66% CLONEFAIL |
+| retry + pacing | a single clone is unreliable under load |
+| size-cap 500 MB (was 1.5GB) | 10/81 heavy = 56% of the disk budget; breadth matters more |
+| API precheck `.size` before cloning | don't download knowingly large repos (and then delete) |
+| sort the clonelist by commits/year | maximum author signal; `commits/MB` — a secondary density metric |
+| `language:c` removed | that's pure C, not C++ — junk for the research |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `measure_candidates.sh` | дефолт P 6→3, ретрай (RETRIES=3) + пейсинг, **shallow-since=2025-05-01**, API-фолбэк |
-| `remeasure_resumable.sh` | + GIANT name-фильтр зеркал (chromium/o3de/llvm/…) → TOOBIG-skip |
-| `clone_expand.sh` | cap 600→500, API-precheck размера перед клоном |
+| File | Change |
+|------|--------|
+| `measure_candidates.sh` | default P 6→3, retry (RETRIES=3) + pacing, **shallow-since=2025-05-01**, API fallback |
+| `remeasure_resumable.sh` | + GIANT name filter of mirrors (chromium/o3de/llvm/…) → TOOBIG-skip |
+| `clone_expand.sh` | cap 600→500, API size precheck before cloning |
 | `keep_downloading.sh` | measure P=16→3, clone cap 1500→500 |
-| `discover_finish4.sh` | measure P=16→3 (ретрай P=2), clone cap 1500→500 |
-| `remeasure_clonefail.sh` (new) | перемер CLONEFAIL P=2 + merge/дедуп в MEAS |
-| `sample_estimate.sh` (new) | оценка undercount на сэмпле 2000 |
-| `remeasure_resumable.sh` (new) | resumable-перемер (стейт, skip-done, флаг) |
-| `finish_resumable.sh` (new) | resumable-докачка dense по флагу `remeasure.done` |
-| `resume_all.sh` + `round2_headless.sh` (new) | мастер @reboot-возобновления + headless round2 |
-| `verify_findings_round2.js` (new) | round2: копипаст 3× (exclude round1) + cycle-intro археология, resume-фильтр |
-| `round2_resume_prompt.txt` (new) | промпт headless-возобновления round2 |
-| `new300_measured.tsv` | дозапись перемеренных (через merge resumable) |
-| `harvest2.sh` | новая ось (cpp-only) — план |
+| `discover_finish4.sh` | measure P=16→3 (retry P=2), clone cap 1500→500 |
+| `remeasure_clonefail.sh` (new) | re-measure CLONEFAIL P=2 + merge/dedup into MEAS |
+| `sample_estimate.sh` (new) | undercount estimate on a sample of 2000 |
+| `remeasure_resumable.sh` (new) | resumable re-measure (state, skip-done, flag) |
+| `finish_resumable.sh` (new) | resumable dense download by the `remeasure.done` flag |
+| `resume_all.sh` + `round2_headless.sh` (new) | the @reboot resume master + headless round2 |
+| `verify_findings_round2.js` (new) | round2: copy-paste 3× (exclude round1) + cycle-intro archaeology, resume filter |
+| `round2_resume_prompt.txt` (new) | the round2 headless-resume prompt |
+| `new300_measured.tsv` | append of the re-measured (via resumable merge) |
+| `harvest2.sh` | a new axis (cpp-only) — planned |
 
-Стейт (не в git, persistent): `~/oss/_aidev_state/`. Cron: `/etc/cron.d/airepo_resume`.
+State (not in git, persistent): `~/oss/_aidev_state/`. Cron: `/etc/cron.d/airepo_resume`.
 
-## Примечание
-Разнесено из сессии 2026-06-01: текущий фокус — АНАЛИЗ имеющегося корпуса
-(`CORPUS_CHECK_REPORT.md`, 112 ≥300-реп), докачка вынесена сюда (part 2).
+## Phase 2026-06-26 — fold the visible AI cohort (377) in as an agentic STRATUM
+
+Trigger: the trending experiment (top-20 C++ by star-velocity) → along the way confirmed bug #066
+on a fresh sample: **6 of 6** trending repos marked by the old method as CLONEFAIL/TOOBIG
+(openvino, OrcaSlicer, PCSX2, librealsense, wazuh, tensorflow) **revived** with the proper
+flags (`--filter=blob:none --shallow-since=2025-05-01 --no-checkout` + `GIT_LFS_SKIP_SMUDGE=1`,
+P≤5, timeout 900). CLONEFAIL ≠ junk — a method bug (as established above).
+
+Correction of a false conclusion made along the way: "0 AI repos in CLONEFAIL" is a **tautology**, not an argument
+(CLONEFAIL repos were not measured for AI at all, the clone failed before the measurement). The real loss is
+precisely commit-dense/AI-dense, as stated in §Context.
+
+State: `_aidev_dense` / `_aidev_state` cleared (0 dirs) — we clone anew.
+
+Source when: `ai_guaranteed_cpp.tsv` (461 AI-measured) ∩ NOT in the drift dataset
+`results_full.boolrule.jsonl` = **377** repos. Of the 460 AI cohort, only 83 are in the corpus.
+
+- [~] Clone of 377 visible AI repos (`experiments/trending_run/clone.sh` method: blob:none +
+      shallow-since + no-checkout + LFS-skip, P=4, timeout 300, retries) → `~/oss/<owner_name>`.
+- [ ] Full per-commit drift scan (`run_worklist.py`, window from 2025-05-01, no merges,
+      no cap) → `experiments/per_commit/results_ai_stratum.jsonl` with the field `cohort="ai_stratum"`.
+- [ ] Add to the corpus AS A LABELED STRATUM, don't silently merge into `results_full`.
+
+**Sampling discipline (mandatory, otherwise the work does harm):** this is an **oversampled agentic stratum**,
+NOT a representative sample. It goes into population estimates (drift shares, agentic-vs-human by
+population) ONLY with weighting or exclusion; for within-stratum / case-control
+comparisons — as is. Cherry-picking by AI% is forbidden (selection-on-the-variable); we take the WHOLE
+visible stratum, not the top. The source of this discipline: the analysis in the 2026-06-26 session.
+
+## Note
+Split out of the 2026-06-01 session: the current focus is the ANALYSIS of the existing corpus
+(`CORPUS_CHECK_REPORT.md`, 112 ≥300-repos), the download moved here (part 2).

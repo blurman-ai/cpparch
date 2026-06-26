@@ -1,78 +1,78 @@
 # [CHEAP-DRIFT][SCAN] Indentation-Complexity Drift
 
-**Дата создания:** 2026-06-10
-**Дата старта:** —
-**Статус:** new
-**Модуль:** SCAN / DIFF / REPORT
-**Приоритет:** minor
-**Сложность:** medium
-**Блокирует:** —
-**Заблокирован:** —
+**Date created:** 2026-06-10
+**Date started:** —
+**Status:** new
+**Module:** SCAN / DIFF / REPORT
+**Priority:** minor
+**Complexity:** medium
+**Blocks:** —
+**Blocked by:** —
 **Related:** #029 (metric_regression_detection), #030 (baseline_file_flag), #093 (flag_argument), #094 (param_count_and_accretion), #101 (local_complexity_drift)
 
-## Цель
+## Goal
 
-Дать грубый text-only proxy на "код стал глубже вложен / ветвистее", не притягивая AST или полноценный complexity analyzer.
+Provide a rough text-only proxy for "the code got more deeply nested / branchier", without dragging in AST or a full complexity analyzer.
 
-Это именно drift-эвристика. Она не заменяет `lizard`, не спорит с cyclomatic complexity и не должна трактоваться как точная метрика сложности.
+This is precisely a drift heuristic. It does not replace `lizard`, does not argue with cyclomatic complexity, and must not be treated as a precise complexity metric.
 
-## Контекст
+## Context
 
-- Источник постановки: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 7.
-- В репозитории уже есть lizard в dogfood/static-analysis. Значит, новая эвристика должна отвечать на другой вопрос: "стало ли заметно хуже относительно base ref", а не "сколько у функции объективно CCN".
-- Текущий baseline-механизм хранит violations, а не per-file text metrics. Поэтому реалистичный первый проход — comparison current vs git ref / diff, а не новый глобальный snapshot format в рамках этой задачи.
-- Сигнал вероятностный и чувствителен к formatter/style changes. Значит, default gate запрещён.
-- После появления #101 эту задачу нельзя реализовывать как отдельный параллельный продукт: либо она остаётся узким fallback/proxy внутри `local_complexity_drift`, либо закрывается как поглощённая более сильным function-aware сигналом.
+- Source of the assignment: `docs/codex_archcheck_cheap_drift_tasks.md`, Task 7.
+- The repo already has lizard in dogfood/static-analysis. So the new heuristic must answer a different question: "did it get noticeably worse relative to the base ref", not "what is a function's objective CCN".
+- The current baseline mechanism stores violations, not per-file text metrics. So the realistic first pass is a comparison of current vs git ref / diff, not a new global snapshot format within this task.
+- The signal is probabilistic and sensitive to formatter/style changes. So a default gate is forbidden.
+- After #101 appeared, this task cannot be implemented as a separate parallel product: either it stays a narrow fallback/proxy inside `local_complexity_drift`, or it is closed as absorbed by the stronger function-aware signal.
 
-## План выполнения
+## Execution plan
 
 ### Detection contract
 
-- На уровне файла или function-like region считать:
+- At the file or function-like region level, compute:
   - max indentation;
   - average indentation;
   - variance;
-  - число строк с глубокой индентацией.
-- `CMP.1.indentation_complexity_drift` возникает, когда current заметно хуже base ref по одному или нескольким порогам.
-- **Статус относительно #101 (после дизайн-ресёрча 2026-06-11):** отступы — прокси
-  классических метрик с унаследованной корреляцией с объёмом (Hindle ICPC 2008;
-  Gil & Lalouche EMSE 2017) и форматозависимостью (выравнивание, табы — репро в
-  `docs/research/local_complexity_drift_scorer_review.md`). Поэтому: в score #101
-  они НЕ входят; эта задача реализуется только как **file-level fallback** для
-  файлов, где function-discovery #101 не сработал (макро-тяжёлые), и как
-  диагностические поля отчёта. Если после #101 fallback окажется не нужен —
-  закрыть как absorbed.
+  - number of lines with deep indentation.
+- `CMP.1.indentation_complexity_drift` arises when current is noticeably worse than the base ref on one or more thresholds.
+- **Status relative to #101 (after design research 2026-06-11):** indentation is a proxy
+  for classic metrics with an inherited correlation with volume (Hindle ICPC 2008;
+  Gil & Lalouche EMSE 2017) and a format dependency (alignment, tabs — reproduced in
+  `docs/research/local_complexity_drift_scorer_review.md`). Therefore: it does NOT enter the #101 score;
+  this task is implemented only as a **file-level fallback** for
+  files where #101's function-discovery did not fire (macro-heavy), and as
+  diagnostic report fields. If after #101 the fallback turns out to be unneeded —
+  close as absorbed.
 
 ### Runtime shape
 
-- Работать по non-empty, non-comment-only строкам.
-- Tabs переводить в columns через фиксированный `tab_width`.
-- Первый проход можно делать на file level; finer-grained function ranges допустимы только если это получается дёшево из уже существующего scanner logic.
-- Сравнение вести через git ref / diff; отдельный saved metric baseline не обязателен.
+- Work on non-empty, non-comment-only lines.
+- Convert tabs to columns via a fixed `tab_width`.
+- The first pass can be done at file level; finer-grained function ranges are allowed only if they come cheaply out of existing scanner logic.
+- Run the comparison via git ref / diff; a separate saved metric baseline is not required.
 
 ### Noise control
 
-- Документировать чувствительность к mass reformat.
-- Желательно уметь быстро отключать файлы, где вся разница вызвана formatter-only commit.
-- Не учитывать пустые строки и pure comment lines.
+- Document the sensitivity to mass reformat.
+- It would be nice to be able to quickly disable files where the entire difference is caused by a formatter-only commit.
+- Do not count empty lines and pure comment lines.
 
-### Конкретный план в текущем коде
+### Concrete plan in the current code
 
-1. Не писать ещё один comment-stripper:
-   использовать shared `text_scan.cpp`, который уже нужен #093/#095.
-2. Добавить `include/archcheck/scan/indentation_metrics.h` + `src/scan/indentation_metrics.cpp` с чистой file-level функцией:
-   вход — очищенный текст;
-   выход — `IndentationMetrics { maxIndent, avgIndent, variance, deepLineCount }`.
-3. Full snapshot можно считать по `collectNonVendoredSources()`, но практический приоритет — compare current vs base ref по changed files.
-4. Для diff path не нужен hunk parser:
-   достаточно `git::changedCppFiles()` из [src/git/git_state.cpp](~/projects/cpparch/src/git/git_state.cpp),
-   затем old/new contents читать через `GitObjectFileSource` и `DiskFileSource`.
-5. Baseline JSON v1 не расширять:
-   текущий baseline contract хранит violations, а не текстовые метрики. Эта задача должна жить на ref comparison, а не на новом snapshot format.
-6. Detector может возвращать file-level `Violation` с `line = 0`; искусственно выбирать "самую глубокую строку" не нужно.
-7. Тесты:
-   новый `tests/unit/scan/indentation_metrics_test.cpp`;
-   1-2 compare сценария в [tests/integration/diff/git_diff_test.cpp](~/projects/cpparch/tests/integration/diff/git_diff_test.cpp), чтобы проверить работу через реальные refs.
+1. Do not write yet another comment-stripper:
+   use the shared `text_scan.cpp` already needed by #093/#095.
+2. Add `include/archcheck/scan/indentation_metrics.h` + `src/scan/indentation_metrics.cpp` with a pure file-level function:
+   input — cleaned text;
+   output — `IndentationMetrics { maxIndent, avgIndent, variance, deepLineCount }`.
+3. A full snapshot can be computed via `collectNonVendoredSources()`, but the practical priority is comparing current vs base ref on changed files.
+4. The diff path needs no hunk parser:
+   `git::changedCppFiles()` from [src/git/git_state.cpp](~/projects/cpparch/src/git/git_state.cpp) is enough,
+   then read old/new contents via `GitObjectFileSource` and `DiskFileSource`.
+5. Do not extend baseline JSON v1:
+   the current baseline contract stores violations, not text metrics. This task must live on ref comparison, not on a new snapshot format.
+6. The detector may return a file-level `Violation` with `line = 0`; there is no need to artificially pick the "deepest line".
+7. Tests:
+   new `tests/unit/scan/indentation_metrics_test.cpp`;
+   1-2 compare scenarios in [tests/integration/diff/git_diff_test.cpp](~/projects/cpparch/tests/integration/diff/git_diff_test.cpp), to verify it works via real refs.
 
 ## Fixtures & Tests
 
@@ -81,69 +81,69 @@
 - `fixtures/indentation_complexity_drift/pass/comment_only_noise.cpp`
 - `fixtures/indentation_complexity_drift/pass/tab_indentation.cpp`
 
-Обязательные проверки:
+Mandatory checks:
 
-- рост deep-indented lines детектится;
-- comment-only шум не влияет;
-- tabs считаются предсказуемо;
-- result остаётся advisory/report only;
-- formatter-only false-positive profile описан явно.
+- growth of deep-indented lines is detected;
+- comment-only noise has no effect;
+- tabs count predictably;
+- the result stays advisory/report only;
+- the formatter-only false-positive profile is described explicitly.
 
-## Критерии готовности
+## Readiness criteria
 
-- Без AST / libclang.
-- Сравнение current vs base ref достаточно для v1.
-- Метрика не претендует на точность CCN.
-- По умолчанию не участвует в gate semantics.
+- No AST / libclang.
+- Comparing current vs base ref is enough for v1.
+- The metric does not claim CCN precision.
+- By default it does not participate in gate semantics.
 
-## Не делать
+## Do not do
 
-- Подменять rule существующим `lizard`.
-- Строить полноценный parser block structure.
-- Считать это точной архитектурной метрикой.
-- Включать default gate.
+- Replace the rule with the existing `lizard`.
+- Build a full parser of block structure.
+- Treat this as a precise architectural metric.
+- Enable a default gate.
 
-## Сделано
+## Done
 
-- (пусто)
+- (empty)
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. Зафиксировать набор text metrics и thresholds для v1.
-2. Реализовать line classifier и indent counter.
-3. Подключить comparison against base ref.
-4. Проверить реакцию на real-world reformat diff.
+1. Fix the set of text metrics and thresholds for v1.
+2. Implement the line classifier and indent counter.
+3. Wire up the comparison against base ref.
+4. Check the reaction to a real-world reformat diff.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Drift relative to base ref, а не absolute complexity | Иначе check дублирует linter/metric tool |
-| File-level v1 достаточно | Это самый дешёвый и объяснимый старт |
-| Advisory/report only | Высокая чувствительность к formatting noise |
-| Separate from graph metrics | Сигнал текстовый, не graph-derived |
+| Drift relative to base ref, not absolute complexity | Otherwise the check duplicates a linter/metric tool |
+| File-level v1 is enough | It is the cheapest and most explainable start |
+| Advisory/report only | High sensitivity to formatting noise |
+| Separate from graph metrics | The signal is textual, not graph-derived |
 
-## Планируемые файлы
+## Planned files
 
-| Область | Изменение |
+| Area | Change |
 |---------|-----------|
-| `src/scan/` или `src/cheap_drift/` | Indentation metrics collector |
+| `src/scan/` or `src/cheap_drift/` | Indentation metrics collector |
 | `src/main.cpp` / diff comparison | Current vs base ref orchestration |
-| `tests/unit/` | Метрики и шумоподавление |
-| `tests/integration/` | Ref-comparison сценарии |
-| `fixtures/indentation_complexity_drift/` | `pass/` и `fail/` фикстуры |
+| `tests/unit/` | Metrics and noise suppression |
+| `tests/integration/` | Ref-comparison scenarios |
+| `fixtures/indentation_complexity_drift/` | `pass/` and `fail/` fixtures |
 
-## Итог (закрытие)
+## Outcome (closure)
 
-**Статус:** dropped (absorbed)
-**Дата:** 2026-06-12
+**Status:** dropped (absorbed)
+**Date:** 2026-06-12
 
-Закрыта по вердикту #109: корпусная валидация (945 находко-коммитов на 84
-репах, фиксы A–K) доказала, что function-aware discovery (#101) надёжно
-покрывает реальные репы — text-only indentation proxy как fallback не нужен.
-Сценарии, ради которых он задумывался (битый парс, макро-тяжёлый код),
-закрыты точечно: brace-guard, largest-#if-branch, scope-tracking.
+Closed per the verdict of #109: corpus validation (945 finding-commits across 84
+repos, fixes A–K) proved that function-aware discovery (#101) reliably
+covers real repos — a text-only indentation proxy as a fallback is not needed.
+The scenarios it was conceived for (broken parse, macro-heavy code)
+are closed pointwise: brace-guard, largest-#if-branch, scope-tracking.

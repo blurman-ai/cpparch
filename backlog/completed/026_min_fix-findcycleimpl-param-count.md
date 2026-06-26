@@ -1,67 +1,67 @@
-# [RULES][SF] Уменьшить количество параметров findCycleImpl
+# [RULES][SF] Reduce the number of findCycleImpl parameters
 
-**Дата создания:** 2026-05-28
-**Дата старта:** 2026-05-28
-**Статус:** done
-**Модуль:** RULES
-**Приоритет:** minor
-**Сложность:** small
-**Блокирует:** —
-**Заблокирован:** —
+**Creation date:** 2026-05-28
+**Start date:** 2026-05-28
+**Status:** done
+**Module:** RULES
+**Priority:** minor
+**Difficulty:** small
+**Blocks:** —
+**Blocked by:** —
 **Related:** —
 
-## Цель
+## Goal
 
-Устранить нарушение lizard-порога (≤5 параметров) в `findCycleImpl`, не меняя алгоритм.
+Eliminate the lizard-threshold violation (≤5 parameters) in `findCycleImpl`, without changing the algorithm.
 
-## Контекст
+## Context
 
-`findCycleImpl` в `src/rules/sf9_no_cycles.cpp` — внутренний DFS для поиска цикла
-внутри одного SCC имела 7 параметров при пороге lizard ≤5.
+`findCycleImpl` in `src/rules/sf9_no_cycles.cpp` — an internal DFS for finding a cycle
+within a single SCC had 7 parameters at the lizard threshold of ≤5.
 
-### Почему возникло
+### Why it arose
 
-Функция написана как свободный рекурсивный DFS с переносом всего mutable-состояния
-через стек вызовов. `bool started` — костыль чтобы не остановиться на стартовой
-вершине сразу (`cur == target`). В C++ это естественно решается через `struct`
-с полями — состояние живёт в полях, а не параметрах.
+The function is written as a free recursive DFS carrying all the mutable state
+through the call stack. `bool started` is a crutch to avoid stopping at the start
+vertex immediately (`cur == target`). In C++ this is naturally solved via a `struct`
+with fields — the state lives in fields, not parameters.
 
-## Сделано
+## Done
 
-- [x] Ввести `struct CycleFinder` в анонимном namespace
-- [x] Перенести `findCycleImpl` в `CycleFinder::dfs(NodeId cur)` — 1 параметр
-- [x] Убрать `bool started`; стартовый вызов идёт по соседям `start`
-- [x] lizard: 0 нарушений
-- [x] Тесты: 11 assertions in 4 test cases — all passed
+- [x] Introduce `struct CycleFinder` in an anonymous namespace
+- [x] Move `findCycleImpl` into `CycleFinder::dfs(NodeId cur)` — 1 parameter
+- [x] Remove `bool started`; the start call goes over the neighbors of `start`
+- [x] lizard: 0 violations
+- [x] Tests: 11 assertions in 4 test cases — all passed
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
 | `src/rules/sf9_no_cycles.cpp` | `findCycleImpl` → `CycleFinder::dfs` |
 
 ---
 
-**Дата завершения:** 2026-05-28
+**Completion date:** 2026-05-28
 
-## Как работает
+## How it works
 
-`CycleFinder` — struct в anonymous namespace. Константные поля (`g`, `members`,
-`target`) инициализируются при создании. Мutable-состояние (`vis`, `path`) —
-поля, накапливаются в `dfs()`. `check()` создаёт `CycleFinder` на каждый SCC
-и запускает `finder.dfs(next)` по соседям стартовой вершины — это заменяет
-`bool started` без дополнительной логики.
+`CycleFinder` — a struct in an anonymous namespace. Const fields (`g`, `members`,
+`target`) are initialized at creation. The mutable state (`vis`, `path`) —
+fields, accumulated in `dfs()`. `check()` creates a `CycleFinder` per SCC
+and runs `finder.dfs(next)` over the neighbors of the start vertex — this replaces
+`bool started` without extra logic.
 
-## Чем управляется
+## What controls it
 
-Ничем — внутренняя деталь реализации `Sf9NoCycles::check()`.
+Nothing — an internal implementation detail of `Sf9NoCycles::check()`.
 
-## С чем связана
+## What it's connected to
 
 `src/rules/sf9_no_cycles.cpp`, `include/archcheck/rules/sf9_no_cycles.h`,
 `tests/unit/rules/sf9_no_cycles_test.cpp`.
 
-## Диагностика
+## Diagnostics
 
-При регрессии: `lizard --arguments 5 --warnings_only src/rules/sf9_no_cycles.cpp`
-должен вернуть 0 строк вывода.
+On a regression: `lizard --arguments 5 --warnings_only src/rules/sf9_no_cycles.cpp`
+should return 0 lines of output.

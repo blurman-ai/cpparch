@@ -43,7 +43,7 @@ Driven by "can't go public with Russian" — public surface first, archive last.
 4. Keep proper nouns and terms: `archcheck`, Lakos, Martin, libclang, Core Guidelines, rules
    `SF.7/8/9/21`, metrics `CCD/ACD/NCCD`, task ids (`#127`), markers (`GCC8-COMPAT`).
 5. `TEST_CASE("…")` — translate only the label text (it's a label, not fixture data).
-6. `CLAUDE.md`: replace "Отвечай по-русски…" with an English equivalent; update "in Russian"
+6. `CLAUDE.md`: replace the "answer in Russian…" directive with an English equivalent; update "in Russian"
    doc descriptions. ⚠️ this also changes the assistant's future behavior.
 7. JOURNEY / research: translate the narrative; verbatim author quotes — translate preserving
    meaning. Technical accuracy beats style in `architecture-spec.md`.

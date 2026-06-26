@@ -1,70 +1,70 @@
-# [SCAN][DUP] Тесты: интерфейс + тонкие делегирующие реализации не считаются копипастом
+# [SCAN][DUP] Tests: an interface + thin delegating implementations are not counted as copy-paste
 
-**Дата создания:** 2026-06-12
-**Дата старта:** —
-**Статус:** new
-**Модуль:** SCAN/duplication
-**Приоритет:** minor
-**Сложность:** small
-**Исполнитель:** подходит для Haiku (фикстура + Catch2-тесты по готовой спецификации)
-**Блокирует:** раздел 9.1 docs/duplication_architecture.md (помечен «не проверено»)
-**Заблокирован:** —
-**Related:** #109 (откуда возник вопрос), #056 (токеновый детектор), #059 (precision-слой)
+**Created:** 2026-06-12
+**Started:** —
+**Status:** new
+**Module:** SCAN/duplication
+**Priority:** minor
+**Difficulty:** small
+**Assignee:** suitable for Haiku (fixture + Catch2 tests from a ready specification)
+**Blocks:** section 9.1 of docs/duplication_architecture.md (marked "not verified")
+**Blocked by:** —
+**Related:** #109 (where the question arose), #056 (token detector), #059 (precision layer)
 
-## Цель
+## Goal
 
-Направленно проверить гипотезу из docs/duplication_architecture.md §9.1: типовой
-полиморфный паттерн «интерфейс + похожие тонкие реализации» не репортится как
-дубликат, а настоящий копипаст содержательных тел — репортится.
+Directly test the hypothesis from docs/duplication_architecture.md §9.1: the typical
+polymorphic pattern "interface + similar thin implementations" is not reported as a
+duplicate, while genuine copy-paste of substantive bodies is reported.
 
-## Постановка (от пользователя, 2026-06-12)
+## Setup (from the user, 2026-06-12)
 
-Тест на реализацию интерфейса из **10 методов с разным числом аргументов в
-каждом методе** (arity 0..9), реализации **одной-двумя строками** (делегация
-бэкенду и выход). Несколько классов-реализаций одного интерфейса.
+A test on an interface implementation of **10 methods with a different number of arguments in
+each method** (arity 0..9), the implementations being **one or two lines** (delegation
+to a backend and exit). Several implementation classes of one interface.
 
-## Сценарии
+## Scenarios
 
-1. **Интерфейс 10 методов × 3 реализации, делегация разным бэкендам** —
-   ожидание: 0 пар (тела < minTokens=30 не фрагментируются; даже если бы
-   фрагментировались — callee различаются).
-2. **Те же реализации, но делегация ОДНОМУ бэкенду** (различие только в имени
-   класса) — ожидание: 0 пар (всё ещё ниже minTokens).
-3. **Контроль-TP: два содержательных тела (>30 токенов, общие callee)** в двух
-   реализациях — ожидание: пара репортится. Внимание: корпус из 2 фрагментов
-   вырожден для относительного rare-df — фикстура должна содержать достаточный
-   фон (другие функции), чтобы редкие токены существовали.
-4. **Граничный: делегат, раздутый до ~30+ токенов** (длинные списки аргументов,
-   10 параметров) — зафиксировать фактическое поведение и вписать его в §9.1.
+1. **Interface of 10 methods × 3 implementations, delegating to different backends** —
+   expectation: 0 pairs (bodies < minTokens=30 are not fragmented; even if they were
+   fragmented — the callees differ).
+2. **The same implementations, but delegating to ONE backend** (the only difference being the
+   class name) — expectation: 0 pairs (still below minTokens).
+3. **Control-TP: two substantive bodies (>30 tokens, common callees)** in two
+   implementations — expectation: a pair is reported. Note: a corpus of 2 fragments
+   is degenerate for the relative rare-df — the fixture must contain enough
+   background (other functions) for rare tokens to exist.
+4. **Boundary: a delegate bloated to ~30+ tokens** (long argument lists,
+   10 parameters) — record the actual behavior and write it into §9.1.
 
-## Форма
+## Form
 
-- Фикстура `fixtures/duplication/thin_delegates/` (pass-сценарии 1–2,
-  fail-сценарий 3) ИЛИ unit-тест в `tests/` по образцу
-  `duplication_fp_guards_test.cpp` — выбрать то, что короче; фикстуры
-  предпочтительны (CLAUDE.md: fixtures are mandatory).
-- Прогон через `scanForDuplication` с дефолтными ScannerOptions.
+- A fixture `fixtures/duplication/thin_delegates/` (pass scenarios 1–2,
+  fail scenario 3) OR a unit test in `tests/` modeled on
+  `duplication_fp_guards_test.cpp` — pick whichever is shorter; fixtures are
+  preferred (CLAUDE.md: fixtures are mandatory).
+- Run through `scanForDuplication` with default ScannerOptions.
 
 ## Definition of Done
 
-- Тесты зелёные, зафиксированы все 4 сценария.
-- §9.1 в docs/duplication_architecture.md переписан: «⚠️ НЕ ПРОВЕРЕНО» →
-  «проверено (#116)», с фактическим результатом граничного сценария 4.
-- Если сценарий 1/2 вдруг даёт пары — это БАГ precision-слоя: завести
-  отдельную major-задачу, тесты оставить как regression (не замазывать).
+- Tests green, all 4 scenarios recorded.
+- §9.1 in docs/duplication_architecture.md rewritten: "⚠️ NOT VERIFIED" →
+  "verified (#116)", with the actual result of boundary scenario 4.
+- If scenario 1/2 suddenly produces pairs — that's a BUG in the precision layer: open
+  a separate major task, keep the tests as regression (don't paper over it).
 
-## Сделано (2026-06-13)
+## Done (2026-06-13)
 
-Реализовано unit-тестом `tests/duplication_thin_delegates_test.cpp` (4 кейса, тег `[thin-delegates]`), а не фикстурой — короче и герметично (по образцу `duplication_fp_guards_test.cpp`).
+Implemented as the unit test `tests/duplication_thin_delegates_test.cpp` (4 cases, tag `[thin-delegates]`), not as a fixture — shorter and hermetic (modeled on `duplication_fp_guards_test.cpp`).
 
-**Результаты 4 сценариев:**
-1. ✅ Интерфейс 10 методов × 3 реализации, разные бэкенды → 0 пар.
-2. ✅ Те же реализации, один бэкенд (различие только в имени класса) → 0 пар.
-3. ✅ Контроль-TP: два содержательных `compute`-тела (>30 токенов) на фоне различных функций → пара репортится.
-4. ✅ Граничный 10-параметровый делегат → 0 пар.
+**Results of the 4 scenarios:**
+1. ✅ Interface of 10 methods × 3 implementations, different backends → 0 pairs.
+2. ✅ The same implementations, one backend (difference only in the class name) → 0 pairs.
+3. ✅ Control-TP: two substantive `compute` bodies (>30 tokens) against a background of various functions → a pair is reported.
+4. ✅ Boundary 10-parameter delegate → 0 pairs.
 
-**Ключевая находка (граничный сценарий 4):** фрагментер меряет размер ТЕЛА, а не сигнатуры. Делегат с 10 параметрами всё равно даёт тело `backend_.op9(a..j);` ≈25 токенов < minTokens=30 → 0 фрагментов. Раздувание списка параметров НЕ переводит делегат через порог фрагментации. Это записано в §9.1.
+**Key finding (boundary scenario 4):** the fragmenter measures the size of the BODY, not the signature. A delegate with 10 parameters still yields a body `backend_.op9(a..j);` ≈25 tokens < minTokens=30 → 0 fragments. Bloating the parameter list does NOT push the delegate over the fragmentation threshold. This is recorded in §9.1.
 
-**Подтверждено предупреждение задачи о вырожденном корпусе:** 2 идентичных фрагмента без фона дают `idf=log(2/2)=0` → weighted=0, и настоящий TP не доходит до гейта. TP-фикстуры (3–4) поэтому несут различные фоновые функции ≥30 токенов — это требование к фикстуре, не свойство детектора.
+**The task's warning about a degenerate corpus is confirmed:** 2 identical fragments with no background give `idf=log(2/2)=0` → weighted=0, and a genuine TP doesn't reach the gate. The TP fixtures (3–4) therefore carry various background functions ≥30 tokens — this is a requirement on the fixture, not a property of the detector.
 
-§9.1 docs/duplication_architecture.md переписан: «⚠️ НЕ ПРОВЕРЕНО» → «✅ проверено (#116)». Все тесты зелёные.
+§9.1 of docs/duplication_architecture.md rewritten: "⚠️ NOT VERIFIED" → "✅ verified (#116)". All tests green.

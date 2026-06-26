@@ -1,142 +1,142 @@
-# [SCAN] generate_per_commit_graph_drift: сохранять списки removed-рёбер в jsonl
+# [SCAN] generate_per_commit_graph_drift: save lists of removed edges into jsonl
 
-**Дата создания:** 2026-06-12
-**Дата старта:** 2026-06-12
-**Дата завершения:** 2026-06-12
-**Статус:** done
-**Модуль:** SCAN
-**Приоритет:** minor
-**Сложность:** small
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #111 (обнаружено там — техническая находка §5.1 отчёта), #119 (file-split: removed-списки дали бы точный rename-детект)
+**Created:** 2026-06-12
+**Started:** 2026-06-12
+**Completed:** 2026-06-12
+**Status:** done
+**Module:** SCAN
+**Priority:** minor
+**Difficulty:** small
+**Blocks:** —
+**Blocked by:** —
+**Related:** #111 (discovered there — technical finding §5.1 of the report), #119 (file-split: removed lists would give precise rename detection)
 
-> Якоря в `experiments/ai_repo_run/generate_per_commit_graph_drift.py` сняты 2026-06-12.
+> Anchors in `experiments/ai_repo_run/generate_per_commit_graph_drift.py` removed 2026-06-12.
 
-## Цель
+## Goal
 
-Дописать в per-commit jsonl полные списки удалённых рёбер, чтобы replay-граф
-(`lateral_drift_scan.py::IncrementalGraph`) не копил фантомы (сейчас ≤5.6% рёбер)
-и заработало условие персистентности критерия (сейчас выполняется тривиально).
+Append the full lists of removed edges to the per-commit jsonl so that the replay graph
+(`lateral_drift_scan.py::IncrementalGraph`) does not accumulate phantoms (currently ≤5.6% of edges)
+and the criterion's persistence condition starts working (currently satisfied trivially).
 
-## Контекст
+## Context
 
-`generate_per_commit_graph_drift.py` парсит текстовый вывод `archcheck --diff
-<sha>~1..<sha>` и кладёт в запись (строки 165-173):
+`generate_per_commit_graph_drift.py` parses the text output of `archcheck --diff
+<sha>~1..<sha>` and puts into the record (lines 165-173):
 
 ```python
-"added": collect_section(out, "added:"),                                  # есть
-"new_cross_area_dependencies": collect_section(out, "new_cross_area_dependencies:"),  # есть
-# removed-СПИСКА НЕТ — только счётчик removed_edges (строка 69, из сводки)
+"added": collect_section(out, "added:"),                                  # present
+"new_cross_area_dependencies": collect_section(out, "new_cross_area_dependencies:"),  # present
+# NO removed LIST — only the removed_edges counter (line 69, from the summary)
 ```
 
-Следствия (зафиксированы в
+Consequences (recorded in
 [lateral_module_drift_corpus_run.md](../../docs/research/lateral_module_drift_corpus_run.md) §5.1):
-forward-only replay добавлений копит фантомные рёбра (доля по счётчикам ≤5.6%);
-условие персистентности критерия (§3 п.5 critерион-дока) не проверяется.
+forward-only replay of additions accumulates phantom edges (share by counters ≤5.6%);
+the criterion's persistence condition (§3 item 5 of the criterion doc) is not checked.
 
-## План выполнения
+## Execution plan
 
-- [ ] **Шаг 0 — узнать точный заголовок секции.** Прогнать
-      `./build/debug/src/archcheck --diff HEAD~1..HEAD .` на любой репе с удалённым
-      include и посмотреть, как text-reporter называет секцию удалённых рёбер
-      (ожидаемо `removed:` — сверить с `src/diff/` text-выводом; `RegressionReport`
-      имеет `removedEdges`). Если списка в выводе НЕТ вообще — сначала дописать
-      его в text-reporter diff-режима (зеркально added, тот же формат строк).
-- [ ] **Шаг 1 — генератор.** Одна строка в записи (рядом со строкой 171):
+- [ ] **Step 0 — find the exact section header.** Run
+      `./build/debug/src/archcheck --diff HEAD~1..HEAD .` on any repo with a removed
+      include and see how the text reporter names the removed-edges section
+      (expected `removed:` — cross-check against the `src/diff/` text output; `RegressionReport`
+      has `removedEdges`). If there is NO list in the output at all — first add
+      it to the text reporter of diff mode (mirror added, the same line format).
+- [ ] **Step 1 — generator.** One line in the record (next to line 171):
       `"removed": collect_section(out, "removed:"),`
-      `collect_section` (строка 86) уже умеет парсить секции.
-- [ ] **Шаг 2 — потребитель.** `lateral_drift_scan.py::IncrementalGraph`:
-      метод `remove(from_f, to_f)` — зеркало `add()` (строка 333): убрать файловое
-      ребро; пересчитать счётчик пары модулей; пара исчезает, когда file-рёбер
-      пары не осталось (значит хранить per-pair счётчик, не bool). В
-      `scan_repo()` применять `removed` ПЕРЕД `added` того же коммита
-      (порядок git-диффа). **Обратная совместимость:** `record.get("removed", [])` —
-      старые jsonl без поля работают как раньше.
-- [ ] **Шаг 3 — персистентность (опционально, отдельный коммит).** После полного
-      прохода репы: события, чья пара (A,B) к концу окна снова пуста, помечать
-      `persisted=False` (новая колонка CSV), НЕ удалять — фильтрация на стороне
-      анализа. Это включает условие 5 критерия.
-- [ ] **Шаг 4 — валидация.** На 2-3 репах с ненулевым `removed_edges` (искать:
-      `jq 'select(.removed_edges>0)' *_graph_drift.jsonl | head`): перегенерить
-      jsonl, прогнать скан, сверить: (а) фантомов меньше — число рёбер replay-графа
-      на конце окна ближе к числу рёбер реального HEAD-графа; (б) существующие
-      события не исчезли беспричинно.
+      `collect_section` (line 86) already knows how to parse sections.
+- [ ] **Step 2 — consumer.** `lateral_drift_scan.py::IncrementalGraph`:
+      method `remove(from_f, to_f)` — mirror of `add()` (line 333): remove the file
+      edge; recompute the module-pair counter; the pair disappears when no file edges
+      of the pair remain (so store a per-pair counter, not a bool). In
+      `scan_repo()` apply `removed` BEFORE `added` of the same commit
+      (git diff order). **Backward compatibility:** `record.get("removed", [])` —
+      old jsonl without the field work as before.
+- [ ] **Step 3 — persistence (optional, separate commit).** After a full
+      pass over the repo: events whose pair (A,B) is empty again by the end of the window mark
+      `persisted=False` (a new CSV column), do NOT delete — filtering on the
+      analysis side. This enables condition 5 of the criterion.
+- [ ] **Step 4 — validation.** On 2-3 repos with non-zero `removed_edges` (search for:
+      `jq 'select(.removed_edges>0)' *_graph_drift.jsonl | head`): regenerate the
+      jsonl, run the scan, cross-check: (a) fewer phantoms — the edge count of the replay graph
+      at the end of the window is closer to the edge count of the real HEAD graph;
+      (b) existing events did not disappear without reason.
 
-## Важно
+## Important
 
-- **Перегенерация всех 481 jsonl НЕ требуется** — поле опциональное; полная
-  перегенерация (~2 суток на regen 43 реп в #111) делается только если кто-то
-  реально включит персистентность на полном корпусе.
-- Не трогать формат существующих полей — потребителей у jsonl уже трое
+- **Regeneration of all 481 jsonl is NOT required** — the field is optional; a full
+  regeneration (~2 days for the regen of 43 repos in #111) is done only if someone
+  actually enables persistence on the full corpus.
+- Do not touch the format of existing fields — the jsonl already has three consumers
   (lateral_drift_scan, merge_summary, make_examples).
 
-## Сделано
+## Done
 
-- Шаг 0: `archcheck --diff` выводит `removed (advisory):` — секция есть.
-- Шаг 1: поле `"removed": collect_section(out, "removed (advisory):")` уже добавлено
-  в генератор (строка 172) — обе копии идентичны (`experiments/` и `analysis/`).
-- Шаг 2: `IncrementalGraph.remove()` реализован (строки 349-366 `lateral_drift_scan.py`);
-  `removed` применяется перед `added` (строки 472-479); обратная совместимость
-  `rec.get('removed', [])` на строке 472.
+- Step 0: `archcheck --diff` outputs `removed (advisory):` — the section is present.
+- Step 1: the field `"removed": collect_section(out, "removed (advisory):")` is already added
+  to the generator (line 172) — both copies are identical (`experiments/` and `analysis/`).
+- Step 2: `IncrementalGraph.remove()` is implemented (lines 349-366 of `lateral_drift_scan.py`);
+  `removed` is applied before `added` (lines 472-479); backward compatibility
+  `rec.get('removed', [])` on line 472.
 
-- Шаг 4: валидация на `TocinLang` (removed_edges=8 == len(removed)=8) и `Boxedwine64`
-  (855 коммитов: 30 записей с removed>0, во всех counter == len(removed), 0 расхождений).
-  Перегенерённые jsonl: `/tmp/boxedwine_new.jsonl`.
+- Step 4: validation on `TocinLang` (removed_edges=8 == len(removed)=8) and `Boxedwine64`
+  (855 commits: 30 records with removed>0, in all of them counter == len(removed), 0 discrepancies).
+  Regenerated jsonl: `/tmp/boxedwine_new.jsonl`.
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. Шаг 3 (persisted-колонка) — опциональный, отдельный шаг позже (вне скоупа #120).
+1. Step 3 (persisted column) — optional, a separate step later (out of scope for #120).
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| Поле опциональное, без перегенерации корпуса | Перегенерация — суток двое; фантомы ≤5.6% терпимы до реальной нужды в персистентности |
-| removed перед added в replay | Порядок диффа: переезд = remove+add, иначе пара мигнёт «нулём» |
-| persisted-колонка вместо фильтрации | Решение об отбрасывании — на стороне анализа, данные не терять |
+| Optional field, no corpus regeneration | Regeneration takes about two days; phantoms ≤5.6% are tolerable until persistence is actually needed |
+| removed before added in replay | Diff order: a move = remove+add, otherwise the pair would blink to "zero" |
+| persisted column instead of filtering | The decision to discard is on the analysis side, do not lose data |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `experiments/ai_repo_run/generate_per_commit_graph_drift.py` | +1 строка (поле removed) |
-| `src/diff/` text-вывод | Только если секции removed нет в выводе (шаг 0) |
-| `experiments/ai_repo_run/lateral_drift_scan.py` | `IncrementalGraph.remove()` + порядок replay + persisted |
+| `experiments/ai_repo_run/generate_per_commit_graph_drift.py` | +1 line (removed field) |
+| `src/diff/` text output | Only if the removed section is not in the output (step 0) |
+| `experiments/ai_repo_run/lateral_drift_scan.py` | `IncrementalGraph.remove()` + replay order + persisted |
 
-## Как работает (итог)
+## How it works (summary)
 
-**Принцип.** Генератор `generate_per_commit_graph_drift.py` парсит секцию
-`removed (advisory):` из `archcheck --diff` и кладёт список удалённых рёбер в jsonl-запись
-(поле `removed`, рядом с `added`). Потребитель `lateral_drift_scan.py::IncrementalGraph.remove()`
-применяет их ПЕРЕД `added` того же коммита (порядок git-диффа: переезд = remove+add), чтобы
-forward-replay не копил фантомные рёбра.
+**Principle.** The generator `generate_per_commit_graph_drift.py` parses the
+`removed (advisory):` section from `archcheck --diff` and puts the list of removed edges into the jsonl record
+(field `removed`, next to `added`). The consumer `lateral_drift_scan.py::IncrementalGraph.remove()`
+applies them BEFORE `added` of the same commit (git diff order: a move = remove+add), so that
+forward-replay does not accumulate phantom edges.
 
-**Per-pair счётчик.** Модульная пара исчезает из графа, только когда не осталось ни одного
-file-ребра между модулями (`remove()` декрементит FID/FOD и discard-ит пару при нуле).
+**Per-pair counter.** A module pair disappears from the graph only when no
+file edge between the modules remains (`remove()` decrements FID/FOD and discards the pair at zero).
 
-**Обратная совместимость.** `rec.get('removed', [])` — старые jsonl без поля работают как
-раньше (replay только добавлений).
+**Backward compatibility.** `rec.get('removed', [])` — old jsonl without the field work as
+before (replay of additions only).
 
-## Чем управляется
+## What controls it
 
-Поле опциональное — полная перегенерация корпуса НЕ требуется (фантомы ≤5.6% терпимы).
-Заголовок секции в выводе archcheck: `removed (advisory):`. Шаг 3 (persisted-колонка) —
-сознательно вне скоупа.
+The field is optional — a full corpus regeneration is NOT required (phantoms ≤5.6% are tolerable).
+The section header in the archcheck output: `removed (advisory):`. Step 3 (persisted column) is
+deliberately out of scope.
 
-## С чем связана
+## What it relates to
 
-Обнаружено в #111 (§5.1 отчёта). Кормит #119 (removed-списки = точный rename-сигнал) и
-общий корпусный сканер lateral-дрейфа. Потребителей jsonl трое: lateral_drift_scan,
-merge_summary, make_examples — формат существующих полей не трогался.
+Discovered in #111 (§5.1 of the report). Feeds #119 (removed lists = precise rename signal) and
+the general corpus scanner of lateral drift. The jsonl has three consumers: lateral_drift_scan,
+merge_summary, make_examples — the format of existing fields was not touched.
 
-## Диагностика
+## Diagnostics
 
-Валидация (2026-06-12): `TocinLang` (removed_edges=8 == len(removed)=8); `Boxedwine64`
-(855 коммитов, 30 записей с removed>0, во всех `removed_edges == len(removed)`, 0 расхождений).
-Проверка целостности: `removed_edges` (счётчик из сводки) обязан равняться `len(removed)`
-(список) в каждой записи.
+Validation (2026-06-12): `TocinLang` (removed_edges=8 == len(removed)=8); `Boxedwine64`
+(855 commits, 30 records with removed>0, in all of them `removed_edges == len(removed)`, 0 discrepancies).
+Integrity check: `removed_edges` (counter from the summary) must equal `len(removed)`
+(list) in every record.

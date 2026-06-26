@@ -1,46 +1,46 @@
-# 088 — archcheck v0.1 FP-фиксы из корпус-стресс-теста
+# 088 — archcheck v0.1 FP fixes from corpus stress-test
 
-**Тип:** maj. **Откуда:** структурный ценз 767 нарушителей (1493 агентских C++) вытащил
-систематические false-positive в SF.9 и duplication. Отчёты:
+**Type:** maj. **Origin:** the structural census of 767 violators (1493 agentic C++) surfaced
+systematic false-positives in SF.9 and duplication. Reports:
 `docs/research/cpp_cycles_report.md`, `docs/research/cpp_copypaste_report.md`.
 
-## Находки (FP-классы)
-1. **Системные `<...>` mis-resolution.** `<string.h>` (и др. стандартные C-хедеры)
-   suffix-матчатся на одноимённый файл проекта → фантомное ребро/цикл
-   (PipeWire `defs.h ↔ string.h`). → `resolve_angle` должен резолвить стандартные
-   системные хедеры как External, без suffix-match.
-2. **`.inl`-идиома в SF.9.** Цикл `X.h ↔ X.{inl,ipp,tcc,tpp,tmpl.h,hxx}` одного stem —
-   легитимный сплит модуля (header + inline-impl), петля рвётся `#pragma once`/include-guard.
-   SF.9 не должен это репортить (legate 163 «циклов», acts 46 — почти всё это).
-3. **Расхождение `--graph sccs_cyclic` vs SF.9.** `--graph` даёт сырой счёт SCC,
-   SF.9 фильтрует conditional (и теперь .inl). pyA2L: graph=22, SF.9=0. Ценз мерил сырой
-   `--graph`, а не SF.9 → завышение. Привести в согласие / ценз мерить по SF.9.
-4. **Duplication: вендоринг/генерёнка.** Лидеры плотности — `argparse.hpp` (вендор),
-   `bootstrap.c` (генерёнка). Токеновый детектор не отделяет вендоренное/сгенерированное
-   от рукотворной копии. → расширить mirror/generated-фильтр на duplication.
+## Findings (FP classes)
+1. **System `<...>` mis-resolution.** `<string.h>` (and other standard C headers)
+   suffix-match a project file of the same name → phantom edge/cycle
+   (PipeWire `defs.h ↔ string.h`). → `resolve_angle` must resolve standard
+   system headers as External, without suffix-match.
+2. **`.inl` idiom in SF.9.** The cycle `X.h ↔ X.{inl,ipp,tcc,tpp,tmpl.h,hxx}` of the same stem
+   is a legitimate module split (header + inline-impl), the loop is broken by `#pragma once`/include-guard.
+   SF.9 must not report this (legate 163 "cycles", acts 46 — almost all of it is this).
+3. **Divergence `--graph sccs_cyclic` vs SF.9.** `--graph` gives the raw SCC count,
+   SF.9 filters conditional (and now .inl). pyA2L: graph=22, SF.9=0. The census measured raw
+   `--graph`, not SF.9 → overcounting. Bring into agreement / have the census measure by SF.9.
+4. **Duplication: vendoring/generated code.** The density leaders are `argparse.hpp` (vendor),
+   `bootstrap.c` (generated). The token detector does not separate vendored/generated code
+   from a handwritten copy. → extend the mirror/generated filter to duplication.
 
-> **Сверка с кодом (бэклог-ревью 2026-06-11):** 3 из 5 пунктов уже реализованы — отмечены ниже
-> с коммитами. Живой остаток задачи: №2.3 + контрольный перепрогон.
+> **Cross-check against the code (backlog review 2026-06-11):** 3 of 5 items are already implemented — marked below
+> with commits. The live remainder of the task: #2.3 + a control re-run.
 
-## План (по одному фиксу = коммит, фикстура+тест обязательны)
-- [x] #2.1 resolve_angle: стандартные системные хедеры → External (+ unit-тест). — реализовано `9b3696e` (`is_system_header` в `src/scan/include_resolver.cpp`).
-- [x] #2.2 SF.9: пропускать SCC = same-stem header+inline-impl (+ pass-фикстура+тест). — реализовано `8c05878` (`isInlineSplitScc` в `src/rules/sf9_no_cycles.cpp`). Не путать с conditional-фильтром из #032 (`04b523b`) — это два независимых механизма: #032 гасит `#ifdef`-циклы (spdlog), #2.2 — безусловные same-stem пары (legate/acts).
-- [x] #2.3 graph↔SF.9 согласовать / ценз по SF.9. — реализовано 2026-06-13: `--graph` теперь выводит `sf9_cycles` (SF.9-filtered, actionable) рядом с `sccs_cyclic` (raw); exit code теперь по `sf9_cycles`. Проверено: pyA2L (raw=22, sf9=0, exit:0), spdlog (raw=22, sf9=0, exit:0), legate (raw=163, sf9=0, exit:0). 522/522 тестов зелёные.
-- [x] #2.4 duplication: skip mirror/generated/vendored (+ тест). — закрыто другими задачами: vendor-exclude централизован в #069 (`project_files.cpp`), generated-гард P0.9 `isGeneratedPath` из #065/#070 (`duplication_scanner.cpp`), whole-file twin suppression P0.2 (#070). Задача #064 на ту же тему закрыта как поглощённая.
-- [x] Перепрогнать FP-репы: PipeWire, legate, acts, spdlog — все дают sf9_cycles=0, exit:0 (2026-06-13).
+## Plan (one fix = one commit, fixture+test mandatory)
+- [x] #2.1 resolve_angle: standard system headers → External (+ unit test). — implemented `9b3696e` (`is_system_header` in `src/scan/include_resolver.cpp`).
+- [x] #2.2 SF.9: skip SCC = same-stem header+inline-impl (+ pass fixture+test). — implemented `8c05878` (`isInlineSplitScc` in `src/rules/sf9_no_cycles.cpp`). Don't confuse with the conditional filter from #032 (`04b523b`) — these are two independent mechanisms: #032 suppresses `#ifdef` cycles (spdlog), #2.2 — unconditional same-stem pairs (legate/acts).
+- [x] #2.3 reconcile graph↔SF.9 / census by SF.9. — implemented 2026-06-13: `--graph` now outputs `sf9_cycles` (SF.9-filtered, actionable) next to `sccs_cyclic` (raw); exit code is now driven by `sf9_cycles`. Verified: pyA2L (raw=22, sf9=0, exit:0), spdlog (raw=22, sf9=0, exit:0), legate (raw=163, sf9=0, exit:0). 522/522 tests green.
+- [x] #2.4 duplication: skip mirror/generated/vendored (+ test). — closed by other tasks: vendor-exclude centralized in #069 (`project_files.cpp`), generated-guard P0.9 `isGeneratedPath` from #065/#070 (`duplication_scanner.cpp`), whole-file twin suppression P0.2 (#070). Task #064 on the same topic closed as absorbed.
+- [x] Re-run the FP repos: PipeWire, legate, acts, spdlog — all give sf9_cycles=0, exit:0 (2026-06-13).
 
 ## Acceptance
-Каждый фикс с фикстурой/тестом; FP-репы из отчётов перестают флагаться; дерево
-проходит gate (build+ctest+coverage); dogfooding archcheck на себе зелёный.
+Each fix has a fixture/test; the FP repos from the reports stop being flagged; the tree
+passes the gate (build+ctest+coverage); dogfooding archcheck on itself is green.
 
-## Как работает (DoD)
+## How it works (DoD)
 
-**#2.3 — sf9_cycles в --graph:**
+**#2.3 — sf9_cycles in --graph:**
 
-`runGraph()` в `src/cli/preview_commands.cpp` теперь после построения графа запускает `Sf9NoCycles::check()` и выводит два числа:
-- `sccs_cyclic` — сырой счёт SCC с size≥2 (как раньше, с пометкой "raw")
-- `sf9_cycles` — количество нарушений, которые SF.9 реально репортит (после фильтров: .inl-split, conditional-include)
+`runGraph()` in `src/cli/preview_commands.cpp` now, after building the graph, runs `Sf9NoCycles::check()` and outputs two numbers:
+- `sccs_cyclic` — the raw count of SCCs with size≥2 (as before, marked "raw")
+- `sf9_cycles` — the number of violations that SF.9 actually reports (after the filters: .inl-split, conditional-include)
 
-Exit code `--graph` теперь определяется `sf9_cycles`, а не raw-числом. Это делает `--graph` консистентным с тем, что выдаёт `archcheck --check`.
+The `--graph` exit code is now determined by `sf9_cycles`, not the raw number. This makes `--graph` consistent with what `archcheck --check` produces.
 
-**Статус закрытия:** 2026-06-13. Все 4 FP-класса ликвидированы. 522/522 тестов зелёные.
+**Closure status:** 2026-06-13. All 4 FP classes eliminated. 522/522 tests green.

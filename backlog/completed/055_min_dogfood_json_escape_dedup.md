@@ -1,143 +1,143 @@
-# [REPORT][DOGFOOD] Нашли своим же тулом: вынести `jsonEscape` в общий helper
+# [REPORT][DOGFOOD] Found with our own tool: extract `jsonEscape` into a shared helper
 
-**Дата создания:** 2026-05-30
-**Дата старта:** 2026-05-30
-**Дата завершения:** 2026-05-30
-**Статус:** completed
-**Модуль:** REPORT
-**Приоритет:** minor
-**Сложность:** small
-**Блокирует:** —
-**Заблокирован:** —
-**Related:** #053 (fast_backend_line_duplication_pass — line-dup спайк, который нашёл дубль), #051 (config_loader_v1 — baseline уже в продукте, значит дедуп нужен в shipped code)
+**Created:** 2026-05-30
+**Started:** 2026-05-30
+**Completed:** 2026-05-30
+**Status:** completed
+**Module:** REPORT
+**Priority:** minor
+**Difficulty:** small
+**Blocks:** —
+**Blocked by:** —
+**Related:** #053 (fast_backend_line_duplication_pass — the line-dup spike that found the duplicate), #051 (config_loader_v1 — baseline is already in the product, so the dedup is needed in shipped code)
 
-## Цель
+## Goal
 
-Убрать реальный внутренний copy-paste в `archcheck::report`: одинаковая
-`jsonEscape(const std::string&)` сейчас живёт и в
-[src/report/json_reporter.cpp](../../src/report/json_reporter.cpp), и в
+Remove a real internal copy-paste in `archcheck::report`: an identical
+`jsonEscape(const std::string&)` currently lives both in
+[src/report/json_reporter.cpp](../../src/report/json_reporter.cpp) and in
 [src/report/violation_baseline.cpp](../../src/report/violation_baseline.cpp).
-Вынести её в один общий helper и использовать это как первый чистый
-**dogfooding-сюжет** для детектора дублей: «нашли своим же тулом, починили».
+Extract it into a single shared helper and use this as the first clean
+**dogfooding story** for the duplicate detector: "found with our own tool, fixed".
 
-## История находки
+## Story of the find
 
-Во время прогона standalone line-dup спайка по самому `cpparch` топовый
-cross-file блок для репозитория оказался таким:
+During a run of the standalone line-dup spike over `cpparch` itself, the top
+cross-file block for the repository turned out to be this:
 
 - `src/report/json_reporter.cpp:6`
 - `src/report/violation_baseline.cpp:12`
-- длина `21` значимая строка
-- похожесть `100%`
+- length `21` significant lines
+- similarity `100%`
 
-Ручная проверка подтвердила, что это не test twin, не generated-код и не
-packaging artifact. Это **реальный ручной дубль** в одном и том же модуле
-`archcheck::report`: два файла держат одну и ту же минимальную JSON-экранизацию
-для `"`, `\` и `\n`.
+A manual check confirmed it's not a test twin, not generated code, and not a
+packaging artifact. It's a **real hand-written duplicate** in the same module
+`archcheck::report`: two files holding the same minimal JSON escaping
+for `"`, `\`, and `\n`.
 
-Это хороший учебный кейс для самого продукта:
+This is a good teaching case for the product itself:
 
-1. fast line-dup слой нашёл небессмысленный дубль в собственном коде;
-2. находка достаточно маленькая, чтобы чинить сразу;
-3. после фикса можно честно говорить, что `archcheck` начал с себя.
+1. the fast line-dup layer found a non-trivial duplicate in its own code;
+2. the find is small enough to fix right away;
+3. after the fix we can honestly say `archcheck` started with itself.
 
-## Контекст
+## Context
 
-Сейчас код выглядит так:
+Right now the code looks like this:
 
-- [json_reporter.cpp](../../src/report/json_reporter.cpp) содержит локальную
-  `jsonEscape()` в анонимном namespace и использует её при сериализации отчёта;
-- [violation_baseline.cpp](../../src/report/violation_baseline.cpp) содержит
-  вторую локальную `jsonEscape()` с тем же телом и использует её при сохранении
+- [json_reporter.cpp](../../src/report/json_reporter.cpp) contains a local
+  `jsonEscape()` in an anonymous namespace and uses it when serializing the report;
+- [violation_baseline.cpp](../../src/report/violation_baseline.cpp) contains
+  a second local `jsonEscape()` with the same body and uses it when saving the
   baseline.
 
-`jsonUnescape()` и парсинг baseline при этом нужны только
-`violation_baseline.cpp`; их тащить в общий util не надо.
+`jsonUnescape()` and baseline parsing, meanwhile, are needed only by
+`violation_baseline.cpp`; there's no need to drag them into the shared util.
 
-## Что сделать
+## What to do
 
-- [x] Вынести общий helper `jsonEscape()` в небольшой report-level util.
-- [x] Переключить `json_reporter.cpp` и `violation_baseline.cpp` на одну общую реализацию.
-- [x] Оставить `jsonUnescape()` и baseline-specific parsing локальными, если у
-      них нет второго пользователя.
-- [x] Добавить тест на поведение helper-а: как минимум `"`, `\`, `\n`.
-- [x] После фикса перегнать line-dup спайк на `cpparch` и убедиться, что этот
-      конкретный блок больше не всплывает как top cross-file duplicate.
+- [x] Extract the shared helper `jsonEscape()` into a small report-level util.
+- [x] Switch `json_reporter.cpp` and `violation_baseline.cpp` to one shared implementation.
+- [x] Keep `jsonUnescape()` and the baseline-specific parsing local, if
+      they have no second user.
+- [x] Add a test for the helper's behavior: at least `"`, `\`, `\n`.
+- [x] After the fix, re-run the line-dup spike on `cpparch` and confirm that this
+      specific block no longer surfaces as a top cross-file duplicate.
 
-## Ограничения
+## Constraints
 
-- Не делать «мешок утилит» вроде `json_utils.cpp` без необходимости.
-- Не тащить в задачу общий JSON-рефакторинг или смену формата baseline/report.
-- Не менять поведение сериализации; задача только про дедупликацию реализации.
+- Don't make a "bag of utilities" like `json_utils.cpp` without need.
+- Don't pull a general JSON refactor or a baseline/report format change into the task.
+- Don't change serialization behavior; the task is only about deduplicating the implementation.
 
-## Ожидаемое решение
+## Expected solution
 
-Минимальный вариант:
+The minimal variant:
 
 - `include/archcheck/report/json_escape.h`
 - `src/report/json_escape.cpp`
 
-с одной функцией:
+with one function:
 
 ```cpp
 std::string jsonEscape(const std::string& s);
 ```
 
-Если при реализации выяснится, что `.cpp` не нужен и можно оставить
-header-only helper без разрастания include-шума — это тоже допустимо. Главное:
-**одна реализация, два пользователя, без лишней абстракции.**
+If during implementation it turns out the `.cpp` isn't needed and a
+header-only helper can be kept without bloating include noise — that's also acceptable. The main thing:
+**one implementation, two users, no extra abstraction.**
 
-## Критерий приёмки
+## Acceptance criteria
 
-- [x] В кодовой базе осталась ровно одна реализация `jsonEscape()`.
-- [x] `json_reporter` и `violation_baseline` используют один и тот же helper.
-- [x] Поведение не изменилось для `"`, `\`, `\n`.
-- [x] Есть тест, который это фиксирует.
-- [x] После фикса dogfooding-кейс задокументирован (см. «Итог»): пара
-      `json_reporter ↔ violation_baseline` ушла из cross-file дублей `src/`.
+- [x] Exactly one implementation of `jsonEscape()` remains in the codebase.
+- [x] `json_reporter` and `violation_baseline` use the same helper.
+- [x] Behavior unchanged for `"`, `\`, `\n`.
+- [x] There is a test that locks this in.
+- [x] After the fix, the dogfooding case is documented (see "Result"): the pair
+      `json_reporter ↔ violation_baseline` left the cross-file duplicates of `src/`.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
-|---------|---------|
-| Чинить именно `jsonEscape`, а не весь JSON-слой | задача маленькая и подтверждена спайком |
-| `jsonUnescape` не выносить заранее | второй пользователь отсутствует, YAGNI |
-| Использовать кейс как dogfooding story | это сильный и честный сюжет для продукта |
-| Не делать generic `json_utils` | один helper не оправдывает мешок абстракций |
+| Decision | Reason |
+|----------|--------|
+| Fix exactly `jsonEscape`, not the whole JSON layer | the task is small and confirmed by the spike |
+| Don't extract `jsonUnescape` ahead of time | no second user, YAGNI |
+| Use the case as a dogfooding story | it's a strong and honest narrative for the product |
+| Don't make a generic `json_utils` | one helper doesn't justify a bag of abstractions |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
-|------|-----------|
-| `include/archcheck/report/json_escape.h` | общий helper для JSON string escaping |
-| `src/report/json_escape.cpp` | реализация helper-а (или header-only альтернатива) |
-| `src/report/json_reporter.cpp` | убрать локальную копию, подключить helper |
-| `src/report/violation_baseline.cpp` | убрать локальную копию, подключить helper |
-| `tests/unit/report/...` | тест на `jsonEscape()` и/или affected roundtrip |
+| File | Change |
+|------|--------|
+| `include/archcheck/report/json_escape.h` | shared helper for JSON string escaping |
+| `src/report/json_escape.cpp` | helper implementation (or a header-only alternative) |
+| `src/report/json_reporter.cpp` | remove the local copy, include the helper |
+| `src/report/violation_baseline.cpp` | remove the local copy, include the helper |
+| `tests/unit/report/...` | a test for `jsonEscape()` and/or affected roundtrip |
 
-## Следующие шаги
+## Next steps
 
-1. Завести helper и переключить два call-site.
-2. Добавить тест.
-3. Перегнать спайк на `cpparch` и сохранить короткую заметку в completed-задаче
-   как dogfooding-историю.
+1. Add the helper and switch the two call sites.
+2. Add a test.
+3. Re-run the spike on `cpparch` and save a short note in the completed task
+   as a dogfooding story.
 
-## Итог (2026-05-30)
+## Result (2026-05-30)
 
-**Сделано.** `jsonEscape()` вынесена в **header-only** helper
+**Done.** `jsonEscape()` extracted into a **header-only** helper
 [include/archcheck/report/json_escape.h](../../include/archcheck/report/json_escape.h)
-(`inline`, единственная зависимость — `<string>`; отдельный `.cpp` не заводили —
-для крошечной чистой функции это лишний TU + запись в CMake). Оба call-site
+(`inline`, the only dependency — `<string>`; a separate `.cpp` was not created —
+for a tiny pure function it would be an extra TU + a CMake entry). Both call sites
 ([json_reporter.cpp](../../src/report/json_reporter.cpp),
-[violation_baseline.cpp](../../src/report/violation_baseline.cpp)) переключены на
-него; `jsonUnescape()` и baseline-парсинг остались локальными в
-`violation_baseline.cpp` (второго пользователя нет → YAGNI). Тест:
+[violation_baseline.cpp](../../src/report/violation_baseline.cpp)) switched to
+it; `jsonUnescape()` and the baseline parsing stayed local in
+`violation_baseline.cpp` (no second user → YAGNI). Test:
 [tests/unit/report/json_escape_test.cpp](../../tests/unit/report/json_escape_test.cpp)
-(`"`, `\`, `\n` + комбинация). Сборка Debug зелёная, весь suite — 255 кейсов /
-812 assertions pass. Ровно одно определение `jsonEscape` (в хидере).
+(`"`, `\`, `\n` + a combination). The Debug build is green, the whole suite — 255 cases /
+812 assertions pass. Exactly one definition of `jsonEscape` (in the header).
 
-**Dogfooding-результат.** Спайк (`experiments/line_duplication`, бинарь
-`line_duplication`) собран и реально прогнан по `src/`:
+**Dogfooding result.** The spike (`experiments/line_duplication`, the binary
+`line_duplication`) was built and actually run over `src/`:
 
 ```
 $ line_duplication src --cross-only --min-lines 6 --top 12
@@ -150,59 +150,59 @@ top duplicated blocks:
   [CROSS-FILE]  6 lines  scan/include_resolver.cpp:4      <->  scan/include_scanner.cpp:5
 ```
 
-Пара **`json_reporter.cpp ↔ violation_baseline.cpp` полностью ушла** из
-cross-file дублей `src/` — исходный 21-строчный `jsonEscape`-блок исчез, и
-никакого остаточного блока между этими двумя файлами спайк больше не показывает.
-Критерий выполнен.
+The pair **`json_reporter.cpp ↔ violation_baseline.cpp` is completely gone** from
+the cross-file duplicates of `src/` — the original 21-line `jsonEscape` block disappeared, and
+the spike no longer shows any residual block between these two files.
+Criterion met.
 
-**Первая чистая dogfooding-история:** fast line-dup слой нашёл реальный ручной
-дубль в собственном коде → починили → перегон подтвердил исчезновение. «Начали
-с себя».
+**First clean dogfooding story:** the fast line-dup layer found a real hand-written
+duplicate in its own code → fixed → the re-run confirmed it disappeared. "Started
+with ourselves".
 
-**Побочное наблюдение (вне скоупа #055).** В топе теперь всплывают другие
-внутренние пары (sf7/sf8, graph algorithms/baseline и т.п.) — это в основном
-boilerplate заголовков правил и include-блоки, не обязательно настоящий копипаст.
-Отдельную задачу без команды не завожу.
+**Side observation (out of scope for #055).** Other internal pairs now surface in the
+top (sf7/sf8, graph algorithms/baseline, etc.) — these are mostly rule-header
+boilerplate and include blocks, not necessarily real copy-paste.
+I'm not opening a separate task without a command.
 
-## Как работает
+## How it works
 
-`jsonEscape()` живёт одной `inline`-функцией в
-`include/archcheck/report/json_escape.h` (зависимость — только `<string>`).
-Оба report-писателя (`writeJsonReport`, `saveBaseline`) включают этот хидер и
-зовут общий helper вместо локальных копий. Поведение байт-в-байт прежнее:
-экранируются `"`, `\`, `\n`.
+`jsonEscape()` lives as a single `inline` function in
+`include/archcheck/report/json_escape.h` (the dependency — only `<string>`).
+Both report writers (`writeJsonReport`, `saveBaseline`) include this header and
+call the shared helper instead of local copies. Behavior is byte-for-byte the same:
+`"`, `\`, `\n` are escaped.
 
-## Ключевые решения
+## Key decisions
 
-- **Header-only `inline`, без `.cpp`** — крошечная чистая функция; отдельный TU
-  и строка в CMake были бы лишним весом.
-- **`jsonUnescape()` не выносили** — единственный пользователь
-  (`violation_baseline.cpp`); выносить «на будущее» = нарушить YAGNI.
-- **Дубль найден своим же line-dup спайком** — использован как первая честная
-  dogfooding-история, а не просто рефактор.
+- **Header-only `inline`, no `.cpp`** — a tiny pure function; a separate TU
+  and a CMake line would be extra weight.
+- **`jsonUnescape()` not extracted** — the only user is
+  (`violation_baseline.cpp`); extracting it "for the future" = violating YAGNI.
+- **The duplicate was found by our own line-dup spike** — used as the first honest
+  dogfooding story, not just a refactor.
 
-## Изменённые файлы
+## Changed files
 
-- `include/archcheck/report/json_escape.h` — новый header-only helper `jsonEscape()` (commit b3c9594)
-- `src/report/json_reporter.cpp` — убрал локальную копию, подключил helper (b3c9594)
-- `src/report/violation_baseline.cpp` — убрал локальную копию, подключил helper (b3c9594)
-- `tests/unit/report/json_escape_test.cpp` — новый тест на helper (b3c9594)
-- `tests/CMakeLists.txt` — регистрация теста (b3c9594)
+- `include/archcheck/report/json_escape.h` — new header-only helper `jsonEscape()` (commit b3c9594)
+- `src/report/json_reporter.cpp` — removed the local copy, included the helper (b3c9594)
+- `src/report/violation_baseline.cpp` — removed the local copy, included the helper (b3c9594)
+- `tests/unit/report/json_escape_test.cpp` — new test for the helper (b3c9594)
+- `tests/CMakeLists.txt` — test registration (b3c9594)
 
-## Чем управляется
-
-<!-- TODO -->
-
-## С чем связана
+## Controlled by
 
 <!-- TODO -->
 
-## Диагностика
+## Related to
 
 <!-- TODO -->
 
-## Итог
+## Diagnostics
 
-**Статус:** completed
-**Дата завершения:** 2026-05-30
-**Коммит:** b3c9594
+<!-- TODO -->
+
+## Result
+
+**Status:** completed
+**Completed:** 2026-05-30
+**Commit:** b3c9594

@@ -1,39 +1,39 @@
-# [RESEARCH][BUG] struct_fields: фигурная скобка в строковом литерале ломает depth → ложный bool-delta
+# [RESEARCH][BUG] struct_fields: a curly brace in a string literal breaks depth → false bool-delta
 
-**Дата создания:** 2026-06-24
-**Дата старта:** 2026-06-24
-**Дата закрытия:** 2026-06-25
-**Статус:** done
-**Модуль:** RESEARCH / experiments (perstruct_drift.py)
-**Приоритет:** major
-**Related:** #135 (bool_field_added — где баг пойман eye-check'ом), #089/#134 (тот же парсер)
+**Created:** 2026-06-24
+**Started:** 2026-06-24
+**Closed:** 2026-06-25
+**Status:** done
+**Module:** RESEARCH / experiments (perstruct_drift.py)
+**Priority:** major
+**Related:** #135 (bool_field_added — where the bug was caught by an eye-check), #089/#134 (the same parser)
 
-## Симптом
+## Symptom
 
-В eye-check'е 100 находок #135 один коммит (Tencent_KsanaLLM `af9c7e7789`, struct `PrintStepHook`)
-дал ложный `n_bool_field_added=+1`: поле `print_all_blocks_` существовало И в родителе, И в потомке
-(в диффе менялась только строка логирования), но сайдкар засчитал «добавление».
+In the eye-check of the 100 findings of #135, one commit (Tencent_KsanaLLM `af9c7e7789`, struct `PrintStepHook`)
+produced a false `n_bool_field_added=+1`: the field `print_all_blocks_` existed in BOTH the parent AND the child
+(only the logging line changed in the diff), but the sidecar counted it as an "addition".
 
-## Корневая причина
+## Root cause
 
-`struct_fields` (в `experiments/boolean_state/perstruct_drift.py`) считает глубину вложенности
-наивно — `depth += line.count('{') - line.count('}')` — и **глотает фигурные скобки внутри
-строковых/символьных литералов и комментариев**. В родителе тело метода содержало:
+`struct_fields` (in `experiments/boolean_state/perstruct_drift.py`) counts nesting depth
+naively — `depth += line.count('{') - line.count('}')` — and **swallows curly braces inside
+string/char literals and comments**. In the parent, the method body contained:
 
 ```cpp
-ss << ", blocks={ ";   // '{' внутри строкового литерала
+ss << ", blocks={ ";   // '{' inside a string literal
 ```
 
-→ depth получал фантомный +1 на весь остаток структуры → `bool print_all_blocks_;` (depth-0 поле)
-виделось на depth 1 → **пропускалось**. В потомке этот блок-со-строкой удалён → depth верный →
-поле посчитано. Разница версий → ложный `+1`.
+→ depth got a phantom +1 for the entire rest of the struct → `bool print_all_blocks_;` (a depth-0 field)
+was seen at depth 1 → **skipped**. In the child this block-with-the-string was removed → depth correct →
+the field was counted. Difference between versions → false `+1`.
 
-**Класс FP:** литерал/коммент с фигурной скобкой в теле метода, ПОЯВЛЯЮЩИЙСЯ/ИСЧЕЗАЮЩИЙ между
-версиями (для снапшот-анализа #089 это лишь тихий недосчёт; для ДЕЛЬТЫ #135 — ложная находка).
+**FP class:** a literal/comment with a curly brace in a method body that APPEARS/DISAPPEARS between
+versions (for the snapshot analysis of #089 this is just a silent undercount; for the DELTA of #135 — a false finding).
 
-## Фикс
+## Fix
 
-Перед счётом скобок стрипать из строки строковые/символьные литералы и `//`-комментарии:
+Before counting braces, strip string/char literals and `//`-comments from the line:
 
 ```python
 _LIT = re.compile(r'//.*$|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'')
@@ -41,59 +41,59 @@ clean = _LIT.sub('', line)
 depth += clean.count('{') - clean.count('}')
 ```
 
-Поле-матч (`BOOL_RE`) остаётся на ОРИГИНАЛЬНОЙ строке — стрип только для счёта скобок.
+The field match (`BOOL_RE`) stays on the ORIGINAL line — the strip is only for counting braces.
 
-**Валидация (7 кейсов):** KsanaLLM `PrintStepHook` 1→**0** (баг убит); 6 эталонов без изменений
+**Validation (7 cases):** KsanaLLM `PrintStepHook` 1→**0** (bug killed); 6 references unchanged
 (FlashCpp 3, ovn 1, kwin 2, circt 0, intel 1, PQCSettings 181). ✓
 
-**Остаточное ограничение:** блочные комменты `/* { */` через несколько строк фикс не ловит (редко);
-строковые литералы и line-комменты — основной класс — покрыты.
+**Residual limitation:** block comments `/* { */` spanning several lines are not caught by the fix (rare);
+string literals and line comments — the main class — are covered.
 
-## ДОПОЛНЕНИЕ 2026-06-24 — первый фикс был НЕПОЛНЫМ (`find_body` тоже глотал скобки)
+## ADDENDUM 2026-06-24 — the first fix was INCOMPLETE (`find_body` also swallowed braces)
 
-При портировании в C++-правило (#090) всплыло: первый фикс чинил только line-depth, а **`find_body`
-(поиск тела структуры) тоже char-level и тоже глотал `{` из литерала**. На СБАЛАНСИРОВАННЫХ литералах
-(KsanaLLM: `"blocks={ "` + `"} "`) `find_body` оставался корректным — потому первый фикс «сработал».
-Но НЕсбалансированный `{` в строке (`"x={ "` без парного `}`) ломает и `find_body` → тело структуры
-кривое → поля теряются.
+While porting it to the C++ rule (#090) it surfaced: the first fix only fixed line-depth, while **`find_body`
+(finding the struct body) is also char-level and also swallowed the `{` from the literal**. On BALANCED literals
+(KsanaLLM: `"blocks={ "` + `"} "`) `find_body` stayed correct — which is why the first fix "worked".
+But an UNBALANCED `{` in a string (`"x={ "` without a matching `}`) breaks `find_body` too → the struct body is
+wrong → fields are lost.
 
-**Полный фикс:** `neutralize_braces(text)` — state-machine, бланчит `{`/`}` внутри string/char-литералов
-И комментов (вкл. блочные `/* */`), длина/строки сохранены. Применён к ВСЕМ скобочным операциям
-(`find_body` + depth) в **обоих** парсерах: C++ `src/scan/bool_field_drift.cpp` и Python
-`perstruct_drift.py`. Покрывает и бывший residual (блок-комменты).
+**Full fix:** `neutralize_braces(text)` — a state machine that blanks `{`/`}` inside string/char literals
+AND comments (incl. block `/* */`), preserving length/lines. Applied to ALL brace operations
+(`find_body` + depth) in **both** parsers: C++ `src/scan/bool_field_drift.cpp` and Python
+`perstruct_drift.py`. Covers the former residual (block comments) too.
 
-**Квантификация на корпусе:** старый (line-depth-only) vs полный фикс расходятся на **0.33%** структур
-(~55 находок из 16.7k). Текущий корпус-прогон #135 (PID 1264675) шёл на неполном фиксе → несёт эти 0.33%.
-Парсеры C++ и Python теперь согласованы (unbalanced-literal → 0; KsanaLLM 0; FlashCpp 3; PQCSettings 181).
+**Quantification on the corpus:** old (line-depth-only) vs full fix diverge on **0.33%** of structs
+(~55 findings out of 16.7k). The current corpus run of #135 (PID 1264675) ran on the incomplete fix → carries these 0.33%.
+The C++ and Python parsers are now aligned (unbalanced-literal → 0; KsanaLLM 0; FlashCpp 3; PQCSettings 181).
 
-## Импакт
+## Impact
 
-- **#135** — прогон `bool_field_added.jsonl` дефективен (≈1% находок: 1 из 100 в eye-check). **Рестарт начисто.**
-- **#089/#134** — тот же парсер; их артефакты считались до фикса (тихий недосчёт, не ложные дельты).
-  Станут точнее при перепрогоне; артефакты на диске не трогаю, помечаю что пересчитать при надобности.
+- **#135** — the `bool_field_added.jsonl` run is defective (≈1% of findings: 1 of 100 in the eye-check). **Clean restart.**
+- **#089/#134** — the same parser; their artifacts were computed before the fix (silent undercount, not false deltas).
+  They will become more accurate on a re-run; I am not touching the artifacts on disk, marking them to be recomputed if needed.
 
-## Сделано
-- [x] Причина локализована (KsanaLLM PrintStepHook, литерал `"blocks={ "`).
-- [x] Фикс прототипирован и провалидирован на 7 кейсах.
-- [x] Применён фикс в `perstruct_drift.py` (`_LIT` стрип перед счётом скобок). Через сайдкар: PrintStepHook delta 0, коммит 44→43, 6 эталонов целы.
-- [x] Рестарт прогона #135 начисто (PID 1264675, 5 воркеров, дефективный вывод → `bool_field_added.jsonl.prebugfix_20260624`).
-- [x] После прогона — eye-check снят натив-прогоном #090: `results_full.boolrule.jsonl`
-      произведён уже фиксированным C++-правилом (FP-проверка 22/22 TP, класс literal-brace не всплыл).
+## Done
+- [x] Cause localized (KsanaLLM PrintStepHook, literal `"blocks={ "`).
+- [x] Fix prototyped and validated on 7 cases.
+- [x] Fix applied in `perstruct_drift.py` (`_LIT` strip before counting braces). Via the sidecar: PrintStepHook delta 0, commit 44→43, 6 references intact.
+- [x] Clean restart of the #135 run (PID 1264675, 5 workers, defective output → `bool_field_added.jsonl.prebugfix_20260624`).
+- [x] After the run — the eye-check was taken off by the native run of #090: `results_full.boolrule.jsonl`
+      was produced by the already-fixed C++ rule (FP check 22/22 TP, the literal-brace class did not surface).
 
-## ИТОГ (2026-06-25)
+## OUTCOME (2026-06-25)
 
-Баг закрыт в коде C++-правила (#090) и в Python-прототипе; держится на регрессионных тестах,
-а не на ручной валидации:
+The bug is closed in the C++ rule code (#090) and in the Python prototype; it holds on regression tests,
+not on manual validation:
 
-- **Фикс в C++** (`src/scan/bool_field_drift.cpp`): brace-neutralized копия текста (стр. 76-94) —
-  каждая `{`/`}` внутри string/char-литерала или line/block-коммента бланчится перед ВСЕМИ
-  скобочными операциями (`findBody` + depth-tracking), офсеты 1:1 с оригиналом, матч полей идёт
-  по оригиналу. Эквивалент Python-`neutralize_braces`.
-- **Регрессия зафиксирована тестами** (зелёные, 25 assertions / 11 кейсов `[bool_drift]`):
-  - unit `tests/unit/scan/bool_field_drift_test.cpp:82` — НЕсбалансированный `"x={ "` (тот самый
-    остаточный случай из «ДОПОЛНЕНИЯ», что ломал `findBody`) → нет находки;
-  - integration `tests/integration/scan/bool_field_drift_fixtures_test.cpp:37` + фикстуры
+- **Fix in C++** (`src/scan/bool_field_drift.cpp`): a brace-neutralized copy of the text (lines 76-94) —
+  each `{`/`}` inside a string/char literal or line/block comment is blanked before ALL
+  brace operations (`findBody` + depth-tracking), offsets 1:1 with the original, field matching is done
+  on the original. Equivalent to the Python `neutralize_braces`.
+- **Regression locked in by tests** (green, 25 assertions / 11 cases `[bool_drift]`):
+  - unit `tests/unit/scan/bool_field_drift_test.cpp:82` — UNBALANCED `"x={ "` (the very
+    residual case from the "ADDENDUM" that broke `findBody`) → no finding;
+  - integration `tests/integration/scan/bool_field_drift_fixtures_test.cpp:37` + fixtures
     `fixtures/bool_field_drift/pass/literal_brace_{baseline,current}.h`.
-- **Данные чистые:** натив корпус-прогон #090 (на котором стоят #119 и #134) сделан уже
-  фиксированным правилом → 0.33%-расхождение неполного фикса в выводы не попало.
-- Дефективный Python-вывод #135 (`bool_field_added.jsonl`) superseded вместе с #135.
+- **Data clean:** the native corpus run of #090 (on which #119 and #134 stand) was done with the already-
+  fixed rule → the 0.33% divergence of the incomplete fix did not get into the conclusions.
+- The defective Python output of #135 (`bool_field_added.jsonl`) is superseded together with #135.

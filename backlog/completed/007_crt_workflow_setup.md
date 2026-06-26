@@ -1,149 +1,149 @@
-# [PROCESS] Принять OSS-стандарты для git-процесса
+# [PROCESS] Adopt OSS standards for the git process
 
-**Дата создания:** 2026-05-26
-**Дата старта:** 2026-05-26
-**Дата завершения:** 2026-05-26
-**Статус:** done
-**Модуль:** PROCESS
-**Приоритет:** critical
-**Сложность:** medium
-**Блокирует:** все будущие задачи (раньше зафиксируешь конвенции — меньше дрейфа)
-**Заблокирован:** —
-**Related:** #006 (spec_refactor — stability contract попадёт в спеку)
+**Created:** 2026-05-26
+**Started:** 2026-05-26
+**Completed:** 2026-05-26
+**Status:** done
+**Module:** PROCESS
+**Priority:** critical
+**Difficulty:** medium
+**Blocks:** all future tasks (the sooner conventions are fixed, the less drift)
+**Blocked by:** —
+**Related:** #006 (spec_refactor — the stability contract lands in the spec)
 
-## Цель
+## Goal
 
-Зафиксировать общепринятые OSS-стандарты для git-процесса cpparch и применить их к существующей оснастке: GitHub Flow + Conventional Commits + SemVer 2.0 + Keep a Changelog + аннотированные `vX.Y.Z` теги. Дальше никто не сможет придраться к «нестандартному» процессу.
+Lock down the commonly accepted OSS standards for the cpparch git process and apply them to the existing tooling: GitHub Flow + Conventional Commits + SemVer 2.0 + Keep a Changelog + annotated `vX.Y.Z` tags. After this, nobody can object to a "non-standard" process.
 
-## Контекст
+## Context
 
-Решение принято в сессии 2026-05-26 после обсуждения. Краткий обзор:
+Decision made in the 2026-05-26 session after discussion. Brief overview:
 
-- **GitHub Flow** (не Git Flow). Master всегда зелёный, всё через feature-ветки + PR. Используют fmt, spdlog, Catch2, nlohmann/json, ArchUnit. Sam Driessen (автор Git Flow) в 2020 признал, что для web/OSS его модель overkill.
-- **Conventional Commits** ([conventionalcommits.org](https://www.conventionalcommits.org/)). `<type>(<scope>): <description>`. Открывает автоматизацию: commitlint, release-please, auto-changelog.
-- **SemVer 2.0** ([semver.org](https://semver.org/)). Pre-1.0 → `0.x.y`, MINOR может ломать. 1.0 — когда CLI/JSON/config-формат стабильны.
-- **Keep a Changelog** ([keepachangelog.com](https://keepachangelog.com/)). `CHANGELOG.md` с секциями Added / Changed / Deprecated / Removed / Fixed / Security + Unreleased сверху.
-- **Annotated `vX.Y.Z` tags**. Linux, Rust, Go, fmt. Tag — annotated, не lightweight.
+- **GitHub Flow** (not Git Flow). Master is always green, everything goes through feature branches + PRs. Used by fmt, spdlog, Catch2, nlohmann/json, ArchUnit. Sam Driessen (the author of Git Flow) admitted in 2020 that his model is overkill for web/OSS.
+- **Conventional Commits** ([conventionalcommits.org](https://www.conventionalcommits.org/)). `<type>(<scope>): <description>`. Unlocks automation: commitlint, release-please, auto-changelog.
+- **SemVer 2.0** ([semver.org](https://semver.org/)). Pre-1.0 → `0.x.y`, MINOR may break. 1.0 — when the CLI/JSON/config format are stable.
+- **Keep a Changelog** ([keepachangelog.com](https://keepachangelog.com/)). `CHANGELOG.md` with Added / Changed / Deprecated / Removed / Fixed / Security sections + Unreleased on top.
+- **Annotated `vX.Y.Z` tags**. Linux, Rust, Go, fmt. The tag is annotated, not lightweight.
 
-Default branch остаётся `master` (переименование в `main` — churn без выгоды).
+The default branch stays `master` (renaming to `main` is churn without benefit).
 
-Ветки именуются `<type>/<NNN>-<short-slug>`, где type ∈ `feat/fix/docs/refactor/chore/test/build`, NNN — ID задачи из backlog. Пример: `docs/006-spec-refactor`, `chore/007-workflow-setup`, `feat/004-project-skeleton`.
+Branches are named `<type>/<NNN>-<short-slug>`, where type ∈ `feat/fix/docs/refactor/chore/test/build`, NNN — the task ID from the backlog. Example: `docs/006-spec-refactor`, `chore/007-workflow-setup`, `feat/004-project-skeleton`.
 
-## План выполнения
+## Execution plan
 
-- [x] **1. Написать `docs/dev/git_workflow.md`** (≈30 строк). Содержит:
+- [x] **1. Write `docs/dev/git_workflow.md`** (≈30 lines). Contains:
    - Branching: GitHub Flow + naming convention.
-   - Commits: Conventional Commits + словарь scope-ов под cpparch (`config`, `graph`, `scan`, `rules/sf`, `rules/lakos`, `rules/martin`, `report`, `cli`, `fixtures`, `build`, `docs`, `tasks`, `process`).
-   - Versioning: SemVer 2.0 + правило pre-1.0.
-   - Tags: `vX.Y.Z` аннотированные, push с `--follow-tags`.
-   - Changelog: ссылка на Keep a Changelog.
-   - Trailers (`AI-Assisted`, `Verified`, `Risk`, `Co-Authored-By`) — оставлены поверх Conventional Commits, парсерами игнорируются.
+   - Commits: Conventional Commits + a dictionary of scopes for cpparch (`config`, `graph`, `scan`, `rules/sf`, `rules/lakos`, `rules/martin`, `report`, `cli`, `fixtures`, `build`, `docs`, `tasks`, `process`).
+   - Versioning: SemVer 2.0 + the pre-1.0 rule.
+   - Tags: `vX.Y.Z` annotated, push with `--follow-tags`.
+   - Changelog: link to Keep a Changelog.
+   - Trailers (`AI-Assisted`, `Verified`, `Risk`, `Co-Authored-By`) — kept on top of Conventional Commits, ignored by parsers.
 
-- [x] **2. Обновить `/commit` скил** под Conventional Commits.
-   - Заменить `<type>: [TAG] subject` → `<type>(<scope>): subject`.
-   - Mapping старых тегов в scope-ы: `[CONFIG]→config`, `[GRAPH]→graph`, `[SCAN]→scan`, `[RULES][SF]→rules/sf`, `[RULES][LAKOS]→rules/lakos`, `[RULES][MARTIN]→rules/martin`, `[RULES][CUSTOM]→rules/custom`, `[REPORT]→report`, `[CLI]→cli`, `[FIXTURES]→fixtures`, `[BUILD]→build`, `[DOCS]→docs`, `[DOCS][CLAUDE]→docs/claude`, `[DOCS][TASKS]→tasks`, `[PROCESS]→process`.
-   - Subject ≤72 символов на первой строке. Body разделён пустой строкой.
+- [x] **2. Update the `/commit` skill** for Conventional Commits.
+   - Replace `<type>: [TAG] subject` → `<type>(<scope>): subject`.
+   - Mapping of old tags to scopes: `[CONFIG]→config`, `[GRAPH]→graph`, `[SCAN]→scan`, `[RULES][SF]→rules/sf`, `[RULES][LAKOS]→rules/lakos`, `[RULES][MARTIN]→rules/martin`, `[RULES][CUSTOM]→rules/custom`, `[REPORT]→report`, `[CLI]→cli`, `[FIXTURES]→fixtures`, `[BUILD]→build`, `[DOCS]→docs`, `[DOCS][CLAUDE]→docs/claude`, `[DOCS][TASKS]→tasks`, `[PROCESS]→process`.
+   - Subject ≤72 characters on the first line. Body separated by a blank line.
 
-- [x] **3. Обновить `/create-task` скил.**
-   - После создания файла предлагать команду создания ветки `<type>/<NNN>-<slug>` (тип угадывать по модулю; пользователь подтверждает).
+- [x] **3. Update the `/create-task` skill.**
+   - After creating the file, suggest the branch-creation command `<type>/<NNN>-<slug>` (guess the type from the module; the user confirms).
 
-- [x] **4. Завести `CHANGELOG.md` по Keep a Changelog.**
-   - Шапка с ссылкой на keepachangelog.com и semver.org.
-   - Секция `[Unreleased]` с пустыми подсекциями Added/Changed/Deprecated/Removed/Fixed/Security.
-   - Готов под первый релиз `0.1.0`.
+- [x] **4. Create `CHANGELOG.md` following Keep a Changelog.**
+   - Header with links to keepachangelog.com and semver.org.
+   - An `[Unreleased]` section with empty Added/Changed/Deprecated/Removed/Fixed/Security subsections.
+   - Ready for the first `0.1.0` release.
 
-- [x] **5. Дописать stability contract** в `docs/architecture-spec.md`.
-   - Что считается breaking change (MAJOR bump): изменение exit codes, удаление CLI-флага, изменение схемы JSON-отчёта, изменение схемы YAML-конфига, изменение формата baseline.
-   - Что считается non-breaking (MINOR): добавление CLI-флагов с default, добавление полей в JSON-отчёт, новые дефолтные правила (с опцией выключения).
-   - Pre-1.0 — semver разрешает breaking в MINOR, но проект всё равно стремится их избегать без явной нужды.
+- [x] **5. Add the stability contract** to `docs/architecture-spec.md`.
+   - What counts as a breaking change (MAJOR bump): changing exit codes, removing a CLI flag, changing the JSON report schema, changing the YAML config schema, changing the baseline format.
+   - What counts as non-breaking (MINOR): adding CLI flags with a default, adding fields to the JSON report, new default rules (with an opt-out).
+   - Pre-1.0 — semver allows breaking changes in MINOR, but the project still strives to avoid them without an explicit need.
 
-- [x] **6. Короткие правки в CLAUDE.md и backlog/README.md.**
-   - Упомянуть `docs/dev/git_workflow.md` как канон.
-   - В backlog/README.md секция «Жизненный цикл задачи» — добавить шаг про создание ветки.
+- [x] **6. Short edits to CLAUDE.md and backlog/README.md.**
+   - Mention `docs/dev/git_workflow.md` as the canon.
+   - In backlog/README.md, the "Task lifecycle" section — add a step about branch creation.
 
-- [x] **7. (опционально) Уведомить пользователя про self-approve.**
-   - В git_workflow.md — заметка: для solo-dev режима поставить `Required approvals = 0` в GitHub Rulesets для master.
+- [x] **7. (optional) Notify the user about self-approve.**
+   - A note in git_workflow.md: for solo-dev mode, set `Required approvals = 0` in the GitHub Rulesets for master.
 
-## Сделано
+## Done
 
-- **2026-05-26** — Шаги 1, 4, 5, 6, 7: завёл [`docs/dev/git_workflow.md`](../../docs/dev/git_workflow.md) (полный канон: GitHub Flow + Conventional Commits + SemVer + KAC + теги + release-процесс), [`CHANGELOG.md`](../../CHANGELOG.md) (Keep a Changelog 1.1, `[Unreleased]` накопительная), секция «Stability contract» в [`docs/architecture-spec.md`](../../docs/architecture-spec.md) (таблица breaking vs non-breaking по exit codes / CLI / JSON / SARIF / YAML-config / baseline / дефолтные правила). Ссылка на workflow добавлена в `CLAUDE.md` и шаг 2 жизненного цикла в `backlog/README.md`. Self-approve / direct push для admin зафиксированы в workflow doc. Коммит `930e323`.
-- **2026-05-26** — Post-hoc правка: из секции «Stability contract» убрана завершающая ссылка на `docs/dev/git_workflow.md` — спека про *what*, workflow про *how*, не смешивать слои. Коммит `f19c130`.
-- **2026-05-26** — Шаги 2, 3: `/commit` скил переписан под Conventional Commits 1.0 (таблицы type/scope из git_workflow.md, формат `<type>(<scope>): <subject>`, scope-map из старых `[TAG]`, subject ≤72, lowercase, императив). `/create-task` дополнен секцией «Когда начинаешь работу — выбор формата»: direct push для рутины vs feature-ветка `<type>/<NNN>-<slug>` для значимой работы.
+- **2026-05-26** — Steps 1, 4, 5, 6, 7: created [`docs/dev/git_workflow.md`](../../docs/dev/git_workflow.md) (the full canon: GitHub Flow + Conventional Commits + SemVer + KAC + tags + release process), [`CHANGELOG.md`](../../CHANGELOG.md) (Keep a Changelog 1.1, accumulating `[Unreleased]`), the "Stability contract" section in [`docs/architecture-spec.md`](../../docs/architecture-spec.md) (a breaking vs non-breaking table for exit codes / CLI / JSON / SARIF / YAML config / baseline / default rules). A link to the workflow was added to `CLAUDE.md` and a lifecycle step 2 to `backlog/README.md`. Self-approve / direct push for admin are documented in the workflow doc. Commit `930e323`.
+- **2026-05-26** — Post-hoc edit: removed the trailing link to `docs/dev/git_workflow.md` from the "Stability contract" section — the spec is about *what*, the workflow about *how*; don't mix the layers. Commit `f19c130`.
+- **2026-05-26** — Steps 2, 3: the `/commit` skill rewritten for Conventional Commits 1.0 (type/scope tables from git_workflow.md, the `<type>(<scope>): <subject>` format, scope-map from the old `[TAG]`s, subject ≤72, lowercase, imperative). `/create-task` extended with a "When you start work — choosing the format" section: direct push for routine vs a feature branch `<type>/<NNN>-<slug>` for significant work.
 
-## В работе
+## In progress
 
-- (пусто)
+- (empty)
 
-## Следующие шаги
+## Next steps
 
-1. Открыть `docs/dev/git_workflow.md` — написать с нуля.
-2. Параллельно подготовить mapping старых тегов в scope-ы (см. п. 2 плана).
-3. После — обновить `/commit` и `/create-task`, перепроверить, что они согласованы между собой.
-4. Создать `CHANGELOG.md` — последний шаг.
+1. Open `docs/dev/git_workflow.md` — write it from scratch.
+2. In parallel, prepare the mapping of old tags to scopes (see plan item 2).
+3. After that — update `/commit` and `/create-task`, double-check that they are consistent with each other.
+4. Create `CHANGELOG.md` — the last step.
 
-## Ключевые решения
+## Key decisions
 
-| Решение | Причина |
+| Decision | Reason |
 |---------|---------|
-| GitHub Flow, не Git Flow | Git Flow устарел даже по мнению автора; для CLI / OSS overkill |
-| Default branch остаётся `master` | Переименование в `main` — косметика, не стоит churn-а |
-| Conventional Commits, не custom | Открывает commitlint, release-please, parsable history. Стандарт с известными tooling-партнёрами |
-| SemVer pre-1.0 = `0.x.y` | Стандарт SemVer 2.0 §4; даёт легитимность ломки в MINOR до v1.0 |
-| `v`-префикс в тегах | Чаще встречается в OSS (Rust, Go, fmt), Linux kernel — исключение |
-| Keep a Changelog, не auto-generated | Курируемый changelog читается людьми; auto-gen всегда можно добавить позже |
-| Trailers сохранить | Игнорируются Conventional-Commits парсерами, ценны как AI-аудит-маркеры |
-| PROCESS как новый scope/tag | Существующие BUILD/DOCS не подходят семантически |
+| GitHub Flow, not Git Flow | Git Flow is outdated even by its author's opinion; overkill for CLI / OSS |
+| Default branch stays `master` | Renaming to `main` is cosmetic, not worth the churn |
+| Conventional Commits, not custom | Unlocks commitlint, release-please, parsable history. A standard with well-known tooling partners |
+| SemVer pre-1.0 = `0.x.y` | SemVer 2.0 standard §4; legitimizes breaking changes in MINOR before v1.0 |
+| `v`-prefix on tags | More common in OSS (Rust, Go, fmt), the Linux kernel being the exception |
+| Keep a Changelog, not auto-generated | A curated changelog reads well for humans; auto-gen can always be added later |
+| Keep the trailers | Ignored by Conventional-Commits parsers, valuable as AI audit markers |
+| PROCESS as a new scope/tag | The existing BUILD/DOCS don't fit semantically |
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение | Commit |
+| File | Change | Commit |
 |------|-----------|--------|
-| `docs/dev/git_workflow.md` | новый — канон конвенций | `930e323` |
-| `CHANGELOG.md` | новый — Keep a Changelog `[Unreleased]` | `930e323` |
-| `docs/architecture-spec.md` | секция «Stability contract» добавлена | `930e323` |
-| `docs/architecture-spec.md` | убрана ссылка на workflow из спеки (post-hoc) | `f19c130` |
-| `CLAUDE.md` | ссылка на git_workflow.md в Code style & AI constraints | `930e323` |
-| `backlog/README.md` | feature-ветка как опция в шаге 2 «Старт работы» | `930e323` |
-| `.claude/commands/commit.md` | переписан под Conventional Commits + scope таблицы | `f1d2629` |
-| `.claude/commands/create-task.md` | секция «Когда начинаешь работу — выбор формата» | `f1d2629` |
-| `backlog/wip → completed/007_*.md` | task closed | (текущий коммит) |
+| `docs/dev/git_workflow.md` | new — the conventions canon | `930e323` |
+| `CHANGELOG.md` | new — Keep a Changelog `[Unreleased]` | `930e323` |
+| `docs/architecture-spec.md` | "Stability contract" section added | `930e323` |
+| `docs/architecture-spec.md` | removed the workflow link from the spec (post-hoc) | `f19c130` |
+| `CLAUDE.md` | link to git_workflow.md in Code style & AI constraints | `930e323` |
+| `backlog/README.md` | feature branch as an option in step 2 "Starting work" | `930e323` |
+| `.claude/commands/commit.md` | rewritten for Conventional Commits + scope tables | `f1d2629` |
+| `.claude/commands/create-task.md` | "When you start work — choosing the format" section | `f1d2629` |
+| `backlog/wip → completed/007_*.md` | task closed | (current commit) |
 
-## Как работает
+## How it works
 
-Процесс описывается единственным каноном — [`docs/dev/git_workflow.md`](../../docs/dev/git_workflow.md). Все остальные документы (CLAUDE.md, backlog/README.md, скилы `/commit` и `/create-task`) ссылаются на него и не дублируют содержания.
+The process is described by a single canon — [`docs/dev/git_workflow.md`](../../docs/dev/git_workflow.md). All other documents (CLAUDE.md, backlog/README.md, the `/commit` and `/create-task` skills) refer to it and do not duplicate its content.
 
-**Слои:**
-1. **Branching (GitHub Flow):** master всегда зелёный. Feature-ветки `<type>/<NNN>-<slug>` — опционально, для значимой работы. Admin репо в bypass list → direct push в master разрешён. Force-push заблокирован.
-2. **Commits (Conventional Commits 1.0):** `<type>(<scope>): <subject>`. Type и scope-таблицы — в `git_workflow.md`, scope покрывает все подсистемы cpparch.
-3. **Versioning (SemVer 2.0):** pre-1.0 `0.x.y` (breaking в MINOR допустим), после v1.0 — strict semver.
-4. **Tags (annotated `vX.Y.Z`):** `git tag -a vX.Y.Z -m "Release X.Y.Z"`, push с `--follow-tags`.
-5. **Changelog (Keep a Changelog 1.1):** [`CHANGELOG.md`](../../CHANGELOG.md) в корне, `[Unreleased]` сверху, при релизе фиксируется в `[X.Y.Z] - YYYY-MM-DD`.
-6. **Stability contract:** что считается breaking (MAJOR) — таблица в [`docs/architecture-spec.md`](../../docs/architecture-spec.md) §Stability contract. Покрывает exit codes, CLI флаги, JSON-схему, SARIF, YAML-конфиг, baseline, дефолтные правила.
-7. **AI-аудит трейлеры:** `AI-Assisted`, `Verified`, `Risk`, `Co-Authored-By` — поверх Conventional Commits, парсерами игнорируются.
+**Layers:**
+1. **Branching (GitHub Flow):** master is always green. Feature branches `<type>/<NNN>-<slug>` — optional, for significant work. Repo admin is on the bypass list → direct push to master is allowed. Force-push is blocked.
+2. **Commits (Conventional Commits 1.0):** `<type>(<scope>): <subject>`. The type and scope tables are in `git_workflow.md`, the scope covers all cpparch subsystems.
+3. **Versioning (SemVer 2.0):** pre-1.0 `0.x.y` (breaking allowed in MINOR), after v1.0 — strict semver.
+4. **Tags (annotated `vX.Y.Z`):** `git tag -a vX.Y.Z -m "Release X.Y.Z"`, push with `--follow-tags`.
+5. **Changelog (Keep a Changelog 1.1):** [`CHANGELOG.md`](../../CHANGELOG.md) at the root, `[Unreleased]` on top, fixed into `[X.Y.Z] - YYYY-MM-DD` at release time.
+6. **Stability contract:** what counts as breaking (MAJOR) — a table in [`docs/architecture-spec.md`](../../docs/architecture-spec.md) §Stability contract. Covers exit codes, CLI flags, the JSON schema, SARIF, YAML config, baseline, default rules.
+7. **AI audit trailers:** `AI-Assisted`, `Verified`, `Risk`, `Co-Authored-By` — on top of Conventional Commits, ignored by parsers.
 
-## Чем управляется
+## Controlled by
 
-- **`.claude/commands/commit.md`** — формат коммита enforce-ится скилом `/commit`.
-- **`.claude/commands/create-task.md`** — формат имени задачи и совет по ветке.
-- **GitHub Rulesets** (Settings → Rules → Rulesets для master):
+- **`.claude/commands/commit.md`** — the commit format is enforced by the `/commit` skill.
+- **`.claude/commands/create-task.md`** — the task-name format and the branch advice.
+- **GitHub Rulesets** (Settings → Rules → Rulesets for master):
   - Require pull request: ON, required approvals = 0.
   - Block force pushes: ON.
   - Bypass list: admin (`blurman-ai`).
-- **GitHub Settings → General → Pull Requests**: Automatically delete head branches — стоит включить (опционально).
+- **GitHub Settings → General → Pull Requests**: Automatically delete head branches — should be enabled (optional).
 
-## С чем связана
+## Related to
 
-- **#006 spec_refactor** — Stability contract попал в спеку как часть #007; шаг 5 #006 (closure двух-бекендного вопроса) уже частично сделан. Оставшиеся шаги #006: 1, 2, 3, 4, 6, 7, 8.
-- **Все будущие задачи** — пользуются конвенциями `<type>/<NNN>-<slug>` для веток, Conventional Commits для коммитов, ссылаются `(#NNN)` в subject-е.
-- **#002 github_actions_ci** — когда дойдём до CI, добавится commitlint в pre-merge checks (опционально, после первого реального contributor-а).
+- **#006 spec_refactor** — the stability contract landed in the spec as part of #007; step 5 of #006 (closing the two-backend question) is already partly done. Remaining steps of #006: 1, 2, 3, 4, 6, 7, 8.
+- **All future tasks** — use the `<type>/<NNN>-<slug>` conventions for branches, Conventional Commits for commits, reference `(#NNN)` in the subject.
+- **#002 github_actions_ci** — when we get to CI, commitlint will be added to pre-merge checks (optional, after the first real contributor).
 
-## Диагностика
+## Diagnostics
 
-Как понять, что процесс соблюдается:
+How to tell the process is being followed:
 
-- `git log --oneline | head` — все коммиты вида `<type>(<scope>): <subject>` или `<type>: <subject>` (если scope опущен). Не должно быть legacy-формата `<type>: [TAG] subject`.
-- `git tag` — все теги имеют `v`-префикс и аннотацию (`git show <tag>` показывает сообщение).
-- `cat CHANGELOG.md | head -20` — секция `[Unreleased]` существует, ссылки на keepachangelog.com и semver.org в шапке.
-- `find backlog -name '???_*.md' | head` — все задачи именованы `NNN_<priority>_<name>.md`.
-- `ls backlog/` — структура `new/ wip/ completed/`, никаких задач в корне.
-- `git push origin master --force-with-lease` — должно отклоняться (force-push заблокирован для всех).
+- `git log --oneline | head` — all commits of the form `<type>(<scope>): <subject>` or `<type>: <subject>` (if the scope is omitted). There should be no legacy-format `<type>: [TAG] subject`.
+- `git tag` — all tags have a `v`-prefix and an annotation (`git show <tag>` shows the message).
+- `cat CHANGELOG.md | head -20` — an `[Unreleased]` section exists, links to keepachangelog.com and semver.org in the header.
+- `find backlog -name '???_*.md' | head` — all tasks are named `NNN_<priority>_<name>.md`.
+- `ls backlog/` — the `new/ wip/ completed/` structure, no tasks at the root.
+- `git push origin master --force-with-lease` — should be rejected (force-push is blocked for everyone).

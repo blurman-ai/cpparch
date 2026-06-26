@@ -1,80 +1,80 @@
-# [SCAN][CLI] Ambiguous из зеркальных директорий: single_include/, _amalgamated
+# [SCAN][CLI] Ambiguous from mirror directories: single_include/, _amalgamated
 
-**Дата создания:** 2026-05-28
-**Дата старта:** 2026-05-28
-**Дата завершения:** 2026-05-29
-**Статус:** completed
-**Модуль:** SCAN / CLI
-**Приоритет:** major
-**Сложность:** S
-**Блокирует:** —
-**Заблокирован:** —
+**Created:** 2026-05-28
+**Started:** 2026-05-28
+**Completed:** 2026-05-29
+**Status:** completed
+**Module:** SCAN / CLI
+**Priority:** major
+**Complexity:** S
+**Blocks:** —
+**Blocked by:** —
 **Related:** #028 (rules_engine_mvp)
 
-## Цель
+## Goal
 
-Устранить ложные ambiguous-находки возникающие когда репо содержит `single_include/` или аналогичную директорию с дубликатами заголовков.
+Eliminate false ambiguous findings that arise when a repo contains `single_include/` or a similar directory with duplicate headers.
 
-## Контекст
+## Context
 
-Прогон на nlohmann/json (commit `d10879b`) выдал **333 ambiguous** — все ложные. Причина:
+A run on nlohmann/json (commit `d10879b`) produced **333 ambiguous** — all false. Cause:
 
 ```
-/tmp/json/include/nlohmann/json.hpp         ← основной исходник
-/tmp/json/single_include/nlohmann/json.hpp  ← сгенерированный amalgam
+/tmp/json/include/nlohmann/json.hpp         ← main source
+/tmp/json/single_include/nlohmann/json.hpp  ← generated amalgam
 ```
 
-Оба файла называются `json.hpp`. Любой `#include <nlohmann/json.hpp>` находит два кандидата → `ambiguous`. Аналогично для `json_fwd.hpp`.
+Both files are named `json.hpp`. Any `#include <nlohmann/json.hpp>` finds two candidates → `ambiguous`. Same for `json_fwd.hpp`.
 
-Паттерн распространён: nlohmann/json, {fmt}, Catch2 (extras/), Abseil (не имеет, но другие подобные проекты есть). Типичные имена зеркальных директорий: `single_include/`, `amalgamate/`, `dist/`, `release/`, `generated/`.
+The pattern is common: nlohmann/json, {fmt}, Catch2 (extras/), Abseil (doesn't have it, but other similar projects do). Typical mirror directory names: `single_include/`, `amalgamate/`, `dist/`, `release/`, `generated/`.
 
-## Решение
+## Solution
 
-Два независимых подхода, можно реализовать оба:
+Two independent approaches, both can be implemented:
 
-**А — exclude-список по умолчанию (quick fix):**
-При разрешении `ambiguous` — если среди кандидатов один путь содержит `single_include/`, `amalgamate/`, `dist/`, `generated/` — предпочитать другой, не помечать как ambiguous. Список well-known директорий хранить в `include_resolver.cpp`.
+**A — default exclude list (quick fix):**
+When resolving `ambiguous` — if among the candidates one path contains `single_include/`, `amalgamate/`, `dist/`, `generated/` — prefer the other, do not mark as ambiguous. Keep the list of well-known directories in `include_resolver.cpp`.
 
-**Б — конфигурируемый exclude в `.archcheck.yml`:**
+**B — configurable exclude in `.archcheck.yml`:**
 ```yaml
 scan:
   exclude_dirs: ["single_include", "build", "third_party"]
 ```
-Файлы из exclude_dirs не добавляются в проектный граф вообще → не могут быть ни источником, ни кандидатом.
+Files from exclude_dirs are not added to the project graph at all → they cannot be either a source or a candidate.
 
-Вариант Б более правильный (пользователь управляет явно), но требует конфига. Вариант А — zero-config быстрый фикс, закрывает распространённый случай.
+Option B is more correct (the user manages it explicitly), but requires config. Option A is a zero-config quick fix that covers the common case.
 
-**Рекомендация:** реализовать А сейчас как встроенный heuristic, Б — как follow-up при появлении конфига.
+**Recommendation:** implement A now as a built-in heuristic, B — as a follow-up once config exists.
 
-## План выполнения
+## Execution plan
 
-- [x] `src/scan/include_resolver.cpp`: при ambiguous — отдавать предпочтение пути без well-known mirror dirs
-- [x] Список well-known dirs: `single_include`, `amalgamate`, `amalgamated`, `dist`, `release/include`, `generated`
-- [x] Проверить: nlohmann/json → 0 ambiguous (было 333, стало 0 ✓)
-- [ ] Проверить: fmt, spdlog, Catch2 — нет регрессий
-- [x] Тест: два кандидата, один в `single_include/` → выбирается второй, не ambiguous
+- [x] `src/scan/include_resolver.cpp`: on ambiguous — prefer the path without well-known mirror dirs
+- [x] List of well-known dirs: `single_include`, `amalgamate`, `amalgamated`, `dist`, `release/include`, `generated`
+- [x] Verify: nlohmann/json → 0 ambiguous (was 333, now 0 ✓)
+- [ ] Verify: fmt, spdlog, Catch2 — no regressions
+- [x] Test: two candidates, one in `single_include/` → the second is chosen, not ambiguous
 
-## Сделано
+## Done
 
-- Реализован вариант А (heuristic): `kMirrorPrefixes` + `is_mirror_dir_path()` в `include_resolver.cpp`
-- Фильтрация в `resolve_by_suffix`: если ровно 1 кандидат не в mirror-dir → `Project`, иначе `Ambiguous` как раньше
-- Пробросан параметр `files` через цепочку `resolveInclude → resolve_quote/resolve_angle → resolve_by_suffix`
-- Добавлены 2 теста: happy path (`single_include` пропускается) + edge case (оба в mirror → Ambiguous)
-- Сборка чистая, 739 тестов прошли, lizard без предупреждений
-- `starts_with` заменён на `path.find(prefix) == 0` (clang 11 не поддерживает C++20 `starts_with`)
+- Implemented option A (heuristic): `kMirrorPrefixes` + `is_mirror_dir_path()` in `include_resolver.cpp`
+- Filtering in `resolve_by_suffix`: if exactly 1 candidate is not in a mirror-dir → `Project`, otherwise `Ambiguous` as before
+- Passed the `files` parameter through the chain `resolveInclude → resolve_quote/resolve_angle → resolve_by_suffix`
+- Added 2 tests: happy path (`single_include` is skipped) + edge case (both in mirror → Ambiguous)
+- Clean build, 739 tests passed, lizard without warnings
+- `starts_with` replaced with `path.find(prefix) == 0` (clang 11 does not support C++20 `starts_with`)
 
-## В работе
+## In progress
 
-- Ручная проверка на nlohmann/json (`./archcheck --graph /tmp/json`)
+- Manual check on nlohmann/json (`./archcheck --graph /tmp/json`)
 
-## Ключевые решения
+## Key decisions
 
-- `path.find(prefix) == 0` вместо `starts_with` — clang 11 на Astra Linux не имеет `std::string_view::starts_with` даже с `-std=c++20`
-- Передаём `*candidates` (не `preferred`) в `make_ambiguous` когда фильтрация не помогла — сохраняем полную информацию о конфликте
+- `path.find(prefix) == 0` instead of `starts_with` — clang 11 on Astra Linux does not have `std::string_view::starts_with` even with `-std=c++20`
+- We pass `*candidates` (not `preferred`) to `make_ambiguous` when filtering did not help — preserving full information about the conflict
 
-## Изменённые файлы
+## Changed files
 
-| Файл | Изменение |
+| File | Change |
 |------|-----------|
-| `src/scan/include_resolver.cpp` | `kMirrorPrefixes`, `is_mirror_dir_path()`, фильтрация в `resolve_by_suffix`, проброс `files` |
-| `tests/unit/scan/include_resolver_test.cpp` | 2 новых теста mirror-prefer |
+| `src/scan/include_resolver.cpp` | `kMirrorPrefixes`, `is_mirror_dir_path()`, filtering in `resolve_by_suffix`, passing `files` |
+| `tests/unit/scan/include_resolver_test.cpp` | 2 new mirror-prefer tests |
