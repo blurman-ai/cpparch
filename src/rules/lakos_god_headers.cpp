@@ -2,17 +2,16 @@
 
 #include <filesystem>
 #include <string>
-#include <unordered_set>
+
+#include "archcheck/scan/file_classification.h"
 
 namespace archcheck::rules
 {
 
 bool LakosGodHeaders::isPchName(std::string_view path)
 {
-  static const std::unordered_set<std::string> kKnownPch = {"pch.h", "stdafx.h", "precompiled.h",
-                                                            "precompiled_header.h"};
   const auto stem = std::filesystem::path(std::string(path)).filename().string();
-  return kKnownPch.count(stem) != 0;
+  return scan::isKnownPchBasename(stem);
 }
 
 ViolationList LakosGodHeaders::check(const graph::DependencyGraph &graph,

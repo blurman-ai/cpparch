@@ -1,12 +1,12 @@
 #include "archcheck/rules/sf9_no_cycles.h"
 
-#include <array>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <vector>
 
 #include "archcheck/graph/algorithms.h"
+#include "archcheck/scan/file_classification.h"
 
 namespace archcheck::rules
 {
@@ -62,25 +62,9 @@ bool endsWith(std::string_view s, std::string_view suf)
   return s.size() >= suf.size() && s.compare(s.size() - suf.size(), suf.size(), suf) == 0;
 }
 
-// Markers of an inline/template implementation file that legitimately pairs with a
-// same-stem header (foo.h + foo.inl / foo.ipp / foo.hxx / foo-inl.h / foo_impl.hpp ...).
-// The _impl.* family is the dominant header-only convention (mlpack, Boost, Eigen):
-// foo.hpp ends with #include "foo_impl.hpp", foo_impl.hpp includes foo.hpp back.
-constexpr std::array<std::string_view, 14> kImplMarkers = {"-inl.h",    "_inl.h",   ".tmpl.h", ".impl.h",  ".inl",
-                                                           ".ipp",      ".icc",     ".tcc",    ".tpp",     ".hxx",
-                                                           "_impl.hpp", "_impl.hh", "_impl.h", "_impl.hxx"};
-
-bool isImplName(std::string_view name)
-{
-  for (std::string_view m : kImplMarkers)
-    if (endsWith(name, m))
-      return true;
-  return false;
-}
-
 std::string componentStem(std::string_view name)
 {
-  for (std::string_view m : kImplMarkers)
+  for (std::string_view m : scan::kImplSuffixes)
     if (endsWith(name, m))
       return std::string(name.substr(0, name.size() - m.size()));
   for (std::string_view ext : {".hpp", ".hh", ".h"})
@@ -112,7 +96,7 @@ bool isInlineSplitScc(const graph::DependencyGraph &g, const std::vector<graph::
   const std::string pb(g.pathOf(scc[1]));
   if (dirName(pa) != dirName(pb) || componentStem(baseName(pa)) != componentStem(baseName(pb)))
     return false;
-  return isImplName(baseName(pa)) || isImplName(baseName(pb));
+  return scan::isInlineImplFile(baseName(pa)) || scan::isInlineImplFile(baseName(pb));
 }
 
 std::string buildCycleMessage(const graph::DependencyGraph &g, const std::vector<graph::NodeId> &path,
