@@ -67,7 +67,15 @@ computed on a 64KB prefix (we don't walk the 43MB), floor 4KB. umt5.hpp = a sing
 because the file now doesn't even reach the graph/bool scans. Dogfood 0 (our code not affected), 573/573 tests.
 
 - [x] generated-data detector (minified avg-line>110) → exclusion from all scans. Test + fixture.
-- [ ] Residual ~730MB = the snapshot still READS the content before classification. Prefix/streaming-read
-      of excluded files — a separate SourceSnapshot refactor (not a blocker).
-- [ ] (opt.) `.gitattributes linguist-generated`/`-vendored` — a free signal from the repo, read it.
-- [ ] bool_field (char-scan on changed-only) — lightweight, but now it too skips excluded files.
+
+## Outcome — main goal closed (2026-06-27)
+
+The OOM — the reason this task exists — is **fixed and shipped**: peak RSS 3.6GB→731MB (4.9×),
+wall 21s→2.75s (7.6×), regression test + fixture, CHANGELOG `### Fixed` (#147). Moved to
+`completed/`. The remaining items below are **non-blocking, optional follow-ups** (none is on
+the OOM path); promote to a fresh task if/when needed, not gating this closure:
+
+- [ ] (deferred, non-blocking) Residual ~730MB = the snapshot still READS content before
+      classification. Prefix/streaming-read of excluded files — a separate SourceSnapshot refactor.
+- [ ] (deferred, optional) `.gitattributes linguist-generated`/`-vendored` — a free repo signal.
+- [ ] (deferred, lightweight) bool_field (char-scan on changed-only) — now also skips excluded files.
