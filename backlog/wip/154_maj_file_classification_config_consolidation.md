@@ -135,11 +135,37 @@ Verified: `ninja` clean, **581 test cases / 2056 assertions green**, dogfood `ar
 
 Committed: the header symbols (`kGeneratedSuffixes`, `kImplSuffixes`/`isInlineImplFile`, `kPchBasenames`/`isKnownPchBasename`) landed in **ac76ab6** (swept in with #151, shipped in v0.1.1); the consumer wiring — `sf9_no_cycles.cpp`/`lakos_god_headers.cpp` redirected to the shared predicates, local `kImplMarkers`/`kKnownPch` removed — in **5916b77**. NB (verified + decided): v0.1.1 (tag `fa57c48`, **published** GitHub release) ships these 4 header symbols as dead code — `ac76ab6` (the #151 sweep-in) is an ancestor of the tag, the consumer wiring `5916b77` came two commits after it. Inert: unused `inline` ⇒ no codegen, no build warning, v0.1.1's own self-scan was still 0. **Decision: accept, no action.** A published tag is not rewritten for a cosmetic source-level smell (breaks checksums / anyone who fetched it); master is already clean (`5916b77`), so the next patch inherits the fix for free. Option C (fold into a future v0.1.2) available but not worth a dedicated release.
 
-Deliberately deferred (NOT done in Phase 1):
-- **`sf9_no_cycles.cpp:86` inline `{.hpp,.hh,.h}`** → `kHeaderExtensions`: **NOT equivalent** (3 vs 8 extensions — `kHeaderExtensions` adds `.hxx/.ipp/.tpp/.inl/.inc`). Swapping changes `componentStem` behavior (`.inc` etc. would newly strip). Needs a fixture proving intent before touching → fixture phase.
-- **`area_of.h`** (noiseDirs/wrapperDirs/isNoiseSeg) — the real duplicate, but its "module boundary" semantics differ from scan-exclusion; merge under fixtures (agreed with user).
+### Phase 1b — area_of merge (2026-06-27): the real duplicate, now deduped + measured
+
+`area_of.h`'s `noiseDirs()` duplicated (and had drifted from) the vendored/test/excluded
+dir lists in `file_classification.h` — the concrete "расползлось" the user pointed at. Now
+`isNoiseSeg` delegates to the canonical `scan::isExcludedDirName / isVendoredDirName /
+isTestDirName`; only the genuinely area_of-specific scaffolding tokens that are NOT
+scan-exclusions (`examples/ example/ mock(s)/ generated/ testing/ _build`) stay local as
+`isAreaExtraNoise`. `wrapperDirs()` (module-name stripping) stays — a distinct concern.
+
+**#115 impact — measured, not assumed** (the user gated on this; `area_of` feeds the
+lateral-drift / bidirectional-coupling rules). Replicated old/new `areaOf` in Python,
+validated against the C++ pinning test, ran over a 205-repo corpus sample:
+- raw: **5.2% of module-files flip** (5526/105953), 12 modules vanish per 205 repos — *looked*
+  material, would have wrongly read as "don't merge";
+- **decisive skeptic-check**: the graph the rules run on contains **authored files only**
+  (`graph_builder.cpp:59` drops `!authored`; `authored_scope.h:39` = `pathHasVendoredDir ||
+  pathHasTestDir || …` — the SAME canonical predicates). The dirs that flip are exactly the
+  ones already excluded before the rule. Re-measured among authored (in-graph) files:
+  **0 flips / 100427 files (0.0000%)**. The 5.2% was entirely on non-graph vendored/test files.
+- eyeball of the 12 vanished modules: 11/12 correctly vendored/test (3rdparty, freetype, zlib,
+  deps, dependencies, third-party, tst); 1 borderline (ggml-cuda via a `vendors/` subdir + `.cu`
+  not in scan extensions). So the merge is a correctness improvement AND a proven `#115` no-op.
+
+Verified: 585/585 tests (incl. 54 drift assertions unchanged), dogfood 0, format/cppcheck/lizard clean.
+Pinning test `tests/unit/rules/area_of_test.cpp` updated to the merged behavior. Not committed (awaiting command).
+
+Still deferred:
+- **`sf9_no_cycles.cpp:86` inline `{.hpp,.hh,.h}`** → `kHeaderExtensions`: **NOT equivalent** (3 vs 8 extensions — adds `.hxx/.ipp/.tpp/.inl/.inc`). Swapping changes `componentStem` behavior. Needs a fixture proving intent → fixture phase.
 - **`kStdCHeaders`** — reclassified Tier D (FIXED), left in resolver.
 - **`kMirrorPrefixes`** — Phase 2 only.
+- **Phase 2** — the YAML-parameterizable classifier class (the stated goal), the one large remaining piece.
 
 ## Open design questions (decide in the task, do not pre-bake)
 
