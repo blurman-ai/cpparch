@@ -3,7 +3,8 @@
 **Build date:** 2026-06-27 · **Genre:** evidentiary line for the article (a self-contained
 side-result). Every number is verbatim from the primary source (`experiments/trending_run/`).
 Skeptic rule: a conclusion rests on cross-validation and manual reading, not on "the run produced
-numbers". Tasks: #146 (hypothesis), #145 (trending cohort), #148/#149 (coverage caveats).
+numbers". Tasks: #146 (hypothesis), #145 (trending cohort), #149 (coverage caveat), #148 (god-header
+50→51 crossing — verified not-a-bug).
 
 > **Short answer.** AI PR-review bots (copilot-pull-request-reviewer, CodeRabbit, gemini-code-assist,
 > Sourcery) comment on the diff line-by-line but do **not** model the dependency graph. Of **38**
@@ -43,8 +44,11 @@ each, whether it went through a PR an AI bot reviewed.
 
 Frame = the corpus run #090 (`results_full.boolrule.jsonl`, 520,177 commits, 1,188 repos — the
 proper probability sample). Pool = **648 trustworthy gate-drift commits**: 579 grown cycles +
-114 new cross-area (overlap → 648). **God-headers excluded on purpose** — they are FP-prone via the
-#148 boundary bug (a header already god in the parent re-flagged as "new"). Per commit:
+114 new cross-area (overlap → 648). **God-headers excluded on purpose** — a 50→51 fan-in crossing is a
+correct but *marginal* signal (a header gaining its 51st includer), weaker than a grown cycle, and an
+adopter could see it flap; cycles/cross-area are the unambiguous structural drift. (Note: #148, which
+suspected these crossings were FPs, was verified *not*-a-bug — archcheck's component fan-in shows real
+50→51 crossings; the exclusion here is about signal strength, not correctness.) Per commit:
 `git remote → owner/repo`, then `gh api commits/{sha}/pulls → reviews` → classify reviewers.
 Harness: `experiments/trending_run/inverted_bot_drift.py`, output `inverted_corpus.jsonl`.
 
@@ -139,8 +143,8 @@ the framing. This single case is the thesis in miniature.
   add *more* no-engagement cases.
 - **Trending-13.** The 13 trending-cohort gate-fails were 100% PR-gated but **0** AI-reviewed
   (7 no-review, 6 human-only) — those popular repos did not run AI reviewers on the drift PRs.
-- **god-headers deferred.** Excluded here pending the #148 fix; they would enlarge the pool but need
-  per-case FP verification first.
+- **god-headers deferred.** Excluded as a weaker (boundary 50→51) signal, not for correctness — #148
+  verified these crossings are real, not FPs. Including them would enlarge the pool with marginal cases.
 
 ## 9. The agentic stratum (ai-377) — inconclusive, crippled by #149
 
