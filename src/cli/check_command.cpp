@@ -179,6 +179,11 @@ archcheck::scan::ClassificationExtras toClassificationExtras(const config::Class
 
 } // namespace
 
+void applyClassificationConfig(const config::Config &cfg)
+{
+  archcheck::scan::setClassificationExtras(toClassificationExtras(cfg.classification));
+}
+
 // Read+classify the tree once (#129); the graph and the SF.* text rules share the
 // one snapshot instead of re-reading every header from disk (was up to 3x: graph
 // build + SF.7 + SF.8). readFile serves from the in-memory snapshot.
@@ -217,7 +222,7 @@ int runCheck(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts b
       return 2;
     }
   }
-  archcheck::scan::setClassificationExtras(toClassificationExtras(config->classification));
+  applyClassificationConfig(*config);
   auto rules = archcheck::rules::makeDefaultRuleSet(*config);
   const int driftRc = baseline.driftFile ? applyDriftFile(*baseline.driftFile, rules) : 0;
   if (driftRc != 0)
@@ -227,6 +232,17 @@ int runCheck(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts b
 
 int runSaveGraphBaseline(const std::filesystem::path &root, const std::filesystem::path &file)
 {
+  try
+  {
+    // Same classification overrides the later --drift-baseline run will use, so the
+    // saved snapshot and the current scan are built on a consistent file set (#154 2b).
+    applyClassificationConfig(archcheck::config::discover(root));
+  }
+  catch (const archcheck::config::ConfigError &e)
+  {
+    std::cerr << "archcheck: " << e.what() << '\n';
+    return 2;
+  }
   const auto built = archcheck::graph::buildGraphForPath(root);
   std::ofstream out(file);
   if (!out)

@@ -37,4 +37,9 @@ int runCheck(const std::filesystem::path &root, OutputFormat fmt, BaselineOpts b
 // Save the include-graph snapshot of `root` for later --drift-baseline runs.
 int runSaveGraphBaseline(const std::filesystem::path &root, const std::filesystem::path &file);
 
+// Apply a loaded config's additive classification overrides (#154 Phase 2) to the
+// scan layer's set-once registry. Call ONCE before scanning; in --diff this must
+// run before either side is read so baseline and current stay consistent.
+void applyClassificationConfig(const config::Config &config);
+
 } // namespace archcheck::cli

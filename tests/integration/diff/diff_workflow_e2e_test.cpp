@@ -247,3 +247,35 @@ TEST_CASE("e2e --diff: bulk import skips graph gating — cycle not gated (#124)
   REQUIRE(r.output.find("graph checks:   skipped") != std::string::npos);
   REQUIRE(r.output.find("gate: fail") == std::string::npos);
 }
+
+// #154 Phase 2b: --diff honours .archcheck.yml `classification:` overrides, applied
+// once before BOTH sides are read so baseline/current stay consistent (no spurious drift).
+TEST_CASE("e2e --diff: classification extra_vendored_dirs excludes a custom dir from drift", "[diff][e2e][config]")
+{
+  const auto build = [](const fs::path &p, bool withOverride)
+  {
+    initRepo(p);
+    writeFile(p / "main.cpp", "int main() { return 0; }\n");
+    std::string cfg = "version: 1\nmodules:\n  core:\n    paths: [\"src/**\"]\nrules: []\n";
+    if (withOverride)
+      cfg += "classification:\n  extra_vendored_dirs: [\"housevendor\"]\n";
+    writeFile(p / ".archcheck.yml", cfg);
+    commitAll(p, "baseline");
+    fs::create_directories(p / "housevendor");
+    writeFile(p / "housevendor" / "a.h", "#pragma once\n#include \"b.h\"\n");
+    writeFile(p / "housevendor" / "b.h", "#pragma once\n#include \"a.h\"\n");
+    commitAll(p, "add a cycle inside housevendor");
+  };
+
+  TempDir plain;
+  build(plain.path, false);
+  const auto without = runArchcheck(plain.path, "--diff HEAD~1..HEAD");
+  CHECK(without.exitCode == 1); // the new cycle gates when the dir is scanned
+  CHECK(without.output.find("housevendor") != std::string::npos);
+
+  TempDir overridden;
+  build(overridden.path, true);
+  const auto withCfg = runArchcheck(overridden.path, "--diff HEAD~1..HEAD");
+  CHECK(withCfg.exitCode == 0); // excluded on both sides => no grown-cycle drift
+  CHECK(withCfg.output.find("housevendor") == std::string::npos);
+}

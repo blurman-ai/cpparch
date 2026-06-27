@@ -25,6 +25,8 @@
 #include "archcheck/scan/source_snapshot.h"
 #include "archcheck/scan/test_co_evolution.h"
 
+#include "cli/check_command.h"
+
 namespace archcheck::cli
 {
 
@@ -291,10 +293,13 @@ std::optional<DiffConfig> loadDiffThresholds(const std::filesystem::path &repoRo
   DiffConfig cfg;
   try
   {
-    const auto thresholds = archcheck::config::discover(repoRoot).thresholds;
-    cfg.metric.godHeaderFanIn = thresholds.godHeaderFanIn;
-    cfg.maxAddedLines = thresholds.diffMaxAddedLines;
-    cfg.maxCloneScanBytes = thresholds.diffMaxCloneScanBytes;
+    const auto config = archcheck::config::discover(repoRoot);
+    // Apply once here — before either side is read below — so baseline and current
+    // are built on the same classification, no spurious drift from the override (#154 2b).
+    applyClassificationConfig(config);
+    cfg.metric.godHeaderFanIn = config.thresholds.godHeaderFanIn;
+    cfg.maxAddedLines = config.thresholds.diffMaxAddedLines;
+    cfg.maxCloneScanBytes = config.thresholds.diffMaxCloneScanBytes;
   }
   catch (const archcheck::config::ConfigError &e)
   {
