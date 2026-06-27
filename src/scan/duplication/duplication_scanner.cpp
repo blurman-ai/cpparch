@@ -291,6 +291,17 @@ void phase13FileLocalIdfDownweight(std::vector<Pair> &candidates, const std::vec
 // Canonical "fileA\nfileB" key (order-independent) for a cross-file pair.
 std::string filePairKey(const std::string &x, const std::string &y) { return x < y ? x + "\n" + y : y + "\n" + x; }
 
+// A file-pair is a whole-file clone when the matched-pair count covers ≥80% of BOTH files'
+// fragments (the smaller having ≥2) — a real move/copy/vendored twin. The one-sided form
+// (smaller only) wrongly silenced "extract a module, keep the original" (small ⊂ large, #151).
+// Plain int params (not std::minmax refs) keep this clear of GCC's -Wdangling-reference.
+bool isWholeFileClone(int matched, int fragsX, int fragsY)
+{
+  const int lo = std::min(fragsX, fragsY);
+  const int hi = std::max(fragsX, fragsY);
+  return lo >= 2 && matched * 5 >= hi * 4; // hi coverage implies lo coverage (hi ≥ lo)
+}
+
 // Set of file-pairs that are whole-file clones: ≥80% of BOTH files' fragments
 // (smaller has ≥2) are matched across the pair → move/copy/vendored twin.
 std::unordered_set<std::string> wholeFileClonePairs(const std::vector<Pair> &candidates,
@@ -317,11 +328,7 @@ std::unordered_set<std::string> wholeFileClonePairs(const std::vector<Pair> &can
   for (const auto &[k, n] : matched)
   {
     const std::string::size_type sep = k.find('\n');
-    const auto [minFrags, maxFrags] = std::minmax(fragsPerFile[k.substr(0, sep)], fragsPerFile[k.substr(sep + 1)]);
-    // Two-sided coverage (#151): a real move/copy/vendored twin covers ~all of BOTH files.
-    // Requiring ≥80% of the LARGER file too lets "extract-to-module, original kept" (small ⊂
-    // large) survive as a TP — a missing reuse edge, not a move.
-    if (minFrags >= 2 && n * 5 >= minFrags * 4 && n * 5 >= maxFrags * 4)
+    if (isWholeFileClone(n, fragsPerFile[k.substr(0, sep)], fragsPerFile[k.substr(sep + 1)]))
     {
       result.insert(k);
     }
