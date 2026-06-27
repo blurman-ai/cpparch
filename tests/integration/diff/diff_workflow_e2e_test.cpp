@@ -211,16 +211,20 @@ TEST_CASE("e2e --diff --format=json: bulk import exposes skip marker (#117/#124)
   REQUIRE(r.output.find("\"complexity_skipped_added_lines\": 0,") == std::string::npos);
 }
 
-TEST_CASE("e2e --diff: unresolvable baseline ref warns on stderr (#124)", "[diff][e2e]")
+TEST_CASE("e2e --diff: unresolvable baseline ref → exit 2, no phantom gate (#144)", "[diff][e2e]")
 {
   TempDir repo;
   commitChain(repo.path);
 
-  // A baseline ref that does not resolve: the diff degrades to "whole current vs
-  // empty tree" (correct for a real root commit, here a typo). archcheck must
-  // surface it instead of silently treating everything as added.
+  // A baseline ref that does not resolve (typo, or un-fetched in a shallow CI
+  // checkout) is a hard git error — exit 2 — not a silent degradation to "whole
+  // current vs empty tree", which would phantom-gate the build as if everything
+  // were added. The diagnostic names the ref and goes to stderr.
   const auto r = runArchcheck(repo.path, "--diff nonexistentref..HEAD");
-  REQUIRE(r.output.find("warning: baseline ref 'nonexistentref' does not resolve") != std::string::npos);
+  REQUIRE(r.exitCode == 2);
+  REQUIRE(r.output.find("baseline ref 'nonexistentref' does not resolve") != std::string::npos);
+  // No report was produced: no phantom gate verdict either way.
+  REQUIRE(r.output.find("gate: fail") == std::string::npos);
 }
 
 TEST_CASE("e2e --diff: bulk import skips graph gating — cycle not gated (#124)", "[diff][e2e]")

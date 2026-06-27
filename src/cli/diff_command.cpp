@@ -313,19 +313,23 @@ int emitJsonDiff(const archcheck::diff::RegressionReport &report, DiffAdvisories
   return report.gates() ? 1 : 0;
 }
 
-// Warn (do not fail) when the baseline ref does not resolve. The diff then degrades
-// to "whole current revision vs empty tree", which is correct for a real initial
-// commit but silently hides a typo'd ref. Surface it on stderr without touching the
-// exit code or gating. (#124 DEBT: silent empty-baseline.)
-void warnIfBaselineUnresolved(const std::filesystem::path &repoRoot, const std::string &baselineRef)
+// True when the baseline ref resolves to a git object (the working-tree sentinel
+// needs no resolution). On failure prints a diagnostic and returns false: an
+// explicitly-given ref that does NOT resolve is a hard git error (exit 2), not a
+// degradation — silently diffing against an empty tree turns a typo'd or un-fetched
+// ref (common in shallow CI checkouts) into a phantom "everything added" gate on
+// cycles that were always there. (#144, supersedes the #124 silent-empty warning.)
+bool baselineResolves(const std::filesystem::path &repoRoot, const std::string &baselineRef)
 {
   if (baselineRef == archcheck::git::kWorktreeRef)
-    return;
+    return true;
   const auto r = archcheck::git::runGit({"rev-parse", "--verify", "--quiet", baselineRef + "^{object}"}, repoRoot);
-  if (r.exitCode != 0)
-    std::cerr << "archcheck: warning: baseline ref '" << baselineRef
-              << "' does not resolve; diffing against an empty tree (the whole current revision "
-                 "is treated as added). Check the revspec if this was unintended.\n";
+  if (r.exitCode == 0)
+    return true;
+  std::cerr << "archcheck: baseline ref '" << baselineRef
+            << "' does not resolve to a git object; cannot diff. Fetch the ref (shallow CI: fetch "
+               "the base with --depth=1) or check the revspec.\n";
+  return false;
 }
 
 // Both graph sides + the regression report (memory or disk backend). ok=false on a
@@ -386,7 +390,8 @@ int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git:
   const auto thresholds = loadDiffThresholds(repoRoot);
   if (!thresholds)
     return 2;
-  warnIfBaselineUnresolved(repoRoot, parsed.baseline);
+  if (!baselineResolves(repoRoot, parsed.baseline))
+    return 2;
 
   // Advisories first: they compute the bulk-import signal (#117). A bulk import is
   // not the project's authored evolution (vendored / generated / "committed as-is,

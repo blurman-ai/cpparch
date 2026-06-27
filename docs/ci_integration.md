@@ -179,7 +179,7 @@ and the revspec `origin/<base>..HEAD` remains correct.
 
 | Scenario                                | Behavior                                               |
 |-----------------------------------------|--------------------------------------------------------|
-| Shallow clone, baseline ref does not resolve | ⚠️ NOT exit 2: warning on stderr + comparison against an empty tree (everything is "added") → a false gate is possible. Fetch the base. Hardening — [#144](../backlog/new/144_min_diff_unresolved_baseline_exit2.md) |
+| Shallow clone, baseline ref does not resolve | **exit 2** — error on stderr, no report produced; never a silent empty-tree compare or phantom "everything added" gate. Fetch the base ([#144](../backlog/new/144_min_diff_unresolved_baseline_exit2.md)) |
 | Force-push to the PR branch             | OK — we compare by revspec, the previous run is not needed |
 | Merge commit as HEAD                    | OK — the worktree takes a snapshot tree, not a diff against parents. Test coverage — [#022](../backlog/completed/022_min_diff_merge_commit_coverage.md) |
 | PR does not touch C/C++                 | fast-path: exit 0 and an empty report without building graphs. See [#023](../backlog/completed/023_maj_diff_skip_when_no_cpp_changes.md) |

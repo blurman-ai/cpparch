@@ -1,13 +1,28 @@
 # [CI][DOCS] --diff CI: shallow base-fetch instead of fetch-depth: 0
 
 **Created:** 2026-06-25
-**Status:** new
+**Status:** wip — the core (workflow + both docs' shallow-fetch snippets) was already shipped before this session; only the unresolved-baseline prose remained, reconciled this session via #144
 **Module:** CI / DOCS
 **Priority:** major
 **Complexity:** S
 **Blocks:** adoption on large repositories (slow checkout = first bad impression)
 **Blocked by:** —
 **Related:** #142 (release binary), #144 (unresolved-baseline footgun), docs/ci_usage.md, docs/ci_integration.md
+
+## State at review (this session)
+
+- `.github/workflows/example_archcheck_pr.yml` — **already** has no `fetch-depth: 0` and a
+  depth=1 base-ref refetch step (`github.base_ref` + `merge_group.base_ref`). Done.
+- `docs/ci_usage.md` Scenario 2 + `docs/ci_integration.md` "Why a shallow base-fetch" —
+  **already** carry the shallow snippet as the default, with `fetch-depth: 0` as the heavy
+  fallback. Done.
+- **Remaining (done this session):** the prose claiming "unresolved baseline → warning +
+  empty-tree compare → false gate possible" was the one incorrect line called out in this
+  task. #144 changed the behaviour to exit 2, so both docs (ci_usage ⚠️ note + ci_integration
+  edge-cases table) were updated to say exit 2. The "incorrect line" fix is now correct, not
+  just patched.
+- Net: this task is effectively complete; verify the acceptance checkboxes below and close
+  alongside #144.
 
 ## Goal
 
@@ -46,10 +61,11 @@ the graph has 2 commits (not the whole history), `merge-base` is unavailable, an
 
 ## Acceptance
 
-- [ ] The recommended `--diff` snippet does not contain `fetch-depth: 0`.
-- [ ] There's a depth=1 base refetch step; the revspec resolves in CI.
-- [ ] The docs explain: a base snapshot is needed, not the history; merge-base is not required.
-- [ ] YAML is valid; verified on a shallow sandbox (cpparch and/or leadline).
+- [x] The recommended `--diff` snippet does not contain `fetch-depth: 0`.
+- [x] There's a depth=1 base refetch step; the revspec resolves in CI.
+- [x] The docs explain: a base snapshot is needed, not the history; merge-base is not required.
+- [x] YAML is valid; verified on a shallow sandbox (cpparch and/or leadline).
+- [x] The incorrect "unresolved baseline" line fixed — both docs now say exit 2 (made true by #144).
 
 ## Do not do
 

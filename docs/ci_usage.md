@@ -274,8 +274,9 @@ single base ref**. `actions/checkout` gives a shallow HEAD by default; the
 `fetch-depth: 0` remains a simple but heavy fallback — see
 [ci_integration.md](ci_integration.md#why-a-shallow-base-fetch).
 
-> ⚠️ The base **must** be fetched. If the base ref doesn't resolve, archcheck
-> doesn't fail — it compares against an empty tree (everything "added") → a false
+> ⚠️ The base **must** be fetched. If the base ref doesn't resolve (skipped fetch
+> step, typo'd base), archcheck exits **2** with an error on stderr — it does **not**
+> silently compare against an empty tree, so there is no phantom "everything added"
 > gate. Don't skip the fetch step, and pin the right base.
 
 PR publishing channels (Step Summary, sticky-comment, Check-run), merge queue,
