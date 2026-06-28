@@ -2,7 +2,7 @@
 
 **Created:** 2026-06-26
 **Started:** 2026-06-26
-**Status:** wip — byte-cap bulk-skip shipped (2026-06-27); diff-scope rewrite still open
+**Status:** completed 2026-06-28 — byte-cap bulk-skip shipped; diff-scope rewrite split into #152
 **Module:** SCAN / DUPLICATION / DIFF
 **Priority:** major
 **Related:** #123 (new-clone drift), #147 (lex-cap memory), #145 (trending run, where it was caught)
@@ -84,3 +84,24 @@ agentic-stratum bot-test re-run (#146).
 
 This task (#149) is **done for its shipped scope**: the byte-cap mitigation. Consider it
 closeable once #152 is filed (it is).
+
+## How it works (completed summary)
+
+`detectNewClones` in `src/diff/new_clone_drift.cpp` calls `authoredBytes()` on the new snapshot before
+doing any token scan. If total authored bytes exceed `Config::thresholds.diff_max_clone_scan_bytes`
+(default 40 MiB), it returns `NewCloneDriftResult{skippedLargeTree=true}` immediately — no scan, no
+pair explosion. The advisory check is skipped; the gate checks (cycles, god-headers) still run.
+
+## Key decisions
+
+- **Option b (byte-cap) over option a (scope-rewrite)**: scope-rewrite is not behaviour-preserving (17/30 commits diverged); byte-cap is transparent — same output for repos under the cap, explicit skip for repos over it.
+- **40 MiB default**: 2× apache/arrow (21 MB), covers all size-driven timeout cases in the trending corpus while leaving most repos below the cap.
+- **Config knob exposed** (`diff_max_clone_scan_bytes` in YAML) so corpus harness can set it lower for re-runs.
+- **Scope-rewrite deferred to #152** with proper semantics work (isolate `applyCandidateFilters`, re-validate #103 precision).
+
+## Changed files
+
+- `src/diff/new_clone_drift.cpp` — `authoredBytes()` helper + early-exit in `detectNewClones`
+- `include/archcheck/config.h` — `diff_max_clone_scan_bytes` threshold field
+- `src/config/config.cpp` — YAML key + default 40 MiB
+- `tests/` — skippedLargeTree coverage

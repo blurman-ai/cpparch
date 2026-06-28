@@ -87,12 +87,28 @@ module" — copilot's summary said the PR "breaks circular dependencies… to cu
 archcheck found a **new 7-member cycle**. The bot endorsed the PR's framing; the resulting graph has
 a cycle. The thesis in one PR.
 
+**Status:** completed 2026-06-28
+
+## How it works
+
+Inverted funnel design: start from the rare event (gate-drift commit), not the common one (a PR). Pool
+= 665 gate-drift commits (648 corpus + 17 ai-stratum). Per commit: `gh api commits/{sha}/pulls` to
+find the PR, then reviews to classify reviewer type. Of 346 PR-gated commits, 43 (38 distinct PRs)
+had an AI code-reviewer; none were blocked (state=COMMENTED throughout); all merged with the drift.
+
+Keyword screen (15/38 flagged) → manual reading collapsed to 2 genuine structural flags.
+Net: ~36/38 PRs had zero structural engagement from the bot reviewer.
+
+Key output: [docs/research/bot_review_drift.md](../../docs/research/bot_review_drift.md)  
+Showcase: [experiments/showcase/006_cycle_specfempp_bot_blindspot.md](../../experiments/showcase/006_cycle_specfempp_bot_blindspot.md)
+
 ## Plan
 
 - [x] PoC + focused librealsense → NULL (sample too small, mature lib). The method is valid.
 - [x] **Invert:** corpus gate-drift commits → PRs → bot review → 38 AI-reviewed drift PRs, ~36 no
       structural engagement, 0 blocked, all merged. Eye-checked, denominator TP-verified.
-- [ ] Fold in the ai-377 agentic stratum (computing) → combined table in the research doc.
+- [x] Fold in the ai-377 agentic stratum → combined funnel table added to §4 of the research doc
+      (corpus 648 + ai-stratum 17 = 665 total gate-drift; 0 AI-reviewed in stratum, same as corpus).
 - [x] Bright case → showcase/demo (#123): `experiments/showcase/006_cycle_specfempp_bot_blindspot.md`
       — SPECFEMPP#943, AI reviewer said "cut circular includes" + 0 comments + merged, archcheck found
       a new 7-header cycle. Verbatim bot quote, hand-traced cycle, reproduce command.

@@ -2,7 +2,7 @@
 
 **Created:** 2026-06-26
 **Started:** 2026-06-26
-**Status:** wip
+**Status:** completed 2026-06-28 — 39 measured / 17 not-measured; first-look descriptive table done
 **Module:** RESEARCH / SCAN
 **Priority:** major
 **Related:** #066 (ai-stratum, same scan method), #119 (per-commit drift correlations), #115 (repo FE)
@@ -44,12 +44,62 @@ without old mega-repos.
 
 ## Plan
 
-- [~] Assemble the list of 56 (done: `cohort_trending56.tsv`, all trending).
+- [x] Assemble the list of 56 (done: `cohort_trending56.tsv`, all trending).
 - [x] 20 trending already cloned (5 local + 15 in the trending experiment); local-5 already
       scanned (`drift_local5.md`).
-- [ ] Clone the rest of the cohort (≈ 100 − already-cloned − intersection with #066-377).
-- [ ] Full per-commit drift scan of the whole cohort → `results_trending_cohort.jsonl`.
-- [ ] Descriptive table + first look at the statistics (separately from the corpus).
+- [x] Clone the rest of the cohort.
+- [x] Full per-commit drift scan of the whole cohort → `results_trending_cohort.jsonl`
+      (14 991 commits, 56 repos).
+- [x] Descriptive table + first look at the statistics → `drift_trending56.md`
+      (39 measured / 17 not-measured), separate from the corpus.
+
+## Result (2026-06-28)
+
+**Done. Descriptive table built and corrected.** `drift_trending56.md` (+ `.tsv`), merged
+data in `experiments/per_commit/results_trending_cohort_merged.jsonl`.
+
+The first full scan (`results_trending_cohort.jsonl`, 14 991 commits) **blacklisted 27/56
+repos as slow** (per-commit `archcheck --diff` is whole-tree-bound, see #149): their commits
+came back as `skipped_slow_repo`, which the v1 table showed as near-zero — *not measured*
+read as *clean*. Fixed with a **coverage gate**: a repo is *measured* only when scanned
+ok-commits cover ≥60 % of its in-window commits; the rest are listed separately with no
+drift claim.
+
+Catch-up pass (`run_worklist.py`, timeout 180, never-blacklist, cheap-first) on the 12
+under-cap repos recovered 11 → **39 measured, 17 not-measured**. Probe cost is *bimodal*:
+a repo's non-C++ commits scan instantly, C++ commits rebuild the whole graph (PvZ probed
+163 s/commit but its full 300-commit set finished in 7.5 min). The 15 high-star megarepos
+(tensorflow/opencv/godot/…) exceed the timeout on every C++ commit and stay not-measured.
+
+Artifacts: `aggregate2.py` (coverage-gated table), `merge_catchup.py` (catch-up overlay),
+`results_trending_catchup{,2,3}.jsonl`.
+
+**First-look headline:** the hard gate (new/grown cycle + new god-header) fired on
+**17 / 10 032 commits = 0.17 %** across 9 repos; grown-cycles never. The lively advisories
+are test co-evolution (median 9 %), local complexity (10 %), added edges (7 %). Descriptive
+only — popularity-selected, never pooled into population estimates.
+
+### Open / deferred
+- The 17 not-measured repos stay not-measured by design (megarepo per-commit cost). If
+  ever wanted, they need the #149 fix (scoped per-commit dup/graph scan), not more timeout.
+- `Status: wip → ready to close` once the first-look is reviewed.
+
+## How it works (completed summary)
+
+Two-pass approach: (1) full scan `run_worklist.py` over all 56 repos → `results_trending_cohort.jsonl`; (2) coverage gate (`aggregate2.py`) marks a repo "measured" only when ok-commits ≥ 60 % of in-window commits; (3) catch-up pass (timeout 180, never-blacklist, cheap-first) recovers the borderline repos; (4) merge overlay (`merge_catchup.py`) → `results_trending_cohort_merged.jsonl`; (5) `aggregate2.py` final table → `drift_trending56.md` + `.tsv`.
+
+## Key decisions
+
+- **Coverage gate (≥ 60 %)**: prevents blacklisted repos reading as "clean" — a zero ok-count is "not measured", not "no violations".
+- **Errors counted as not-measured** in `cov()`: a binary rebuilt mid-scan generates silent spawn-errors that can silently pass the 60 % gate if not counted — patched once caught on mame.
+- **Convenience cohort, never pooled into corpus**: popularity-selected, labeled `cohort=trending`, separately reported, no population estimates.
+- **17 not-measured megarepos stay not-measured**: they need O(diff) scan (#152), not a higher timeout.
+
+## Changed files / artifacts
+
+- `experiments/trending_run/drift_trending56.md` + `.tsv` — main output
+- `experiments/per_commit/results_trending_cohort*.jsonl` — scan results + merged
+- `experiments/trending_run/aggregate2.py`, `merge_catchup.py` — processing scripts
 
 ## Note
 

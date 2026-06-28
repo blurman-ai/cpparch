@@ -41,10 +41,18 @@ from "finish the core" to **stabilization + transition to v0.2**.
 
 Priorities of the current phase:
 
-- stabilize `--diff`-in-CI: shallow base-fetch (#143), exit 2 on an unresolvable
-  ref (#144);
+- stabilize `--diff`-in-CI: exit 2 on an unresolvable ref (#144);
 - public-readiness: an outward-facing GitHub demo repo for new-clone drift (#123);
 - start v0.2 — enforcement of module rules from `.archcheck.yml` (ADR-001).
+
+**Reprioritization note (2026-06-28, corpus-backed):** across 516 572 per-commit results the
+structural/boundary class that v0.2 enforcement targets is a **0.3–0.5 % event** (new cross-area dep
+0.49 %, gate 0.31 %), while the live advisories move **30–45× more often** (test co-evolution 22.6 %,
+complexity 17.2 %, added edges 14.8 %, new-clone 9.9 %). Implication: the public wedge is the **diff
+guardrail + advisories**, not module-boundary enforcement. The cycle/god gate stays a low-FP silent
+guardian, not a headline. **v0.2 module-enforcement is demoted to an opt-in power feature and is NOT a
+public-launch blocker.** (Evidence: [JOURNEY.md](JOURNEY.md) "0.3 % event" episode;
+`experiments/trending_run/drift_trending56.md`.)
 
 What has shipped and is no longer "in the finishing focus" (details in [CHANGELOG.md](../CHANGELOG.md)):
 

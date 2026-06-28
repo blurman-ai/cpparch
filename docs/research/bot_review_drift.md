@@ -69,6 +69,21 @@ Of the 38 AI-reviewed drift PRs: **0 formally APPROVED** (every bot review state
 **all 38 merged with the drift.** Bots seen: `copilot-pull-request-reviewer[bot]`,
 `coderabbitai[bot]`, `gemini-code-assist[bot]`, `sourcery-ai[bot]`.
 
+### Combined funnel (corpus + ai-377 stratum)
+
+| stage | corpus (648) | ai-stratum (17) | total |
+|---|---|---|---|
+| gate-drift (cyc ∪ xarea) | 648 | 17 | **665** |
+| direct push, no PR | 304 | 7 | 311 |
+| API error | 8 | 0 | 8 |
+| **went through a PR** | **336** | **10** | **346** |
+| — human-only review | 180 | 7 | 187 |
+| — no review at all | 102 | 3 | 105 |
+| — generic / CI bot only | 11 | 0 | 11 |
+| — **AI code-reviewer reviewed** | **43 / 38 PRs** | **0** | **43 / 38 PRs** |
+
+The agentic stratum (ai-377) adds **10 PR-gated gate-drift commits** to the denominator but zero AI-reviewed ones — entirely consistent with the corpus result, though underpowered due to the #149 coverage failure (§9).
+
 ## 5. The skeptic pass: keyword screen 15 → manual reading 2
 
 You cannot claim "the bot missed it" without reading what the bot said. A raw keyword screen
