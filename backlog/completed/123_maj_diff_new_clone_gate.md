@@ -19,6 +19,11 @@
 > for that demo or split the demo into a follow-up, but core MVP behavior is no
 > longer blocked here.
 
+> **Status 2026-06-28:** Stage 2 (the outward-facing GitHub demo repo) **split out
+> into #156**. The feature core here is done — shipped advisory rule + parent-guard,
+> 10/10 local control set, committed Catch2 E2E. This task is ready to close as
+> done; the only remaining work (live-CI demo) now lives in #156.
+
 ## Goal
 
 Give `archcheck --diff` an entry point for duplicates: report copy-paste
@@ -88,7 +93,7 @@ remained — it's real duplication, and it *must* fire.
 - [ ] Severity: start **advisory** (like LCX), gating — a separate decision
       after corpus precision (#103/#124)
 - [x] Reuse, don't rewrite: added-lines (diff_command path), `scanForDuplication`
-- [ ] Fixtures (below)
+- [x] Fixtures (below)
 
 ## Validation (two-stage — the user's goal)
 
@@ -192,13 +197,43 @@ check/comment on 5, silence on 5).
 
 | File | Change |
 |------|--------|
-| `src/cli/diff_command.cpp` | duplication branch in `--diff` |
-| `include/archcheck/scan/duplication/*` | diff entry on top of `scanForDuplication` (TBD) |
-| `tests/...` | unit + integration |
+| `src/scan/new_clone_drift.cpp` + `include/archcheck/scan/new_clone_drift.h` | `detectNewClones` (added-lines ∩ clone-spans + parent-guard + #149 byte-cap) |
+| `src/cli/diff_command.cpp` | duplication branch in `--diff` calling `detectNewClones` |
+| `tests/unit/scan/new_clone_drift_test.cpp` | unit: fires / parent-guard / outside / empty / byte-cap |
+| `tests/integration/diff/diff_workflow_e2e_test.cpp` | durable E2E (`[newclone]`) on the real binary |
+| `tests/integration/diff/new_clone_fixtures_test.cpp` + `fixtures/diff_new_clone/*` | per-rule fixtures (`[newclone][fixtures]`), commit `0a50115` |
 
 ## Fixtures (if a rule)
 
-- [ ] `fixtures/diff_new_clone/pass/` — a commit with no new clone → 0
-- [ ] `fixtures/diff_new_clone/fail_existing_file/` — a function copied into an existing file
-- [ ] `fixtures/diff_new_clone/fail_new_file/` — a file-copy added
-- [ ] `fixtures/diff_new_clone/pass_preexisting/` — a clone existed before the commit, the commit touched the copy → 0 (parent-guard)
+Each scenario dir = `parent/` tree + `new/` tree + `added.txt` (the commit's added
+line ranges). Consumed by `tests/integration/diff/new_clone_fixtures_test.cpp`
+(`[newclone][fixtures]`), which feeds both snapshots into `detectNewClones` — the
+same call `diff_command.cpp` makes. Filler files + healthy IDF mirror the unit-test
+recipe (§3) so the corpus isn't degenerate.
+
+- [x] `fixtures/diff_new_clone/pass/` — unique new code (`feature.cpp`) → 0
+- [x] `fixtures/diff_new_clone/fail_existing_file/` — `shared()` appended to existing `helper.cpp` → fires
+- [x] `fixtures/diff_new_clone/fail_new_file/` — whole-file `copy.cpp` added → fires
+- [x] `fixtures/diff_new_clone/pass_preexisting/` — clone existed in parent, commit only reformatted the copy → 0 (parent-guard). Cross-checked: removing the parent copy makes the same reformatted file fire, so the silence is the guard (surviving reformat), not non-detection.
+
+## How it works
+
+`detectNewClones` scans the whole *new* tree for clone pairs, keeps only pairs
+where a span overlaps a line the commit added, then drops any pair whose
+normalized token sequence already formed a clone in the *parent* snapshot
+(parent-guard — immune to reformat). `--diff` wires it next to the LCX call;
+advisory-only, never gates the exit code. Fixtures drive the same `detectNewClones`
+entry through `parent/`+`new/` trees and an `added.txt` line map.
+
+## Summary
+
+**Status:** completed (MVP scope) — Stage 2 split to #156
+**Completion date:** 2026-06-28
+
+Core MVP shipped and durable: the `DRIFT.NEW_CLONE` rule + parent-guard in
+`diff_command.cpp`, validated 10/10 on the local control set (2026-06-20), pinned by
+unit tests + a committed E2E, and now by the per-rule `fixtures/diff_new_clone/`
+acceptance set (commit `0a50115`). The two remaining items are intentionally out of
+this task: **Stage 2** (outward-facing GitHub demo repo / live CI surface) lives in
+**#156**, and the **advisory→gate** severity flip is a v0.2 decision pending corpus
+precision (#124/#103).
