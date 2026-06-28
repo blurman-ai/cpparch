@@ -23,6 +23,14 @@
 > into #156**. The feature core here is done — shipped advisory rule + parent-guard,
 > 10/10 local control set, committed Catch2 E2E. This task is ready to close as
 > done; the only remaining work (live-CI demo) now lives in #156.
+>
+> **Update 2026-06-28 (#156 progress):** the demo's reproducible **in-repo assets are
+> built and verified** (`experiments/clone_gate_demo_156/`): a generator that imports
+> this task's 10 control-set scenarios from `run_control_set.py` and materialises a
+> `main` + 10-branch demo repo, a PR-trigger workflow (inline `::warning::` annotations
+> + sticky comment + step summary), demo README/NOTICE, and a RUNBOOK. `--verify`
+> reproved **10/10** on the demo layout. Only the **supervised live push** (create the
+> public repo, open the 10 PRs, capture screenshots) remains open under #156.
 
 ## Goal
 

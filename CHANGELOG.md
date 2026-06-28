@@ -30,6 +30,15 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Fixed
 
+- **`DRIFT.NEW_CLONE` parent-guard no longer masks a genuinely new copy** — the guard that
+  drops pre-existing clones (so reformatting a clone you didn't introduce stays silent) keyed
+  pairs by content only. Once any function was duplicated anywhere in the base, every *new*
+  copy of that same content — even pasted into a new file by the diff — collided on the same
+  key and was suppressed, so real copy-paste went unflagged. The key is now location-aware
+  (file + normalized-token hash): a copy added in a new location fires, while the reformat-in-
+  place case stays silent (the file is unchanged, so the key still matches the parent). Found
+  while building the #156 accumulating demo, where each merged copy hid the next. (#156)
+
 ## [0.1.1] - 2026-06-27
 
 ### Added

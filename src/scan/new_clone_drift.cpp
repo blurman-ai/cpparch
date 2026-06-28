@@ -15,12 +15,16 @@ namespace
 
 constexpr const char *kRuleId = "DRIFT.NEW_CLONE";
 
-// Content identity of a fragment: hash of its normalized token sequence. Stable
-// across reformat/whitespace churn, which is what lets the parent-guard recognise
-// a touched-but-pre-existing clone.
+// Location-aware identity of a fragment: its file plus the hash of its normalized
+// token sequence. Including the file is what lets the parent-guard tell apart "this
+// PR reformatted a copy that already existed here" (same file+content → suppress)
+// from "this PR pasted a new copy into a new location" (new file → a real new clone,
+// even if the same content was already duplicated elsewhere). The token hash stays
+// stable across reformat/whitespace churn, so the reformat case is still recognised.
 std::string fragKey(const duplication::Fragment &f)
 {
-  std::string joined;
+  std::string joined = f.file;
+  joined.push_back('\x1f');
   for (const auto &t : f.seq)
   {
     joined += t;

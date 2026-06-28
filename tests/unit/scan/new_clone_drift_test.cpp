@@ -127,6 +127,24 @@ TEST_CASE("new_clone_drift: pre-existing clone merely touched is silent", "[scan
   REQUIRE(res.violations.empty());
 }
 
+TEST_CASE("new_clone_drift: a new copy fires even when the content was already cloned elsewhere",
+          "[scan][newclone]")
+{
+  // Parent already has a clone PAIR (orig.cpp <-> copy.cpp share `shared`). The diff
+  // pastes a THIRD copy of the same function into a new file. That is genuinely new
+  // copy-paste and must fire — the parent-guard keys pairs by file+content, so the
+  // pre-existing orig<->copy pair does not mask the new third<->orig / third<->copy
+  // pairs. (Regression: a content-only key suppressed this, missing real copy-paste.)
+  MapFileSource parent = cloneCorpus(); // orig.cpp + copy.cpp both hold `shared`
+  MapFileSource src = cloneCorpus();
+  src.files["third.cpp"] = fileWithSharedFunc("uniqThree");
+
+  const auto res = detectNewClones(SourceSnapshot::read(src), SourceSnapshot::read(parent), allLinesOf("third.cpp", 14));
+  REQUIRE(res.violations.size() >= 1);
+  REQUIRE(res.violations[0].ruleId == "DRIFT.NEW_CLONE");
+  REQUIRE(res.violations[0].file == "third.cpp");
+}
+
 TEST_CASE("new_clone_drift: clone outside added lines is silent", "[scan][newclone]")
 {
   MapFileSource src = cloneCorpus();
