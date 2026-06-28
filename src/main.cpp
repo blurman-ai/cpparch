@@ -65,6 +65,8 @@ bool parseDiffFormat(std::string_view raw, cli::OutputFormat &out)
     out = cli::OutputFormat::Json;
   else if (raw == "text")
     out = cli::OutputFormat::Text;
+  else if (raw == "md")
+    out = cli::OutputFormat::Markdown;
   else
     return false;
   return true;
@@ -92,7 +94,7 @@ int consumeDiffFlags(int argc, char *argv[], int idx, cli::DiffMode &mode, cli::
       if (parseDiffFormat(a.substr(kFormatPrefix.size()), format))
         continue;
       std::cerr << "archcheck: invalid --format value '" << a.substr(kFormatPrefix.size())
-                << "' (expected 'text' or 'json')\n";
+                << "' (expected 'text', 'json', or 'md')\n";
       return -1;
     }
     break;

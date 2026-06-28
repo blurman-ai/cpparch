@@ -2,6 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <sstream>
 
+#include "archcheck/diff/md_report.h"
 #include "archcheck/diff/regression_report.h"
 #include "archcheck/graph/dependency_graph.h"
 
@@ -10,6 +11,7 @@ using archcheck::diff::dropRenameArtifactCycles;
 using archcheck::diff::GrownCycle;
 using archcheck::diff::MetricThresholds;
 using archcheck::diff::RegressionReport;
+using archcheck::diff::writeMdReport;
 using archcheck::diff::writeTextReport;
 using archcheck::graph::DependencyGraph;
 using archcheck::graph::NodeId;
@@ -342,4 +344,51 @@ TEST_CASE("writeTextReport: metric regressions appear in output", "[diff][report
   REQUIRE(s.find("chain_length_grown (advisory):") != std::string::npos);
   REQUIRE(s.find("new_god_headers (gating):") != std::string::npos);
   REQUIRE(s.find("nccd_grown (advisory):") != std::string::npos);
+}
+
+// --- writeMdReport tests ---
+
+TEST_CASE("writeMdReport: clean report → ok icon, no violations, code-fenced", "[diff][md_report]")
+{
+  const auto baseline = chain_abc();
+  const auto current = chain_abc();
+  const auto r = buildRegressionReport(baseline, current);
+
+  std::ostringstream out;
+  writeMdReport(r, out);
+  const auto s = out.str();
+  REQUIRE(s.find("## archcheck `--diff`") != std::string::npos);
+  REQUIRE(s.find(":white_check_mark:") != std::string::npos);
+  REQUIRE(s.find("no violations") != std::string::npos);
+  REQUIRE(s.find("```\n") != std::string::npos);
+  REQUIRE(s.find("gate: ok") != std::string::npos);
+}
+
+TEST_CASE("writeMdReport: added edge → advisory icon", "[diff][md_report]")
+{
+  const auto baseline = chain_abc();
+  DependencyGraph current = chain_abc();
+  current.addEdge(NodeId{0}, NodeId{2});
+  const auto r = buildRegressionReport(baseline, current);
+
+  std::ostringstream out;
+  writeMdReport(r, out);
+  const auto s = out.str();
+  REQUIRE(s.find(":large_yellow_circle:") != std::string::npos);
+  REQUIRE(s.find("added edge(s)") != std::string::npos);
+}
+
+TEST_CASE("writeMdReport: grown cycle → fail icon", "[diff][md_report]")
+{
+  const auto baseline = chain_abc();
+  DependencyGraph current = chain_abc();
+  current.addEdge(NodeId{2}, NodeId{0});
+  const auto r = buildRegressionReport(baseline, current);
+
+  std::ostringstream out;
+  writeMdReport(r, out);
+  const auto s = out.str();
+  REQUIRE(s.find(":x:") != std::string::npos);
+  REQUIRE(s.find("grown cycle(s)") != std::string::npos);
+  REQUIRE(s.find("gate: fail") != std::string::npos);
 }

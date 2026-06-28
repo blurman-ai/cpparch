@@ -8,6 +8,7 @@
 
 #include "archcheck/config/config_loader.h"
 #include "archcheck/diff/diff_json_report.h"
+#include "archcheck/diff/md_report.h"
 #include "archcheck/diff/regression_report.h"
 #include "archcheck/git/diff_query.h"
 #include "archcheck/git/git_exec.h"
@@ -432,6 +433,11 @@ int runDiffFullPath(const std::filesystem::path &repoRoot, const archcheck::git:
 
   if (format == OutputFormat::Json)
     return emitJsonDiff(graph.report, std::move(advisories), parsed, graph.renameSuppressed);
+  if (format == OutputFormat::Markdown)
+  {
+    archcheck::diff::writeMdReport(graph.report, std::cout);
+    return graph.report.gates() ? 1 : 0;
+  }
   printDiffText(parsed, mode, bulk, graph, advisories);
   return graph.report.gates() ? 1 : 0;
 }

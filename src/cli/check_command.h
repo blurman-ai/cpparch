@@ -11,7 +11,8 @@ namespace archcheck::cli
 enum class OutputFormat
 {
   Text,
-  Json
+  Json,
+  Markdown
 };
 
 enum class BaselineMode
