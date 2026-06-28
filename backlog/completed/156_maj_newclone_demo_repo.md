@@ -2,7 +2,8 @@
 
 **Created:** 2026-06-28
 **Start date:** 2026-06-28
-**Status:** wip
+**Completed:** 2026-06-28
+**Status:** completed (demo live on v0.1.5; only manual step left = screenshots for README)
 **Module:** CI][DOCS
 **Priority:** major
 **Difficulty:** unknown

@@ -2,7 +2,8 @@
 
 **Created:** 2026-06-28
 **Start date:** 2026-06-28
-**Status:** wip
+**Completed:** 2026-06-28
+**Status:** completed (shipped in v0.1.3–v0.1.5: --format=md, both spans, both-side clickable links)
 **Module:** report
 **Priority:** minor
 **Difficulty:** small

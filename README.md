@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/blurman-ai/cpparch/actions/workflows/ci.yml/badge.svg)](https://github.com/blurman-ai/cpparch/actions/workflows/ci.yml)
 
-Architecture testing and dependency rules for C++ projects.
+Architecture rules and drift checks for C++ CI.
 
 ## Why
 
@@ -14,7 +14,10 @@ C++ projects degrade over time:
 
 Code review doesn’t catch this.
 Linters don’t check architecture.
-**AI-generated code accelerates the drift** — agents suffer *constraint decay* ([Dente et al., EURECOM, 2026](docs/research/constraint_decay.md)): ~30 pp drop in assertion pass rate when functional tasks gain structural constraints. The prompt degrades with context; CI doesn’t.
+AI-assisted coding makes external structural checks more important: agents can
+struggle to preserve constraints across long contexts (*constraint decay*,
+[Dente et al., EURECOM, 2026](docs/research/constraint_decay.md)). The prompt
+degrades with context; CI doesn’t.
 
 **archcheck keeps the hard CI gate narrow, and reports the rest as explicit advisories.**
 
@@ -42,6 +45,18 @@ The current signal model:
 | Structural advisories | SF.7/SF.8, Lakos chain/god-header in check mode, added edges, NCCD/chain growth | reported, exit `0` |
 | PR hygiene advisories | SATD, test co-evolution, local complexity, flag arguments, new clones | reported, exit `0` |
 | History analytics | `--history` god-file growth and defect-attractor signals | report-only, exit `0` |
+
+---
+
+## Live demo
+
+See the new-clone gate fire on real pull requests:
+**[blurman-ai/archcheck-demo](https://github.com/blurman-ai/archcheck-demo)** — 14 PRs on a real C
+codebase (monit). Five introduce copy-paste (exact, whole-file, renamed, and *partial/structural*
+near-misses) and fire `DRIFT.NEW_CLONE`; five are look-alikes that stay silent (a move, a
+below-threshold dup, a touched pre-existing clone, a formatting-only change). Each firing PR gets a
+markdown comment (`archcheck --diff --format=md`) with clickable links to the introduced block and
+its clone source.
 
 ---
 
