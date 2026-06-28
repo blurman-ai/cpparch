@@ -12,6 +12,15 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Fixed
 
+## [0.1.5] - 2026-06-28
+
+### Changed
+
+- **`--format=md` links both sides of a clone** — the markdown PR comment now turns every
+  `file:line` / `file:a-b` reference in a finding into a clickable link (line-range anchor
+  `#La-Lb` for spans), so a reviewer can jump to the introduced block *and* its source, not
+  just the introduced anchor. Generic over the message text; off-CI it stays plain. (#157)
+
 ## [0.1.4] - 2026-06-28
 
 ### Fixed

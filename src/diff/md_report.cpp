@@ -1,6 +1,8 @@
 #include "archcheck/diff/md_report.h"
 
 #include <ostream>
+#include <regex>
+#include <string>
 
 #include "archcheck/diff/regression_report.h"
 
@@ -9,6 +11,30 @@ namespace archcheck::diff
 
 namespace
 {
+
+// Turn every `path.ext:line` or `path.ext:a-b` token in `text` into a markdown link to
+// that line (or line range) at the head commit, so both the introduced block and its
+// source span are clickable. Empty linkBase (off-CI) ⇒ text returned unchanged.
+std::string linkify(const std::string &text, const std::string &linkBase)
+{
+  if (linkBase.empty())
+    return text;
+  static const std::regex ref(R"(([A-Za-z0-9_./+-]+\.[A-Za-z]+):([0-9]+)(?:-([0-9]+))?)");
+  std::string out;
+  std::sregex_iterator it(text.begin(), text.end(), ref);
+  const std::sregex_iterator end;
+  std::size_t last = 0;
+  for (; it != end; ++it)
+  {
+    const std::smatch &m = *it;
+    out += text.substr(last, static_cast<std::size_t>(m.position()) - last);
+    const std::string anchor = "#L" + m[2].str() + (m[3].matched ? "-L" + m[3].str() : "");
+    out += "[`" + m.str() + "`](" + linkBase + m[1].str() + anchor + ")";
+    last = static_cast<std::size_t>(m.position()) + static_cast<std::size_t>(m.length());
+  }
+  out += text.substr(last);
+  return out;
+}
 
 // The gate summary line. Advisory findings lead (that is what a reviewer cares about
 // on a PR); the structural gate state is appended so a red gate is never hidden.
@@ -45,12 +71,8 @@ void writeMdReport(const RegressionReport &r, const rules::ViolationList &adviso
     out << "\n### Findings (advisory)\n\n";
     for (const auto &v : advisories)
     {
-      out << "- ";
-      if (linkBase.empty())
-        out << "`" << v.file << ":" << v.line << "`";
-      else
-        out << "[`" << v.file << ":" << v.line << "`](" << linkBase << v.file << "#L" << v.line << ")";
-      out << " — " << v.ruleId << " — " << v.message << "\n";
+      const std::string anchor = v.file + ":" + std::to_string(v.line);
+      out << "- " << linkify(anchor, linkBase) << " — " << v.ruleId << " — " << linkify(v.message, linkBase) << "\n";
     }
   }
 
