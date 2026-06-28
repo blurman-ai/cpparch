@@ -12,6 +12,10 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Fixed
 
+## [0.1.4] - 2026-06-28
+
+### Fixed
+
 - **`DRIFT.NEW_CLONE` now reports both spans** — the introduced block is shown as a line
   *range* (`lines A-B — clone of <file>:C-D`) instead of a single line next to a source range,
   which read as a mismatch (especially for STRUCTURAL/gapped clones where the two spans differ
