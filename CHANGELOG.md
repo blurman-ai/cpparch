@@ -8,6 +8,14 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.1.3] - 2026-06-28
+
+### Added
+
 - **`--diff --format=md` — GitHub-ready markdown PR comment** — alongside `text`/`json`, the
   diff can now emit a markdown report tuned for a sticky PR comment: a gate-summary header
   (advisory count + gate state), the advisory findings (new-clone, SATD, …) as a bullet list,

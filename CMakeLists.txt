@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
 
 project(archcheck
-   VERSION 0.1.2
+   VERSION 0.1.3
    DESCRIPTION "Architecture rules for C++ projects, enforced in CI"
    HOMEPAGE_URL "https://github.com/blurman-ai/archcheck"
    LANGUAGES CXX
