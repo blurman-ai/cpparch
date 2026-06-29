@@ -425,8 +425,44 @@ inline constexpr std::array<std::string_view, 7> kTestDirNames = {
     "test", "tests", "tst", "testutil", "testutils", "unittest", "unittests",
 };
 
+// CamelCase test boundary on a raw (un-lowercased) stem/segment: ends with capital
+// `Test`/`Tests` preceded by a lowercase ascii letter (FooTest, EngineTests). The
+// capital `T` + lowercase-before is what excludes latest/contest/attestation. The
+// size guard keeps one char ahead of the suffix so the "before" read is in bounds.
+inline bool hasCamelCaseTestSuffix(std::string_view stem)
+{
+  if (stem.size() >= 6 && stem.compare(stem.size() - 5, 5, "Tests") == 0)
+  {
+    return stem[stem.size() - 6] >= 'a' && stem[stem.size() - 6] <= 'z';
+  }
+  if (stem.size() >= 5 && stem.compare(stem.size() - 4, 4, "Test") == 0)
+  {
+    return stem[stem.size() - 5] >= 'a' && stem[stem.size() - 5] <= 'z';
+  }
+  return false;
+}
+
+// Lowercased stem ends with a separator-delimited test marker (_test, -spec, ...).
+inline bool hasTestStemSuffix(std::string_view stem)
+{
+  static constexpr std::array<std::string_view, 6> kSuffixes = {"_test", "_tests", "_spec",
+                                                                "-test", "-tests", "-spec"};
+  for (std::string_view s : kSuffixes)
+  {
+    if (stem.size() >= s.size() && stem.compare(stem.size() - s.size(), s.size(), s) == 0)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 inline bool isTestDirName(std::string_view name)
 {
+  if (hasCamelCaseTestSuffix(name)) // A.2: EngineTests/, WidgetTest/ (raw segment)
+  {
+    return true;
+  }
   const std::string norm = normalizeDirSegment(name);
   return std::find(kTestDirNames.begin(), kTestDirNames.end(), norm) != kTestDirNames.end() ||
          classificationExtras().testDirs.count(norm) != 0;
@@ -435,7 +471,9 @@ inline bool isTestDirName(std::string_view name)
 inline bool pathHasTestDir(std::string_view path) { return pathAnyDirSegment(path, isTestDirName); }
 
 // Test-file basename heuristic on the stem: starts with test_ or test-, or ends with
-// _test / _tests / _spec / -test / -tests / -spec (case-insensitive).
+// _test / _tests / _spec / -test / -tests / -spec (case-insensitive), or ends with
+// CamelCase Test/Tests suffix (with a preceding lowercase letter), or contains
+// .test. or .spec. infix.
 // GCC8-COMPAT: libstdc++8 has no std::string_view::ends_with — match via
 // compare() like the vendored helpers above.
 inline bool isTestBasename(std::string_view filename)
@@ -443,24 +481,24 @@ inline bool isTestBasename(std::string_view filename)
   const std::string name = toLowerAscii(filename);
   const std::size_t dot = name.rfind('.');
   const std::string stem = (dot == std::string::npos) ? name : name.substr(0, dot);
-  if (stem.rfind("test_", 0) == 0)
+
+  if (stem.rfind("test_", 0) == 0 || stem.rfind("test-", 0) == 0)
   {
-    return true;
+    return true; // prefix
   }
-  if (stem.rfind("test-", 0) == 0)
+  if (hasTestStemSuffix(stem))
   {
-    return true;
+    return true; // _test / _tests / _spec / -test / -tests / -spec
   }
-  static constexpr std::array<std::string_view, 6> kTestStemSuffixes = {"_test", "_tests", "_spec",
-                                                                        "-test", "-tests", "-spec"};
-  for (std::string_view suffix : kTestStemSuffixes)
+  if (name.find(".test.") != std::string::npos || name.find(".spec.") != std::string::npos)
   {
-    if (stem.size() >= suffix.size() && stem.compare(stem.size() - suffix.size(), suffix.size(), suffix) == 0)
-    {
-      return true;
-    }
+    return true; // dotted infix (alu_trace.test.cpp, foo.spec.cc)
   }
-  return false;
+  // CamelCase XxxTest(s) on the raw (un-lowercased) stem — capital T is the discriminator.
+  const std::size_t rawDot = filename.rfind('.');
+  const std::string_view rawStem =
+      (rawDot == std::string_view::npos) ? filename : filename.substr(0, rawDot);
+  return hasCamelCaseTestSuffix(rawStem);
 }
 
 } // namespace archcheck::scan

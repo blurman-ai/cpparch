@@ -157,6 +157,17 @@ TEST_CASE("test dir name: every spelling collapses", "[scan][test]")
   REQUIRE_FALSE(isTestDirName("latest")); // whole-segment match, not substring
 }
 
+TEST_CASE("test dir name: CamelCase Test/Tests suffix", "[scan][test]")
+{
+  // A.2: CamelCase suffix — only if preceded by lowercase letter
+  REQUIRE(isTestDirName("EngineTests"));
+  REQUIRE(isTestDirName("UnitTests"));
+  REQUIRE(isTestDirName("EngineTest"));
+  REQUIRE(isTestDirName("WidgetTest"));
+  REQUIRE_FALSE(isTestDirName("manifest")); // lowercase 't'
+  REQUIRE_FALSE(isTestDirName("greatest")); // lowercase 't'
+}
+
 TEST_CASE("pathHasTestDir tests directory segments only", "[scan][test]")
 {
   REQUIRE(pathHasTestDir("tests/unit/foo.cpp"));
@@ -185,6 +196,30 @@ TEST_CASE("isTestBasename matches test_/_test/_tests/_spec stems", "[scan][test]
   REQUIRE_FALSE(isTestBasename("contest.cc"));  // no separator before 'test'
   REQUIRE_FALSE(isTestBasename("attest.h"));    // ditto
   REQUIRE_FALSE(isTestBasename("latest.h"));    // ditto
+}
+
+TEST_CASE("isTestBasename matches CamelCase Test/Tests suffix", "[scan][test]")
+{
+  // A.1: CamelCase suffix — only if preceded by lowercase letter
+  REQUIRE(isTestBasename("ObjectConnectionTests.cpp"));
+  REQUIRE(isTestBasename("WidgetTest.h"));
+  REQUIRE(isTestBasename("FooTest.cpp"));
+  REQUIRE(isTestBasename("EngineTest.cc"));
+  REQUIRE_FALSE(isTestBasename("latest.cpp"));      // lowercase 't', not CamelCase 'T'
+  REQUIRE_FALSE(isTestBasename("contest.cpp"));     // lowercase 't'
+  REQUIRE_FALSE(isTestBasename("fastest.cpp"));     // lowercase 't'
+  REQUIRE_FALSE(isTestBasename("attestation.cpp")); // lowercase 't'
+  REQUIRE_FALSE(isTestBasename("greatest.cpp"));    // lowercase 't'
+  REQUIRE_FALSE(isTestBasename("protest.cpp"));     // lowercase 't'
+}
+
+TEST_CASE("isTestBasename matches .test. and .spec. infixes", "[scan][test]")
+{
+  // A.1.2: Dotted infix (.test. or .spec.)
+  REQUIRE(isTestBasename("alu_trace.test.cpp"));
+  REQUIRE(isTestBasename("foo.spec.cc"));
+  REQUIRE(isTestBasename("bar.test.h"));
+  REQUIRE(isTestBasename("widget.spec.hpp"));
 }
 
 // === Generated-file path markers (#129 + #127 bison C++ headers) =============

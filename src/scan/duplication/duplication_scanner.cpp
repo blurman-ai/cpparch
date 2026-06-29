@@ -192,26 +192,35 @@ void phasePathBasedFpSuppress(std::vector<Pair> &candidates, const std::vector<F
   candidates = std::move(filtered);
 }
 
-// P1.1: data-table / literal-run classifier — down-weight pairs that look like data tables
+// P1.1: data-table / literal-run classifier — DROP pairs that look like data tables
 // Rows of case/init patterns with mostly literals (case X: return Y; or vec.push_back({a,b,c}))
-// are structural boilerplate, not real logic duplication.
-void phase10DataTableClassifier(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments)
+// are structural boilerplate, not real logic duplication. A pair is a data table when
+// BOTH fragments have diversity < 0.30 AND the clone type is LITERAL or MIXED.
+void phase10DataTableClassifier(std::vector<Pair> &candidates, const std::vector<Fragment> &allFragments,
+                                const ScannerOptions &opts)
 {
-  // Heuristic: if high overlap BUT low diversity (too many identical trigrams),
-  // likely a data table (switch cases, init lists) rather than logic clone
-  for (auto &p : candidates)
+  std::vector<Pair> filtered;
+
+  for (const auto &p : candidates)
   {
     const Fragment &fa = allFragments[p.a];
     const Fragment &fb = allFragments[p.b];
 
     // Low diversity = many repeated token patterns (case tables, init loops)
-    // Reduce score slightly for such pairs
-    if (fa.diversity < 0.30 && fb.diversity < 0.30)
+    // Drop if BOTH diversity < 0.30 AND type is LITERAL or MIXED (sig of data table)
+    if (opts.enableDataTableDrop && fa.diversity < 0.30 && fb.diversity < 0.30)
     {
-      // Down-weight by reducing similarity slightly
-      p.weighted *= 0.85; // 15% penalty for table-like structure
+      // Classify clone type inline to decide drop
+      const char *type = cloneType(fa, fb);
+      // LITERAL or MIXED indicates data table (differences are only in literals)
+      if (type == std::string_view("LITERAL") || type == std::string_view("MIXED"))
+      {
+        continue; // DROP this pair (data table)
+      }
     }
+    filtered.push_back(p);
   }
+  candidates = std::move(filtered);
 }
 
 // P1.2: boilerplate-density filter — drop pairs with mostly non-substantive lines
@@ -401,7 +410,7 @@ void applyCandidateFilters(std::vector<Pair> &candidates, const std::vector<Frag
   // P1 classifiers (optional, can reduce recall if miscalibrated)
   if (opts.enableP1Guards)
   {
-    phase10DataTableClassifier(candidates, allFragments);
+    phase10DataTableClassifier(candidates, allFragments, opts);
     phase11BoilerplateDensity(candidates, allFragments);
     phase13FileLocalIdfDownweight(candidates, allFragments);
   }

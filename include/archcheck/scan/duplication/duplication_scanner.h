@@ -47,6 +47,7 @@ struct ScannerOptions
   bool enableP1Guards = true;           // P1: enable classifier filters (data-table, boilerplate, header-impl, IDF)
   bool enablePathGuards = true;         // P0.9: suppress generated-file pairs (.pb.cc, moc_, flex/bison)
   bool enableWholeFileGuard = true;     // P0.2: count whole-file clones separately, drop their pairs
+  bool enableDataTableDrop = true;      // P1.1: make data-table guard a real DROP (not just down-weight)
 };
 
 struct ScanResult

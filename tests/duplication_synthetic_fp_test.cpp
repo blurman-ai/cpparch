@@ -1,64 +1,81 @@
 #include <catch2/catch_test_macros.hpp>
+#include <filesystem>
 #include <iostream>
+#include <string_view>
 
+#include "archcheck/scan/disk_file_source.h"
+#include "archcheck/scan/duplication/clone_classifier.h"
 #include "archcheck/scan/duplication/duplication_scanner.h"
+#include "archcheck/scan/project_files.h"
 
 using namespace archcheck::scan::duplication;
 
-TEST_CASE("P1.1 data-table classifier detects boilerplate repetition", "[duplication][p1][synthetic]")
+namespace
 {
-
-  // Synthetic case 1: switch statement with many cases (low diversity)
-  std::string switchCase = R"(
-switch(x) {
-  case 1: return 10;
-  case 2: return 20;
-  case 3: return 30;
-  case 4: return 40;
-  case 5: return 50;
-  case 6: return 60;
-  case 7: return 70;
-  case 8: return 80;
+// Load a fixtures/duplication/<sub> directory through the real product gate
+// (collectNonVendoredSources: vendor/test/generated exclusion, #129). The data-table
+// pairs reach the scorer with realistic IDF because each fixture file carries a second,
+// unrelated fragment — an isolated two-fragment file scores the table pair below the gate.
+std::vector<std::pair<std::string, std::string>> loadFixtureDir(std::string_view sub)
+{
+  const std::filesystem::path dir = std::filesystem::path{ARCHCHECK_FIXTURES_DIR} / "duplication" / sub;
+  archcheck::scan::DiskFileSource src(dir);
+  return archcheck::scan::collectNonVendoredSources(src);
 }
-)";
+} // namespace
 
-  std::string switchCase2 = R"(
-switch(y) {
-  case 1: return 100;
-  case 2: return 200;
-  case 3: return 300;
-  case 4: return 400;
-  case 5: return 500;
-  case 6: return 600;
-  case 7: return 700;
-  case 8: return 800;
-}
-)";
+TEST_CASE("P1.1 data-table guard: a LITERAL low-diversity color table is a real DROP",
+          "[duplication][p1][fixtures]")
+{
+  // fail_palette/: a color-tier table copied between two unit files, differing only in
+  // the `default:` RGB (modelled on djeada/Standard-of-Iron team_color).
+  const auto files = loadFixtureDir("data_table/fail_palette");
+  REQUIRE(files.size() == 2); // both are authored source (not excluded as test/vendor)
 
-  std::vector<std::pair<std::string, std::string>> files = {{"switch1.cpp", switchCase}, {"switch2.cpp", switchCase2}};
-
+  // Guard OFF: the pair clears the joint floor (high line overlap) and is reported. It is
+  // exactly the data-table signature — LITERAL type, both fragments low-diversity.
   ScannerOptions opts;
-  opts.fragmentOpts.minTokens = 10; // Lower min to catch these
-  opts.simThreshold = 0.60;
-  opts.enableJointFloor = true;
-  opts.enableP1Guards = true;
+  opts.enableDataTableDrop = false;
+  const ScanResult before = scanForDuplication(files, opts);
+  REQUIRE(before.pairs.size() == 1);
+  const Pair &p = before.pairs.front();
+  REQUIRE(std::string_view(cloneType(before.fragments[p.a], before.fragments[p.b])) == "LITERAL");
+  REQUIRE(before.fragments[p.a].diversity < 0.30);
+  REQUIRE(before.fragments[p.b].diversity < 0.30);
 
-  ScanResult result = scanForDuplication(files, opts);
+  // Guard ON (default): the data table is dropped — membership changes, not just weight.
+  opts.enableDataTableDrop = true;
+  const ScanResult after = scanForDuplication(files, opts);
+  REQUIRE(after.pairs.empty());
+}
 
-  std::cout << "\n=== P1.1 Data-Table Test ===\n";
-  std::cout << "Fragments: " << result.fragments.size() << "\n";
-  std::cout << "Pairs found: " << result.pairs.size() << "\n";
+TEST_CASE("P1.1 data-table guard: a high-diversity logic copy is NOT dropped",
+          "[duplication][p1][fixtures]")
+{
+  // pass/: a real importer logic copy (EXACT, diversity >= 0.30). The guard must leave it.
+  const auto files = loadFixtureDir("data_table/pass");
+  REQUIRE(files.size() == 2);
 
-  if (!result.pairs.empty())
+  ScannerOptions opts; // guard on by default
+  const ScanResult result = scanForDuplication(files, opts);
+  REQUIRE(result.pairs.size() >= 1);
+  for (const Pair &p : result.pairs)
   {
-    for (const auto &p : result.pairs)
-    {
-      std::cout << "  Pair[" << p.a << "," << p.b << "]: ";
-      std::cout << "w=" << p.weighted << " (data-table down-weight expected)\n";
-    }
+    REQUIRE(result.fragments[p.a].diversity >= 0.30); // survived the guard's diversity gate
   }
+}
 
-  REQUIRE(result.fragments.size() > 0);
+TEST_CASE("test-file exclusion: two *Tests.cpp clones never reach the scanner",
+          "[duplication][p1][fixtures]")
+{
+  // test_boilerplate/: WidgetTests.cpp + GadgetTests.cpp hold an identical arrange-act-assert
+  // block. CamelCase `*Tests` is recognized as a test basename (#158 A.1), so the product gate
+  // drops both before scanning — no clone pair is ever reported between them.
+  const auto files = loadFixtureDir("test_boilerplate");
+  REQUIRE(files.empty()); // both excluded as test files
+
+  const ScanResult result = scanForDuplication(files);
+  REQUIRE(result.pairs.empty());
 }
 
 TEST_CASE("P1.2 boilerplate-density filter catches short repeated patterns", "[duplication][p1][synthetic]")
