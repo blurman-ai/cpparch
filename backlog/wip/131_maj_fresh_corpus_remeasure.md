@@ -2,7 +2,73 @@
 
 **Created:** 2026-06-19
 **Started:** 2026-06-19
-**Status:** wip (Group 1 done; Groups 2–6 pending)
+**Status:** wip (Group 1 done; Group 3 in progress 2026-06-29; Groups 2/4 pending; 5/6 dependencies #130/#119 landed → bookkeeping)
+
+## Run 2026-06-29 — Group 3 (duplication precision on fp_corpus_r2.tsv) IN PROGRESS
+
+Reconciliation after 10 days: source deps that have since landed in `completed/` —
+**#127** (vendor-exclude), **#130** (perf, Group 5 code), **#119** (correlation, Group 6).
+Groups 5/6 reduce to sign-off bookkeeping. Group 2 (#124) still wip (days-long).
+Genuinely-open measurement work = Group 3 (#070/#072), the fastest to a real number.
+
+**Key findings establishing the Group-3 method:**
+- round2_verdicts JSON = **eyeball labels, NOT reproducible detector output** (no spans/scores;
+  loose `where` text, `sha` often `top`). That's why the harness stayed a placeholder since 2026-06-02.
+- Corpus sha split: **311 COMMIT rows / 29 TOP rows**. ALL 143 TP are COMMIT rows;
+  the 29 TOP rows are all FP (snapshot `--duplication`). → measuring the COMMIT slice is what carries precision+recall.
+- The per-commit `--diff` new-clone path (`new_clone_drift.cpp`, #123/#156) **reuses `duplication::scanForDuplication`
+  with the P0/P1 guards** (whole-file guard off, joint floor + P1 classifiers on). So re-running
+  `archcheck --diff --diff-mode=memory <sha>~1..<sha> <repo>` on the labeled commits exercises the #070 guards.
+- Honest caveat: the round-2 labels were produced by the OLD `partial_duplication` spike
+  (`--min-tokens 45 --threshold 0.85`); the current gate is **stricter** (parent-guard, added-line overlap,
+  40 MiB byte-cap #149). So this measures **the current product gate's precision/recall on the labeled set** —
+  more useful for #131 sign-off, but recall (TP-kept) must be reported alongside precision.
+- 103/107 corpus repos present in `~/oss`. byte-cap skips large repos (monero fork) → must be
+  reported as **skipped (not measured)**, distinct from suppressed; `skippedLargeTree` prints only in TEXT mode.
+- Clone text line format:
+  `<file>:<line>: DRIFT.NEW_CLONE — copy-paste introduced (<TYPE>): lines A-B — clone of <src>:C-D`.
+
+Harness + raw data: `experiments/corpus_remeasure_131/group3_precision.py` (+ outputs).
+
+**RESULT (full writeup: `experiments/corpus_remeasure_131/FINDINGS_group3.md`):**
+current product new-clone gate on the labelled COMMIT slice (306 measured rows) —
+**precision 72.2 %** (52/72; baseline spike 42.1 %), **FP-suppression 88.0 %**
+(146/166), **recall 37.1 %** (52/140; 38.5 % excl. unscannable). Precision-first:
+idiom FPs 95.6 % suppressed; cost = ~62 % of the spike's real copy-paste dropped.
+Self-check caught + fixed a matcher bug (recall 23 %→37 %); the residual 88 misses are
+genuine (55 zero-clone + 33 different-region). Minor scanner gap surfaced:
+`project_files.cpp` extension match is case-sensitive → `.C`/`.cu` unscanned (5 rows) —
+candidate fix for #127/#129. **Group 3 DONE.** (#070 precision measurement delivered;
+#072 pair output already present.)
+
+## Fix 2026-06-29 — P0.6b: recover Type-3 edited copies without idiom leaks
+
+Root cause (traced in `docs/dev/duplication_decision_path.md`): the joint floor (P0.6)
+gates on `line` = union-Jaccard over verbatim lines, which **deflates on an edited copy**
+(insert/delete grows the union) — so renamed/edited copies die even though the absolute
+shared-line run is long. The verbatim count (`inter`) was computed in `lineOverlap` and
+**discarded**.
+
+Fix (`similarity.*`, `duplication_scanner.*`): a pair below the line-ratio now also passes
+P0.6 if it shares **≥ jointMinSharedLines (6) distinct verbatim lines** AND **≥ jointMinSharedRare
+(2) rare project anchors** AND is diverse (not a low-diversity table). Two orthogonal
+positive signals separate a real edited copy from the two FP families: short coincidences
+(few shared lines) and framework idioms (no rare anchor — they share only common tokens).
+
+Verified on the labelled corpus (`group3_compare.py`, before=baseline / after=fix):
+- **FP-suppression 88.0% → 88.0% (0 new leaks)**; idioms (star/meteor, pqc, Qt-dialog scaffold)
+  stay suppressed — confirmed by code.
+- **20 new real clone detections** (finding-level), all sampled-verified as genuine copy-paste
+  (fakelua int64→double for-codegen; LLL-TAO 1→2-byte header read; FlashCpp parser branches;
+  ZoneManager/NameMangling/commands_cgroup). Labelled-pair recall 37.1% → 38.6%.
+- Tests 605/605, dogfood clean, lizard clean.
+
+**Honest limits:** (1) the rare-anchor at df≤4 is tuned conservative — it also suppressed some
+genuinely-real copies whose shared tokens are moderately common (florinzgz pattern-draw, unit
+renderers). A looser anchor cap recovers more at a precision cost — a calibration knob for the
+product owner. (2) The original int64/uint64 motivating case is **not** recovered: it dies
+upstream at **candidate generation** (`find_json_value_pos` not rare + edits break fingerprint
+runs), a separate, harder lever independent of the joint floor.
 
 ## Run 2026-06-19 — Group 1 (SF.*/graph golden) DONE
 

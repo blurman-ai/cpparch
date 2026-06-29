@@ -84,6 +84,38 @@ double lineOverlap(const Fragment &a, const Fragment &b)
   return uni > 0 ? static_cast<double>(inter) / uni : 0.0;
 }
 
+std::size_t sharedLineCount(const Fragment &a, const Fragment &b)
+{
+  const auto &small = a.normLines.size() < b.normLines.size() ? a.normLines : b.normLines;
+  const auto &big = a.normLines.size() < b.normLines.size() ? b.normLines : a.normLines;
+  std::size_t n = 0;
+  for (const std::string &s : small)
+  {
+    if (s.size() >= 4 && big.count(s) != 0) // skip trivial lines ("}", "{", "});")
+    {
+      ++n;
+    }
+  }
+  return n;
+}
+
+std::size_t sharedRareCount(const Fragment &a, const Fragment &b,
+                            const std::unordered_map<std::string, int> &df, std::size_t cap)
+{
+  const auto &small = a.bag.size() < b.bag.size() ? a.bag : b.bag;
+  const auto &big = a.bag.size() < b.bag.size() ? b.bag : a.bag;
+  std::size_t n = 0;
+  for (const auto &[tok, _] : small)
+  {
+    auto d = df.find(tok);
+    if (big.count(tok) != 0 && d != df.end() && static_cast<std::size_t>(d->second) <= cap)
+    {
+      ++n;
+    }
+  }
+  return n;
+}
+
 std::size_t lcsLength(const std::vector<std::string> &a, const std::vector<std::string> &b)
 {
   const std::size_t n = a.size();

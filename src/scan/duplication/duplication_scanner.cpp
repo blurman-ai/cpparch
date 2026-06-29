@@ -43,6 +43,8 @@ std::vector<Pair> phase3ScoreCandidates(const std::vector<Fragment> &allFragment
     p.weighted = weightedJaccard(allFragments[p.a], allFragments[p.b], index.idf);
     p.plain = plainJaccard(allFragments[p.a], allFragments[p.b]);
     p.line = lineOverlap(allFragments[p.a], allFragments[p.b]);
+    p.sharedLines = sharedLineCount(allFragments[p.a], allFragments[p.b]);
+    p.sharedRare = sharedRareCount(allFragments[p.a], allFragments[p.b], index.df, opts.indexOpts.rareDfCap);
     if (opts.precise)
     {
       p.lcs = lcsRatio(allFragments[p.a], allFragments[p.b]);
@@ -136,15 +138,27 @@ void phase7SameFunctionFilter(std::vector<Pair> &candidates, const std::vector<F
 // P0.6: joint token∧order floor — require high similarity in BOTH metrics
 // Don't emit pairs where token-weight is high but line-overlap is low (bag-of-words collision)
 // or vice versa. Tuning: thresholds calibrated on fp_corpus_r2.tsv.
-void phase8JointTokenOrderFloor(std::vector<Pair> &candidates, double minWeighted = 0.75, double minLine = 0.50)
+void phase8JointTokenOrderFloor(std::vector<Pair> &candidates, const std::vector<Fragment> &frags,
+                                const ScannerOptions &opts)
 {
   std::vector<Pair> filtered;
 
   for (const auto &p : candidates)
   {
-    // Both metrics must be satisfied: w >= minWeighted AND line >= minLine
-    // This rejects high-token-weight + low-line-sim pairs (idiom collisions)
-    if (p.weighted >= minWeighted && p.line >= minLine)
+    if (p.weighted < opts.jointWeightedThreshold)
+    {
+      continue; // token similarity floor holds for every survivor
+    }
+    // The union-ratio rejects high-weight/low-line idiom collisions — but it also
+    // deflates on a real edited copy (inserted/deleted lines grow the union). So a
+    // long absolute run of shared verbatim lines is an alternative pass — but only
+    // with rare project-specific anchors (else a framework idiom leaks) and on a
+    // diverse (non-table) fragment (P0.6b, #131 Group 3).
+    const bool ratioOk = p.line >= opts.jointLineThreshold;
+    const double maxDiv = std::max(frags[p.a].diversity, frags[p.b].diversity);
+    const bool runOk = opts.jointMinSharedLines > 0 && p.sharedLines >= opts.jointMinSharedLines &&
+                       p.sharedRare >= opts.jointMinSharedRare && maxDiv >= 0.30;
+    if (ratioOk || runOk)
     {
       filtered.push_back(p);
     }
@@ -375,7 +389,7 @@ void applyCandidateFilters(std::vector<Pair> &candidates, const std::vector<Frag
   phase7SameFunctionFilter(candidates, allFragments);
   if (opts.enableJointFloor)
   {
-    phase8JointTokenOrderFloor(candidates, opts.jointWeightedThreshold, opts.jointLineThreshold);
+    phase8JointTokenOrderFloor(candidates, allFragments, opts);
   }
   if (opts.enableWholeFileGuard)
   {

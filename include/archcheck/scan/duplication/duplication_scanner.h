@@ -17,7 +17,9 @@ struct Pair
   std::size_t b = 0;     // second fragment index
   double weighted = 0.0; // weighted Jaccard similarity
   double plain = 0.0;    // plain Jaccard similarity
-  double line = 0.0;     // line-based overlap
+  double line = 0.0;     // line-based overlap (union Jaccard)
+  std::size_t sharedLines = 0; // distinct substantive verbatim lines shared (absolute run)
+  std::size_t sharedRare = 0;  // shared rare (project-specific) tokens — anchors a real copy
   double lcs = 0.0;      // token-LCS Dice ratio
   std::string type;      // clone type: EXACT/RENAMED/LITERAL/MIXED/STRUCTURAL (see clone_classifier)
 };
@@ -32,6 +34,12 @@ struct ScannerOptions
   bool enableJointFloor = true;         // P0.6: require BOTH token AND line metrics to pass
   double jointWeightedThreshold = 0.75; // P0.6: minimum weighted similarity when joint floor enabled
   double jointLineThreshold = 0.50;     // P0.6: minimum line overlap when joint floor enabled
+  // P0.6b: a pair below the line-ratio still passes if it shares this many distinct
+  // verbatim lines AND >= jointMinSharedRare rare anchors AND is not a low-diversity
+  // table — recovers Type-3 edited copies (insert/delete deflates the ratio but not
+  // the absolute run) without admitting framework idioms (no rare anchor). 0 disables.
+  std::size_t jointMinSharedLines = 6;
+  std::size_t jointMinSharedRare = 2;
   bool enableP1Guards = true;           // P1: enable classifier filters (data-table, boilerplate, header-impl, IDF)
   bool enablePathGuards = true;         // P0.9: suppress generated-file pairs (.pb.cc, moc_, flex/bison)
   bool enableWholeFileGuard = true;     // P0.2: count whole-file clones separately, drop their pairs
