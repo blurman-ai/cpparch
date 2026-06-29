@@ -1,8 +1,32 @@
 # [SCAN] Clone-detector FP reduction — classification gaps + cosmetic data-table guard
 
 **Created:** 2026-06-29
-**Status:** new
+**Status:** wip — Parts A+C DONE (commit `5277cd2`); Parts B+D still open
 **Module:** SCAN / duplication (#056/#070), classification (#129)
+
+## Done 2026-06-29 — Parts A + C (commit `5277cd2`)
+
+Drafted by Haiku, reviewed + fixed by Opus. Verified: 610 tests, dogfood 0, lizard clean,
+corpus acceptance (chrxh_alien `*Tests.cpp` pairs 7→0; djeada data-table pairs 518→477).
+
+- **Part A** shipped: `isTestBasename`/`isTestDirName` now match CamelCase `XxxTests`/`XxxTest`
+  (capital-T + lowercase-before guard) and the `.test.`/`.spec.` infix.
+- **Part C** shipped: `phase10DataTableClassifier` is a real DROP (both diversity<0.30 AND
+  cloneType∈{LITERAL,MIXED}), togglable via `enableDataTableDrop`.
+
+**Review catches (the value — see JOURNEY 2026-06-29):**
+1. The CamelCase size guards were off by one (`>=5`/`>=4` then read index `size-6`/`size-5`)
+   → out-of-bounds read on a bare `Tests`/`Test` segment. Fixed to `>=6`/`>=5`.
+2. The data-table guard fires ONLY on a pair that ALREADY clears the joint floor with both
+   diversity<0.30 AND LITERAL/MIXED. An all-different-literals palette (every line differs)
+   is killed UPSTREAM by the floor (low line overlap), never reaching the guard — the draft's
+   fixture proved nothing. The real target is the djeada signature: a table that is byte-
+   identical except one line (`default:`) → high line overlap, LITERAL, low diversity.
+3. Measurement trap recorded: a stale (un-relinked) binary made the guard look like a no-op
+   (518==518). The lib-level probe is authoritative (1266→1223). Always re-link before A/B.
+
+---
+
 **Origin:** eyeball triage of the CURRENT detector's actual fires (not corpus labels —
 those proved unreliable: several round-2 "FP" are real copy-paste). 82 fires across 11 repos
 read by hand; raw dumps were in scratch (`fphunt.py` triage). Sample precision ≈ 75-80 %;
