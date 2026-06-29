@@ -70,6 +70,28 @@ product owner. (2) The original int64/uint64 motivating case is **not** recovere
 upstream at **candidate generation** (`find_json_value_pos` not rare + edits break fingerprint
 runs), a separate, harder lever independent of the joint floor.
 
+## Re-run 2026-06-29 (evening) — high-recall posture + #158 A+C re-measured
+
+Final detector `c8e2bec` = P0.6b + high-recall run-path (`b34d1d2`: ordered line-LCS,
+`jointRunWeightedThreshold=0.60`, `jointMinSharedRare=0`) + #158 A+C (`5277cd2`: test-file
+recognition, data-table real-drop). Same harness/labelled set. Full writeup:
+`experiments/corpus_remeasure_131/FINDINGS_group3.md` (Re-run section).
+
+| metric | P0.6b baseline | this run | Δ |
+|---|---|---|---|
+| Recall (TP_kept) | 37.1 % (52/140) | **45.7 % (64/140)** | **+8.6 pp (+12 TP)** |
+| Precision | 72.2 % (52/72) | **68.8 % (64/93)** | −3.4 pp |
+| FP suppression | 88.0 % | **82.5 %** | −5.5 pp |
+
+The product-owner-chosen high-recall trade: **+12 real copy-paste catches for +9 FP fired**
+(idiom/scaffold + 1 coincidental — all expected classes, no new pathology). Recall gain
+hand-verified genuine (DataDog `refCountGuard` waitForRefCountToClear↔waitForAllRefCountsToClear,
+a real Type-3 copy). **#158 A+C moved this labelled set by ~0 — correctly:** the labels carry
+no `*Tests.cpp` rows (Part A's win is on chrxh_alien, 7→0) and the labelled data-table FPs are
+not the LITERAL-low-diversity signature Part C drops (its win is on djeada team_color, 518→477).
+Claiming a corpus precision gain from A+C would be false; the precision shift here is entirely
+the high-recall run-path.
+
 ## Run 2026-06-19 — Group 1 (SF.*/graph golden) DONE
 
 Release binary rebuilt at HEAD (#129/#127/#131). Default-scan run over the whole
