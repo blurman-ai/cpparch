@@ -98,6 +98,19 @@ struct CollectContext
 
 // Collect the fragment's verbatim line views: a set for the union ratio, and an
 // ordered sequence of substantive lines (drop "}", "{", "});") for the line-LCS run.
+// A switch-skeleton line ("case X:", "break;", "default:", "switch (...)") carries no
+// distinctive content — every switch has them. Counting them in the ordered line-run lets
+// two unrelated switches share a long "run" that is really just dispatch boilerplate.
+// #158 Part D experiment: exclude them from the run measure (not the union ratio).
+bool isSwitchSkeletonLine(const std::string &n)
+{
+  if (n == "break;" || n == "default:" || n.rfind("switch (", 0) == 0 || n.rfind("switch(", 0) == 0)
+  {
+    return true;
+  }
+  return n.rfind("case ", 0) == 0 && n.back() == ':'; // bare case label, no inline body
+}
+
 void collectNormLines(Fragment &f, const std::vector<std::string> &lines)
 {
   for (int ln = f.startLine; ln <= f.endLine; ++ln)
@@ -111,7 +124,7 @@ void collectNormLines(Fragment &f, const std::vector<std::string> &lines)
     {
       continue;
     }
-    if (norm.size() >= 4)
+    if (norm.size() >= 4 && !isSwitchSkeletonLine(norm))
     {
       f.normLineSeq.push_back(norm);
     }
