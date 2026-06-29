@@ -183,6 +183,34 @@ via `experiments/corpus_remeasure_131/group3_*.py` — that harness reports BOTH
 
 Decide D only with the curve in hand. Do not tune blind.
 
+## Part D — MEASURED 2026-06-29 (the curve is in hand)
+
+All levers swept on the Group-3 labelled corpus from the committed high-recall config
+(runW=0.60, rare=0 → recall 45.7% / precision 68.8% / suppression 82.5%). Curve in
+`experiments/corpus_remeasure_131/{partD_curve.txt,partD_contiguous.txt}` (gitignored).
+
+| lever | recall | precision | TP cost | verdict |
+|---|---|---|---|---|
+| rare-anchor=2 (df≤12) | 43.6% | 70.9% | −3 TP | ~1:1 trade |
+| weighted floor 0.70 | 42.9% | 69.8% | −4 TP | worse trade |
+| weighted 0.65 + rare2 | 40.7% | 70.4% | −7 TP | worst recall |
+| contiguous-run ≥3/4/5 | 45.0/42.1/40.7% | 69.2/70.2/69.5% | −1/−5/−7 TP | ~1:1, no separation |
+| **switch-skeleton stop** | **45.7%** | **69.6%** | **0 TP** | **clean — SHIPPED `b91fe32`** |
+
+**Finding.** The three numeric knobs (rare-anchor, weighted floor) and the contiguous-run
+measure all trade ~1 real catch per FP removed — they cannot separate a coincidental scaffold
+from a real edited copy, because the scaffolds ARE long, contiguous, high-weight runs. The
+discriminator is not the run's length/shape but its **content**: skeleton vs substance.
+Excluding switch-skeleton lines (`case X:`/`break;`/`default:`/`switch(...)`) from the run
+measure is the only lever that removed FP at **zero recall cost** — shipped.
+
+**Still open in D:** the SEQUENTIAL-scaffold idioms (SQL `ensureTables`, TFT slider draws,
+struct-field-assign blocks, graphillion BDD-iterator skeletons) share substantive-looking
+lines, so the skeleton stop doesn't touch them. A content-substance weighting beyond `switch`
+(e.g. down-weight any line that is a pure library-call idiom) is the next candidate — needs
+its own measurement, same harness. The numeric knobs are documented as NOT worth their recall
+cost for the research corpus; revisit only for a precision-first shipped default.
+
 ---
 
 ## Working order
