@@ -353,6 +353,17 @@ void unrelated_helper(int n) {
   a=1; b=2; c=3; d=4; e=5; f=6;
 }
 )";
+// A dense ONE-statement body: 31 tokens on a single line (clears minTokens) but only one
+// top-level `;`. Copy-paste detection must NOT flag it — it is a one-liner, not a block.
+const std::string kDenseOneLinerSource = R"(
+void serialize_a(unsigned v, char *buf) {
+  for (int i = 0; i < 4; i++) buf[i] = (v >> (8 * i)) & 0xFF;
+}
+
+void serialize_b(unsigned v, char *buf) {
+  for (int i = 0; i < 4; i++) buf[i] = (v >> (8 * i)) & 0xFF;
+}
+)";
 } // namespace
 
 TEST_CASE("Same-file copy-paste pasted directly below the original is reported", "[duplication][fp-guards]")
@@ -376,6 +387,22 @@ TEST_CASE("Same-file copy-paste pasted directly below the original is reported",
     }
   }
   REQUIRE(reported);
+}
+
+TEST_CASE("A dense one-statement copy is NOT flagged (statement floor)", "[duplication][fp-guards]")
+{
+  // The body clears minTokens (31 tokens) yet is a single statement; the classic ratio path
+  // would otherwise pass at lineOverlap=1.0. jointMinClassicStatements keeps it out.
+  ScannerOptions opts; // CLI defaults (minTokens = 30, statement floor = 2)
+  const auto result = scanForDuplication({{"codec.cpp", kDenseOneLinerSource}}, opts);
+
+  for (const auto &pair : result.pairs)
+  {
+    const auto &fa = result.fragments[pair.a];
+    const auto &fb = result.fragments[pair.b];
+    const bool sameFileDistinctBlock = (fa.file == fb.file && fa.startLine != fb.startLine);
+    REQUIRE_FALSE(sameFileDistinctBlock);
+  }
 }
 
 TEST_CASE("P0.1+P0.3+P0.6+P0.4: all guards work together", "[duplication][fp-guards]")

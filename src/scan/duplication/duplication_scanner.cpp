@@ -146,8 +146,13 @@ void phase8JointTokenOrderFloor(std::vector<Pair> &candidates, const std::vector
 
   for (const auto &p : candidates)
   {
-    // Classic path: both metrics high (rejects high-weight/low-line idiom collisions).
-    const bool ratioOk = p.weighted >= opts.jointWeightedThreshold && p.line >= opts.jointLineThreshold;
+    // Classic path: both metrics high (rejects high-weight/low-line idiom collisions),
+    // and both fragments carry enough statements to be copy-paste, not a dense one-liner
+    // (a 30-token fragment can collapse onto 1-3 lines at lineOverlap=1.0). Statement count
+    // is style-robust where a line count would not be (7 calls on 2 lines = 7 statements).
+    const std::size_t minStmts = std::min(frags[p.a].statementCount, frags[p.b].statementCount);
+    const bool ratioOk = p.weighted >= opts.jointWeightedThreshold && p.line >= opts.jointLineThreshold &&
+                         minStmts >= opts.jointMinClassicStatements;
     // Run path: an edited copy deflates BOTH the line-ratio (union grows) AND the
     // weighted bag (inserted/deleted tokens), so a long ordered run of verbatim lines
     // passes at a lower weighted floor — gated by diversity (no tables) and, optionally,

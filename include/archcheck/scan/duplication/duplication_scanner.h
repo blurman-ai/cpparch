@@ -34,6 +34,15 @@ struct ScannerOptions
   bool enableJointFloor = true;         // P0.6: require BOTH token AND line metrics to pass
   double jointWeightedThreshold = 0.75; // P0.6: minimum weighted similarity when joint floor enabled
   double jointLineThreshold = 0.50;     // P0.6: minimum line overlap when joint floor enabled
+  // Copy-paste is a substantive block, not a dense one/two-liner. A 30-token fragment can sit
+  // on 1-3 physical lines (`for(int i=0;i<4;i++) buf[i]=(v>>(8*i))&0xFF;` = 31 tokens, one
+  // line), and the classic ratio path has no absolute substance floor, so it passes at
+  // lineOverlap=1.0. Gate on STATEMENT count (top-level `;`), style-robust where lines are
+  // not (7 calls on 2 lines = 7 statements). Set to 2: a 1-statement fragment is a dense
+  // one-liner that copy-paste detection must not flag. NOT higher — a real 3-statement
+  // function (loop + two guarded returns) is indistinguishable by any size axis from a
+  // 3-statement near-idiom (the Part D wall). Both fragments must clear this.
+  std::size_t jointMinClassicStatements = 2;
   // P0.6b: a pair below the line-ratio still passes if it shares this many distinct
   // verbatim lines AND >= jointMinSharedRare rare anchors AND is not a low-diversity
   // table — recovers Type-3 edited copies (insert/delete deflates the ratio but not

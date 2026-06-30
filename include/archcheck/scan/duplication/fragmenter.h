@@ -16,6 +16,7 @@ struct Fragment
   int startLine = 0;
   int endLine = 0;
   std::size_t tokenCount = 0;
+  std::size_t statementCount = 0;            // top-level `;` (paren-depth 0): style-robust substance
   std::unordered_map<std::string, int> bag;  // normalized token -> count
   std::vector<std::string> seq;              // ordered normalized tokens (for LCS)
   std::vector<std::string> rawSeq;           // raw spelling per token, aligned with seq
