@@ -1,8 +1,13 @@
 # [SCAN] Clone-detector FP reduction — classification gaps + cosmetic data-table guard
 
 **Created:** 2026-06-29
-**Status:** wip — Parts A+C DONE (commit `5277cd2`); Parts B+D still open
+**Status:** wip — A+C DONE (`5277cd2`), D measured+closed (`b91fe32`), harness fixed +
+statement-floor DONE but **UNCOMMITTED** (2026-06-30 session, see checkpoint below); B still open
 **Module:** SCAN / duplication (#056/#070), classification (#129)
+
+> **RESUME HERE — checkpoint 2026-06-30 (read this first).** Jump to the section
+> "## CHECKPOINT 2026-06-30" at the bottom: it lists exactly what is done, what is
+> uncommitted, how it was measured, where the trustworthy numbers are, and what is left.
 
 ## Done 2026-06-29 — Parts A + C (commit `5277cd2`)
 
@@ -226,6 +231,73 @@ shipped, the rest are dominated.
 
 ---
 
+## 2026-06-30 — HARNESS FIX: the Group-3 matcher was over-crediting (we were measuring in a vacuum)
+
+Triggered by the user reviewing fired cases by eye and catching #7 (ibex `join.cpp`).
+Root cause found in the harness, not the detector:
+
+- The harness shipped **two divergent matchers**. `group3_precision.py:row_fires`
+  required BOTH endpoints; `group3_summary.py:row_fires` — **the one that produced
+  every reported recall/precision number** — fired a row if a **single** endpoint of
+  **any** finding touched **any** labelled file (`endpoint_hits(...) or endpoint_hits(...)`).
+  Its header even bragged it was loosened ("v1 understated recall"). For a whole-file
+  label like `join.cpp:1-856`, ANY finding touching join.cpp fired the row.
+- **My #7 explanation to the user was itself wrong.** I had run an isolated single-file
+  probe that only reproduced within-file join pairs and concluded "matcher artifact,
+  join↔reshape not join↔interpreter." The **cached harness finding** (`group3_findings_skeleton.jsonl`)
+  shows 14 genuine `join.cpp ↔ interpreter.cpp` cross-file pairs. #7 is a **real fire**
+  on a monolith-split code **MOVE** (lines relocated, not copy-pasted) — a legitimate FP
+  class the detector can't distinguish from a copy without diff-of-diffs. Not an artifact.
+
+**The corrected matcher** (`experiments/corpus_remeasure_131/match.py`, used by
+`rescore.py` and now by `group3_summary.py`): a finding credits a row iff (a) ≥1 endpoint
+lands in a labelled span (basename + range overlap) AND (b) the finding's topology matches
+the row's declared topology, read from the **klass/fp_class column** — `within-file-chunk`/
+`idiom`→within, `cross-file-chunk`/`whole-file`→cross, `partial-edited`/`data-table`/etc.→either.
+The topology column is essential: the corpus pins only ONE representative span for most
+cross-file copies (`commands_cgroup.cpp:29-53` for a cgroup↔network copy), so the added_loc
+text alone can't tell within from cross. Every fired verdict now returns a **witness finding**.
+
+**Building this matcher took two wrong drafts**, each caught by hand-checking witnesses
+(NOT by trusting the aggregate):
+1. parsed `added_loc`/`base_loc` separately → dropped elided `:104-127` continuations
+   (DataDog refCountGuard falsely missed).
+2. demanded both endpoints inside one span → killed single-span within-file families
+   (bylins, FlashCpp falsely missed). The "precision 78%" it produced was as fake as 69.6%.
+
+**Corrected Group-3 numbers (shipped `skeleton` config), every verdict witness-backed:**
+
+| matcher | recall | precision | suppression |
+|---|---|---|---|
+| legacy OR (what Part D was measured with) | 45.7% | 69.6% | 83.1% |
+| **CORRECTED (topology + witness)** | **43.6%** | **70.1%** | **84.3%** |
+
+**Part D conclusions SURVIVE re-scoring** (the OR inflation was ~uniform, so relative
+comparisons held). Switch-skeleton lever, corrected: `w60_r0` 61/140 → `skeleton` 61/140
+= **0 TP cost** (confirmed under both matchers), precision 69.3→70.1. Reverted levers stay
+dominated: rareline2 −2 TP, contig3 −1 TP, RAREANCHOR −10 TP, w70_r0 −5 TP. The Part D
+table was right for the right reasons; only the absolute numbers move ~2-3 pp.
+
+## 2026-06-30 — #12 recorded: switch-skeleton stop only covers the RUN path, not CLASSIC
+
+The user asked why the switch-case filter (`b91fe32`) didn't suppress a near-verbatim
+copied switch (CppKAI visitor dispatch). Cause, confirmed in `fragmenter.cpp:collectNormLines`:
+`isSwitchSkeletonLine` is applied ONLY to `f.normLineSeq.push_back` (the RUN-path measure
+→ `sharedLines`). The line right after, `f.normLines.insert`, keeps ALL lines including
+`case:`/`break;`/`switch`. The CLASSIC path (`weighted≥0.75 AND line≥0.50`) scores over
+`normLines` → a near-verbatim switch copy fires CLASSIC, which the filter never touches.
+
+**Candidate (NOT yet done — needs the same Part D measurement, now on the fixed harness):**
+also exclude switch-skeleton lines from `normLines` (classic `lineOverlap`). RISK: the
+classic path is the conservative high-precision path; narrowing it can drop real near-verbatim
+copies. Measure recall↔precision via `rescore.py` before shipping. Do NOT tune blind (Part D rule).
+
+## 2026-06-30 — composition-vs-copypaste idea (future signal, from the user)
+
+User's idea on case #20: a run that **calls the same functions with different parameters**
+is *composition/idiom*, not copy-paste. Neither rarity nor run-geometry catches it (it's about
+*what* the lines are, like the switch lever). Candidate future signal; not scoped here.
+
 ## Working order
 
 1. **Part A first** (highest FP mass, lowest risk, fully mechanical).
@@ -241,3 +313,107 @@ shipped, the rest are dominated.
   the one trap in Part A.
 - After Parts A+C, dogfood `archcheck src include tests` = 0; full suite green; lizard clean
   (`lizard --CCN 15 --length 30 --arguments 5 --warnings_only` on touched files).
+
+---
+
+# CHECKPOINT 2026-06-30 — resume point (read first)
+
+A long session that (1) fixed the measurement harness, (2) corrected my own wrong #7
+explanation, (3) hand-triaged all 26 fired FP, (4) shipped a new clean lever (statement
+floor). Everything below the line "Session work" is **uncommitted**.
+
+## DONE this session
+
+### 1. Harness fix — the numbers were measured with a broken matcher (COMMITTABLE, low risk)
+- **Bug:** the Group-3 harness had TWO matchers; the one that produced every Part D
+  recall/precision number (`group3_summary.py:row_fires`) credited a row on a SINGLE
+  endpoint touching ANY labelled file via OR. Whole-file labels (`join.cpp:1-856`) then
+  matched any finding touching the file → mis-attribution.
+- **Fix:** `experiments/corpus_remeasure_131/match.py` — one topology-aware matcher.
+  A finding credits a row iff (a) ≥1 endpoint lands in a labelled span (basename+range) AND
+  (b) the finding's topology matches the row's `klass`/`fp_class` column (within-file-chunk/
+  idiom→within, cross-file-chunk/whole-file→cross, partial-edited/data-table/etc→either).
+  Returns a WITNESS finding for every fired verdict. `rescore.py` re-scores any cached
+  findings jsonl and prints the legacy-OR delta; `group3_summary.py` now delegates to it.
+- **Validated by hand** (NOT by aggregate): building it took two wrong drafts, each caught by
+  witness inspection (separate-field parse dropped elided `:104-127`; "both endpoints in one
+  span" killed single-span within-file families). See JOURNEY 2026-06-30.
+- **#7 self-correction:** I had told the user ibex `join.cpp` was a "matcher artifact
+  (join↔reshape)". WRONG — the cached findings show 14 genuine `join↔interpreter` cross-file
+  pairs; it is a real fire on a monolith-split code MOVE. Lesson saved to memory
+  (`feedback_provenance_before_showing`): read the artifact, never a side-probe, before showing.
+
+### 2. Statement floor — NEW clean lever (UNCOMMITTED, code change)
+- **Problem the user pushed on:** the detector reported 1-line "clones". The min size is
+  `minTokens=30` (tokens, NOT lines); a dense one-liner packs 31 tokens onto one line
+  (`for(int i=0;i<4;i++) buf[i]=(v>>(8*i))&0xFF;`), and the classic ratio path
+  (weighted≥0.75 AND lineOverlap≥0.50) had NO absolute substance floor → it passed at
+  lineOverlap=1.0.
+- **Tried first (REVERTED): a line floor.** Style-dependent — it would drop a real copy of 7
+  statements written on 2 lines (broke `kAdjacentCopyPasteSource` test). User chose
+  "statements, not lines".
+- **Shipped (in tree, uncommitted): a STATEMENT floor.** `Fragment::statementCount` = top-level
+  `;` at paren-depth 0 (for-headers excluded); classic path requires
+  `min(stmtA,stmtB) >= jointMinClassicStatements` (=2). Style-robust.
+- **Floor is 2, not higher — KNOWN LIMIT:** a real 3-statement function (`bracketGap`: loop +
+  two guarded returns) is indistinguishable by ANY size axis (lines/statements/tokens) from a
+  3-statement near-idiom (NAAb VM `av=;bv=;push(op)`). Floor 2 kills only 1-statement dense
+  one-liners (zero collateral); floor ≥3 takes collateral. Same wall as Part D.
+- **Measured (corrected harness, real binary):** recall 43.6%→43.6% (**0 TP cost**),
+  precision 70.1%→70.9%, suppression 84.3%→84.9% (+1 FP row: FreshVoxel), finding-level noise
+  1891→1845 (**−46 one-statement clones**). First zero-recall-cost lever since switch-skeleton.
+- **Files:** `include/.../fragmenter.h` (+statementCount), `src/.../fragmenter.cpp` (count loop),
+  `include/.../duplication_scanner.h` (+jointMinClassicStatements=2), `src/.../duplication_scanner.cpp`
+  (classic gate), `tests/duplication_fp_guards_test.cpp` (+kDenseOneLinerSource test).
+- **Gates:** 611 tests green, dogfood `archcheck src include tests`=0, lizard clean on the two
+  touched functions (2 pre-existing warnings in `phase13`/`wholeFileClonePairs` are NOT mine).
+
+### 3. Hand-triage of all 26 fired FP (reference, in chat history; verdicts below)
+Real precision is higher than the labelled number: **~14/26 fired "FP" are actually real
+copy-paste the corpus under-labelled** (AetherSDR biquad, djeada horse_archer carthage↔roman,
+NexusMiner 40-line block, Ibex variant-ladder, viperx1/Smatchet extractable, alien generator-UI,
+etc.). Genuine "detector wrong" ≈ 8-10, in clean classes:
+- API ceremony (ggml/Qt/SIMD) — no cheap universal signal (Part D).
+- generated (#9 bison) — Part B.
+- too-small (#15/#25) — FIXED by statement floor.
+- code-move (#22/#24/#25, and #7) — needs diff-of-diffs (finding also present in deleted lines).
+- required mirror (#18 CPU/GPU PCG32) — needs opt-in annotation, out of v0.1.
+- composition (#21 tasksmack ImPlot) — user's idea: same funcs, different params (see below).
+
+## REMAINING / NOT DONE
+- **Commit the session work** (harness files are gitignored under experiments/; the code change
+  + task + JOURNEY are not). No commit was made — waiting for the explicit command.
+- **Part B** (generated `.proxy.h`/`.agent.h`/bison + vendored single-header) — still open, needs
+  design (naming-list vs content-banner). #9, #8 land here.
+- **code-move signal (diff-of-diffs)** — the biggest remaining genuine-FP class (#7/#22/#24).
+  Idea: a cross-file clone whose source side also appears in the commit's DELETED lines is a
+  move, not a copy. New task, not scoped yet.
+- **composition vs copy-paste (#20)** — user's idea: a run that calls the same functions with
+  different parameters is composition, not copy-paste. Candidate future signal (content-based,
+  like switch). Not scoped.
+- The 3-statement wall (NAAb-class) is documented as a hard limit, not a TODO.
+
+## HOW TO MEASURE (so the next session reproduces, not re-derives)
+- Corpus gate run: `cd experiments/corpus_remeasure_131 && python3 group3_precision.py`
+  (writes `group3_findings.jsonl`; ~80s with the warmed corpus, 8 workers, memory-mode = no git
+  orphans). Then `python3 rescore.py group3_findings.jsonl` for recall/precision/suppression
+  with witnesses + the legacy-OR delta.
+- **Trust `match.py` (topology + witness), NOT the legacy OR.** Quote a number only after
+  hand-checking a sample of its witnesses (the matcher was wrong twice this session).
+- Cached configs (gitignored): `group3_findings_skeleton.jsonl` = shipped-before-this-session;
+  `group3_findings_STMTFLOOR.jsonl` = with the statement floor; `_PREMINLINE`/`_PRE158` etc.
+- Spot-check a single repo: `archcheck --diff --diff-mode=memory <sha>~1..<sha> <repo>` then read
+  the `DRIFT.NEW_CLONE` lines; pull both code sides with `git -C <repo> show <sha>:<path>`.
+
+## WHERE THE TRUSTWORTHY RESULTS ARE
+- Part D lever table (above) — re-validated under the corrected matcher (conclusions held,
+  absolutes shifted ~2-3pp).
+- Statement-floor numbers — this checkpoint, §2.
+- The 26-FP triage verdicts — chat 2026-06-30 (not all transcribed here; §3 is the summary).
+
+## KNOWN PROBLEMS / TRAPS
+- The corpus `klass`/`fp_class` column is the topology source of truth; `added_loc` is often
+  ONE-SIDED for cross-file copies — never infer topology from the label text alone.
+- Some corpus TP labels credit 2-3 line fragments as copy-paste (NAAb, NexusMiner); treat
+  sub-4-statement "recall" with suspicion (the user's stance: that is not copy-paste).
+- Re-link the binary before any A/B (a stale binary gave a 518==518 no-op illusion, #158 A+C).
