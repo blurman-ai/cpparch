@@ -201,6 +201,204 @@ Produce an analysis section in this task file with:
   - **ship tag/down-rank only**; or
   - **do not ship**, document as future research.
 
+## Analysis 2026-07-01 — snapshot presence pass, no per-commit verification
+
+User clarification: use the local OSS corpus if needed, but do not run per-commit verification yet.
+This pass checks only whether function-composition patterns exist in current project snapshots.
+
+Commands:
+
+```bash
+python3 experiments/corpus_remeasure_131/composition_probe.py group3_findings_INLINECASE.jsonl
+python3 experiments/corpus_remeasure_131/composition_snapshot_probe.py \
+  --max-files-per-repo 500 --max-pairs-per-repo 0 --top 100000 \
+  --out-md experiments/corpus_remeasure_131/composition_snapshot_full.md \
+  --out-jsonl experiments/corpus_remeasure_131/composition_snapshot_full.jsonl
+```
+
+Probes:
+
+- `composition_probe.py` — existing ignored Group-3 witness probe; re-run as a control.
+- `composition_snapshot_probe.py` — temporary ignored snapshot probe. It scans `~/oss`
+  current trees, skips build/vendor/vendored/test directories and test-like filenames, extracts
+  C/C++ functions heuristically, and keeps pairs where:
+  - both functions have at least 3 top-level call statements;
+  - call density is at least 0.75;
+  - the normalized top-level callee sequence is identical;
+  - argument-token Jaccard is at most 0.45.
+- Full-run navigation artifacts:
+  - `experiments/corpus_remeasure_131/composition_snapshot_full.jsonl` — all retained pair records.
+  - `experiments/corpus_remeasure_131/composition_snapshot_full.md` — all retained pairs with snippets.
+  - `experiments/corpus_remeasure_131/composition_snapshot_full_index.md` — compact index.
+  - `experiments/corpus_remeasure_131/composition_snapshot_repo_summary.tsv` — repo-level summary.
+  - `experiments/corpus_remeasure_131/composition_snapshot_sequence_summary.tsv` — sequence-level summary.
+
+Control on `group3_findings_INLINECASE.jsonl` reproduced the earlier warning: generic call-sequence
+thresholds still trade FP removals for TP collateral.
+
+```text
+minCalls=4 calleeLcs>=0.80 argOverlap<=0.35 family>=0.60: FP 1 / TP 1
+minCalls=5 calleeLcs>=0.85 argOverlap<=0.65 family>=0.60: FP 2 / TP 2
+minCalls=5 calleeLcs>=0.85 argOverlap<=0.75 family>=0.60: FP 4 / TP 5
+minCalls=6 calleeLcs>=0.85 argOverlap<=0.75 family>=0.70: FP 3 / TP 3
+```
+
+Full snapshot numbers over the local OSS corpus:
+
+```text
+repos_scanned=2042
+repos_with_pairs=991
+pairs_retained=90020
+unique_call_sequences=2975
+unique_repo_sequence_combinations=4019
+files_scanned=504412
+functions_extracted=4939360
+```
+
+The run used `--max-files-per-repo 500` as a runtime cap, but disabled the pair cap
+(`--max-pairs-per-repo 0`). Therefore this is "all retained examples found under the scan cap",
+not a mathematical exhaust of every file in very large repos.
+
+Heuristic category sketch from the full index:
+
+| Category | Pairs |
+|---|---:|
+| critical-section / generated-like | 35765 |
+| other | 28433 |
+| assert / test-like | 9863 |
+| status/error-chain | 5727 |
+| registration/table | 4879 |
+| hardware/io | 2156 |
+| print/log | 2149 |
+| ui-binding | 797 |
+| serialization/walk | 209 |
+| sql/binding | 42 |
+
+Representative composition-like examples found in real projects:
+
+| Class | Example |
+|---|---|
+| registration table | `BearWare_TeamTalk5` `SoundEventsModel` / `StatusBarEventsModel`: 31 `push_back(...)` calls, args overlap 0.0 |
+| MFC/UI data binding | `CUBRID_cubrid` `VAS.CPP` / `WAS.CPP` `DoDataExchange`: `CDialog::DoDataExchange` + 15 `DDX_Control(...)`, args 0.016 |
+| AST visitor field walk | `CUBRID_cubrid` `pt_apply_delete` / `pt_apply_spec`: 15 `PT_APPLY_WALK(...)`, args 0.143 |
+| hardware register setup | `78_xiaozhi-esp32` board `Pmic` constructors: 13 `WriteReg(...)`, args 0.0 |
+| UI toggle composition | `AlchemyViewer_Alchemy` `selectAllTypes` / `selectNoTypes`: 13 `setValue(...)`, args 0.0 |
+| Qt translation/UI text setup | `Cockatrice_Cockatrice` `retranslateUi` / `retranslateUi`: `setTitle` + 11 `setText`, args 0.2 |
+| telemetry/fact registration | `CubePilot_qgroundcontrol-herelink` fact groups: `_addFact(...)` + `setRawValue(...)`, args 0.0 |
+| binding/init mirrors | `203-Systems_MatrixOS` PikaObj populate/init: `obj_setInt/obj_setStr` field sequence, args 0.1 |
+| JSON serialization | `AB-lab113_hidering` `toJsonValue` overloads: `StartObject` + `INSERT_INTO_JSON_OBJECT`, args 0.045 |
+| explicit serialization chains | `Arsia-Mons_Silencer` `Serialize` overloads: 10 `Serialize(...)`, args 0.045 |
+| SQL statement binding | `0xV4h3_cpp-atlas` `completeSession` / `writeJournalEntry`: `prepare` + `bindValue`, args 0.0 |
+| status/error propagation idiom | `AOMediaCodec_iamf-tools` `ReadStreamInfo` / `ReadAndValidate`: 8 `RETURN_IF_NOT_OK(...)`, args 0.097 |
+
+Interpretation:
+
+- The class exists. Repeated function-composition/API-choreography bodies are common enough to show
+  up in 991/2042 snapshot repos under the current scan cap.
+- The class is mixed. The same signature covers clean composition, data/registration tables,
+  serializer/visitor boilerplate, status-macro chains, and likely real copy-paste with edited
+  payloads.
+- The full count is dominated by generated/SDK-like macro ceremony (`*_CRITICAL_SECTION_ENTER`,
+  GLEW info dumps, generated layout printers) and by assert/error macro chains. That reinforces
+  the need for manual class labels before any product rule.
+- A generic "same callees, different args" suppression would be unsafe. Group-3 still shows TP
+  collateral; the snapshot examples also include extractable/review-worthy cases such as settings
+  save chains and SQL binding chains.
+
+Current decision: **do not ship a guard**. This pass proves presence, not suppressibility. If this
+continues, the safer product direction is a `composition-like` tag/down-rank candidate, then only
+after a labelled sample separates UI/registration/binding composition from real copy-paste.
+
+## Analysis 2026-07-01 — composition-percent gate recalculation
+
+User corrected the classifier target: the interesting class is not ordinary copied blocks with a
+few changed literals, but blocks made mostly of repeated API calls where all or almost all calls
+have different arguments. Manual classifications from the discussion:
+
+- `FLOX-Foundation_flox` `o.Set(...)` object population: **not copy-paste**, clean composition.
+- `MUME_MMapper` `connect(...)` setup: **not copy-paste**, composition, even if accidental.
+- `CUBRID_cubrid` `DDX_Control(...)`: copy-paste-ish, but structurally hard to fix; do not treat as
+  a clear "bad duplicate" control.
+
+Recalculation command:
+
+```bash
+python3 experiments/corpus_remeasure_131/composition_gate_recalc.py \
+  --min-call-density 0.20 --min-diff-arg-ratio 0.50 --max-control-line-ratio 0.30 \
+  --thresholds 0.10 0.15 0.20 0.25 0.30 0.35 \
+  --out-md experiments/corpus_remeasure_131/composition_gate_recalc_full.md \
+  --out-labelled-jsonl experiments/corpus_remeasure_131/composition_gate_labelled_full.jsonl \
+  --out-snapshot-jsonl experiments/corpus_remeasure_131/composition_gate_snapshot_full.jsonl
+```
+
+Metric used:
+
+```text
+composition_percent =
+  aligned same-callee calls with different argument tokens
+  / average statement count of the two matched blocks
+```
+
+The sweep gate also required `matched_calls >= 3`, `callee_lcs >= 0.8`,
+`call_density >= 0.2`, `diff_arg_ratio >= 0.5`, and `control_line_ratio <= 0.3`.
+
+Labelled Group-3 baseline:
+
+```text
+labels=311 (143 TP, 168 FP)
+fired_labelled_rows=76 (58 TP, 18 FP)
+measurable_fired_witness_pairs=236
+snapshot_pairs_with_recomputed_metrics=89382
+```
+
+Gate sweep on labelled Group-3 rows:
+
+| Composition threshold | Suppressed rows | FP removed | TP collateral | Remaining precision | Remaining recall |
+|---:|---:|---:|---:|---:|---:|
+| 0.10 | 6 | 3 | 3 | 0.786 | 0.385 |
+| 0.15 | 6 | 3 | 3 | 0.786 | 0.385 |
+| 0.20 | 3 | 1 | 2 | 0.767 | 0.392 |
+| 0.25 | 2 | 1 | 1 | 0.770 | 0.399 |
+| 0.30 | 2 | 1 | 1 | 0.770 | 0.399 |
+| 0.35 | 0 | 0 | 0 | 0.763 | 0.406 |
+
+The top labelled examples explain why the percentage alone cannot be a suppress guard:
+
+- `FULL-FIRMWARE-Coche-Marcos` TFT slider drawing is the highest FP
+  (`composition_percent=0.333..0.345`), but it is exactly the kind of repeated UI drawing that a
+  reviewer may still want to see as copy-paste/advisory.
+- `esrrhs/fakelua` benchmark wrappers are TP at the same strength
+  (`composition_percent=0.333`): repeated benchmark bodies with only backend/test names changed.
+- `aethersdr/AetherSDR` JSON/theme serialization is TP collateral at
+  `composition_percent=0.230`.
+- `Usagi-dono` SQL-manager boilerplate and `NexusMiner` recovery/logging blocks appear in the low
+  threshold bucket; the latter is simultaneously represented as a labelled TP control, so suppressing
+  it would hide a user-classified real duplicate.
+
+Snapshot top-10 by composition percent is dominated by GLEW info dumps and generated/table-like
+registration/check functions (`glewInfoFunc`, `Add`, `CHECK_MEMBER`, `LIB_FUNCTION`) with
+`composition_percent ~= 0.96..0.99`. These are good examples of "composition exists", but poor
+evidence for a product suppressor because many are generated, SDK-like, or table declarations.
+
+Additional sensitivity checks:
+
+```text
+strict: callDensity>=0.50, diffArgRatio>=0.75, control<=0.20
+  -> 0 FP removed / 0 TP collateral at all tested thresholds
+
+medium: callDensity>=0.50, diffArgRatio>=0.50, control<=0.30
+  -> 1 FP removed / 1 TP collateral until threshold 0.30, then 0/0 at 0.35
+
+diff-heavy: callDensity>=0.20, diffArgRatio>=0.75, control<=0.30
+  -> 1 FP removed / 1 TP collateral at thresholds 0.10..0.15,
+     then 0 FP / 1 TP at 0.20, then 0/0
+```
+
+Updated decision: **do not ship suppression**. A composition percentage is useful as a diagnostic
+feature and maybe as a future `composition-like` tag/down-rank input, but by itself it does not
+separate clean composition from true copy-paste. The first removals already include TP collateral,
+and the highest-score snapshot examples are dominated by generated/table-like code.
+
 ## Acceptance if a product change is proposed
 
 - [ ] The rule is narrow and structural, not library-name-specific.
