@@ -6,6 +6,11 @@
 
 Architecture rules and drift checks for C++ CI.
 
+![archcheck --diff reporting copy-paste introduced by a pull request](docs/assets/archcheck-diff-demo.gif)
+
+*A PR introduces a copied block — `archcheck --diff` names the clone and its source, `file:line` both
+ways. Output recorded verbatim from the [live demo repo](https://github.com/blurman-ai/archcheck-demo).*
+
 ## Why
 
 C++ projects degrade over time:

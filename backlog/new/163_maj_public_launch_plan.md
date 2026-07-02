@@ -66,8 +66,11 @@ Project-specific readiness gate (from TASK_TRACKER + this session):
 - [x] CODE_OF_CONDUCT.md — **added 2026-07-02** (Contributor Covenant 2.1, standard).
 - [x] Issue templates (bug / rule-fp / feature) + PR template — **added 2026-07-02**.
 - [x] README: install section + release/license badges — **added 2026-07-02**.
-- [ ] README: demo screenshots or asciinema GIF (open item from #156; needs a human with a
-      browser / terminal recorder).
+- [x] README: demo screenshots or asciinema GIF (open item from #156). **Done 2026-07-02**:
+      animated terminal GIF (`docs/assets/archcheck-diff-demo.gif`, 27 KB, 7 s) — real
+      `--diff` output on the #156 demo repo replayed byte-for-byte (only the prompt is
+      styled), embedded at the top of README. User-approved before commit. A browser
+      screenshot of the live PR comment remains a nice-to-have, not a blocker.
 - [x] **DECIDED 2026-07-02: rename now.** Repo renamed `blurman-ai/cpparch` →
       `blurman-ai/archcheck` before the announcement (GitHub redirects cover old links);
       README badges, docs/ci_usage.md snippets, and workflows updated in the same change.

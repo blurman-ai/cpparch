@@ -3,7 +3,9 @@
 **Created:** 2026-06-28
 **Start date:** 2026-06-28
 **Completed:** 2026-06-28
-**Status:** completed (demo live on v0.1.5; only manual step left = screenshots for README)
+**Status:** completed (demo live on v0.1.5; README visual closed 2026-07-02 via animated
+terminal GIF in `docs/assets/`, see #163 Phase 0 — a browser screenshot of the live PR
+comment stays a nice-to-have)
 **Module:** CI][DOCS
 **Priority:** major
 **Difficulty:** unknown
