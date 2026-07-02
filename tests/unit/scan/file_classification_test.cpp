@@ -129,11 +129,12 @@ TEST_CASE("vendored dir name: dotted version suffix maps to the lib name", "[sca
 TEST_CASE("vendored dir name: in-tree bundled libraries (not under third_party/)", "[scan][vendor]")
 {
   // Multi-file libs dropped under their own dir, no third_party/ wrapper.
-  for (const auto *n : {"qhull", "jpeglib", "agg", "hidapi", "libigl", "glu-libtess", "bzip2", "libpng"})
+  for (const auto *n : {"qhull", "jpeglib", "agg", "hidapi", "libigl", "glu-libtess", "bzip2", "libpng", "fmt"})
   {
     REQUIRE(isVendoredDirName(n));
   }
   REQUIRE(pathHasVendoredDir("src/qhull/src/libqhull/rboxlib.c"));
+  REQUIRE(pathHasVendoredDir("include/fmt/chrono.h")); // bundled {fmt}, btop (#164 B.1)
   REQUIRE(pathHasVendoredDir("source/Irrlicht/jpeglib/jdhuff.c"));
   REQUIRE(pathHasVendoredDir("src/agg/agg_renderer_base.h"));
   REQUIRE_FALSE(pathHasVendoredDir("src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp")); // authored stays in
@@ -149,7 +150,7 @@ TEST_CASE("baseName extracts the final path segment", "[scan][vendor]")
 
 TEST_CASE("test dir name: every spelling collapses", "[scan][test]")
 {
-  for (const auto *n : {"test", "tests", "unit_test", "unit-tests", "UnitTests"})
+  for (const auto *n : {"test", "tests", "unit_test", "unit-tests", "UnitTests", "testlib", "testlibs"})
   {
     REQUIRE(isTestDirName(n));
   }
@@ -196,6 +197,16 @@ TEST_CASE("isTestBasename matches test_/_test/_tests/_spec stems", "[scan][test]
   REQUIRE_FALSE(isTestBasename("contest.cc"));  // no separator before 'test'
   REQUIRE_FALSE(isTestBasename("attest.h"));    // ditto
   REQUIRE_FALSE(isTestBasename("latest.h"));    // ditto
+}
+
+TEST_CASE("isTestBasename matches bare test/tests stems", "[scan][test]")
+{
+  // #164 B.2: tests.c / test.c is a common C idiom (secp256k1 src/tests.c)
+  REQUIRE(isTestBasename("tests.c"));
+  REQUIRE(isTestBasename("test.c"));
+  REQUIRE(isTestBasename("Tests.cpp")); // case-insensitive stem
+  REQUIRE_FALSE(isTestBasename("retest.c"));
+  REQUIRE_FALSE(isTestBasename("testing.c")); // not the bare stem
 }
 
 TEST_CASE("isTestBasename matches CamelCase Test/Tests suffix", "[scan][test]")

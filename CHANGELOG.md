@@ -8,10 +8,25 @@ The format follows [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 
+- **Community files for public launch** — `CONTRIBUTING.md` (build/test/dogfood, fixture
+  rule, one-rule-one-file, authority-over-opinion), `SECURITY.md` (private disclosure via
+  GitHub security advisories), `CODE_OF_CONDUCT.md`, issue templates (bug / rule
+  false-positive / feature) and a PR template. README gained an Install section with
+  checksum-verified release download and release/license badges. (#163)
+
 ### Changed
 
 ### Fixed
 
+- **Bool-field and scope false positives from the #161/#162 manual audits** — the
+  bool-field parser now sees `const bool` and brace-initialized (`bool x{false};`)
+  members, ignores parentheses inside trailing comments (a `// TODO(Phase4)` comment
+  used to hide the field from the baseline and fake an accretion — and, symmetrically,
+  hid genuinely new commented fields: the fix recovers those findings), reports
+  qualified nested-class names (`Type::Function`), and counts the gained names it
+  actually lists. Classification now treats bundled `fmt/` as vendored,
+  `testlib`/`testlibs` as test dirs, and bare `test.c`/`tests.c` stems as test files.
+  Each fix carries a unit test derived from its real-corpus reproducer. (#164)
 - **Duplication false positives reduced on generated, switch-table, and move cases** —
   ordinary-name Bison/Flex parser output is now excluded by generated-header markers,
   switch dispatch/table boilerplate no longer contributes line-similarity signal, and
@@ -312,5 +327,5 @@ via GitHub Releases for pinned, checksummed CI install. (#142)
 - **Relative include paths with `../` not resolved** — scanner now normalises `..`/`.` segments so relative includes resolve to the correct target instead of being dropped.
 - **Duplication scanner over-excluded files** — the test/vendor exclusion no longer removes legitimate files from the duplication scan. (#081)
 
-[Unreleased]: https://github.com/blurman-ai/cpparch/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/blurman-ai/cpparch/releases/tag/v0.1.0
+[Unreleased]: https://github.com/blurman-ai/archcheck/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/blurman-ai/archcheck/releases/tag/v0.1.0

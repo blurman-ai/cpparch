@@ -89,6 +89,50 @@ TEST_CASE("bool_drift: brace inside a string literal does not fake accretion (#1
   REQUIRE(compareBoolFields(oldSrc, newSrc, "s.h").violations.empty());
 }
 
+TEST_CASE("bool_drift: const drop / brace-init rewrite are not accretion (#164)", "[scan][bool_drift]")
+{
+  // btop/fmt: `const bool x;` -> `bool x;` and mvfst: `bool x{false};` -> `bool x : 1;`
+  const std::string oldSrc = "struct S\n{\n  const bool a;\n  bool b{false};\n};\n";
+  const std::string newSrc = "struct S\n{\n  bool a;\n  bool b : 1;\n};\n";
+  REQUIRE(compareBoolFields(oldSrc, newSrc, "s.h").violations.empty());
+}
+
+TEST_CASE("bool_drift: parens inside a trailing comment do not hide a field (#164)", "[scan][bool_drift]")
+{
+  // NanaBox reproducer: the baseline field carries a `// TODO(Phase4): ...` comment;
+  // dropping the comment must not read as a new field.
+  const std::string oldSrc = "struct S\n{\n  bool a = false; // TODO(Phase4): remove\n};\n";
+  const std::string newSrc = "struct S\n{\n  bool a = false;\n};\n";
+  REQUIRE(compareBoolFields(oldSrc, newSrc, "s.h").violations.empty());
+}
+
+TEST_CASE("bool_drift: message counts the listed gained names, gate stays net (#164)", "[scan][bool_drift]")
+{
+  // rename a->b plus one genuinely new field: net +1 fires, message lists both gained
+  // names with a matching count.
+  const std::string oldSrc = "struct S\n{\n  bool a;\n};\n";
+  const std::string newSrc = "struct S\n{\n  bool b;\n  bool c;\n};\n";
+  const auto res = compareBoolFields(oldSrc, newSrc, "s.h");
+  REQUIRE(res.violations.size() == 1);
+  REQUIRE(res.violations[0].message.find("accreted 2 bool field(s): b, c") != std::string::npos);
+}
+
+TEST_CASE("bool_drift: out-of-line nested class keeps its qualified name (#164)", "[scan][bool_drift]")
+{
+  const std::string oldSrc = "class Type::Function : public Base\n{\n  bool a;\n};\n";
+  const std::string newSrc = "class Type::Function : public Base\n{\n  bool a;\n  bool b;\n};\n";
+  const auto res = compareBoolFields(oldSrc, newSrc, "t.h");
+  REQUIRE(res.violations.size() == 1);
+  REQUIRE(res.violations[0].message.find("struct 'Type::Function'") != std::string::npos);
+}
+
+TEST_CASE("bool_drift: static bools are class constants, not state", "[scan][bool_drift]")
+{
+  const std::string oldSrc = "struct S\n{\n  bool a;\n};\n";
+  const std::string newSrc = "struct S\n{\n  bool a;\n  static bool s;\n  static const bool k = true;\n};\n";
+  REQUIRE(compareBoolFields(oldSrc, newSrc, "s.h").violations.empty());
+}
+
 TEST_CASE("bool_drift: detect honours the authored filter over changed files", "[scan][bool_drift]")
 {
   MapFileSource oldSrc;

@@ -18,10 +18,13 @@ namespace
 
 constexpr const char *kRuleId = "DRIFT.BOOL_FIELD_ACCRETION";
 
-// Ported verbatim from the validated research parser (experiments/boolean_state/
-// perstruct_drift.py) so the rule matches the #135 corpus oracle field-for-field.
-const std::regex kStructRe(R"((?:struct|class)\s+([A-Za-z_]\w*)\s*(?:final\s*)?(?::[^{;]*)?\{)");
-const std::regex kBoolRe(R"(^\s*(?:mutable\s+)?bool\s+([A-Za-z_]\w*)\s*(?::\s*\d+)?(?:\s*=\s*[^;]+)?;\s*(?://.*)?$)");
+// Ported from the validated research parser (experiments/boolean_state/perstruct_drift.py),
+// then hardened by the #161 manual audit (#164): qualified struct names (Type::Function),
+// const-qualified fields, brace-init fields. `static` members stay excluded (class
+// constants, not instance state); `constexpr` never matches `const\s`.
+const std::regex kStructRe(R"((?:struct|class)\s+([A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)\s*(?:final\s*)?(?::[^{;]*)?\{)");
+const std::regex kBoolRe(
+    R"(^\s*(?:(?:mutable|const)\s+)?bool\s+([A-Za-z_]\w*)\s*(?::\s*\d+)?(?:\s*=\s*[^;]+|\s*\{[^{};]*\})?;\s*(?://.*)?$)");
 
 struct BoolField
 {
@@ -149,8 +152,11 @@ void appendStructBools(const std::string &orig, const std::string &neut, const s
     const std::size_t nl = orig.find('\n', pos);
     const std::size_t lineEnd = (nl == std::string::npos || nl > body.second) ? body.second : nl;
     const std::string line = orig.substr(pos, lineEnd - pos);
+    // The paren guard skips method declarations, but must ignore parens inside a trailing
+    // comment (#164 A.3: `bool x = false; // TODO(Phase4)` was invisible to the baseline).
+    const std::string code = line.substr(0, line.find("//"));
     std::smatch m;
-    if (depth == 0 && line.find('(') == std::string::npos && line.find(')') == std::string::npos &&
+    if (depth == 0 && code.find('(') == std::string::npos && code.find(')') == std::string::npos &&
         std::regex_match(line, m, kBoolRe))
       out.push_back({name, m[1].str(), baseLine + off});
     depth += braceDelta(neut, pos, lineEnd);
@@ -194,17 +200,19 @@ void pushIfAccreted(const std::string &name, const std::vector<BoolField> &field
   if (newNames.size() <= oldNames.size())
     return;
   int line = 0;
+  int gainedCount = 0;
   std::string gained;
+  std::set<std::string> seen;
   for (const auto &f : fields)
   {
-    if (oldNames.count(f.fieldName) != 0)
+    if (oldNames.count(f.fieldName) != 0 || !seen.insert(f.fieldName).second)
       continue;
     line = line == 0 ? f.line : std::min(line, f.line);
+    ++gainedCount; // gross adds, matching the listed names (#164 A.4; the gate stays net)
     gained += (gained.empty() ? "" : ", ") + f.fieldName;
   }
-  const int delta = static_cast<int>(newNames.size() - oldNames.size());
-  out.push_back(
-      {kRuleId, file, line, "struct '" + name + "' accreted " + std::to_string(delta) + " bool field(s): " + gained});
+  out.push_back({kRuleId, file, line,
+                 "struct '" + name + "' accreted " + std::to_string(gainedCount) + " bool field(s): " + gained});
 }
 
 } // namespace

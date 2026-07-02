@@ -146,9 +146,10 @@ inline constexpr std::array<std::string_view, 15> kVendoredDirNames = {
 // are not single-file libs either. Curated like kVendoredStems: distinctive,
 // rarely-an-author's-own-module names confirmed vendored in the #056 corpus scan.
 // Matched as a directory segment (normalized: lowercased, '_'/'-'/space removed).
-inline constexpr std::array<std::string_view, 14> kVendoredLibDirs = {
+inline constexpr std::array<std::string_view, 15> kVendoredLibDirs = {
     "jpeglib", "libjpeg", "libpng",     "zlib", "bzip2",    "qhull", "hidapi",
     "libigl",  "agg",     "glulibtess", "mcut", "freetype", "glfw",  "glew",
+    "fmt", // bundled {fmt} headers, e.g. btop include/fmt/ (#164 B.1)
 };
 
 inline bool isVendoredDirName(std::string_view name)
@@ -439,8 +440,9 @@ inline bool isVendoredFile(std::string_view filename, std::string_view headerByt
 // dsstne's tst/gputests/). Deliberately NOT added: `units` (16 corpus repos, often
 // units-of-measurement, not tests) and substring/endswith-"test" matching (would
 // catch `latest/`, `contests/`) — over-exclusion silently hides real findings.
-inline constexpr std::array<std::string_view, 7> kTestDirNames = {
+inline constexpr std::array<std::string_view, 9> kTestDirNames = {
     "test", "tests", "tst", "testutil", "testutils", "unittest", "unittests",
+    "testlib", "testlibs", // test-support libraries (zera-classes, papi, gem5; #164 B.3)
 };
 
 // CamelCase test boundary on a raw (un-lowercased) stem/segment: ends with capital
@@ -503,6 +505,10 @@ inline bool isTestBasename(std::string_view filename)
   if (stem.rfind("test_", 0) == 0 || stem.rfind("test-", 0) == 0)
   {
     return true; // prefix
+  }
+  if (stem == "test" || stem == "tests")
+  {
+    return true; // bare stem (tests.c / test.c, common C idiom; #164 B.2)
   }
   if (hasTestStemSuffix(stem))
   {
