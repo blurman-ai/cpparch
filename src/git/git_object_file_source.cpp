@@ -49,6 +49,9 @@ bool pathHasExcludedSegment(const std::string &posixPath)
 GitObjectFileSource::GitObjectFileSource(std::filesystem::path repoRoot, std::string ref)
     : repoRoot_(std::move(repoRoot)), ref_(std::move(ref))
 {
+  std::error_code ec;
+  const auto canon = std::filesystem::weakly_canonical(repoRoot_, ec);
+  scan::setSelfProjectDir((ec ? repoRoot_ : canon).filename().string());
   spawnCatFileBatch();
 }
 

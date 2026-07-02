@@ -15,6 +15,7 @@ using archcheck::scan::isVendoredDirName;
 using archcheck::scan::isVendoredFile;
 using archcheck::scan::pathHasTestDir;
 using archcheck::scan::pathHasVendoredDir;
+using archcheck::scan::setSelfProjectDir;
 
 // === Layer 1: curated single-file-lib basenames (#069) =======================
 
@@ -138,6 +139,27 @@ TEST_CASE("vendored dir name: in-tree bundled libraries (not under third_party/)
   REQUIRE(pathHasVendoredDir("source/Irrlicht/jpeglib/jdhuff.c"));
   REQUIRE(pathHasVendoredDir("src/agg/agg_renderer_base.h"));
   REQUIRE_FALSE(pathHasVendoredDir("src/slic3r/GUI/Gizmos/GLGizmoColorCut.cpp")); // authored stays in
+}
+
+TEST_CASE("vendored dir name: self-project guard exempts the scan root's own library", "[scan][vendor]")
+{
+  // Running archcheck ON {fmt}: include/fmt/ is the project, not a bundled copy.
+  setSelfProjectDir("fmt");
+  CHECK_FALSE(pathHasVendoredDir("include/fmt/chrono.h"));
+  CHECK(pathHasVendoredDir("include/zlib/zutil.h"));     // other curated libs still vendored
+  CHECK(pathHasVendoredDir("third_party/fmt/chrono.h")); // container names are never exempt
+  // zlib cloned as zlib/: the dotted-version stem is exempt too
+  setSelfProjectDir("zlib");
+  CHECK_FALSE(pathHasVendoredDir("src/zlib-1.3.2/zutil.c"));
+
+  setSelfProjectDir({}); // reset — never leak global state into other tests
+  CHECK(pathHasVendoredDir("include/fmt/chrono.h"));
+}
+
+TEST_CASE("vendored dir name: dep container (microsoft/terminal)", "[scan][vendor]")
+{
+  REQUIRE(isVendoredDirName("dep"));
+  REQUIRE(pathHasVendoredDir("dep/Win32K/winuserp.h"));
 }
 
 TEST_CASE("baseName extracts the final path segment", "[scan][vendor]")

@@ -135,8 +135,9 @@ inline bool pathAnyDirSegment(std::string_view path, bool (*pred)(std::string_vi
 // `external_libraries/` — a container the bare `external` token misses (normalize
 // strips '_' → `externallibraries`, not `external`). Name-independent, so it drops
 // both subtrees at once in disk and diff modes.
-inline constexpr std::array<std::string_view, 15> kVendoredDirNames = {
-    "thirdparty", "3rdparty",     "vendor",     "vendored",  "vendors",     "external", "externals",         "extern",
+inline constexpr std::array<std::string_view, 16> kVendoredDirNames = {
+    "thirdparty", "3rdparty",     "vendor",     "vendored",  "vendors",     "external", "externals",
+    "extern",     "dep", // microsoft/terminal ships its vendored headers under dep/
     "deps",       "dependencies", "submodules", "submodule", "nodemodules", "contrib",  "externallibraries",
 };
 
@@ -152,12 +153,33 @@ inline constexpr std::array<std::string_view, 15> kVendoredLibDirs = {
     "fmt", // bundled {fmt} headers, e.g. btop include/fmt/ (#164 B.1)
 };
 
+// Self-project guard: running archcheck ON a library from kVendoredLibDirs must
+// not vendor-drop the project's own code — the {fmt} repo keeps its headers at
+// include/fmt/, the same shape as a bundled copy inside btop. Path shape cannot
+// separate the two; the scan root's own directory name can. File sources register
+// it on construction; a curated lib token equal to it stops counting as vendored
+// for that run. Container names (third_party/, dep/, ...) are never exempt.
+inline std::string &selfProjectDirStorage()
+{
+  static std::string storage;
+  return storage;
+}
+inline void setSelfProjectDir(std::string_view rootDirName)
+{
+  selfProjectDirStorage() = normalizeDirSegment(rootDirName);
+}
+
+inline bool isVendoredLibDirName(std::string_view norm)
+{
+  return norm != selfProjectDirStorage() &&
+         std::find(kVendoredLibDirs.begin(), kVendoredLibDirs.end(), norm) != kVendoredLibDirs.end();
+}
+
 inline bool isVendoredDirName(std::string_view name)
 {
   const std::string norm = normalizeDirSegment(name);
   if (std::find(kVendoredDirNames.begin(), kVendoredDirNames.end(), norm) != kVendoredDirNames.end() ||
-      std::find(kVendoredLibDirs.begin(), kVendoredLibDirs.end(), norm) != kVendoredLibDirs.end() ||
-      classificationExtras().vendoredDirs.count(norm) != 0)
+      isVendoredLibDirName(norm) || classificationExtras().vendoredDirs.count(norm) != 0)
   {
     return true;
   }
@@ -168,8 +190,7 @@ inline bool isVendoredDirName(std::string_view name)
   {
     return false;
   }
-  const std::string_view stem = std::string_view{norm}.substr(0, tail + 1);
-  return std::find(kVendoredLibDirs.begin(), kVendoredLibDirs.end(), stem) != kVendoredLibDirs.end();
+  return isVendoredLibDirName(std::string_view{norm}.substr(0, tail + 1));
 }
 
 // True if any *directory* segment of a repo-relative POSIX path is vendored

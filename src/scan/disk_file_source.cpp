@@ -3,7 +3,10 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <system_error>
 #include <utility>
+
+#include "archcheck/scan/file_classification.h"
 
 namespace archcheck::scan
 {
@@ -11,7 +14,13 @@ namespace archcheck::scan
 // S4: skip files larger than this to prevent OOM on adversarial inputs.
 static constexpr std::size_t kMaxFileSizeBytes = 64ULL * 1024 * 1024; // 64 MiB
 
-DiskFileSource::DiskFileSource(std::filesystem::path root) : root_(std::move(root)) {}
+DiskFileSource::DiskFileSource(std::filesystem::path root) : root_(std::move(root))
+{
+  // weakly_canonical resolves "." and trailing slashes to the real dir name.
+  std::error_code ec;
+  const auto canon = std::filesystem::weakly_canonical(root_, ec);
+  setSelfProjectDir((ec ? root_ : canon).filename().string());
+}
 
 std::vector<ProjectFile> DiskFileSource::list() { return discoverFiles(root_); }
 
