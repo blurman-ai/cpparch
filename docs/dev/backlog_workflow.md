@@ -241,7 +241,7 @@ In mode B — additionally reconcile against the tracker's active tickets: "in t
 
 ### [`/status-review`](../../.claude/commands/status-review.md)
 
-Walks over git+files and reconciles against `CHANGELOG.md`, `docs/ROADMAP.md`, `docs/milestones.md`. Catches divergences of the documents from reality.
+Walks over git+files and reconciles against `CHANGELOG.md`, `docs/ROADMAP.md`, `~/projects/archcheck-journal/milestones.md` (private companion repo, #167). Catches divergences of the documents from reality.
 
 In mode B — extend it with a "local state ↔ external tracker" check (if MCP/API is available).
 

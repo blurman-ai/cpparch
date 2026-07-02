@@ -721,7 +721,8 @@ See [docs/research/rules/](research/rules/).
 
 ### Development progress
 
-Real dogfood runs and achievements are logged in [docs/milestones.md](milestones.md).
+Real dogfood runs and achievements are logged in `milestones.md` in the private
+[archcheck-journal](https://github.com/blurman-ai/archcheck-journal) companion repo (#167).
 
 - **2026-05-26 — development start.** The scan + graph subsystem is complete (`scan_includes`, `discover_files`, `include_resolver`, `DependencyGraph`, iterative Tarjan SCC). The preview CLI `archcheck --graph <path>` works end-to-end. The first external run: the `gm` project (2192 files, 7.7 s), 2 real cycles found in Unigine SDK headers.
 

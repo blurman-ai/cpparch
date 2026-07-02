@@ -1,4 +1,4 @@
-Walk through git + the filesystem and reconcile against the documents: `CHANGELOG.md`, `docs/ROADMAP.md`, `docs/milestones.md`. Show the discrepancies and propose patches in a single batch.
+Walk through git + the filesystem and reconcile against the documents: `CHANGELOG.md`, `docs/ROADMAP.md`, `~/projects/archcheck-journal/milestones.md` (private companion repo, #167). Show the discrepancies and propose patches in a single batch.
 
 No arguments. Run at the end of the day / after a series of tasks: `/status-review`.
 
@@ -10,11 +10,11 @@ The skill **only shows and proposes**. It changes nothing until an explicit "yes
 |---|---|---|---|
 | `CHANGELOG.md` | shipped per version | past, append-only | `feat:` / `fix:` / `perf:` → bullet in `[Unreleased]`; release cut → `[X.Y.Z] — YYYY-MM-DD` |
 | `docs/ROADMAP.md` | scope per version + current focus + blockers | mutable | scope decision, defer/pull-forward, phase change, new/closed v0.X blocker |
-| `docs/milestones.md` | dogfood-runlog | past, append-only | running the tool on someone else's code |
+| `~/projects/archcheck-journal/milestones.md` (private companion repo, #167) | dogfood-runlog | past, append-only | running the tool on someone else's code |
 
 **Principle:** one fact — one place. Duplication between documents is a bug, caught by this skill.
 
-**Files managed by this skill:** `CHANGELOG.md`, `docs/ROADMAP.md`, `docs/milestones.md`.
+**Files managed by this skill:** `CHANGELOG.md`, `docs/ROADMAP.md`, `~/projects/archcheck-journal/milestones.md` (private companion repo, #167).
 **Files under `/backlog-review`:** `backlog/*`. No overlap.
 **The "where we are now" snapshot** lives in the header of `docs/ROADMAP.md` (`## Current focus`). There's no separate STATUS file.
 
@@ -51,7 +51,7 @@ Everything that landed in `master` after this boundary — must be reflected eit
    - Does the phase in the ROADMAP header (`v0.1 (close to release)` etc.) agree with reality? All blockers closed → the phase should be ready to change.
    - **Don't describe concrete shipped items in ROADMAP** — that's CHANGELOG's job. ROADMAP describes scope, not checkboxes.
 
-5. **Check C — milestones gaps.** If the delta has commits with run markers (`dogfood`, new `Run N` in a commit body, mentions of external projects) — is there a corresponding entry in `docs/milestones.md` with a close date? No — flag.
+5. **Check C — milestones gaps.** If the delta has commits with run markers (`dogfood`, new `Run N` in a commit body, mentions of external projects) — is there a corresponding entry in `~/projects/archcheck-journal/milestones.md` (private companion repo, #167) with a close date? No — flag.
 
 6. **Check D — completed tasks without DoD sections.** For each file that landed in `backlog/completed/` in the delta:
    - **How it works**, **What controls it**, **What it relates to**, **Diagnostics** must be present (see `backlog/README.md` §"Task lifecycle", item 5).
@@ -61,7 +61,7 @@ Everything that landed in `master` after this boundary — must be reflected eit
 
 8. **Always ignore:**
    - `backlog/pending/` — parking lot, not a queue (see memory).
-   - Commits with type `docs:` for `backlog/`, `docs/ROADMAP.md`, `CHANGELOG.md`, `docs/milestones.md` — that's part of the process, not content.
+   - Commits with type `docs:` for `backlog/`, `docs/ROADMAP.md`, `CHANGELOG.md`, `~/projects/archcheck-journal/milestones.md` (private companion repo, #167) — that's part of the process, not content.
    - `chore(tasks):` commits that move files — that's already accounted for.
 
 ## Report
@@ -100,7 +100,7 @@ Apply the patches in a single batch, **without committing**:
 
 1. Edit `CHANGELOG.md` — append surgically to `## [Unreleased]`. Each bullet — one sentence in the style of existing ones.
 2. Edit `docs/ROADMAP.md` — update `## Current focus` (remove closed blockers, add new ones) + the version block if necessary (scope decision); update the header (`phase`, date).
-3. Edit `docs/milestones.md` — add a minimal run entry per the template at the end of the file (the user will fill in details). **Write in plain human language** (see §"Language of descriptions"): what was checked, why, what came out — without jargon and abbreviations. Exact numbers/commit not at hand — leave as `<!-- TODO -->`, don't invent them.
+3. Edit `~/projects/archcheck-journal/milestones.md` (companion repo; commit+push there) — add a minimal run entry per the template at the end of the file (the user will fill in details). **Write in plain human language** (see §"Language of descriptions"): what was checked, why, what came out — without jargon and abbreviations. Exact numbers/commit not at hand — leave as `<!-- TODO -->`, don't invent them.
 4. Edit the tasks from "without DoD sections" — add section headings with the placeholder comment `<!-- TODO -->` (don't invent content).
 5. **Committing — NOT from this skill.** The user decides: `/commit chore(process)` or a manual commit. In the report, remind: "changes in the worktree, not committed".
 

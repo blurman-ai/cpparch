@@ -14,7 +14,7 @@ No arguments. Run as `/backlog-review`.
 | `backlog/backlog_review.md` | queue snapshot + classification | present | this skill (`/backlog-review`) |
 
 **Files managed by this skill:** `backlog/*` (except `pending/` — don't touch without an explicit command).
-**Files under `/status-review`:** `CHANGELOG.md`, `docs/ROADMAP.md`, `docs/milestones.md`. No overlap.
+**Files under `/status-review`:** `CHANGELOG.md`, `docs/ROADMAP.md`, `~/projects/archcheck-journal/milestones.md` (private companion repo, #167). No overlap.
 **This skill does NOT edit** CHANGELOG / ROADMAP / milestones / spec / README / CLAUDE.md.
 
 ## Steps
@@ -81,7 +81,7 @@ No arguments. Run as `/backlog-review`.
 
 ## What it does NOT do
 
-- Doesn't edit `CHANGELOG.md` / `docs/ROADMAP.md` / `docs/milestones.md` — that's `/status-review`'s job.
+- Doesn't edit `CHANGELOG.md` / `docs/ROADMAP.md` / `~/projects/archcheck-journal/milestones.md` (private companion repo, #167) — that's `/status-review`'s job.
 - Doesn't edit `docs/architecture-spec.md` / `README.md` / `CLAUDE.md` / `AGENTS.md` — that's design / framing.
 - Doesn't touch `backlog/pending/`.
 - Doesn't move tasks between `new/` / `wip/` / `completed/` itself — only proposes. Moves are done by `/issue`, `/checkpoint`, `/fix-issue`.
