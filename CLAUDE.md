@@ -97,8 +97,8 @@ A recurring pattern that needs to be broken: a run produces a result → the con
 
 ## Journey log — JOURNEY.md (mandatory to maintain)
 
-`~/projects/archcheck-journal/JOURNEY.md` — a living human-in-the-loop log of **findings, dead ends, and reversals**
-(the body of a future article). It lives in the PRIVATE companion repo
+`~/projects/archcheck-journal/JOURNEY.md` — a living human-in-the-loop log of **findings, dead ends, and reversals**.
+It lives in the PRIVATE companion repo
 [blurman-ai/archcheck-journal](https://github.com/blurman-ai/archcheck-journal) (moved out of the
 public repo 2026-07-02, task #167, together with `milestones.md`, `dup_band_70_80.md`, `analysis/`);
 after appending, commit+push in that repo — parallel agents rely on git as the collision safety net.

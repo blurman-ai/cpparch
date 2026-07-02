@@ -31,9 +31,8 @@ add_executable(archcheck_tests
    # the shipped archcheck_core library (#084). Compiled straight into the tests.
    ${CMAKE_SOURCE_DIR}/src/scan/duplication/fp_corpus_eval.cpp
    duplication_fp_corpus_eval_test.cpp
-   # duplication_vmecpp_test.cpp / duplication_all_projects_test.cpp — research
-   # harnesses that read hardcoded local corpus paths (sandbox/, drift_repos/);
-   # not hermetic, cannot run on CI. Build/run manually when the corpora exist.
+   # The vmecpp / all-projects research harnesses (non-hermetic, local corpus paths)
+   # moved to the private archcheck-journal companion repo (#167), research_tests/.
    duplication_synthetic_fp_test.cpp
    duplication_qt_slots_test.cpp
    duplication_qt_p06_test.cpp

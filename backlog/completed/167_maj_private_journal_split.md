@@ -23,7 +23,7 @@ public precision claims). A private companion repo (e.g. `blurman-ai/archcheck-j
 receives the internal narrative and heavy research bulk:
 
 - `docs/JOURNEY.md` (212 KB, contains deliberate verbatim Russian author quotes) — the
-  raw material of the future article; git-versioned because parallel agents append to it
+  raw narrative material; git-versioned because parallel agents append to it
   (2026-07-02 proved git is the collision safety net).
 - `docs/milestones.md` (46 KB), root `dup_band_70_80.md` (135 KB).
 - `analysis/`, `sandbox/` trees (experiments/ is already mostly gitignored — audit what

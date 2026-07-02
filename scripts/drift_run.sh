@@ -19,12 +19,12 @@ cd "$repo"
 # Before revision: clean, checkout, scan baseline
 git clean -fdx "$sub" >/dev/null
 git checkout -f "$before" -- "$sub"
-~/projects/cpparch/build/debug/src/archcheck --save-graph-baseline "/tmp/drift_${label}_base.json" "$repo/$sub" 2>&1 | tail -1
+"$(dirname "$0")/../build/debug/src/archcheck" --save-graph-baseline "/tmp/drift_${label}_base.json" "$repo/$sub" 2>&1 | tail -1
 
 # After revision: clean, checkout, scan and report drift
 git clean -fdx "$sub" >/dev/null
 git checkout -f "$after" -- "$sub"
-~/projects/cpparch/build/debug/src/archcheck --drift-baseline "/tmp/drift_${label}_base.json" "$repo/$sub" > "/tmp/drift_${label}_drift.txt" 2>&1 || true
+"$(dirname "$0")/../build/debug/src/archcheck" --drift-baseline "/tmp/drift_${label}_base.json" "$repo/$sub" > "/tmp/drift_${label}_drift.txt" 2>&1 || true
 
 echo "=== $label ==="
 grep -E 'DRIFT' "/tmp/drift_${label}_drift.txt" | head -20 || true

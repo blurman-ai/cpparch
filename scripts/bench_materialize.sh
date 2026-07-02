@@ -21,7 +21,7 @@ set -u  # no -e: we want the script to continue past one bad method
 
 REPO=${1:?usage: $0 <repo> <ref> [archcheck-binary]}
 REF=${2:?usage: $0 <repo> <ref> [archcheck-binary]}
-ARCHCHECK=${3:-~/projects/cpparch/build/release/src/archcheck}
+ARCHCHECK=${3:-"$(dirname "$0")/../build/release/src/archcheck"}
 
 if [[ ! -d "$REPO/.git" ]]; then
    echo "error: $REPO is not a git repository" >&2
