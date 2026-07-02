@@ -89,6 +89,22 @@ planned for the next phase** (see [docs/ROADMAP.md](docs/ROADMAP.md)); until the
 platforms build from source — `cmake -B build -G Ninja && cmake --build build`
 (C++20 compiler + CMake 3.18+; see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
+### Docker
+
+A container image is published to GHCR on every release, based on `alpine` (not `scratch`)
+because `--diff` fork/execs `git` at runtime — see [Dockerfile](Dockerfile) for the reasoning.
+
+```bash
+# Whole-tree check
+docker run --rm -v "$PWD:/work" ghcr.io/blurman-ai/archcheck:0.1.5 .
+
+# --diff needs the git history, so mount the full checkout (.git included)
+docker run --rm -v "$PWD:/work" ghcr.io/blurman-ai/archcheck:0.1.5 --diff origin/main..HEAD .
+```
+
+`safe.directory` is pre-configured system-wide in the image, so a bind-mounted repo owned by a
+different host uid works without extra flags.
+
 ---
 
 ## Quick start
@@ -145,7 +161,7 @@ These thresholds apply automatically without a config file. Override any via the
 |-----------|---------------|------------------|
 | include chain length | `10` | `Lakos.ChainLength` |
 | god-header fan-in | `50` | `Lakos.GodHeader` |
-| project source extensions | `.c .cc .cpp .cxx .h .hh .hpp .hxx .ipp .tpp .inl .inc` | scan |
+| project source extensions | `.c .C .cc .cpp .cxx .h .hh .hpp .hxx .ipp .tpp .inl .inc` | scan |
 | header extensions | `.h .hh .hpp .hxx .ipp .tpp .inl .inc` | scan |
 
 ### Example output

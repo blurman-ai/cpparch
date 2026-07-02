@@ -10,6 +10,9 @@
 #                                                    glibc dep, runs anywhere incl
 #                                                    Astra 1.7 / Debian 10 / RHEL 8
 #
+# Also builds and pushes ghcr.io/blurman-ai/archcheck:<version>/:latest (job
+# `docker`, see ./Dockerfile) from the static asset — same binary, no rebuild.
+#
 # To dry-run before a real release: push a throwaway tag (e.g. v0.0.0-rc1),
 # inspect the prerelease, then delete the tag + release.
 name: Release
@@ -29,6 +32,8 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.meta.outputs.version }}
+      core: ${{ steps.meta.outputs.core }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
       asset: ${{ steps.meta.outputs.asset }}
       asset_static: ${{ steps.meta.outputs.asset_static }}
     steps:
@@ -178,6 +183,58 @@ jobs:
             --notes "$notes" \
             $prerelease_flag \
             "$asset" "$asset.sha256" "$asset_static" "$asset_static.sha256"
+
+  docker:
+    name: Build & push Docker image (GHCR)
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read                   # checkout the Dockerfile
+      packages: write                  # push to ghcr.io
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Fetch built assets
+        uses: actions/download-artifact@v7
+        with:
+          name: release-asset
+
+      - name: Extract static binary into the Docker build context
+        env:
+          ASSET_STATIC: ${{ needs.build.outputs.asset_static }}
+        run: |
+          sha256sum -c "$ASSET_STATIC.sha256"
+          tar -xzf "$ASSET_STATIC" archcheck   # only the binary, next to the Dockerfile
+          chmod 0755 archcheck
+
+      - name: Build and push
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+          IMAGE: ghcr.io/${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          docker build --build-arg VERSION="$VERSION" -t "$IMAGE:$VERSION" .
+          docker push "$IMAGE:$VERSION"
+          # :latest tracks real releases only — an rc dry-run tag must not clobber it.
+          if [ "$PRERELEASE" = "false" ]; then
+            docker tag "$IMAGE:$VERSION" "$IMAGE:latest"
+            docker push "$IMAGE:latest"
+          fi
+
+      - name: Smoke test pushed image
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          CORE: ${{ needs.build.outputs.core }}
+          IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          got="$(docker run --rm "$IMAGE:$VERSION" --version)"
+          want="archcheck $CORE"
+          echo "$got (expect: $want)"
+          test "$got" = "$want"
 
   smoke:
     name: Smoke test released assets (clean runner)
