@@ -44,8 +44,10 @@ inline const ClassificationExtras &classificationExtras() { return classificatio
 inline void setClassificationExtras(ClassificationExtras extras) { classificationExtrasStorage() = std::move(extras); }
 
 // Project source + header extensions recognised by the v0.1 scan.
-inline constexpr std::array<std::string_view, 12> kProjectExtensions = {
-    ".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".ipp", ".tpp", ".inl", ".inc",
+// `.C` (uppercase) is the traditional GCC spelling for C++ source, distinct from
+// `.c` on case-sensitive filesystems (#131 corpus: 5 rows unscanned without it).
+inline constexpr std::array<std::string_view, 13> kProjectExtensions = {
+    ".c", ".C", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".ipp", ".tpp", ".inl", ".inc",
 };
 
 // Header-only subset; text-scan rules (SF.7, SF.8) apply only to these.

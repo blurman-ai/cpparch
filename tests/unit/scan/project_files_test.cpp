@@ -91,11 +91,23 @@ TEST_CASE("discover_files collects files with project extensions", "[scan][proje
 TEST_CASE("discover_files accepts the full v0.1 extension set", "[scan][project_files]")
 {
   auto tree = make_tree("allext");
-  for (auto e : {"a.c", "a.cc", "a.cpp", "a.cxx", "a.h", "a.hh", "a.hpp", "a.hxx", "a.ipp", "a.tpp", "a.inl", "a.inc"})
+  for (auto e :
+       {"a.c", "a.C", "a.cc", "a.cpp", "a.cxx", "a.h", "a.hh", "a.hpp", "a.hxx", "a.ipp", "a.tpp", "a.inl", "a.inc"})
   {
     touch(tree.root / e);
   }
-  REQUIRE(discoverFiles(tree.root).size() == 12);
+  REQUIRE(discoverFiles(tree.root).size() == 13);
+}
+
+TEST_CASE("discover_files recognises uppercase .C as C++ source (#131)", "[scan][project_files]")
+{
+  // GCC convention: `.C` (uppercase) is C++ source, distinct from `.c` on
+  // case-sensitive filesystems — corpus repos using it were silently unscanned.
+  auto tree = make_tree("uppercase_c");
+  touch(tree.root / "Widget.C");
+  const auto paths = paths_of(discoverFiles(tree.root));
+  REQUIRE(paths.size() == 1);
+  REQUIRE(contains(paths, "Widget.C"));
 }
 
 TEST_CASE("discover_files skips excluded directories", "[scan][project_files]")
