@@ -295,6 +295,42 @@ history, not by text similarity; this signal is separated from FP classification
 and is accounted for in #078 (drift-gate on co-change). Here we classify only the
 **form** (is-it-duplicate), not the **priority** (how-bad).
 
+### 5.y Accidental clones (API-protocol / "composition") — researched and closed (#159)
+
+The "same call choreography, different domain arguments" class the user spotted in #158
+(`helper1(1,2,3); helper2(4,5);` vs `helper1(5,6,7); helper2(11,12);`) has an established
+literature identity — record it so nobody re-derives the terminology:
+
+- **"Accidental clones" / "clones by accident"** — *"code fragments that are similar due
+  to the precise protocols they must use when interacting with a given API or set of
+  libraries"* (Al-Ekram, Kapser, Holt, Godfrey, ISESE 2005; 69% of cross-system clone
+  pairs in their study).
+- An instance of the **Templating → API/Library Protocols** cloning pattern; manual
+  raters classify it **"incidental"** — *"cannot be abstracted further... parameters
+  changed in a non-systematic way"* (Kapser & Godfrey, EMSE 2008). Roy & Cordy's survey
+  (TR 2007-541 §7.5.2) lists "consecutive method invocations" as a canonical
+  frequent-FP class.
+- Syntactically these are ordinary Type-2/Type-3 clones — the taxonomy encodes
+  similarity, not origin, which is WHY token-shape heuristics cannot separate them.
+
+**Empirical verdict (2026-07-02, two independent probe implementations):** no shape
+signal separates this class from real copy-paste on the labelled corpus. Four
+literature-backed signals all null: composition-percent (1:1 TP trade at every
+threshold), callee ubiquity (wrong sign — real copy-paste uses ubiquitous calls),
+argument-mapping systematicity (Baker's p-match; FP ≈ TP), cross-repo sequence 3-gram
+frequency (both classes repo-local). Kapser & Godfrey's own data explains it:
+parameterized clones ("same shape, different identifiers") were harmful 71–76% of the
+time — "different args" *selects* true positives.
+
+**Treatment:** no suppression, ever (measured collateral ≥1:1). The shipped gates
+(token diversity, statement floor, switch-skeleton) already implement the practical
+state of the art (CCFinderX's RNR/TKS thresholds) and keep most clean incidental cases
+(connect-chains, `o.Set(...)` population, registration tables) out of the output.
+Future v0.2 candidate: an advisory `incidental/api-protocol` **tag** (down-rank on high
+call-density + high recomposed-ratio) — presentation, not precision. The real
+discriminator is origin/evolution (copy events, inconsistent divergence in `--diff`),
+not snapshot shape. Full analysis: `backlog/completed/159_maj_composition_clone_research.md`.
+
 ## 6. Key decision: selective normalization
 
 Instead of post-hoc filtering of noise with thresholds — **do not erase the
