@@ -1,7 +1,9 @@
 # [RELEASE] Public launch plan — packaging, hygiene, evidence, announcement
 
 **Created:** 2026-07-02
-**Status:** new (phase 0 hygiene items executed 2026-07-02, see below)
+**Status:** wip — Phase 0 done (9/9), Phase 1 packaging done (Action + Docker shipped, tap
+deferred to #166), Phase 2 evidence done (findings + post drafted). Remaining = Phase 3
+announcement, which is the user's to execute. Checkpoint 2026-07-02 below.
 **Module:** RELEASE / DOCS / CI
 **Priority:** major
 **Complexity:** L (multi-phase, mostly S/M items)
@@ -10,6 +12,57 @@
 #127/#131 applicability sign-off (vendored/generated noise tail) — done, residual → #153
 **Related:** #138 (release-readiness sync), #142 (prebuilt binary), #156 (demo repo),
 #150 (EN translation), #003 (name check)
+
+## Checkpoint — 2026-07-02
+
+### Done (agent-built, hand-verified, shipped)
+
+- **Phase 0 (repo hygiene) — 9/9.** Community files, rename, history scrub (#167), and the
+  last open item — a README demo visual: animated `--diff` GIF (`docs/assets/`, verbatim on
+  the #156 demo repo).
+- **Readiness gate — closed.** Evidence base #160/#161/#162 done; #131 vendored/generated
+  sign-off done (→ `completed/`, residual → #153); first-run sanity on 5 famous repos
+  (fmt, spdlog, nlohmann/json, rocksdb, terminal) — caught + fixed 2 classification bugs
+  (fmt self-exclusion, `dep/` container) and a `.C` extension gap.
+- **Phase 1 packaging:**
+  - GitHub Action → **public** [archcheck-action](https://github.com/blurman-ai/archcheck-action)
+    (`v1`/`v1.0.0`). Composite: pinned+checksummed static binary, `--diff`, step summary,
+    sticky comment (github-script, no 3rd-party dep).
+  - Docker/GHCR → **in `release.yml`** (`docker` job + `Dockerfile`); alpine (git needed for
+    `--diff`), `:latest` on real releases only.
+  - Homebrew tap → **deferred to #166** (macOS binary); formula sha256-verified, staged in
+    private companion `launch_drafts/homebrew-archcheck-ready/`.
+- **Phase 2 evidence:** 3 SF.9 cycle findings in `experiments/showcase/010–012` (folly,
+  rocksdb, terminal — both directions verified from git objects, honest counter-arguments);
+  ripgrep-shaped launch post drafted in companion `launch_drafts/launch_post_draft.md`.
+- **Authorship:** LICENSE copyright set to `Sergey Blekher` across main repo + all artifacts
+  (#167 removed personal material, not authorship).
+
+### In progress / needs the user (not delegable)
+
+- **Launch post review** — draft ready in the companion; awaits the user's read/edits before
+  it's published anywhere.
+- **Action → Marketplace** — one UI step (create a v1.0.0 GitHub Release, then "Publish this
+  Action"). Instant, no review.
+- **GHCR package visibility** — after the first tagged release, make the auto-created package
+  public (one-time, GitHub UI; can't be scripted).
+- **First real Docker build** — no local docker here; the alpine image build is validated by
+  the first tag push (the static binary it wraps was exercised directly).
+
+### Remaining (Phase 3 — the user posts; announcements are outward-facing)
+
+r/cpp (framing: "what it found on real projects") → isocpp.org + Meeting C++ → Show HN →
+awesome-cpp / lobste.rs / Discord / X-LinkedIn. Phase 4 (respond fast, serial findings posts,
+CppCast, homebrew-core at stars threshold) follows.
+
+### Commits (this session)
+
+`165327f` fix(scan) fmt self-exclusion · `9449bf3` docs(process) CHANGELOG/ROADMAP sync ·
+`4c30629` fix(scan) `.C` extension · `e568b1d` docs(tasks) #131 close · `05a25b0` docs(readme)
+demo GIF · `9ade7ff` feat(build) GHCR image · `74d93c4` docs(license) copyright · `4735bdb`
+docs(tasks) #163 Phase 1/2 progress. Companion: `55328df` launch drafts.
+
+---
 
 ## Context — where the project actually stands
 
