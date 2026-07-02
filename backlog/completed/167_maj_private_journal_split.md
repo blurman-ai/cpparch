@@ -1,8 +1,13 @@
 # [RELEASE] Split internal journal + research bulk into a private companion repo
 
 **Created:** 2026-07-02
-**Status:** new — decision taken 2026-07-02 (#163 Phase 0): option (b), journal + heavy
-internals move to a private companion repo before the announcement.
+**Status:** done 2026-07-02 — executed same day: private repo
+[blurman-ai/archcheck-journal](https://github.com/blurman-ai/archcheck-journal) created and
+pushed (b43b68f); JOURNEY.md, milestones.md, dup_band_70_80.md, analysis/ moved
+(byte-identity verified before removal); public references + CLAUDE.md + skills + memory
+updated (public commit 9dfc9eb). Symlinks were already gitignored — left local. History
+NOT scrubbed (explicit decision). Remaining smoke-test: next session's /checkpoint must
+land in the companion repo.
 **Module:** RELEASE / DOCS
 **Priority:** major
 **Complexity:** M
